@@ -3,13 +3,13 @@
 const LevelMapPage = () => {
   const navigate = useNavigate();
 
-  const handlevel = () => {
+  const handleLevel = () => {
     navigate('/game-map/play-game'); // Route to game Map
   };
   return (
     <>
       <div className="gameLevelHolder grid grid-cols-4">
-        <button onClick={handlevel}>level 1</button>
+        <button onClick={handleLevel}>level 1</button>
         <button>level 2</button>
         <button>level 3</button>
         <button>level 4</button>
