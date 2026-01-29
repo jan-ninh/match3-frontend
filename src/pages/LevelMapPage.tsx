@@ -1,2 +1,24 @@
-﻿export {};
+﻿import Navbar from '../components/Navbar';
 
+const GameMapPage = () => {
+  return (
+    <>
+      <Navbar></Navbar>
+      <div className="gameLevelHolder grid grid-cols-4">
+        <button>level 1</button>
+        <button>level 2</button>
+        <button>level 3</button>
+        <button>level 4</button>
+        <button>level 5</button>
+        <button>level 6</button>
+        <button>level 7</button>
+        <button>level 8</button>
+        <button>level 9</button>
+        <button>level 10</button>
+        <button>level 11</button>
+        <button>level 12</button>
+      </div>
+    </>
+  );
+};
+export default GameMapPage;
