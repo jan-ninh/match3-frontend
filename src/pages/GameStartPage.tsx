@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { apiRequest } from '@/services/apiClient';
 import { useState } from 'react';
+import { Button } from '@/components';
 
 type HealthResponse = {
   ok: boolean;
@@ -34,16 +35,21 @@ const GameStartPage = () => {
 
   return (
     <>
-      <h1>Match-3</h1>
+      <h1 className="text-3xl font-bold mb-4 text-center p-4">Match-3</h1>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="flex flex-col space-y-2 items-center">
+          <Button onClick={handleStart} label="PLAY" />
+          <Button onClick={handleAboutUs} label="ABOUT US" />
+          <Button onClick={handleQuit} label="QUIT" />
+        </div>
+      </div>
 
-      <button onClick={handleStart}>Start</button>
-      <button onClick={handleAboutUs}>About us</button>
-      <button onClick={handleQuit}>Quit</button>
-
-      <hr />
-
-      <button onClick={checkHealth}>Check Backend Health</button>
-      <p>{health}</p>
+      <div className="mt-4 text-sm text-gray-400">
+        <button onClick={checkHealth} className="underline hover:text-white transition">
+          Check Backend Health
+        </button>
+        <p>{health}</p>
+      </div>
     </>
   );
 };
