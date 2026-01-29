@@ -1,26 +1,37 @@
-import { useState } from 'react';
-
-import viteLogo from '/vite.svg';
-import './App.css';
+import { Route, Routes } from 'react-router-dom';
+import {
+  GameStartPage,
+  AboutUs,
+  LevelMapPage,
+  LeaderboardPage,
+  ProfilePage,
+  GameplayPage,
+} from '@/pages';
+import MainLayout from './layouts/MainLayout';
+import GameLayout from './layouts/GameLayout';
 
 function App() {
-  const [count, setCount] = useState(0);
-
   return (
     <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>count is {count}</button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">Click on the Vite and React logos to learn more</p>
+      <Routes>
+        <Route path="/" element={<MainLayout />}>
+          <Route index element={<GameStartPage />} />
+          <Route path="about-us" element={<AboutUs />} />
+          <Route path="game-map/play-game" element={<GameplayPage />} />
+          {/* parent route */}
+          <Route path="game-map" element={<GameLayout />}>
+            {/* children routes */}
+            <Route index element={<LevelMapPage />} />
+
+            <Route path="setting" element={<LevelMapPage />} />
+            <Route path="profile" element={<ProfilePage />} />
+
+            <Route path="leaderboard" element={<LeaderboardPage />} />
+            <Route path="login" element={<LevelMapPage />} />
+            <Route path="logout" element={<LevelMapPage />} />
+          </Route>
+        </Route>
+      </Routes>
     </>
   );
 }

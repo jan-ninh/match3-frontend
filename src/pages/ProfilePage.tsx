@@ -1,17 +1,17 @@
-import Avatar from '../components/Avatar';
-import Badge from '../components/Badge';
+import { Avatar, Badge, Navbar } from '@/components';
 
 const ProfilePage = () => {
   return (
     <>
       <div>
-        <Avatar></Avatar>
+        <Navbar />
+        <Avatar />
         <p>Name</p>
       </div>
       <div>info of user game</div>
       <div>progressbar</div>
       <div>
-        <Badge></Badge>
+        <Badge />
       </div>
     </>
   );

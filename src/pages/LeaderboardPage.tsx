@@ -1,15 +1,16 @@
-import Avatar from '../components/Avatar';
+import { Avatar } from '@/components';
 
-const GameStartPage = () => {
+const LeaderboardPage = () => {
   return (
     <>
       <ul>
         Leader board
         <li>
-          <Avatar></Avatar>1st
+          <Avatar />
+          1st
         </li>
       </ul>
     </>
   );
 };
-export default GameStartPage;
+export default LeaderboardPage;

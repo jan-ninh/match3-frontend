@@ -1,11 +1,15 @@
-﻿import Navbar from '../components/Navbar';
+﻿import { useNavigate } from 'react-router-dom';
 
-const GameMapPage = () => {
+const LevelMapPage = () => {
+  const navigate = useNavigate();
+
+  const handlevel = () => {
+    navigate('/game-map/play-game'); // Route to game Map
+  };
   return (
     <>
-      <Navbar></Navbar>
       <div className="gameLevelHolder grid grid-cols-4">
-        <button>level 1</button>
+        <button onClick={handlevel}>level 1</button>
         <button>level 2</button>
         <button>level 3</button>
         <button>level 4</button>
@@ -21,4 +25,4 @@ const GameMapPage = () => {
     </>
   );
 };
-export default GameMapPage;
+export default LevelMapPage;
