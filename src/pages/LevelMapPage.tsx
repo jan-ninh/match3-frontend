@@ -1,28 +1,52 @@
-﻿import { useNavigate } from 'react-router-dom';
+﻿import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { getProgress, unlockLevel } from '@/services/progress/progressActions';
+import type { Progress, LevelId } from '@/services/progress/ProgressStore';
 
 const LevelMapPage = () => {
   const navigate = useNavigate();
+  const [progress, setProgress] = useState<Progress | null>(null);
 
-  const handleLevel = () => {
-    navigate('/game-map/play-game'); // Route to game Map
+  useEffect(() => {
+    void (async () => {
+      const p = await getProgress();
+      setProgress(p);
+    })();
+  }, []);
+
+  // später: navigate(`/game-map/play-game?level=${level}`) oder route param
+  const handleLevel = (level: LevelId) => {
+    navigate(`/game-map/play-game?level=${level}`);
   };
+
+  const unlockLevel2 = async () => {
+    const next = await unlockLevel(2);
+    setProgress(next);
+  };
+
+  const unlocked = new Set(progress?.unlockedLevels ?? []);
+
   return (
     <>
-      <div className="gameLevelHolder grid grid-cols-4">
-        <button onClick={handleLevel}>level 1</button>
-        <button>level 2</button>
-        <button>level 3</button>
-        <button>level 4</button>
-        <button>level 5</button>
-        <button>level 6</button>
-        <button>level 7</button>
-        <button>level 8</button>
-        <button>level 9</button>
-        <button>level 10</button>
-        <button>level 11</button>
-        <button>level 12</button>
+      <h2>Level Map</h2>
+
+      <button onClick={unlockLevel2} disabled={!progress}>
+        Unlock Level 2 (test)
+      </button>
+
+      <div className="gameLevelHolder grid grid-cols-4 gap-2 mt-4">
+        {Array.from({ length: 12 }, (_, i) => i + 1).map((level) => {
+          const isUnlocked = unlocked.has(level);
+
+          return (
+            <button key={level} onClick={() => handleLevel(level)} disabled={!isUnlocked}>
+              level {level} {isUnlocked ? '' : '🔒'}
+            </button>
+          );
+        })}
       </div>
     </>
   );
 };
+
 export default LevelMapPage;
