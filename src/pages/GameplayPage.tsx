@@ -1,4 +1,4 @@
-﻿import GameContainer from '../components/GameContainer';
+﻿import { GameContainer } from '@/components';
 
 const GameplayPage = () => {
   return (

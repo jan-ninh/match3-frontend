@@ -1,6 +1,6 @@
-﻿import Navbar from '../components/Navbar';
+﻿import { Navbar } from '@/components';
 
-const GameMapPage = () => {
+const LevelMapPage = () => {
   return (
     <>
       <Navbar></Navbar>
@@ -21,4 +21,4 @@ const GameMapPage = () => {
     </>
   );
 };
-export default GameMapPage;
+export default LevelMapPage;
