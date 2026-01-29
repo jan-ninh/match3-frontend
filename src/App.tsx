@@ -1,6 +1,14 @@
 import { Route, Routes } from 'react-router-dom';
-import { GameStartPage, AboutUs, LevelMapPage } from '@/pages';
+import {
+  GameStartPage,
+  AboutUs,
+  LevelMapPage,
+  LeaderboardPage,
+  ProfilePage,
+  GameplayPage,
+} from '@/pages';
 import MainLayout from './layouts/MainLayout';
+import GameLayout from './layouts/GameLayout';
 
 function App() {
   return (
@@ -8,9 +16,20 @@ function App() {
       <Routes>
         <Route path="/" element={<MainLayout />}>
           <Route index element={<GameStartPage />} />
-          <Route path="game-map" element={<LevelMapPage />} />
           <Route path="about-us" element={<AboutUs />} />
-          <Route path="/" element={<GameStartPage />} />
+          <Route path="game-map/play-game" element={<GameplayPage />} />
+          {/* parent route */}
+          <Route path="game-map" element={<GameLayout />}>
+            {/* children routes */}
+            <Route index element={<LevelMapPage />} />
+
+            <Route path="setting" element={<LevelMapPage />} />
+            <Route path="profile" element={<ProfilePage />} />
+
+            <Route path="leaderboard" element={<LeaderboardPage />} />
+            <Route path="login" element={<LevelMapPage />} />
+            <Route path="logout" element={<LevelMapPage />} />
+          </Route>
         </Route>
       </Routes>
     </>

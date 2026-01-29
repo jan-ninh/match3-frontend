@@ -10,7 +10,7 @@ const GameplayPage = () => {
       </div>
 
       <div className="palyboardHolder">
-        <GameContainer></GameContainer>
+        <GameContainer />
       </div>
       <div>
         <button>setting</button>
