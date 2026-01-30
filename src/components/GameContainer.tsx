@@ -1,6 +1,6 @@
 ﻿import React from 'react';
 import Header from './header/Header';
-import Grid from './Grid';
+import Grid from './grid/Grid';
 
 const initialGrid = [
   ['#E5E7EB', '#D1D5DB', '#9CA3AF', '#6B7280', '#E5E7EB', '#D1D5DB', '#9CA3AF', '#6B7280'],
