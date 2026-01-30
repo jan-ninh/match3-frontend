@@ -1,10 +1,9 @@
-import { Avatar, Badge, Navbar } from '@/components';
+import { Avatar, Badge } from '@/components';
 
 const ProfilePage = () => {
   return (
     <>
       <div>
-        <Navbar />
         <Avatar />
         <p>Name</p>
       </div>

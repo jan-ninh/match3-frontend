@@ -1,0 +1,14 @@
+# This file defines how Git should handle line endings for different file types.
+# It ensures consistent LF endings for code files and prevents CRLF-related warnings,
+# while keeping SVG files untouched.
+
+# Keep LF endings for all JS, TS, JSX, TSX, CSS, and HTML files
+*.js    text eol=lf
+*.ts    text eol=lf
+*.jsx   text eol=lf
+*.tsx   text eol=lf
+*.css   text eol=lf
+*.html  text eol=lf
+
+# Leave SVG files as-is
+*.svg   text eol=lf
