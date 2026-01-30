@@ -1,5 +1,5 @@
 import Modal from '@/components/Modal';
-import type { PowerId } from './OverlayProvider';
+import type { PowerId } from './overlayContext';
 
 type Props = {
   open: boolean;
