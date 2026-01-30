@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { getProgress, unlockLevel } from '@/services/progress/progressActions';
 import type { Progress, LevelId } from '@/services/progress/ProgressStore';
 

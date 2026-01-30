@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { apiRequest } from '@/services/apiClient';
 import { useState } from 'react';
 import { Button } from '@/components';
