@@ -1,5 +1,5 @@
 import { Suspense, lazy, useContext } from 'react';
-import { OverlayContext } from './OverlayProvider';
+import { OverlayContext } from './overlayContext';
 
 import SettingsModal from './SettingsModal';
 import WinOverlay from './WinOverlay';

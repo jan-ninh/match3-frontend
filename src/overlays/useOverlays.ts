@@ -1,5 +1,5 @@
 import { useContext } from 'react';
-import { OverlayContext } from './OverlayProvider';
+import { OverlayContext } from './overlayContext';
 
 export function useOverlays() {
   const ctx = useContext(OverlayContext);
