@@ -1,6 +1,9 @@
 ﻿import { GameContainer } from '@/components';
+import { useOverlays } from '@/overlays';
 
 const GameplayPage = () => {
+  const { openSettings, openPowerChoice, openWin, openLose } = useOverlays();
+
   return (
     <>
       <div>
@@ -12,14 +15,26 @@ const GameplayPage = () => {
       <div className="palyboardHolder">
         <GameContainer />
       </div>
-      <div>
-        <button>setting</button>
-        <button>tipp</button>
-        <button>Power 1</button>
-        <button>Power 2</button>
-        <button>Power 3</button>
+
+      <div className="flex gap-2 flex-wrap">
+        <button type="button" onClick={openSettings}>
+          setting
+        </button>
+
+        <button type="button" onClick={() => openPowerChoice({ title: 'Choose your Power!' })}>
+          power choice
+        </button>
+
+        {/* Debug buttons (kannst du später entfernen) */}
+        <button type="button" onClick={() => openWin(1)}>
+          debug win
+        </button>
+        <button type="button" onClick={() => openLose(1)}>
+          debug lose
+        </button>
       </div>
     </>
   );
 };
+
 export default GameplayPage;

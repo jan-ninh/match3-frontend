@@ -1,37 +1,47 @@
-﻿import { Link } from 'react-router';
+import { Link } from 'react-router';
+import { useOverlays } from '@/overlays';
 
 type NavItem = {
   label: string;
   icon: string;
   to?: string; // if exists → clickable
+  onClick?: () => void;
 };
 
-const navItems: NavItem[] = [
-  { label: 'Home', icon: '/icons/home.svg', to: '/game-map' },
-  { label: 'Login', icon: '/icons/login.svg', to: '/game-map/login' },
-  { label: 'Logout', icon: '/icons/logout.svg', to: '/game-map/logout' },
-  { label: 'Hearts', icon: '/icons/heart.svg' },
-  { label: 'Leaderboard', icon: '/icons/cup.svg', to: '/game-map/leaderboard' },
-  { label: 'Profile', icon: '/icons/user.svg', to: '/game-map/profile' },
-  { label: 'Settings', icon: '/icons/setting.svg', to: '/game-map/setting' },
-];
-
 const Navbar = () => {
+  const { openLogin, openSettings } = useOverlays();
+
+  // Define all nav items here
+  const navItems: NavItem[] = [
+    { label: 'Home', icon: '/icons/home.svg', to: '/game-map' },
+    { label: 'Login', icon: '/icons/login.svg', onClick: openLogin },
+    { label: 'Logout', icon: '/icons/logout.svg', to: '/game-map/logout' },
+    { label: 'Hearts', icon: '/icons/heart.svg' },
+    { label: 'Leaderboard', icon: '/icons/cup.svg', to: '/game-map/leaderboard' },
+    { label: 'Profile', icon: '/icons/user.svg', to: '/game-map/profile' },
+    { label: 'Settings', icon: '/icons/setting.svg', onClick: openSettings },
+  ];
   return (
     <nav className="flex justify-between p-8">
       <h1>Match-3</h1>
       <ul className="flex justify-end space-x-6 items-center ">
-        {navItems.map(({ label, icon, to }) => (
+        {navItems.map(({ label, icon, to, onClick }) => (
           <li key={label}>
-            {to ? (
-              <Link to={to} className="flex flex-col items-center hover:bg-blue-300 transition">
-                <img src={icon} alt={label} className="w-9 h-9" />
-              </Link>
-            ) : (
-              <span className="flex flex-col items-center cursor-default">
-                <img src={icon} alt={label} className="w-9 h-9" />
-              </span>
-            )}
+            {/* Use Link for all items */}
+            <Link
+              to={to || '#'} // if no 'to', use '#' so Link is valid
+              onClick={(e) => {
+                if (onClick) {
+                  // If there's no 'to', prevent default navigation to keep user on page
+                  if (!to) e.preventDefault();
+                  onClick(); // open modal or run function
+                }
+              }}
+              className="flex flex-col items-center p-1 hover:bg-blue-300 transition-colors rounded"
+            >
+              {/* Display icon */}
+              <img src={icon} alt={label} className="w-9 h-9" />
+            </Link>
           </li>
         ))}
       </ul>
