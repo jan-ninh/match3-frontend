@@ -1,10 +1,8 @@
-import React from 'react';
-
 interface MovesDisplayProps {
   moves: number;
 }
 
-const MovesDisplay: React.FC<MovesDisplayProps> = ({ moves }) => {
+const MovesDisplay = ({ moves }: MovesDisplayProps) => {
   return (
     <>
       <div className="flex flex-col items-center justify-center relative">

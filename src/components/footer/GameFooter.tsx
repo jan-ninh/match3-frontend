@@ -7,7 +7,7 @@ interface GameFooterProps {
   openLose: (level: number) => void;
 }
 
-const GameFooter: React.FC<GameFooterProps> = ({ openSettings, openPowerChoice, openWin, openLose }) => {
+const GameFooter = ({ openSettings, openPowerChoice, openWin, openLose }: GameFooterProps) => {
   const actions = footerActions(openSettings, openPowerChoice, openWin, openLose);
 
   return (

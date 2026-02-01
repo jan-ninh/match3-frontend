@@ -1,5 +1,4 @@
-﻿import React from 'react';
-import Teil from './Teil';
+﻿import Teil from './Teil';
 
 interface GridBoardProps {
   rows: number;
@@ -8,7 +7,7 @@ interface GridBoardProps {
   onCellClick?: (row: number, col: number) => void; // optional click handler
 }
 
-const GridBoard: React.FC<GridBoardProps> = ({ rows, cols, gridData, onCellClick }) => {
+const GridBoard = ({ rows, cols, gridData, onCellClick }: GridBoardProps) => {
   return (
     <div className="flex justify-center">
       <div

@@ -1,4 +1,3 @@
-import React from 'react';
 import TimeDisplay from './TimeDisplay';
 import MovesDisplay from './MovesDisplay';
 import TargetDisplay from './TargetDisplay';
@@ -9,7 +8,7 @@ export interface HeaderProps {
   targetLabel?: string;
 }
 
-const Header: React.FC<HeaderProps> = ({ time, moves, targetLabel }) => {
+const Header = ({ time, moves, targetLabel }: HeaderProps) => {
   return (
     <div className="w-full flex justify-between items-center ">
       <TimeDisplay time={time} />
