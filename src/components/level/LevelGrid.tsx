@@ -28,7 +28,17 @@ const LevelGrid = ({ progress, onSelect }: LevelGridProps) => {
         */
         const isUnlocked = level === 1 || unlockedSet.has(level) || completedSet.has(level - 1);
 
-        return <LevelCard key={level} level={level} isLocked={!isUnlocked} onClick={() => onSelect(level)} />;
+        return (
+          <LevelCard
+            key={level}
+            level={level}
+            isLocked={!isUnlocked}
+            onClick={() => {
+              // Only trigger onSelect if unlocked
+              if (isUnlocked) onSelect(level);
+            }}
+          />
+        );
       })}
     </div>
   );
