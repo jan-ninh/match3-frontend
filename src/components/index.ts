@@ -10,3 +10,5 @@ export { default as TimeDisplay } from './header/TimeDisplay';
 export { default as Teil } from './grid/Teil';
 export { default as Grid } from './grid/Grid';
 export { default as GameFooter } from './footer/GameFooter';
+export { default as LevelCard } from './level/LevelCard';
+export { default as LevelGrid } from './level/LevelGrid';
