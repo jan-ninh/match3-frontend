@@ -1,5 +1,4 @@
-﻿import React from 'react';
-import Teil from './Teil';
+﻿import Teil from './Teil';
 
 interface GridBoardProps {
   rows: number;

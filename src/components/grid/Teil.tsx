@@ -1,6 +1,4 @@
-﻿import React from 'react';
-
-interface TeilProps {
+﻿interface TeilProps {
   color: string; // background color
   onClick?: () => void; // optional click handler
 }
