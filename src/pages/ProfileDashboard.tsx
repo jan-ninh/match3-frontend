@@ -2,7 +2,7 @@ import { ProfileHeader, StatsGrid, ProgressBar, BadgeGrid, Avatar } from '@/comp
 import badges from '../data/badges';
 
 const ProfileDashboard = () => (
-  <div className="m-4 w-lg mx-auto flex flex-col items-center space-y-4">
+  <div className="m-4 max-w-lg mx-auto flex flex-col items-center space-y-4">
     <ProfileHeader username="Elsa" level={12}>
       <Avatar size={124} />
     </ProfileHeader>
