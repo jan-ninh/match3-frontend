@@ -1,4 +1,4 @@
-﻿import Teil from './Teil';
+﻿import Tile from './Tile';
 
 interface GridBoardProps {
   rows: number;
@@ -19,7 +19,7 @@ const GridBoard = ({ rows, cols, gridData, onCellClick }: GridBoardProps) => {
         }}
       >
         {gridData.map((row, rowIndex) =>
-          row.map((color, colIndex) => <Teil key={`${rowIndex}-${colIndex}`} color={color} onClick={() => onCellClick?.(rowIndex, colIndex)} />),
+          row.map((color, colIndex) => <Tile key={`${rowIndex}-${colIndex}`} color={color} onClick={() => onCellClick?.(rowIndex, colIndex)} />),
         )}
       </div>
     </div>

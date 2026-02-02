@@ -7,7 +7,7 @@ export { default as Header } from './header/Header';
 export { default as MovesDisplay } from './header/MovesDisplay';
 export { default as TargetDisplay } from './header/TargetDisplay';
 export { default as TimeDisplay } from './header/TimeDisplay';
-export { default as Teil } from './grid/Teil';
+export { default as Tile } from './grid/Tile';
 export { default as Grid } from './grid/Grid';
 export { default as GameFooter } from './footer/GameFooter';
 export { default as LevelCard } from './level/LevelCard';
