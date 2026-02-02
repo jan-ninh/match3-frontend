@@ -1,4 +1,4 @@
-﻿import { levelTheme } from './levelTheme';
+import { levelTheme } from './levelTheme';
 
 type Props = {
   level: number;

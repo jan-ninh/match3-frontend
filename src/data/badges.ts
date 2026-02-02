@@ -1,4 +1,4 @@
-﻿const badges = [
+const badges = [
   { id: 'bronze', label: 'Bronze Shield', icon: '/icons/badge.svg', unlocked: true },
   { id: 'silver', label: 'Silver Shield', icon: '/icons/badge.svg', unlocked: false },
   { id: 'gold', label: 'Gold Shield', icon: '/icons/badge.svg', unlocked: false },

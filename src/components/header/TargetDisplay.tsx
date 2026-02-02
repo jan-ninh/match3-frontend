@@ -1,4 +1,4 @@
-﻿type Props = { label?: string };
+type Props = { label?: string };
 
 export default function TargetDisplay({ label = 'Target' }: Props) {
   return (

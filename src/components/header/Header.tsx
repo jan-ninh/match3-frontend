@@ -1,4 +1,4 @@
-﻿import TimeDisplay from './TimeDisplay';
+import TimeDisplay from './TimeDisplay';
 import MovesDisplay from './MovesDisplay';
 import TargetDisplay from './TargetDisplay';
 

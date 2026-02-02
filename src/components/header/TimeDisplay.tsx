@@ -1,4 +1,4 @@
-﻿type Props = { time: string };
+type Props = { time: string };
 
 export default function TimeDisplay({ time }: Props) {
   return (

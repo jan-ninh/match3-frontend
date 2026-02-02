@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import Modal from '@/components/Modal';
 
 type Props = {

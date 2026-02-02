@@ -1,4 +1,4 @@
-﻿type ButtonProps = {
+type ButtonProps = {
   label: string;
   onClick?: () => void;
   className?: string;

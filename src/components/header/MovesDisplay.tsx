@@ -1,4 +1,4 @@
-﻿type Props = { moves: number };
+type Props = { moves: number };
 
 export default function MovesDisplay({ moves }: Props) {
   return (

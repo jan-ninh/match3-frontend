@@ -1,4 +1,4 @@
-﻿import { footerActions } from './footerAction';
+import { footerActions } from './footerAction';
 
 type Props = {
   openSettings: () => void;

@@ -1,4 +1,4 @@
-﻿import LevelCard from './LevelCard';
+import LevelCard from './LevelCard';
 import { levelTheme } from './levelTheme';
 import type { Progress, LevelId } from '@/services/progress/ProgressStore';
 

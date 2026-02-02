@@ -1,4 +1,4 @@
-﻿import { createContext } from 'react';
+import { createContext } from 'react';
 import type { MutableRefObject } from 'react';
 
 export type PowerId = 'power-1' | 'power-2' | 'power-3';

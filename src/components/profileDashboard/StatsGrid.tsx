@@ -1,4 +1,4 @@
-﻿import { DASHBOARD_STYLE as S } from './theme';
+import { DASHBOARD_STYLE as S } from './theme';
 
 type Stat = { label: string; value: string | number };
 type Props = { stats: Stat[] };

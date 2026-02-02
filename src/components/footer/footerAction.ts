@@ -1,4 +1,4 @@
-﻿type ActionItem = {
+type ActionItem = {
   id: string;
   icon: string;
   badge?: string;
