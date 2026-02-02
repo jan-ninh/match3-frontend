@@ -1,10 +1,8 @@
-import React from 'react';
-
 interface TimeDisplayProps {
   time: string;
 }
 
-const TimeDisplay: React.FC<TimeDisplayProps> = ({ time }) => {
+const TimeDisplay = ({ time }: TimeDisplayProps) => {
   return (
     <>
       <div className="flex flex-col items-center justify-center relative">
