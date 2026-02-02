@@ -12,3 +12,6 @@ export { default as Grid } from './grid/Grid';
 export { default as GameFooter } from './footer/GameFooter';
 export { default as LevelCard } from './level/LevelCard';
 export { default as LevelGrid } from './level/LevelGrid';
+export { default as YourPositionCard } from './leaderboard/YourPositionCard';
+export { default as PodiumCard } from './leaderboard/PodiumCard';
+export { default as RankRow } from './leaderboard/RankRow';
