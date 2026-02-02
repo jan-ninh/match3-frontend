@@ -1,6 +1,6 @@
 import { THEME_CONFIG } from './theme';
 import type { User } from '@/types';
-import Avatar from '@/components/Avatar';
+import { Avatar } from '@/components';
 
 type RankRowProps = {
   user: User;
