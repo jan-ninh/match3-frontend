@@ -1,11 +1,11 @@
-type ActionItem = {
+﻿type ActionItem = {
   id: string;
-  icon: string; // path to icon in public folder
-  badge?: string; // path to small badge icon
-  label: string; // for accessibility (ARIA)
+  icon: string;
+  badge?: string;
+  label: string;
   onClick: () => void;
-  color?: string; // optional color for customization
 };
+
 export const footerActions = (
   openSettings: () => void,
   openPowerChoice: (args: { title: string }) => void,
@@ -34,10 +34,10 @@ export const footerActions = (
     onClick: () => openLose(1),
   },
   {
-    id: 'tipp',
+    id: 'tip',
     label: 'Tip',
     icon: '/icons/key.svg',
-    onClick: () => console.log('Refresh clicked'),
+    onClick: () => console.log('Tip clicked'),
   },
   {
     id: 'settings-main',

@@ -1,19 +1,10 @@
-interface TimeDisplayProps {
-  time: string;
-}
+﻿type Props = { time: string };
 
-const TimeDisplay = ({ time }: TimeDisplayProps) => {
+export default function TimeDisplay({ time }: Props) {
   return (
-    <>
-      <div className="flex flex-col items-center justify-center relative">
-        {/* Upper span */}
-        <span className="text-xl font-bold bg-gray-200 w-16 h-8 rounded-sm shadow-md flex items-center justify-center">{time}</span>
-
-        {/* Lower span overlaps a bit under the upper span */}
-        <span className="text-xl text-center bg-gray-600 w-24 h-12 rounded-sm -mt-1 flex items-center justify-center">Time</span>
-      </div>
-    </>
+    <div className="flex flex-col items-center justify-center relative">
+      <span className="text-xl font-bold bg-gray-200 text-gray-900 w-16 h-8 rounded-sm shadow-md flex items-center justify-center">{time}</span>
+      <span className="text-xl text-center bg-gray-600 w-24 h-12 rounded-sm -mt-1 flex items-center justify-center">Time</span>
+    </div>
   );
-};
-
-export default TimeDisplay;
+}

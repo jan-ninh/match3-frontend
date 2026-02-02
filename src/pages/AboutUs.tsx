@@ -1,4 +1,3 @@
-const AboutUs = () => {
-  return <>About us</>;
-};
-export default AboutUs;
+﻿export default function AboutUs() {
+  return <div className="p-6 text-white">About us</div>;
+}

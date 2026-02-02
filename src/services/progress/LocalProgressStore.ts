@@ -1,4 +1,4 @@
-import type { Progress, ProgressStore } from './ProgressStore';
+﻿import type { Progress, ProgressStore } from './ProgressStore';
 
 const STORAGE_KEY = 'match3-progress';
 

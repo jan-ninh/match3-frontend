@@ -1,16 +1,18 @@
-import { THEME_CONFIG } from './theme';
-import type { User } from '@/types';
-type YourPositionProps = {
+﻿import type { User } from '@/types';
+
+type Props = {
   user: User;
   rank: number;
 };
 
-const YourPositionCard = ({ user, rank }: YourPositionProps) => (
-  <div className={`flex justify-between items-center ${THEME_CONFIG.borderRadius} ${THEME_CONFIG.colors.yourPositionBg} ${THEME_CONFIG.spacing} mt-4`}>
-    <span className="font-bold">{rank}</span>
-    <span>{user.name} (You)</span>
-    <span>{user.score}</span>
-  </div>
-);
-
-export default YourPositionCard;
+export default function YourPositionCard({ user, rank }: Props) {
+  return (
+    <div className="flex justify-between items-center rounded-xl bg-blue-100 p-4 mt-4">
+      <span className="font-bold">{rank}</span>
+      <span>
+        {user.name} (You)
+      </span>
+      <span>{user.score}</span>
+    </div>
+  );
+}

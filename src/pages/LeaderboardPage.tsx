@@ -1,22 +1,12 @@
-import { PodiumCard, RankRow, YourPositionCard } from '@/components';
-import { THEME_CONFIG } from '@/components/leaderboard/theme';
+﻿import { PodiumCard, RankRow, YourPositionCard } from '@/components';
+import type { User } from '@/types';
 
-export type User = {
-  id: string;
-  name: string;
-  score: number;
-};
-
-type LeaderboardPageProps = {
+type Props = {
   users?: User[];
   currentUserId?: string;
 };
 
-const LeaderboardPage = ({
-  users = [],
-  currentUserId = '11', // default test user
-}: LeaderboardPageProps) => {
-  // ---------- test users fallback ----------
+export default function LeaderboardPage({ users = [], currentUserId = '11' }: Props) {
   const testUsers: User[] = [
     { id: '1', name: 'Alice', score: 1200 },
     { id: '2', name: 'Bob', score: 1100 },
@@ -28,55 +18,44 @@ const LeaderboardPage = ({
     { id: '8', name: 'Hannah', score: 800 },
     { id: '9', name: 'Ian', score: 780 },
     { id: '10', name: 'Jane', score: 750 },
-    { id: '11', name: 'Karl', score: 720 },
+    { id: '11', name: 'Karl', score: 720 }
   ];
 
-  // Choose source users (fallback to testUsers) and sort by score desc
-  const sortedUsers = [...(users.length > 0 ? users : testUsers)].sort((a, b) => b.score - a.score);
+  const sorted = [...(users.length ? users : testUsers)].sort((a, b) => b.score - a.score);
+  const topThree = sorted.slice(0, 3);
+  const restTopTen = sorted.slice(3, 10);
 
-  // Top three users for podium
-  const topThree = sortedUsers.slice(0, 3);
-
-  // Users ranked 4..10 (max 7 users)
-  const restTopTen = sortedUsers.slice(3, 10);
-
-  // Find current user and their rank (1-based)
-  const currentUserIndex = currentUserId ? sortedUsers.findIndex((u) => u.id === currentUserId) : -1;
-  const currentUser = currentUserIndex >= 0 ? sortedUsers[currentUserIndex] : undefined;
-  const currentUserRank = currentUserIndex >= 0 ? currentUserIndex + 1 : undefined;
+  const currentIndex = sorted.findIndex((u) => u.id === currentUserId);
+  const currentUser = currentIndex >= 0 ? sorted[currentIndex] : undefined;
+  const currentRank = currentIndex >= 0 ? currentIndex + 1 : undefined;
 
   return (
-    <div className={`max-w-xl mx-auto ${THEME_CONFIG.colors.bg} p-6 ${THEME_CONFIG.borderRadius}`} role="region" aria-label="Leaderboard">
-      {/* Podium: second place left, first place center, third place right */}
+    <div className="max-w-xl mx-auto bg-gray-100 text-gray-900 p-6 rounded-xl">
       <div className="flex justify-center items-end mb-6 flex-wrap sm:flex-nowrap gap-4">
         {[
           { user: topThree[1], order: 1, position: 2 },
           { user: topThree[0], order: 2, position: 1 },
-          { user: topThree[2], order: 3, position: 3 },
+          { user: topThree[2], order: 3, position: 3 }
         ]
-          .filter((item) => item.user)
-          .map((item) => (
-            <div key={item.user!.id} style={{ order: item.order }}>
-              <PodiumCard user={item.user!} position={item.position} />
+          .filter((x) => x.user)
+          .map((x) => (
+            <div key={x.user!.id} style={{ order: x.order }}>
+              <PodiumCard user={x.user!} position={x.position} />
             </div>
           ))}
       </div>
 
-      {/* Rank rows for positions 4..10 */}
       <div>
         {restTopTen.map((user, idx) => (
           <RankRow key={user.id} user={user} rank={idx + 4} />
         ))}
       </div>
 
-      {/* Display current user if outside top 10 */}
-      {currentUser && currentUserRank && currentUserRank > 10 && (
-        <div className="mt-4" aria-live="polite">
-          <YourPositionCard user={currentUser} rank={currentUserRank} />
+      {currentUser && currentRank && currentRank > 10 && (
+        <div className="mt-4">
+          <YourPositionCard user={currentUser} rank={currentRank} />
         </div>
       )}
     </div>
   );
-};
-
-export default LeaderboardPage;
+}

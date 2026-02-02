@@ -1,52 +1,63 @@
-import { Link } from 'react-router';
-import { useOverlays } from '@/overlays';
+﻿import { Link } from 'react-router';
+import { useOverlays } from '@/features/overlays';
 
-type NavItem = {
+type NavLinkItem = {
+  kind: 'link';
   label: string;
   icon: string;
-  to?: string; // if exists → clickable
-  onClick?: () => void;
+  to: string;
 };
 
-const Navbar = () => {
+type NavActionItem = {
+  kind: 'action';
+  label: string;
+  icon: string;
+  onClick: () => void;
+};
+
+type NavItem = NavLinkItem | NavActionItem;
+
+export default function Navbar() {
   const { openLogin, openSettings } = useOverlays();
 
-  // Define all nav items here
   const navItems: NavItem[] = [
-    { label: 'Home', icon: '/icons/home.svg', to: '/game-map' },
-    { label: 'Login', icon: '/icons/login.svg', onClick: openLogin },
-    { label: 'Logout', icon: '/icons/logout.svg', to: '/game-map/logout' },
-    { label: 'Hearts', icon: '/icons/heart.svg' },
-    { label: 'Leaderboard', icon: '/icons/cup.svg', to: '/game-map/leaderboard' },
-    { label: 'Profile', icon: '/icons/user.svg', to: '/game-map/profile' },
-    { label: 'Settings', icon: '/icons/setting.svg', onClick: openSettings },
+    { kind: 'link', label: 'Home', icon: '/icons/home.svg', to: '/game-map' },
+    { kind: 'action', label: 'Login', icon: '/icons/login.svg', onClick: openLogin },
+    { kind: 'link', label: 'Leaderboard', icon: '/icons/cup.svg', to: '/game-map/leaderboard' },
+    { kind: 'link', label: 'Profile', icon: '/icons/user.svg', to: '/game-map/profile' },
+    { kind: 'action', label: 'Settings', icon: '/icons/setting.svg', onClick: openSettings },
   ];
+
   return (
-    <nav className="flex justify-between p-8">
-      <h1>Match-3</h1>
-      <ul className="flex justify-end space-x-6 items-center ">
-        {navItems.map(({ label, icon, to, onClick }) => (
-          <li key={label}>
-            {/* Use Link for all items */}
-            <Link
-              to={to || '#'} // if no 'to', use '#' so Link is valid
-              onClick={(e) => {
-                if (onClick) {
-                  // If there's no 'to', prevent default navigation to keep user on page
-                  if (!to) e.preventDefault();
-                  onClick(); // open modal or run function
-                }
-              }}
-              className="flex flex-col items-center p-1 hover:bg-blue-300 transition-colors rounded"
-            >
-              {/* Display icon */}
-              <img src={icon} alt={label} className="w-9 h-9" />
-            </Link>
+    <nav className="flex justify-between p-6 items-center">
+      <h1 className="text-xl font-bold">Match-3</h1>
+
+      <ul className="flex gap-6 items-center">
+        {navItems.map((item) => (
+          <li key={item.label}>
+            {item.kind === 'link' ? (
+              <Link
+                to={item.to}
+                className="flex flex-col items-center p-1 hover:bg-white/10 transition-colors rounded"
+                aria-label={item.label}
+                title={item.label}
+              >
+                <img src={item.icon} alt={item.label} className="w-8 h-8" />
+              </Link>
+            ) : (
+              <button
+                type="button"
+                onClick={item.onClick}
+                className="flex flex-col items-center p-1 hover:bg-white/10 transition-colors rounded"
+                aria-label={item.label}
+                title={item.label}
+              >
+                <img src={item.icon} alt={item.label} className="w-8 h-8" />
+              </button>
+            )}
           </li>
         ))}
       </ul>
     </nav>
   );
-};
-
-export default Navbar;
+}

@@ -1,4 +1,4 @@
-import { progressStore } from '@/services/progressService';
+﻿import { progressStore } from '@/services/progressService';
 import type { LevelId, Progress } from './ProgressStore';
 
 function uniqSorted(levels: LevelId[]): LevelId[] {

@@ -1,26 +1,23 @@
-import { Link } from 'react-router';
-import { DASHBOARD_STYLE as S } from './theme';
+﻿import { DASHBOARD_STYLE as S } from './theme';
+import type { ReactNode } from 'react';
 
 type Props = {
   username: string;
   level: number;
-  children: React.ReactNode;
+  children: ReactNode;
 };
 
-const ProfileHeader = ({ username, level, children }: Props) => (
-  <div className={`flex items-center gap-4 ${S.glass.full} ${S.glass.bg} ${S.glass.blur} ${S.glass.border} ${S.glass.radius} ${S.glass.padding}`}>
-    {children}
-    <div>
-      <p className={`text-2xl font-semibold ${S.text.primary}`}>{username}</p>
-      <p className={`text-xl ${S.text.secondary}`}>Level {level}</p>
-
-      {/* Temporary link for now; I'll connect it to the actual handler later so it opens the correct page. */}
-
-      <Link to={'#'} className={`text-sm  ${S.text.secondary}`} type="button" aria-label="Change avatar">
-        Change avatar
-      </Link>
+export default function ProfileHeader({ username, level, children }: Props) {
+  return (
+    <div className={`flex items-center gap-4 ${S.glass.full} ${S.glass.bg} ${S.glass.blur} ${S.glass.border} ${S.glass.radius} ${S.glass.padding}`}>
+      {children}
+      <div>
+        <p className={`text-2xl font-semibold ${S.text.primary}`}>{username}</p>
+        <p className={`text-xl ${S.text.secondary}`}>Level {level}</p>
+        <button type="button" className={`text-sm ${S.text.secondary}`}>
+          Change avatar
+        </button>
+      </div>
     </div>
-  </div>
-);
-
-export default ProfileHeader;
+  );
+}
