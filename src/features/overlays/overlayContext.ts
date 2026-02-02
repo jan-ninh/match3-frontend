@@ -1,4 +1,5 @@
 ﻿import { createContext } from 'react';
+import type { MutableRefObject } from 'react';
 
 export type PowerId = 'power-1' | 'power-2' | 'power-3';
 
@@ -28,7 +29,8 @@ export type OverlayApi = {
 export type OverlayContextValue = {
   active: OverlayName;
   data: OverlayData;
-  powerChoiceOnChooseRef: React.MutableRefObject<OpenPowerChoiceOptions['onChoose'] | null>;
+  powerChoiceOnChooseRef: MutableRefObject<OpenPowerChoiceOptions['onChoose'] | null>;
+
   api: OverlayApi;
 };
 

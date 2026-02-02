@@ -1,22 +1,31 @@
 ﻿import { Link } from 'react-router';
 import { useOverlays } from '@/features/overlays';
 
-type NavItem = {
+type NavLinkItem = {
+  kind: 'link';
   label: string;
   icon: string;
-  to?: string;
-  onClick?: () => void;
+  to: string;
 };
+
+type NavActionItem = {
+  kind: 'action';
+  label: string;
+  icon: string;
+  onClick: () => void;
+};
+
+type NavItem = NavLinkItem | NavActionItem;
 
 export default function Navbar() {
   const { openLogin, openSettings } = useOverlays();
 
   const navItems: NavItem[] = [
-    { label: 'Home', icon: '/icons/home.svg', to: '/game-map' },
-    { label: 'Login', icon: '/icons/login.svg', onClick: openLogin },
-    { label: 'Leaderboard', icon: '/icons/cup.svg', to: '/game-map/leaderboard' },
-    { label: 'Profile', icon: '/icons/user.svg', to: '/game-map/profile' },
-    { label: 'Settings', icon: '/icons/setting.svg', onClick: openSettings }
+    { kind: 'link', label: 'Home', icon: '/icons/home.svg', to: '/game-map' },
+    { kind: 'action', label: 'Login', icon: '/icons/login.svg', onClick: openLogin },
+    { kind: 'link', label: 'Leaderboard', icon: '/icons/cup.svg', to: '/game-map/leaderboard' },
+    { kind: 'link', label: 'Profile', icon: '/icons/user.svg', to: '/game-map/profile' },
+    { kind: 'action', label: 'Settings', icon: '/icons/setting.svg', onClick: openSettings },
   ];
 
   return (
@@ -24,21 +33,28 @@ export default function Navbar() {
       <h1 className="text-xl font-bold">Match-3</h1>
 
       <ul className="flex gap-6 items-center">
-        {navItems.map(({ label, icon, to, onClick }) => (
-          <li key={label}>
-            <Link
-              to={to || '#'}
-              onClick={(e) => {
-                if (!onClick) return;
-                if (!to) e.preventDefault();
-                onClick();
-              }}
-              className="flex flex-col items-center p-1 hover:bg-white/10 transition-colors rounded"
-              aria-label={label}
-              title={label}
-            >
-              <img src={icon} alt={label} className="w-8 h-8" />
-            </Link>
+        {navItems.map((item) => (
+          <li key={item.label}>
+            {item.kind === 'link' ? (
+              <Link
+                to={item.to}
+                className="flex flex-col items-center p-1 hover:bg-white/10 transition-colors rounded"
+                aria-label={item.label}
+                title={item.label}
+              >
+                <img src={item.icon} alt={item.label} className="w-8 h-8" />
+              </Link>
+            ) : (
+              <button
+                type="button"
+                onClick={item.onClick}
+                className="flex flex-col items-center p-1 hover:bg-white/10 transition-colors rounded"
+                aria-label={item.label}
+                title={item.label}
+              >
+                <img src={item.icon} alt={item.label} className="w-8 h-8" />
+              </button>
+            )}
           </li>
         ))}
       </ul>

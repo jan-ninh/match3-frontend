@@ -2,6 +2,10 @@
 import { createPortal } from 'react-dom';
 import type { ReactNode } from 'react';
 
+// Intentionally keep the modal mounted (even when `open === false`).
+// Reason: avoid mount/unmount work on every open/close (portal creation, layout/paint, focus setup).
+// This makes lightweight modals (e.g. Login) feel instant and reduces UI jank; we toggle visibility via CSS instead.
+
 type ModalSize = 'sm' | 'md' | 'lg';
 
 type Props = {
@@ -31,16 +35,7 @@ function sizeClass(size: ModalSize): string {
   }
 }
 
-export default function Modal({
-  open,
-  title,
-  children,
-  onClose,
-  closeOnBackdrop = true,
-  showCloseButton = true,
-  size = 'md',
-  className
-}: Props) {
+export default function Modal({ open, title, children, onClose, closeOnBackdrop = true, showCloseButton = true, size = 'md', className }: Props) {
   const panelRef = useRef<HTMLDivElement | null>(null);
 
   const portalTarget = useMemo(() => {
@@ -66,7 +61,7 @@ export default function Modal({
   const overlayClasses = [
     'fixed inset-0 z-[9999] flex items-center justify-center',
     'transition-opacity duration-150',
-    open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+    open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none',
   ].join(' ');
 
   const panelClasses = [
@@ -74,7 +69,7 @@ export default function Modal({
     'max-h-[85vh] overflow-auto',
     'p-4',
     sizeClass(size),
-    className ?? ''
+    className ?? '',
   ].join(' ');
 
   const onBackdropMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {

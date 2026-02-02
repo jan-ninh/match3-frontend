@@ -1,4 +1,6 @@
-﻿export type AvatarProps = {
+﻿import type { SyntheticEvent } from 'react';
+
+export type AvatarProps = {
   src?: string;
   size?: number;
 };
@@ -6,7 +8,7 @@
 export default function Avatar({ src, size = 40 }: AvatarProps) {
   const finalSrc = src || '/icons/user.svg';
 
-  const handleError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+  const handleError = (e: SyntheticEvent<HTMLImageElement, Event>) => {
     e.currentTarget.src = '/icons/user.svg';
   };
 

@@ -1,9 +1,10 @@
 ﻿import { DASHBOARD_STYLE as S } from './theme';
+import type { ReactNode } from 'react';
 
 type Props = {
   username: string;
   level: number;
-  children: React.ReactNode;
+  children: ReactNode;
 };
 
 export default function ProfileHeader({ username, level, children }: Props) {
