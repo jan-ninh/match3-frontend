@@ -1,5 +1,5 @@
 import { Route, Routes } from 'react-router-dom';
-import { GameStartPage, AboutUs, LevelMapPage, LeaderboardPage, ProfilePage, GameplayPage } from '@/pages';
+import { GameStartPage, AboutUs, LevelMapPage, LeaderboardPage, ProfileDashboard, GameplayPage } from '@/pages';
 import MainLayout from './layouts/MainLayout';
 import GameLayout from './layouts/GameLayout';
 import { OverlayProvider } from '@/overlays';
@@ -16,7 +16,7 @@ function App() {
           <Route path="game-map" element={<GameLayout />}>
             <Route index element={<LevelMapPage />} />
             <Route path="setting" element={<LevelMapPage />} />
-            <Route path="profile" element={<ProfilePage />} />
+            <Route path="profile" element={<ProfileDashboard />} />
             <Route path="leaderboard" element={<LeaderboardPage />} />
             <Route path="login" element={<LevelMapPage />} />
             <Route path="logout" element={<LevelMapPage />} />
