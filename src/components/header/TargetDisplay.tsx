@@ -5,7 +5,7 @@ interface TargetDisplayProps {
 const TargetDisplay = ({ label = 'Target' }: TargetDisplayProps) => {
   return (
     <div
-      className="border-2 border-dashed w-24 h-12 flex items-center justify-centerborder-gray-300
+      className="border-2 border-dashed w-24 h-12 flex items-center justify-center border-gray-300
 text-gray-800"
     >
       {label}
