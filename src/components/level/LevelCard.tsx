@@ -1,20 +1,17 @@
-import { levelTheme } from './levelTheme';
-type LevelCardProps = {
+﻿import { levelTheme } from './levelTheme';
+
+type Props = {
   level: number;
   isLocked: boolean;
   onClick: () => void;
 };
 
-const LevelCard = ({ level, isLocked, onClick }: LevelCardProps) => {
+export default function LevelCard({ level, isLocked, onClick }: Props) {
   return (
     <button
       disabled={isLocked}
       onClick={onClick}
-      className={`
-        ${levelTheme.button.base}
-        ${isLocked ? levelTheme.button.locked : levelTheme.button.active}
-        flex flex-col items-center justify-center gap-1
-      `}
+      className={`${levelTheme.button.base} ${isLocked ? levelTheme.button.locked : levelTheme.button.active} flex flex-col items-center justify-center gap-1`}
     >
       {isLocked ? (
         <img src="/icons/lock.svg" alt="Locked level" className="w-8 h-8 opacity-60" />
@@ -26,6 +23,4 @@ const LevelCard = ({ level, isLocked, onClick }: LevelCardProps) => {
       )}
     </button>
   );
-};
-
-export default LevelCard;
+}

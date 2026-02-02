@@ -1,4 +1,4 @@
-export type LevelId = number;
+﻿export type LevelId = number;
 
 export interface Progress {
   unlockedLevels: LevelId[];

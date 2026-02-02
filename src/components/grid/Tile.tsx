@@ -1,10 +1,8 @@
-﻿interface TileProps {
-  color: string; // background color
-  onClick?: () => void; // optional click handler
-}
-
-const Tile = ({ color, onClick }: TileProps) => {
-  return <div onClick={onClick} className="w-16 h-16 border border-black box-border cursor-pointer" style={{ backgroundColor: color }} />;
+﻿type Props = {
+  color: string;
+  onClick?: () => void;
 };
 
-export default Tile;
+export default function Tile({ color, onClick }: Props) {
+  return <div onClick={onClick} className="w-16 h-16 border border-black box-border cursor-pointer" style={{ backgroundColor: color }} />;
+}

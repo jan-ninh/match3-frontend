@@ -1,21 +1,19 @@
-import TimeDisplay from './TimeDisplay';
+﻿import TimeDisplay from './TimeDisplay';
 import MovesDisplay from './MovesDisplay';
 import TargetDisplay from './TargetDisplay';
 
-export interface HeaderProps {
+export type HeaderProps = {
   time: string;
   moves: number;
   targetLabel?: string;
-}
+};
 
-const Header = ({ time, moves, targetLabel }: HeaderProps) => {
+export default function Header({ time, moves, targetLabel }: HeaderProps) {
   return (
-    <div className="w-full flex justify-between items-center ">
+    <div className="w-full flex justify-between items-center">
       <TimeDisplay time={time} />
       <TargetDisplay label={targetLabel} />
       <MovesDisplay moves={moves} />
     </div>
   );
-};
-
-export default Header;
+}

@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 
 type ModalSize = 'sm' | 'md' | 'lg';
 
-type ModalProps = {
+type Props = {
   open: boolean;
   title?: string;
   children: ReactNode;
@@ -31,7 +31,16 @@ function sizeClass(size: ModalSize): string {
   }
 }
 
-export default function Modal({ open, title, children, onClose, closeOnBackdrop = true, showCloseButton = true, size = 'md', className }: ModalProps) {
+export default function Modal({
+  open,
+  title,
+  children,
+  onClose,
+  closeOnBackdrop = true,
+  showCloseButton = true,
+  size = 'md',
+  className
+}: Props) {
   const panelRef = useRef<HTMLDivElement | null>(null);
 
   const portalTarget = useMemo(() => {
@@ -47,15 +56,9 @@ export default function Modal({ open, title, children, onClose, closeOnBackdrop 
     };
 
     window.addEventListener('keydown', onKeyDown);
+    queueMicrotask(() => panelRef.current?.focus());
 
-    // focus panel (simple, no full trap)
-    queueMicrotask(() => {
-      panelRef.current?.focus();
-    });
-
-    return () => {
-      window.removeEventListener('keydown', onKeyDown);
-    };
+    return () => window.removeEventListener('keydown', onKeyDown);
   }, [open, onClose]);
 
   if (!portalTarget) return null;
@@ -63,17 +66,15 @@ export default function Modal({ open, title, children, onClose, closeOnBackdrop 
   const overlayClasses = [
     'fixed inset-0 z-[9999] flex items-center justify-center',
     'transition-opacity duration-150',
-    open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none',
+    open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
   ].join(' ');
-
-  const backdropClasses = 'absolute inset-0 bg-black/60';
 
   const panelClasses = [
     'relative z-10 rounded-xl bg-neutral-800 text-white shadow-xl outline-none',
     'max-h-[85vh] overflow-auto',
     'p-4',
     sizeClass(size),
-    className ?? '',
+    className ?? ''
   ].join(' ');
 
   const onBackdropMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -83,7 +84,7 @@ export default function Modal({ open, title, children, onClose, closeOnBackdrop 
 
   return createPortal(
     <div className={overlayClasses} aria-hidden={!open}>
-      <div className={backdropClasses} />
+      <div className="absolute inset-0 bg-black/60" />
       <div className="absolute inset-0" onMouseDown={onBackdropMouseDown} />
 
       <div ref={panelRef} tabIndex={-1} role="dialog" aria-modal="true" className={panelClasses}>

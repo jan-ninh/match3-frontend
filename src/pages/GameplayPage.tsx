@@ -1,17 +1,13 @@
 ﻿import { GameContainer, GameFooter } from '@/components';
-import { useOverlays } from '@/overlays';
+import { useOverlays } from '@/features/overlays';
 
-const GameplayPage = () => {
+export default function GameplayPage() {
   const { openSettings, openPowerChoice, openWin, openLose } = useOverlays();
 
   return (
-    <>
-      <div className="palyboardHolder">
-        <GameContainer />
-      </div>
+    <div className="p-4">
+      <GameContainer />
       <GameFooter openSettings={openSettings} openPowerChoice={openPowerChoice} openWin={openWin} openLose={openLose} />
-    </>
+    </div>
   );
-};
-
-export default GameplayPage;
+}

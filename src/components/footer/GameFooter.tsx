@@ -1,13 +1,13 @@
-import { footerActions } from './footerAction';
+﻿import { footerActions } from './footerAction';
 
-interface GameFooterProps {
+type Props = {
   openSettings: () => void;
   openPowerChoice: (args: { title: string }) => void;
   openWin: (level: number) => void;
   openLose: (level: number) => void;
-}
+};
 
-const GameFooter = ({ openSettings, openPowerChoice, openWin, openLose }: GameFooterProps) => {
+export default function GameFooter({ openSettings, openPowerChoice, openWin, openLose }: Props) {
   const actions = footerActions(openSettings, openPowerChoice, openWin, openLose);
 
   return (
@@ -16,16 +16,13 @@ const GameFooter = ({ openSettings, openPowerChoice, openWin, openLose }: GameFo
         <button
           key={item.id}
           onClick={item.onClick}
-          aria-label={item.label} // accessibility
-          className="relative w-24 h-16 flex items-center justify-center border hover:scale-105 transition focus:outline-none focus:ring"
+          aria-label={item.label}
+          className="relative w-24 h-16 flex items-center justify-center border border-white/20 hover:scale-105 transition focus:outline-none focus:ring"
           type="button"
         >
-          {/* main icon */}
           <img src={item.icon} alt={item.label} className="w-8 h-8" />
-
-          {/* optional badge */}
           {item.badge && (
-            <span className="absolute bottom-0 right-0 w-6 h-6 flex items-center justify-center bg-gray-600 rounded-full border">
+            <span className="absolute bottom-0 right-0 w-6 h-6 flex items-center justify-center bg-gray-600 rounded-full border border-white/20">
               <img src={item.badge} alt={item.label} className="w-3 h-3" aria-hidden="true" />
             </span>
           )}
@@ -33,6 +30,4 @@ const GameFooter = ({ openSettings, openPowerChoice, openWin, openLose }: GameFo
       ))}
     </div>
   );
-};
-
-export default GameFooter;
+}

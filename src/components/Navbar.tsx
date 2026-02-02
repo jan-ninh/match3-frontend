@@ -1,52 +1,47 @@
-import { Link } from 'react-router';
-import { useOverlays } from '@/overlays';
+﻿import { Link } from 'react-router';
+import { useOverlays } from '@/features/overlays';
 
 type NavItem = {
   label: string;
   icon: string;
-  to?: string; // if exists → clickable
+  to?: string;
   onClick?: () => void;
 };
 
-const Navbar = () => {
+export default function Navbar() {
   const { openLogin, openSettings } = useOverlays();
 
-  // Define all nav items here
   const navItems: NavItem[] = [
     { label: 'Home', icon: '/icons/home.svg', to: '/game-map' },
     { label: 'Login', icon: '/icons/login.svg', onClick: openLogin },
-    { label: 'Logout', icon: '/icons/logout.svg', to: '/game-map/logout' },
-    { label: 'Hearts', icon: '/icons/heart.svg' },
     { label: 'Leaderboard', icon: '/icons/cup.svg', to: '/game-map/leaderboard' },
     { label: 'Profile', icon: '/icons/user.svg', to: '/game-map/profile' },
-    { label: 'Settings', icon: '/icons/setting.svg', onClick: openSettings },
+    { label: 'Settings', icon: '/icons/setting.svg', onClick: openSettings }
   ];
+
   return (
-    <nav className="flex justify-between p-8">
-      <h1>Match-3</h1>
-      <ul className="flex justify-end space-x-6 items-center ">
+    <nav className="flex justify-between p-6 items-center">
+      <h1 className="text-xl font-bold">Match-3</h1>
+
+      <ul className="flex gap-6 items-center">
         {navItems.map(({ label, icon, to, onClick }) => (
           <li key={label}>
-            {/* Use Link for all items */}
             <Link
-              to={to || '#'} // if no 'to', use '#' so Link is valid
+              to={to || '#'}
               onClick={(e) => {
-                if (onClick) {
-                  // If there's no 'to', prevent default navigation to keep user on page
-                  if (!to) e.preventDefault();
-                  onClick(); // open modal or run function
-                }
+                if (!onClick) return;
+                if (!to) e.preventDefault();
+                onClick();
               }}
-              className="flex flex-col items-center p-1 hover:bg-blue-300 transition-colors rounded"
+              className="flex flex-col items-center p-1 hover:bg-white/10 transition-colors rounded"
+              aria-label={label}
+              title={label}
             >
-              {/* Display icon */}
-              <img src={icon} alt={label} className="w-9 h-9" />
+              <img src={icon} alt={label} className="w-8 h-8" />
             </Link>
           </li>
         ))}
       </ul>
     </nav>
   );
-};
-
-export default Navbar;
+}
