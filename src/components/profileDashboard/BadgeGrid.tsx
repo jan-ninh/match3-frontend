@@ -14,7 +14,7 @@ const BadgeGrid = ({ badges }: Props) => (
     {badges.map((badge) => (
       <div
         key={badge.id}
-        className={`flex items-center  w-20 h-20 ${S.glass.bg} ${S.glass.blur} ${S.glass.border} ${S.glass.radius} ${S.glass.padding} ${S.badge.size} ${badge.unlocked ? S.badge.unlocked : S.badge.locked}`}
+        className={`flex items-center ${S.glass.bg} ${S.glass.blur} ${S.glass.border} ${S.glass.radius} ${S.glass.padding} ${S.badge.size} ${badge.unlocked ? S.badge.unlocked : S.badge.locked}`}
       >
         <img src={badge.icon} alt={badge.label} className="object-contain" draggable={false} />
       </div>

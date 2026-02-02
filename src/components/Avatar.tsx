@@ -11,18 +11,12 @@ export type AvatarProps = {
  */
 const Avatar = ({ src, size = 40 }: AvatarProps) => {
   const finalSrc = src || '/icons/user.svg'; // default avatar
-
+  const handleError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    e.currentTarget.src = '/icons/user.svg';
+  };
   return (
-    <div className="rounded-full overflow-hidden bg-gray-300 flex items-center justify-center" style={{ width: size, height: size }}>
-      <img
-        src={finalSrc}
-        alt="avatar"
-        className="w-full h-full object-cover"
-        onError={(e) => {
-          // fallback if image fails to load
-          (e.currentTarget as HTMLImageElement).src = '/icons/user.svg';
-        }}
-      />
+    <div style={{ width: size, height: size }} className="rounded-full overflow-hidden bg-gray-300 flex items-center justify-center">
+      <img src={finalSrc} alt="avatar" loading="lazy" draggable={false} className="w-full h-full object-cover" onError={handleError} />
     </div>
   );
 };

@@ -1,3 +1,4 @@
+import { Link } from 'react-router';
 import { DASHBOARD_STYLE as S } from './theme';
 
 type Props = {
@@ -12,7 +13,12 @@ const ProfileHeader = ({ username, level, children }: Props) => (
     <div>
       <p className={`text-2xl font-semibold ${S.text.primary}`}>{username}</p>
       <p className={`text-xl ${S.text.secondary}`}>Level {level}</p>
-      <a className={`text-xl ${S.text.secondary}`}>change Avatar</a>
+
+      {/* Temporary link for now; I'll connect it to the actual handler later so it opens the correct page. */}
+
+      <Link to={'#'} className={`text-sm  ${S.text.secondary}`} type="button" aria-label="Change avatar">
+        Change avatar
+      </Link>
     </div>
   </div>
 );

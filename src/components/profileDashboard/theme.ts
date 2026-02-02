@@ -10,9 +10,9 @@ export const DASHBOARD_STYLE = {
   },
 
   text: {
-    primary: 'text-gray',
-    secondary: 'text-gray',
-    muted: 'text-gray/40',
+    primary: 'text-gray-800',
+    secondary: 'text-gray-600',
+    muted: 'text-gray-400',
   },
 
   progress: {
@@ -23,7 +23,7 @@ export const DASHBOARD_STYLE = {
   },
 
   badge: {
-    size: 'w-12 h-12',
+    size: 'w-20 h-20',
     unlocked: 'opacity-100',
     locked: 'opacity-50',
   },
