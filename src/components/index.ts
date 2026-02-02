@@ -3,3 +3,7 @@ export { default as Badge } from './Badge';
 export { default as Navbar } from './Navbar';
 export { default as GameContainer } from './GameContainer';
 export { default as Button } from './Button';
+export { default as BadgeGrid } from './profileDashboard/BadgeGrid';
+export { default as ProfileHeader } from './profileDashboard/ProfileHeader';
+export { default as ProgressBar } from './profileDashboard/ProgressBar';
+export { default as StatsGrid } from './profileDashboard/StatsGrid';
