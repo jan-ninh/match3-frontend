@@ -1,4 +1,4 @@
-﻿import { useContext } from 'react';
+import { useContext } from 'react';
 import { OverlayContext } from './overlayContext';
 
 export function useOverlays() {

@@ -1,4 +1,4 @@
-﻿import Modal from '@/components/Modal';
+import Modal from '@/components/Modal';
 import type { PowerId } from './overlayContext';
 
 type Props = {

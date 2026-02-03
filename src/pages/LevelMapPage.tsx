@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import LevelGrid from '@/components/level/LevelGrid';
 import { getProgress, unlockLevel } from '@/services/progress/progressActions';

@@ -1,4 +1,4 @@
-﻿export const DASHBOARD_STYLE = {
+export const DASHBOARD_STYLE = {
   glass: {
     bg: 'bg-white/50',
     blur: 'backdrop-blur-md',

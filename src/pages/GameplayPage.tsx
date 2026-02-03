@@ -1,4 +1,4 @@
-﻿import { GameContainer, GameFooter } from '@/components';
+import { GameContainer, GameFooter } from '@/components';
 import { useOverlays } from '@/features/overlays';
 
 export default function GameplayPage() {

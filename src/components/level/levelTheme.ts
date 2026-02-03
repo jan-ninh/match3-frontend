@@ -1,4 +1,4 @@
-﻿export const levelTheme = {
+export const levelTheme = {
   container: 'p-4',
   grid: 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3',
   button: {
