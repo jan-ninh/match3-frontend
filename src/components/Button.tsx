@@ -1,12 +1,14 @@
-type ButtonProps = {
+﻿import type { ButtonHTMLAttributes } from 'react';
+
+type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   label: string;
-  onClick?: () => void;
-  className?: string;
 };
 
-export default function Button({ label, onClick, className = '' }: ButtonProps) {
+export default function Button({ label, className = '', type = 'button', ...props }: ButtonProps) {
+  const baseClasses = 'w-48 md:w-60 py-2 rounded text-white bg-neutral-800 hover:bg-neutral-500 transition-colors duration-200';
+
   return (
-    <button onClick={onClick} className={`px-6 py-2 rounded-md transition duration-200 ${className}`}>
+    <button type={type} className={`${baseClasses} ${className}`} {...props}>
       {label}
     </button>
   );
