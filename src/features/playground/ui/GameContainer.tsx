@@ -1,11 +1,11 @@
 import { createPortal } from 'react-dom';
-import { useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
 
 import type { EngineAction, EngineEvent } from '@/gamelogic';
 import { canSwap, createInitialState, engineReducer } from '@/gamelogic';
-
 import { DebugEventLog } from '@/devtools';
 import { Grid } from '@/features/grid';
+import { preloadTiles } from '@/features/grid/ui/tiles';
 
 type Props = {
   initialLevelId?: number;
@@ -16,6 +16,10 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
 
   const [levelId, setLevelId] = useState<number>(initialLevelId);
   const [showLockoutHints, setShowLockoutHints] = useState<boolean>(true);
+
+  useEffect(() => {
+    preloadTiles();
+  }, []);
 
   // IMPORTANT: useReducer overload with initializerArg expects 2 type params: <R, I>
   // R = Reducer<EngineState, EngineAction>, I = number (levelId)

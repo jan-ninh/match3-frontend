@@ -1,8 +1,8 @@
 import type { Piece, PieceId } from '@/gamelogic';
-import { TYPE_COLORS } from '@/gamelogic';
 import type { Axis } from '@/devtools';
 import { cellPixelXY } from '../lib/math';
 import { PREVIEW_MS, SWAP_MS, TILE_SIZE, tileDist, EASING } from '../lib/constants';
+import Tile from './Tile';
 
 type Props = {
   width: number;
@@ -46,8 +46,6 @@ export default function GridPiecesLayer({
           else previewOffsetY = -previewDir * tileDist;
         }
 
-        const color = TYPE_COLORS[pp.type];
-
         const transitionForPreviewNeighbor = previewActive && previewOtherPieceId === pp.id ? `transform ${PREVIEW_MS}ms ${EASING}` : undefined;
 
         const outerTransition = applyDragOffset ? 'none' : (transitionForPreviewNeighbor ?? `transform ${SWAP_MS}ms ${EASING}`);
@@ -75,15 +73,9 @@ export default function GridPiecesLayer({
               zIndex: isThisDragged ? 80 : 20,
             }}
           >
-            <div
-              className={`w-full h-full rounded-xl ${isShaking ? 'animate-[shakeX_180ms_ease-in-out_1]' : ''}`}
-              style={{
-                backgroundColor: color,
-                boxShadow: '0 6px 16px rgba(0,0,0,0.35)',
-              }}
-            >
-              <div className="absolute bottom-1 right-1 text-[10px] leading-none text-white/85 drop-shadow font-mono">#{pp.id}</div>
-            </div>
+            <Tile type={pp.type} dragging={isThisDragged && isDragging} preview={previewActive && previewOtherPieceId === pp.id} shaking={isShaking} />
+
+            <div className="absolute bottom-1 right-1 text-[10px] leading-none text-white/85 drop-shadow font-mono">#{pp.id}</div>
           </div>
         );
       })}
