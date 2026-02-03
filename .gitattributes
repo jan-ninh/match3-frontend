@@ -9,6 +9,4 @@
 *.tsx   text eol=lf
 *.css   text eol=lf
 *.html  text eol=lf
-
-# Leave SVG files as-is
 *.svg   text eol=lf
