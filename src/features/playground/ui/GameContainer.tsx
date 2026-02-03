@@ -1,11 +1,12 @@
+// src/features/playground/ui/GameContainer.tsx
 import { createPortal } from 'react-dom';
 import { useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
 
 import type { EngineAction, EngineEvent } from '@/gamelogic';
 import { canSwap, createInitialState, engineReducer } from '@/gamelogic';
+
 import { DebugEventLog } from '@/devtools';
 import { Grid } from '@/features/grid';
-import { preloadTiles } from '@/features/grid/ui/tiles';
 
 type Props = {
   initialLevelId?: number;
@@ -17,16 +18,31 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
   const [levelId, setLevelId] = useState<number>(initialLevelId);
   const [showLockoutHints, setShowLockoutHints] = useState<boolean>(true);
 
-  useEffect(() => {
-    preloadTiles();
-  }, []);
+  // NEW
+  const [debugEnabled, setDebugEnabled] = useState<boolean>(false);
 
-  // IMPORTANT: useReducer overload with initializerArg expects 2 type params: <R, I>
-  // R = Reducer<EngineState, EngineAction>, I = number (levelId)
+  useEffect(() => {
+    if (!isDev) return;
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      // avoid toggling while typing in inputs
+      const tag = (e.target as HTMLElement | null)?.tagName?.toLowerCase();
+      const isTyping = tag === 'input' || tag === 'textarea' || (e.target as HTMLElement | null)?.isContentEditable;
+
+      if (isTyping) return;
+
+      if (e.key === 'd' || e.key === 'D') {
+        setDebugEnabled((v) => !v);
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isDev]);
+
   const [state, dispatch] = useReducer(engineReducer, levelId, createInitialState);
 
   const inputLocked = useMemo(() => {
-    // keep this tolerant — different engine versions name this slightly differently
     const anyState = state as unknown as { inputLocked?: boolean; phase?: string };
     if (typeof anyState.inputLocked === 'boolean') return anyState.inputLocked;
     if (typeof anyState.phase === 'string') return anyState.phase !== 'idle';
@@ -50,7 +66,6 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
       return;
     }
 
-    // fallback (keep build-safe)
     dispatch(intent as EngineAction);
   };
 
@@ -59,12 +74,10 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
     return anyState.events ?? [];
   }, [state]);
 
-  // Anchor: this is the row where the grid starts.
   const gridRowRef = useRef<HTMLDivElement | null>(null);
 
-  // Keep side lanes vertically aligned with the grid row (not with the stage top).
   useLayoutEffect(() => {
-    if (!isDev) return;
+    if (!isDev || !debugEnabled) return;
 
     const stage = document.getElementById('app-stage');
     const row = gridRowRef.current;
@@ -79,12 +92,12 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
     return () => {
       document.documentElement.style.removeProperty('--dev-panels-top');
     };
-  }, [isDev, state.levelId, state.width, state.height, showLockoutHints]);
+  }, [isDev, debugEnabled, state.levelId, state.width, state.height, showLockoutHints]);
 
   const rightLane = typeof document !== 'undefined' ? (document.getElementById('dev-right-lane') as HTMLElement | null) : null;
 
   const eventLogPortal =
-    isDev && rightLane
+    isDev && debugEnabled && rightLane
       ? createPortal(
           <div className="min-w-[320px] max-w-[520px] w-full">
             <DebugEventLog events={events} />
@@ -106,6 +119,11 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* optional: show current debug state */}
+          {isDev ? (
+            <div className="text-xs text-white/50 px-2 py-1 rounded-md border border-white/10 bg-black/20">Debug: {debugEnabled ? 'on' : 'off'} (press D)</div>
+          ) : null}
+
           <button
             type="button"
             className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 border border-white/10 text-white/80"
@@ -132,7 +150,6 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
         </div>
       </div>
 
-      {/* Grid centered inside the stage */}
       <div ref={gridRowRef} className="flex justify-center items-start">
         <Grid
           state={state}
@@ -141,6 +158,7 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
           onToggleShowLockoutHints={() => setShowLockoutHints((v) => !v)}
           canSwapAt={canSwapAt}
           onIntent={onIntent}
+          debugEnabled={debugEnabled} // NEW
         />
       </div>
     </div>
