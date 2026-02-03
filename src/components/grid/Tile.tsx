@@ -1,4 +1,4 @@
-﻿type Props = {
+type Props = {
   color: string;
   onClick?: () => void;
 };

@@ -1,4 +1,4 @@
-﻿import { Link } from 'react-router';
+import { Link } from 'react-router';
 import { useOverlays } from '@/features/overlays';
 
 type NavLinkItem = {

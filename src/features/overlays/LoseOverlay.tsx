@@ -1,4 +1,4 @@
-﻿import { useNavigate } from 'react-router';
+import { useNavigate } from 'react-router';
 import Modal from '@/components/Modal';
 import { useOverlays } from './useOverlays';
 

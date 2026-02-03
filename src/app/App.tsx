@@ -1,4 +1,4 @@
-﻿import { Route, Routes } from 'react-router';
+import { Route, Routes } from 'react-router';
 import MainLayout from '@/app/layouts/MainLayout';
 import GameLayout from '@/app/layouts/GameLayout';
 import { OverlayProvider } from '@/features/overlays';

@@ -1,4 +1,4 @@
-﻿import { Suspense, lazy, useContext } from 'react';
+import { Suspense, lazy, useContext } from 'react';
 import { OverlayContext } from './overlayContext';
 
 import SettingsModal from './SettingsModal';

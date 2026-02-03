@@ -1,4 +1,4 @@
-﻿import { DASHBOARD_STYLE as S } from './theme';
+import { DASHBOARD_STYLE as S } from './theme';
 
 type Props = { percent: number };
 

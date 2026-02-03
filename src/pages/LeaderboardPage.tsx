@@ -1,4 +1,4 @@
-﻿import { PodiumCard, RankRow, YourPositionCard } from '@/components';
+import { PodiumCard, RankRow, YourPositionCard } from '@/components';
 import type { User } from '@/types';
 
 type Props = {

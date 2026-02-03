@@ -1,4 +1,4 @@
-﻿import type { SyntheticEvent } from 'react';
+import type { SyntheticEvent } from 'react';
 
 export type AvatarProps = {
   src?: string;
