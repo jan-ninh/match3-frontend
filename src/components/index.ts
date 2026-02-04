@@ -3,16 +3,12 @@ export { default as Button } from './Button';
 export { default as Modal } from './Modal';
 export { default as Navbar } from './Navbar';
 
-export { default as GameContainer } from './GameContainer';
 export { default as GameFooter } from './footer/GameFooter';
 
 export { default as Header } from './header/Header';
 export { default as MovesDisplay } from './header/MovesDisplay';
 export { default as TargetDisplay } from './header/TargetDisplay';
 export { default as TimeDisplay } from './header/TimeDisplay';
-
-export { default as Grid } from './grid/Grid';
-export { default as Tile } from './grid/Tile';
 
 export { default as LevelCard } from './level/LevelCard';
 export { default as LevelGrid } from './level/LevelGrid';
