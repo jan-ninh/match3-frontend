@@ -31,11 +31,23 @@ type Props = {
   // Grid emits only intents. Parent decides what to do with them.
   onIntent: (intent: { type: 'click'; index: number } | { type: 'swap'; from: number; to: number }) => void;
 
-  // NEW: runtime debug toggle (press D)
+  // runtime debug toggle (press D)
   debugEnabled?: boolean;
+
+  // dev action: reset board (only shown when debugEnabled)
+  onDevResetBoard?: () => void;
 };
 
-export default function Grid({ state, inputLocked, showLockoutHints, onToggleShowLockoutHints, canSwapAt, onIntent, debugEnabled = false }: Props) {
+export default function Grid({
+  state,
+  inputLocked,
+  showLockoutHints,
+  onToggleShowLockoutHints,
+  canSwapAt,
+  onIntent,
+  debugEnabled = false,
+  onDevResetBoard,
+}: Props) {
   const { width, height, cells, selectedIndex } = state;
 
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -84,12 +96,24 @@ export default function Grid({ state, inputLocked, showLockoutHints, onToggleSho
   const devItems = useMemo(() => {
     return [
       {
+        kind: 'toggle' as const,
         label: 'show: Input Lockout',
         value: showLockoutHints,
         onToggle: onToggleShowLockoutHints,
       },
     ];
   }, [showLockoutHints, onToggleShowLockoutHints]);
+
+  const devActions = useMemo(() => {
+    return [
+      {
+        kind: 'action' as const,
+        label: 'reset: Board',
+        onPress: onDevResetBoard,
+        disabled: inputLocked,
+      },
+    ];
+  }, [onDevResetBoard, inputLocked]);
 
   const lockoutCursor = inputLocked && showLockoutHints ? 'cursor-not-allowed' : '';
 
@@ -100,7 +124,7 @@ export default function Grid({ state, inputLocked, showLockoutHints, onToggleSho
       ? createPortal(
           <div className="flex flex-col gap-3">
             <DebugInputPanel width={width} snapshot={debugSnapshot} hz={DEBUG_OVERLAY_HZ} />
-            <DebugDevToolsPanel locked={inputLocked} items={devItems} />
+            <DebugDevToolsPanel locked={inputLocked} items={devItems} actions={devActions} />
           </div>,
           leftLane,
         )
