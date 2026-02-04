@@ -30,9 +30,12 @@ type Props = {
 
   // Grid emits only intents. Parent decides what to do with them.
   onIntent: (intent: { type: 'click'; index: number } | { type: 'swap'; from: number; to: number }) => void;
+
+  // NEW: runtime debug toggle (press D)
+  debugEnabled?: boolean;
 };
 
-export default function Grid({ state, inputLocked, showLockoutHints, onToggleShowLockoutHints, canSwapAt, onIntent }: Props) {
+export default function Grid({ state, inputLocked, showLockoutHints, onToggleShowLockoutHints, canSwapAt, onIntent, debugEnabled = false }: Props) {
   const { width, height, cells, selectedIndex } = state;
 
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -59,7 +62,7 @@ export default function Grid({ state, inputLocked, showLockoutHints, onToggleSho
     onPointerCancel,
 
     setDraggedEl,
-  } = useGridInput({ state, inputLocked, canSwapAt, onIntent });
+  } = useGridInput({ state, inputLocked, canSwapAt, onIntent, debugEnabled });
 
   const { w: innerW, h: innerH } = useMemo(() => boardInnerSizePx(width, height), [width, height]);
 
@@ -93,7 +96,7 @@ export default function Grid({ state, inputLocked, showLockoutHints, onToggleSho
   const leftLane = typeof document !== 'undefined' ? (document.getElementById('dev-left-lane') as HTMLElement | null) : null;
 
   const devPanels =
-    isDev && leftLane
+    isDev && debugEnabled && leftLane
       ? createPortal(
           <div className="flex flex-col gap-3">
             <DebugInputPanel width={width} snapshot={debugSnapshot} hz={DEBUG_OVERLAY_HZ} />
