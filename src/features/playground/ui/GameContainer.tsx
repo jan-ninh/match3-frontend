@@ -1,3 +1,4 @@
+// src/features/playground/ui/GameContainer.tsx
 import { createPortal } from 'react-dom';
 import { useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
 
@@ -51,44 +52,46 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
 
   const inputLocked = state.inputLocked;
 
-  // drive engine time during wait phases (engine guarantees progress via deadline)
-  const animToken = state.anim?.token ?? 0;
-  const animDeadlineAtMs = state.anim?.deadlineAtMs ?? null;
-
+  // 1) UI → Engine "done" bridge (NO rAF loop)
   useEffect(() => {
-    const phase = state.phase;
-    const isWaitPhase = phase === 'swapAnimating' || phase === 'swapBackAnimating';
-    if (!isWaitPhase) return;
+    const a = state.anim;
+    if (!a) return;
 
-    let rafId: number | null = null;
-    let timeoutId: number | null = null;
-    let cancelled = false;
+    if (state.phase === 'swapAnimating' && a.kind === 'swap') {
+      const id = window.setTimeout(() => {
+        // keep engine clock fresh so follow-up beginAnim uses correct nowMs
+        dispatch({ type: 'tick', nowMs: performance.now() } as EngineAction);
+        dispatch({ type: 'swapAnimDone', token: a.token } as EngineAction);
+      }, a.durationMs);
 
-    const tickNow = () => {
-      dispatch({ type: 'tick', nowMs: performance.now() } as EngineAction);
-    };
-
-    const loop = () => {
-      if (cancelled) return;
-      tickNow();
-      rafId = window.requestAnimationFrame(loop);
-    };
-
-    rafId = window.requestAnimationFrame(loop);
-
-    if (typeof animDeadlineAtMs === 'number') {
-      const delay = Math.max(0, animDeadlineAtMs - performance.now());
-      timeoutId = window.setTimeout(() => tickNow(), delay + 5);
-    } else {
-      timeoutId = window.setTimeout(() => tickNow(), 400);
+      return () => window.clearTimeout(id);
     }
 
-    return () => {
-      cancelled = true;
-      if (rafId !== null) window.cancelAnimationFrame(rafId);
-      if (timeoutId !== null) window.clearTimeout(timeoutId);
-    };
-  }, [state.phase, animToken, animDeadlineAtMs]);
+    if (state.phase === 'swapBackAnimating' && a.kind === 'swapBack') {
+      const id = window.setTimeout(() => {
+        dispatch({ type: 'tick', nowMs: performance.now() } as EngineAction);
+        dispatch({ type: 'swapBackAnimDone', token: a.token } as EngineAction);
+      }, a.durationMs);
+
+      return () => window.clearTimeout(id);
+    }
+  }, [state.phase, state.anim?.token, state.anim?.kind, state.anim?.durationMs]);
+
+  // 2) Deadline fallback (single timer, no per-frame ticking)
+  useEffect(() => {
+    const a = state.anim;
+    if (!a) return;
+
+    const isWaitPhase = state.phase === 'swapAnimating' || state.phase === 'swapBackAnimating';
+    if (!isWaitPhase) return;
+
+    const delay = Math.max(0, a.deadlineAtMs - performance.now());
+    const id = window.setTimeout(() => {
+      dispatch({ type: 'tick', nowMs: performance.now() } as EngineAction);
+    }, delay + 5);
+
+    return () => window.clearTimeout(id);
+  }, [state.phase, state.anim?.token, state.anim?.deadlineAtMs]);
 
   const canSwapAt = (from: number, to: number) => {
     return canSwap(from, to, state.width, state.cells).ok;
