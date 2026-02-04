@@ -31,6 +31,13 @@ export type LevelDefinition = {
   baseSeed: number;
 };
 
+export type PendingSwap = {
+  from: number;
+  to: number;
+  snapCells: Cell[];
+  snapPieces: Record<PieceId, Piece>;
+};
+
 export type SwapRejectReason = 'locked' | 'notAdjacent' | 'blocked' | 'empty';
 
 export type EngineEvent =
@@ -73,4 +80,5 @@ export type EngineState = {
   inputLocked: boolean;
 
   events: EngineEvent[];
+  pendingSwap: PendingSwap | null;
 };

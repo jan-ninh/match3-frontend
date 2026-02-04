@@ -83,7 +83,7 @@ function applyRefill(state: EngineState): { state: EngineState; spawned: number 
   let nextPieceId = state.nextPieceId;
   let spawned = 0;
 
-  const boardView: BoardView = { width, height, cells: nextCells as any, pieces: nextPieces as any };
+  const boardView: BoardView = { width, height, cells: nextCells, pieces: nextPieces };
 
   // spawn in all empty, non-blocked cells (after gravity these are spawn-zones implicitly)
   for (let idx = 0; idx < nextCells.length; idx++) {
@@ -123,8 +123,6 @@ function applyRefill(state: EngineState): { state: EngineState; spawned: number 
 }
 
 function shuffleUntilValid(state: EngineState, maxAttempts: number): { state: EngineState; attempts: number } {
-  const { width, height } = state;
-
   const indices: number[] = [];
   const pieceIds: PieceId[] = [];
 
@@ -190,7 +188,10 @@ function shuffleUntilValid(state: EngineState, maxAttempts: number): { state: En
   };
 }
 
-export function stabilizeBoard(state: EngineState, opts?: { maxResolveLoops?: number; maxShuffleAttempts?: number }): { state: EngineState; events: EngineEvent[] } {
+export function stabilizeBoard(
+  state: EngineState,
+  opts?: { maxResolveLoops?: number; maxShuffleAttempts?: number },
+): { state: EngineState; events: EngineEvent[] } {
   const maxResolveLoops = opts?.maxResolveLoops ?? 64;
   const maxShuffleAttempts = opts?.maxShuffleAttempts ?? 200;
 

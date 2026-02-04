@@ -14,13 +14,7 @@ type SwapAttemptAction = { type: 'swapAttempt'; from: number; to: number };
 type SwapAnimDoneAction = { type: 'swapAnimDone' };
 type SwapBackAnimDoneAction = { type: 'swapBackAnimDone' };
 
-export type EngineAction =
-  | InitAction
-  | ClickAction
-  | ResetAction
-  | SwapAttemptAction
-  | SwapAnimDoneAction
-  | SwapBackAnimDoneAction;
+export type EngineAction = InitAction | ClickAction | ResetAction | SwapAttemptAction | SwapAnimDoneAction | SwapBackAnimDoneAction;
 
 function pushEvents(state: EngineState, newEvents: EngineEvent[]): EngineState {
   const merged = [...state.events, ...newEvents];
@@ -119,7 +113,7 @@ function beginSwapAnimating(state: EngineState, from: number, to: number, opts?:
   const events: EngineEvent[] = [
     { type: 'phase', phase: 'swapAnimating' },
     { type: 'swap', from, to },
-    ...(opts?.forceSelectionCleared || hadSelection ? [{ type: 'selectionCleared' }] : []),
+    ...(opts?.forceSelectionCleared || hadSelection ? [{ type: 'selectionCleared' } as const] : []),
   ];
 
   return pushEvents(nextState, events);
