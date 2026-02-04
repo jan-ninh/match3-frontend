@@ -16,7 +16,7 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
   const isDev = import.meta.env.DEV;
 
   const [levelId, setLevelId] = useState<number>(initialLevelId);
-  const [showLockoutHints, setShowLockoutHints] = useState<boolean>(true);
+  const [showLockoutHints, setShowLockoutHints] = useState<boolean>(false);
 
   const [debugEnabled, setDebugEnabled] = useState<boolean>(false);
 
@@ -173,9 +173,7 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
 
         <div className="flex items-center gap-2">
           {isDev ? (
-            <div className="text-xs text-white/50 px-2 py-1 rounded-md border border-white/10 bg-black/20">
-              Debug: {debugEnabled ? 'on' : 'off'} (press D)
-            </div>
+            <div className="text-xs text-white/50 px-2 py-1 rounded-md border border-white/10 bg-black/20">Debug: {debugEnabled ? 'on' : 'off'} (press D)</div>
           ) : null}
 
           <button
