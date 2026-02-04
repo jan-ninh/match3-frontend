@@ -1,14 +1,11 @@
 import type { EngineEvent, EngineState, Piece, PieceId, PieceType } from './types';
-import { isInputLocked, type EnginePhase } from './phases';
+import type { EnginePhase } from './phases';
 import { detectMatches, hasAnyMoves, wouldCreateMatchAt } from './match';
 import { rngNextInt, rngShuffleInPlace } from './rng';
+import { setPhase } from './phaseState';
+import { assertPhaseInvariants } from './invariants';
 
 type BoardView = Pick<EngineState, 'width' | 'height' | 'cells' | 'pieces'>;
-
-function setPhase(s: EngineState, events: EngineEvent[], phase: EnginePhase): EngineState {
-  events.push({ type: 'phase', phase });
-  return { ...s, phase, inputLocked: isInputLocked(phase) };
-}
 
 function clearCellsAndPieces(state: EngineState, indices: number[]): EngineState {
   const nextCells = state.cells.slice();
@@ -198,76 +195,98 @@ export function stabilizeBoard(
   let s: EngineState = state;
   const events: EngineEvent[] = [];
 
-  s = setPhase(s, events, 'inputLock');
+  const dev = import.meta.env.DEV;
+  const devAssert = (ctx: string) => {
+    if (dev) assertPhaseInvariants(s, ctx);
+  };
+
+  const toPhase = (phase: EnginePhase) => {
+    s = setPhase(s, phase, events);
+    devAssert(`stabilize:${phase}`);
+  };
+
+  // ensure inputLock (but avoid duplicate phase event if already in inputLock)
+  if (s.phase !== 'inputLock') {
+    toPhase('inputLock');
+  } else {
+    s = setPhase(s, 'inputLock');
+    devAssert('stabilize:inputLock');
+  }
 
   // resolve-loop: detect -> mark -> clear -> gravity -> refill -> settle -> repeat
   for (let loop = 0; loop < maxResolveLoops; loop++) {
-    s = setPhase(s, events, 'detect');
+    toPhase('detect');
     const m = detectMatches(s);
     if (m.clearIndices.length === 0) break;
 
     events.push({ type: 'matchesFound', clears: m.clearIndices.length, groups: m.groups });
 
-    s = setPhase(s, events, 'mark');
+    toPhase('mark');
     // (future) spawnPlan/specials go here
 
-    s = setPhase(s, events, 'clear');
+    toPhase('clear');
     s = clearCellsAndPieces(s, m.clearIndices);
+    devAssert('stabilize:clearCellsAndPieces');
     events.push({ type: 'cleared', count: m.clearIndices.length });
 
-    s = setPhase(s, events, 'gravity');
+    toPhase('gravity');
     s = applyGravity(s);
+    devAssert('stabilize:applyGravity');
     events.push({ type: 'gravity' });
 
-    s = setPhase(s, events, 'refill');
+    toPhase('refill');
     const ref = applyRefill(s);
     s = ref.state;
+    devAssert('stabilize:applyRefill');
     events.push({ type: 'refilled', count: ref.spawned });
 
-    s = setPhase(s, events, 'settle');
+    toPhase('settle');
     // (instant settle for now)
   }
 
   // deadlock -> shuffle -> resolve-loop again (to guarantee match-free)
-  s = setPhase(s, events, 'deadlockCheck');
+  toPhase('deadlockCheck');
   const hasMove = hasAnyMoves(s);
   events.push({ type: 'deadlockCheck', hasMove });
 
   if (!hasMove) {
-    s = setPhase(s, events, 'shuffle');
+    toPhase('shuffle');
     const sh = shuffleUntilValid(s, maxShuffleAttempts);
     s = sh.state;
+    devAssert('stabilize:shuffleUntilValid');
     events.push({ type: 'shuffled', attempts: sh.attempts });
 
     // post-shuffle safety resolve
     for (let loop = 0; loop < maxResolveLoops; loop++) {
-      s = setPhase(s, events, 'detect');
+      toPhase('detect');
       const m = detectMatches(s);
       if (m.clearIndices.length === 0) break;
 
       events.push({ type: 'matchesFound', clears: m.clearIndices.length, groups: m.groups });
 
-      s = setPhase(s, events, 'mark');
+      toPhase('mark');
 
-      s = setPhase(s, events, 'clear');
+      toPhase('clear');
       s = clearCellsAndPieces(s, m.clearIndices);
+      devAssert('stabilize:postShuffle:clearCellsAndPieces');
       events.push({ type: 'cleared', count: m.clearIndices.length });
 
-      s = setPhase(s, events, 'gravity');
+      toPhase('gravity');
       s = applyGravity(s);
+      devAssert('stabilize:postShuffle:applyGravity');
       events.push({ type: 'gravity' });
 
-      s = setPhase(s, events, 'refill');
+      toPhase('refill');
       const ref = applyRefill(s);
       s = ref.state;
+      devAssert('stabilize:postShuffle:applyRefill');
       events.push({ type: 'refilled', count: ref.spawned });
 
-      s = setPhase(s, events, 'settle');
+      toPhase('settle');
     }
   }
 
-  s = setPhase(s, events, 'idle');
-  s = { ...s, phase: 'idle', inputLocked: false };
+  toPhase('idle');
 
   return { state: s, events };
 }

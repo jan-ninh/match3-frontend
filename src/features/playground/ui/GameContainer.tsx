@@ -49,12 +49,7 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
     dispatch({ type: 'initLevel', levelId } as EngineAction);
   }, [levelId]);
 
-  const inputLocked = useMemo(() => {
-    const anyState = state as unknown as { inputLocked?: boolean; phase?: string };
-    if (typeof anyState.inputLocked === 'boolean') return anyState.inputLocked;
-    if (typeof anyState.phase === 'string') return anyState.phase !== 'idle';
-    return false;
-  }, [state]);
+  const inputLocked = state.inputLocked;
 
   // drive engine time during wait phases (engine guarantees progress via deadline)
   const animToken = state.anim?.token ?? 0;
@@ -62,7 +57,7 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
 
   useEffect(() => {
     const phase = state.phase;
-    const isWaitPhase = phase === 'swapAnimating' || phase === 'swapBackAnimating' || phase === 'fallAnimating';
+    const isWaitPhase = phase === 'swapAnimating' || phase === 'swapBackAnimating';
     if (!isWaitPhase) return;
 
     let rafId: number | null = null;

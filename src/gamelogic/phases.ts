@@ -2,25 +2,27 @@ export type EnginePhase =
   | 'init'
   | 'idle'
   | 'inputLock'
-  | 'validate'
-  | 'swap'
-  | 'swapBack'
-  | 'resolveSwapOutcome'
   | 'detect'
   | 'mark'
   | 'clear'
-  | 'effectsQueueProcessing'
   | 'gravity'
   | 'refill'
   | 'settle'
   | 'deadlockCheck'
   | 'shuffle'
-  // optional (future UI-driven stepping)
   | 'swapAnimating'
-  | 'swapBackAnimating'
-  | 'fallAnimating';
+  | 'swapBackAnimating';
 
 export function isInputLocked(phase: EnginePhase): boolean {
   return phase !== 'idle';
 }
 
+export function isAnimatingPhase(phase: EnginePhase): boolean {
+  return phase === 'swapAnimating' || phase === 'swapBackAnimating';
+}
+
+export function animKindForPhase(phase: EnginePhase): 'swap' | 'swapBack' | null {
+  if (phase === 'swapAnimating') return 'swap';
+  if (phase === 'swapBackAnimating') return 'swapBack';
+  return null;
+}

@@ -56,7 +56,7 @@ export type EngineEvent =
   | { type: 'deadlockCheck'; hasMove: boolean }
   | { type: 'shuffled'; attempts: number };
 
-export type EngineAnimKind = 'swap' | 'swapBack' | 'fall';
+export type EngineAnimKind = 'swap' | 'swapBack';
 
 export type EngineAnim = {
   kind: EngineAnimKind;

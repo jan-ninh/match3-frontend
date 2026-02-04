@@ -3,8 +3,9 @@ import { getLevelDefinition } from './levels';
 import { buildInitialBoard, canSwap, swapCellsImmutable, swapPiecesPositionsImmutable } from './board';
 import { detectMatches } from './match';
 import { stabilizeBoard } from './cascade';
-import { assertBoardIntegrity } from './invariants';
+import { assertBoardIntegrity, assertPhaseInvariants } from './invariants';
 import { ANIM_EPSILON_MS, SWAP_MS } from './animTimings';
+import { setPhase } from './phaseState';
 
 type InitAction = { type: 'initLevel'; levelId: LevelId };
 type ClickAction = { type: 'clickCell'; index: number };
@@ -46,7 +47,7 @@ function nextAnimToken(base: number): number {
   return ((base >>> 0) + 1) >>> 0;
 }
 
-function beginAnim(state: EngineState, kind: 'swap' | 'swapBack' | 'fall', durationMs: number): EngineState {
+function beginAnim(state: EngineState, kind: 'swap' | 'swapBack', durationMs: number): EngineState {
   const token = nextAnimToken(state.animToken);
   const enteredAtMs = state.nowMs;
   const deadlineAtMs = enteredAtMs + durationMs + ANIM_EPSILON_MS;
@@ -92,7 +93,10 @@ function createState(levelId: LevelId, seed: number, extraEvents: EngineEvent[] 
   const stabilized = stabilizeBoard(base);
   const withEvents = pushEvents(stabilized.state, stabilized.events);
 
-  if (import.meta.env.DEV) assertBoardIntegrity(withEvents, 'createState');
+  if (import.meta.env.DEV) {
+    assertBoardIntegrity(withEvents, 'createState');
+    assertPhaseInvariants(withEvents, 'createState');
+  }
 
   return withEvents;
 }
@@ -126,22 +130,21 @@ function beginSwapAnimating(state: EngineState, from: number, to: number, opts?:
 
   const swapped = applySwapCommit(state, from, to);
 
-  const baseState: EngineState = {
+  const events: EngineEvent[] = [];
+
+  let baseState: EngineState = {
     ...swapped,
     selectedIndex: null,
     pendingSwap: { from, to, snapCells, snapPieces },
-    phase: 'swapAnimating',
-    inputLocked: true,
     anim: null,
   };
 
+  baseState = setPhase(baseState, 'swapAnimating', events);
+
   const withAnim = beginAnim(baseState, 'swap', SWAP_MS);
 
-  const events: EngineEvent[] = [
-    { type: 'phase', phase: 'swapAnimating' },
-    { type: 'swap', from, to },
-    ...(opts?.forceSelectionCleared || hadSelection ? [{ type: 'selectionCleared' } as const] : []),
-  ];
+  events.push({ type: 'swap', from, to });
+  if (opts?.forceSelectionCleared || hadSelection) events.push({ type: 'selectionCleared' });
 
   return pushEvents(withAnim, events);
 }
@@ -157,45 +160,52 @@ function applySwapAnimDone(state: EngineState, token: number): EngineState {
   const m = detectMatches(state);
 
   if (m.clearIndices.length === 0) {
-    const revertedBase: EngineState = {
+    const events: EngineEvent[] = [];
+
+    let revertedBase: EngineState = {
       ...state,
       cells: snapCells,
       pieces: snapPieces,
       selectedIndex: null,
       pendingSwap: null,
-      phase: 'swapBackAnimating',
-      inputLocked: true,
       anim: null,
     };
 
+    revertedBase = setPhase(revertedBase, 'swapBackAnimating', events);
+
     const withAnim = beginAnim(revertedBase, 'swapBack', SWAP_MS);
+    events.push({ type: 'swapBack', from, to });
 
-    const withEvents = pushEvents(withAnim, [
-      { type: 'phase', phase: 'resolveSwapOutcome' },
-      { type: 'swapBack', from, to },
-      { type: 'phase', phase: 'swapBackAnimating' },
-    ]);
+    const withEvents = pushEvents(withAnim, events);
 
-    if (import.meta.env.DEV) assertBoardIntegrity(withEvents, 'swapBack');
+    if (import.meta.env.DEV) {
+      assertBoardIntegrity(withEvents, 'swapBack');
+      assertPhaseInvariants(withEvents, 'swapBack');
+    }
 
     return withEvents;
   }
 
   // matches exist => continue resolve chain
-  const startResolve: EngineState = {
+  const preEvents: EngineEvent[] = [];
+
+  let startResolve: EngineState = {
     ...state,
     pendingSwap: null,
-    phase: 'inputLock',
-    inputLocked: true,
     anim: null,
   };
 
-  const seeded = pushEvents(startResolve, [{ type: 'phase', phase: 'resolveSwapOutcome' }]);
+  startResolve = setPhase(startResolve, 'inputLock', preEvents);
+
+  const seeded = pushEvents(startResolve, preEvents);
 
   const stabilized = stabilizeBoard(seeded);
   const final = pushEvents(stabilized.state, stabilized.events);
 
-  if (import.meta.env.DEV) assertBoardIntegrity(final, 'swap+stabilize');
+  if (import.meta.env.DEV) {
+    assertBoardIntegrity(final, 'swap+stabilize');
+    assertPhaseInvariants(final, 'swap+stabilize');
+  }
 
   return final;
 }
@@ -204,14 +214,12 @@ function applySwapBackAnimDone(state: EngineState, token: number): EngineState {
   if (state.phase !== 'swapBackAnimating') return state;
   if (!state.anim || state.anim.kind !== 'swapBack' || state.anim.token !== token) return state;
 
-  const next: EngineState = {
-    ...state,
-    phase: 'idle',
-    inputLocked: false,
-    anim: null,
-  };
+  const events: EngineEvent[] = [];
 
-  return pushEvents(next, [{ type: 'phase', phase: 'idle' }]);
+  const base: EngineState = { ...state, anim: null };
+  const next = setPhase(base, 'idle', events);
+
+  return pushEvents(next, events);
 }
 
 function tryAutoFinishAnim(state: EngineState): EngineState {
@@ -227,88 +235,94 @@ function tryAutoFinishAnim(state: EngineState): EngineState {
 }
 
 export function engineReducer(state: EngineState, action: EngineAction): EngineState {
-  switch (action.type) {
-    case 'tick': {
-      const incoming = Number.isFinite(action.nowMs) ? action.nowMs : state.nowMs;
-      const nowMs = Math.max(state.nowMs, incoming);
-      const withNow = state.nowMs === nowMs ? state : { ...state, nowMs };
-      return tryAutoFinishAnim(withNow);
-    }
-
-    case 'initLevel': {
-      const level = getLevelDefinition(action.levelId);
-      const base = nextAnimToken(state.animToken);
-      return createState(action.levelId, level.baseSeed, [], base);
-    }
-
-    case 'resetBoard': {
-      if (state.phase !== 'idle') return state;
-
-      const newSeed = ((state.seed >>> 0) + 1) >>> 0;
-      const resetEvent: EngineEvent = { type: 'reset', levelId: state.levelId, seed: newSeed };
-      const base = nextAnimToken(state.animToken);
-
-      return createState(state.levelId, newSeed, [resetEvent], base);
-    }
-
-    case 'swapAttempt': {
-      if (state.phase !== 'idle') return pushEvents(state, [rejectSwap(action.from, action.to, 'locked')]);
-
-      const { from, to } = action;
-
-      const check = canSwap(from, to, state.width, state.cells);
-      if (!check.ok) return pushEvents(state, [rejectSwap(from, to, check.reason)]);
-
-      return beginSwapAnimating(state, from, to);
-    }
-
-    case 'swapAnimDone': {
-      return applySwapAnimDone(state, action.token);
-    }
-
-    case 'swapBackAnimDone': {
-      return applySwapBackAnimDone(state, action.token);
-    }
-
-    case 'clickCell': {
-      if (state.phase !== 'idle') return state;
-
-      const clicked = action.index;
-
-      if (state.selectedIndex === clicked) {
-        const nextState: EngineState = { ...state, selectedIndex: null };
-        return pushEvents(nextState, [{ type: 'selectionCleared' }]);
+  const next = (() => {
+    switch (action.type) {
+      case 'tick': {
+        const incoming = Number.isFinite(action.nowMs) ? action.nowMs : state.nowMs;
+        const nowMs = Math.max(state.nowMs, incoming);
+        const withNow = state.nowMs === nowMs ? state : { ...state, nowMs };
+        return tryAutoFinishAnim(withNow);
       }
 
-      if (state.selectedIndex === null) {
-        if (!isSelectableCell(state, clicked)) return state;
-        const nextState: EngineState = { ...state, selectedIndex: clicked };
-        return pushEvents(nextState, [{ type: 'select', index: clicked }]);
+      case 'initLevel': {
+        const level = getLevelDefinition(action.levelId);
+        const base = nextAnimToken(state.animToken);
+        return createState(action.levelId, level.baseSeed, [], base);
       }
 
-      const from = state.selectedIndex;
-      const to = clicked;
+      case 'resetBoard': {
+        if (state.phase !== 'idle') return state;
 
-      const check = canSwap(from, to, state.width, state.cells);
+        const newSeed = ((state.seed >>> 0) + 1) >>> 0;
+        const resetEvent: EngineEvent = { type: 'reset', levelId: state.levelId, seed: newSeed };
+        const base = nextAnimToken(state.animToken);
 
-      if (check.ok) {
-        // route click-adjacent swap through the same anim pipeline
-        return beginSwapAnimating(state, from, to, { forceSelectionCleared: true });
+        return createState(state.levelId, newSeed, [resetEvent], base);
       }
 
-      const nextSelected = isSelectableCell(state, clicked) ? clicked : null;
-      const nextState: EngineState = { ...state, selectedIndex: nextSelected };
+      case 'swapAttempt': {
+        if (state.phase !== 'idle') return pushEvents(state, [rejectSwap(action.from, action.to, 'locked')]);
 
-      const events: EngineEvent[] = [rejectSwap(from, to, check.reason), ...selectionClearedIfNeeded(state.selectedIndex, nextSelected)];
+        const { from, to } = action;
 
-      if (nextSelected !== null) events.push({ type: 'select', index: nextSelected });
+        const check = canSwap(from, to, state.width, state.cells);
+        if (!check.ok) return pushEvents(state, [rejectSwap(from, to, check.reason)]);
 
-      return pushEvents(nextState, events);
+        return beginSwapAnimating(state, from, to);
+      }
+
+      case 'swapAnimDone': {
+        return applySwapAnimDone(state, action.token);
+      }
+
+      case 'swapBackAnimDone': {
+        return applySwapBackAnimDone(state, action.token);
+      }
+
+      case 'clickCell': {
+        if (state.phase !== 'idle') return state;
+
+        const clicked = action.index;
+
+        if (state.selectedIndex === clicked) {
+          const nextState: EngineState = { ...state, selectedIndex: null };
+          return pushEvents(nextState, [{ type: 'selectionCleared' }]);
+        }
+
+        if (state.selectedIndex === null) {
+          if (!isSelectableCell(state, clicked)) return state;
+          const nextState: EngineState = { ...state, selectedIndex: clicked };
+          return pushEvents(nextState, [{ type: 'select', index: clicked }]);
+        }
+
+        const from = state.selectedIndex;
+        const to = clicked;
+
+        const check = canSwap(from, to, state.width, state.cells);
+
+        if (check.ok) {
+          // route click-adjacent swap through the same anim pipeline
+          return beginSwapAnimating(state, from, to, { forceSelectionCleared: true });
+        }
+
+        const nextSelected = isSelectableCell(state, clicked) ? clicked : null;
+        const nextState: EngineState = { ...state, selectedIndex: nextSelected };
+
+        const events: EngineEvent[] = [rejectSwap(from, to, check.reason), ...selectionClearedIfNeeded(state.selectedIndex, nextSelected)];
+
+        if (nextSelected !== null) events.push({ type: 'select', index: nextSelected });
+
+        return pushEvents(nextState, events);
+      }
+
+      default: {
+        const _exhaustive: never = action;
+        throw new Error(`Unhandled action: ${JSON.stringify(_exhaustive)}`);
+      }
     }
+  })();
 
-    default: {
-      const _exhaustive: never = action;
-      throw new Error(`Unhandled action: ${JSON.stringify(_exhaustive)}`);
-    }
-  }
+  if (import.meta.env.DEV) assertPhaseInvariants(next, `engineReducer:${action.type}`);
+
+  return next;
 }
