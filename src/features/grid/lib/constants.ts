@@ -1,3 +1,5 @@
+import { SWAP_MS } from '@/gamelogic';
+
 // Sizing
 export const TILE_SIZE = 56;
 export const GAP = 8; // tailwind gap-2 => 0.5rem => 8px
@@ -26,8 +28,8 @@ export const PREVIEW_MS = 120;
 // Pick ~0.25..0.45 depending on how "direct" you want it.
 export const SMOOTHING = 0.35;
 
-// Swap animation
-export const SWAP_MS = 240;
+// Swap animation (single source of truth in gamelogic)
+export { SWAP_MS };
 export const EASING = 'cubic-bezier(0.22, 1, 0.36, 1)';
 
 // Dev panel

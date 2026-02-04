@@ -4,17 +4,21 @@ import { buildInitialBoard, canSwap, swapCellsImmutable, swapPiecesPositionsImmu
 import { detectMatches } from './match';
 import { stabilizeBoard } from './cascade';
 import { assertBoardIntegrity } from './invariants';
+import { ANIM_EPSILON_MS, SWAP_MS } from './animTimings';
 
 type InitAction = { type: 'initLevel'; levelId: LevelId };
 type ClickAction = { type: 'clickCell'; index: number };
 type ResetAction = { type: 'resetBoard' };
 type SwapAttemptAction = { type: 'swapAttempt'; from: number; to: number };
 
-// runtime loop (scheduled by UI)
-type SwapAnimDoneAction = { type: 'swapAnimDone' };
-type SwapBackAnimDoneAction = { type: 'swapBackAnimDone' };
+// engine-owned time
+type TickAction = { type: 'tick'; nowMs: number };
 
-export type EngineAction = InitAction | ClickAction | ResetAction | SwapAttemptAction | SwapAnimDoneAction | SwapBackAnimDoneAction;
+// optional UI “done” signals (never the only escape hatch)
+type SwapAnimDoneAction = { type: 'swapAnimDone'; token: number };
+type SwapBackAnimDoneAction = { type: 'swapBackAnimDone'; token: number };
+
+export type EngineAction = InitAction | ClickAction | ResetAction | SwapAttemptAction | TickAction | SwapAnimDoneAction | SwapBackAnimDoneAction;
 
 function pushEvents(state: EngineState, newEvents: EngineEvent[]): EngineState {
   const merged = [...state.events, ...newEvents];
@@ -38,7 +42,23 @@ function rejectSwap(from: number, to: number, reason: SwapRejectReason): EngineE
   return { type: 'swapRejected', from, to, reason };
 }
 
-function createState(levelId: LevelId, seed: number, extraEvents: EngineEvent[] = []): EngineState {
+function nextAnimToken(base: number): number {
+  return ((base >>> 0) + 1) >>> 0;
+}
+
+function beginAnim(state: EngineState, kind: 'swap' | 'swapBack' | 'fall', durationMs: number): EngineState {
+  const token = nextAnimToken(state.animToken);
+  const enteredAtMs = state.nowMs;
+  const deadlineAtMs = enteredAtMs + durationMs + ANIM_EPSILON_MS;
+
+  return {
+    ...state,
+    animToken: token,
+    anim: { kind, enteredAtMs, durationMs, deadlineAtMs, token },
+  };
+}
+
+function createState(levelId: LevelId, seed: number, extraEvents: EngineEvent[] = [], animTokenBase = 0): EngineState {
   const level = getLevelDefinition(levelId);
   const built = buildInitialBoard(level, seed);
 
@@ -62,6 +82,10 @@ function createState(levelId: LevelId, seed: number, extraEvents: EngineEvent[] 
     phase: 'init',
     inputLocked: true,
 
+    nowMs: 0,
+    anim: null,
+    animToken: animTokenBase,
+
     events: [mkSeededInit(levelId, level.width, level.height, seed), ...extraEvents],
   };
 
@@ -75,7 +99,7 @@ function createState(levelId: LevelId, seed: number, extraEvents: EngineEvent[] 
 
 export function createInitialState(levelId: LevelId): EngineState {
   const level = getLevelDefinition(levelId);
-  return createState(levelId, level.baseSeed);
+  return createState(levelId, level.baseSeed, [], 1);
 }
 
 function selectionClearedIfNeeded(prevSelected: number | null, nextSelected: number | null): EngineEvent[] {
@@ -102,13 +126,16 @@ function beginSwapAnimating(state: EngineState, from: number, to: number, opts?:
 
   const swapped = applySwapCommit(state, from, to);
 
-  const nextState: EngineState = {
+  const baseState: EngineState = {
     ...swapped,
     selectedIndex: null,
     pendingSwap: { from, to, snapCells, snapPieces },
     phase: 'swapAnimating',
     inputLocked: true,
+    anim: null,
   };
+
+  const withAnim = beginAnim(baseState, 'swap', SWAP_MS);
 
   const events: EngineEvent[] = [
     { type: 'phase', phase: 'swapAnimating' },
@@ -116,13 +143,102 @@ function beginSwapAnimating(state: EngineState, from: number, to: number, opts?:
     ...(opts?.forceSelectionCleared || hadSelection ? [{ type: 'selectionCleared' } as const] : []),
   ];
 
-  return pushEvents(nextState, events);
+  return pushEvents(withAnim, events);
+}
+
+function applySwapAnimDone(state: EngineState, token: number): EngineState {
+  if (state.phase !== 'swapAnimating') return state;
+  if (!state.pendingSwap) return state;
+  if (!state.anim || state.anim.kind !== 'swap' || state.anim.token !== token) return state;
+
+  const { from, to, snapCells, snapPieces } = state.pendingSwap;
+
+  // outcome gate: swap must create at least one match
+  const m = detectMatches(state);
+
+  if (m.clearIndices.length === 0) {
+    const revertedBase: EngineState = {
+      ...state,
+      cells: snapCells,
+      pieces: snapPieces,
+      selectedIndex: null,
+      pendingSwap: null,
+      phase: 'swapBackAnimating',
+      inputLocked: true,
+      anim: null,
+    };
+
+    const withAnim = beginAnim(revertedBase, 'swapBack', SWAP_MS);
+
+    const withEvents = pushEvents(withAnim, [
+      { type: 'phase', phase: 'resolveSwapOutcome' },
+      { type: 'swapBack', from, to },
+      { type: 'phase', phase: 'swapBackAnimating' },
+    ]);
+
+    if (import.meta.env.DEV) assertBoardIntegrity(withEvents, 'swapBack');
+
+    return withEvents;
+  }
+
+  // matches exist => continue resolve chain
+  const startResolve: EngineState = {
+    ...state,
+    pendingSwap: null,
+    phase: 'inputLock',
+    inputLocked: true,
+    anim: null,
+  };
+
+  const seeded = pushEvents(startResolve, [{ type: 'phase', phase: 'resolveSwapOutcome' }]);
+
+  const stabilized = stabilizeBoard(seeded);
+  const final = pushEvents(stabilized.state, stabilized.events);
+
+  if (import.meta.env.DEV) assertBoardIntegrity(final, 'swap+stabilize');
+
+  return final;
+}
+
+function applySwapBackAnimDone(state: EngineState, token: number): EngineState {
+  if (state.phase !== 'swapBackAnimating') return state;
+  if (!state.anim || state.anim.kind !== 'swapBack' || state.anim.token !== token) return state;
+
+  const next: EngineState = {
+    ...state,
+    phase: 'idle',
+    inputLocked: false,
+    anim: null,
+  };
+
+  return pushEvents(next, [{ type: 'phase', phase: 'idle' }]);
+}
+
+function tryAutoFinishAnim(state: EngineState): EngineState {
+  const a = state.anim;
+  if (!a) return state;
+
+  if (state.nowMs < a.deadlineAtMs) return state;
+
+  if (a.kind === 'swap') return applySwapAnimDone(state, a.token);
+  if (a.kind === 'swapBack') return applySwapBackAnimDone(state, a.token);
+
+  return state;
 }
 
 export function engineReducer(state: EngineState, action: EngineAction): EngineState {
   switch (action.type) {
+    case 'tick': {
+      const incoming = Number.isFinite(action.nowMs) ? action.nowMs : state.nowMs;
+      const nowMs = Math.max(state.nowMs, incoming);
+      const withNow = state.nowMs === nowMs ? state : { ...state, nowMs };
+      return tryAutoFinishAnim(withNow);
+    }
+
     case 'initLevel': {
-      return createInitialState(action.levelId);
+      const level = getLevelDefinition(action.levelId);
+      const base = nextAnimToken(state.animToken);
+      return createState(action.levelId, level.baseSeed, [], base);
     }
 
     case 'resetBoard': {
@@ -130,7 +246,9 @@ export function engineReducer(state: EngineState, action: EngineAction): EngineS
 
       const newSeed = ((state.seed >>> 0) + 1) >>> 0;
       const resetEvent: EngineEvent = { type: 'reset', levelId: state.levelId, seed: newSeed };
-      return createState(state.levelId, newSeed, [resetEvent]);
+      const base = nextAnimToken(state.animToken);
+
+      return createState(state.levelId, newSeed, [resetEvent], base);
     }
 
     case 'swapAttempt': {
@@ -145,64 +263,11 @@ export function engineReducer(state: EngineState, action: EngineAction): EngineS
     }
 
     case 'swapAnimDone': {
-      if (state.phase !== 'swapAnimating') return state;
-      if (!state.pendingSwap) return state;
-
-      const { from, to, snapCells, snapPieces } = state.pendingSwap;
-
-      // outcome gate: swap must create at least one match
-      const m = detectMatches(state);
-
-      if (m.clearIndices.length === 0) {
-        const reverted: EngineState = {
-          ...state,
-          cells: snapCells,
-          pieces: snapPieces,
-          selectedIndex: null,
-          pendingSwap: null,
-          phase: 'swapBackAnimating',
-          inputLocked: true,
-        };
-
-        const withEvents = pushEvents(reverted, [
-          { type: 'phase', phase: 'resolveSwapOutcome' },
-          { type: 'swapBack', from, to },
-          { type: 'phase', phase: 'swapBackAnimating' },
-        ]);
-
-        if (import.meta.env.DEV) assertBoardIntegrity(withEvents, 'swapBack');
-
-        return withEvents;
-      }
-
-      // matches exist => continue resolve chain
-      const startResolve: EngineState = {
-        ...state,
-        pendingSwap: null,
-        phase: 'inputLock',
-        inputLocked: true,
-      };
-
-      const seeded = pushEvents(startResolve, [{ type: 'phase', phase: 'resolveSwapOutcome' }]);
-
-      const stabilized = stabilizeBoard(seeded);
-      const final = pushEvents(stabilized.state, stabilized.events);
-
-      if (import.meta.env.DEV) assertBoardIntegrity(final, 'swap+stabilize');
-
-      return final;
+      return applySwapAnimDone(state, action.token);
     }
 
     case 'swapBackAnimDone': {
-      if (state.phase !== 'swapBackAnimating') return state;
-
-      const next: EngineState = {
-        ...state,
-        phase: 'idle',
-        inputLocked: false,
-      };
-
-      return pushEvents(next, [{ type: 'phase', phase: 'idle' }]);
+      return applySwapBackAnimDone(state, action.token);
     }
 
     case 'clickCell': {

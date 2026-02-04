@@ -56,6 +56,16 @@ export type EngineEvent =
   | { type: 'deadlockCheck'; hasMove: boolean }
   | { type: 'shuffled'; attempts: number };
 
+export type EngineAnimKind = 'swap' | 'swapBack' | 'fall';
+
+export type EngineAnim = {
+  kind: EngineAnimKind;
+  enteredAtMs: number;
+  durationMs: number;
+  deadlineAtMs: number;
+  token: number;
+};
+
 export type EngineState = {
   levelId: LevelId;
   width: number;
@@ -78,6 +88,15 @@ export type EngineState = {
 
   phase: EnginePhase;
   inputLocked: boolean;
+
+  // engine-owned monotonic clock (updated via tick(nowMs))
+  nowMs: number;
+
+  // current wait-phase animation (optional; never a single point of failure)
+  anim: EngineAnim | null;
+
+  // increasing token to invalidate old anim-done events
+  animToken: number;
 
   events: EngineEvent[];
   pendingSwap: PendingSwap | null;

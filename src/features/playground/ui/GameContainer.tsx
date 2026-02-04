@@ -6,7 +6,6 @@ import { canSwap, createInitialState, engineReducer } from '@/gamelogic';
 
 import { DebugEventLog } from '@/devtools';
 import { Grid } from '@/features/grid';
-import { SWAP_MS } from '@/features/grid/lib/constants';
 
 type Props = {
   initialLevelId?: number;
@@ -57,33 +56,63 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
     return false;
   }, [state]);
 
-    // drive engine runtime steps after CSS swap animations finish
+  // drive engine time during wait phases (engine guarantees progress via deadline)
+  const animToken = state.anim?.token ?? 0;
+  const animDeadlineAtMs = state.anim?.deadlineAtMs ?? null;
+
   useEffect(() => {
-    if (state.phase === 'swapAnimating') {
-      const t = window.setTimeout(() => dispatch({ type: 'swapAnimDone' } as EngineAction), SWAP_MS);
-      return () => window.clearTimeout(t);
+    const phase = state.phase;
+    const isWaitPhase = phase === 'swapAnimating' || phase === 'swapBackAnimating' || phase === 'fallAnimating';
+    if (!isWaitPhase) return;
+
+    let rafId: number | null = null;
+    let timeoutId: number | null = null;
+    let cancelled = false;
+
+    const tickNow = () => {
+      dispatch({ type: 'tick', nowMs: performance.now() } as EngineAction);
+    };
+
+    const loop = () => {
+      if (cancelled) return;
+      tickNow();
+      rafId = window.requestAnimationFrame(loop);
+    };
+
+    rafId = window.requestAnimationFrame(loop);
+
+    if (typeof animDeadlineAtMs === 'number') {
+      const delay = Math.max(0, animDeadlineAtMs - performance.now());
+      timeoutId = window.setTimeout(() => tickNow(), delay + 5);
+    } else {
+      timeoutId = window.setTimeout(() => tickNow(), 400);
     }
 
-    if (state.phase === 'swapBackAnimating') {
-      const t = window.setTimeout(() => dispatch({ type: 'swapBackAnimDone' } as EngineAction), SWAP_MS);
-      return () => window.clearTimeout(t);
-    }
+    return () => {
+      cancelled = true;
+      if (rafId !== null) window.cancelAnimationFrame(rafId);
+      if (timeoutId !== null) window.clearTimeout(timeoutId);
+    };
+  }, [state.phase, animToken, animDeadlineAtMs]);
 
-    return;
-  }, [state.phase]);
-const canSwapAt = (from: number, to: number) => {
+  const canSwapAt = (from: number, to: number) => {
     return canSwap(from, to, state.width, state.cells).ok;
   };
 
   const onIntent = (intent: unknown) => {
     const i = intent as unknown as { type?: unknown; index?: unknown; from?: unknown; to?: unknown };
 
+    // tick-before-intent so enteredAtMs is always fresh enough
+    const tickNow = () => dispatch({ type: 'tick', nowMs: performance.now() } as EngineAction);
+
     if (i?.type === 'click' && typeof i.index === 'number') {
+      tickNow();
       dispatch({ type: 'clickCell', index: i.index } as EngineAction);
       return;
     }
 
     if (i?.type === 'swap' && typeof i.from === 'number' && typeof i.to === 'number') {
+      tickNow();
       dispatch({ type: 'swapAttempt', from: i.from, to: i.to } as EngineAction);
       return;
     }
@@ -146,7 +175,9 @@ const canSwapAt = (from: number, to: number) => {
 
         <div className="flex items-center gap-2">
           {isDev ? (
-            <div className="text-xs text-white/50 px-2 py-1 rounded-md border border-white/10 bg-black/20">Debug: {debugEnabled ? 'on' : 'off'} (press D)</div>
+            <div className="text-xs text-white/50 px-2 py-1 rounded-md border border-white/10 bg-black/20">
+              Debug: {debugEnabled ? 'on' : 'off'} (press D)
+            </div>
           ) : null}
 
           <button
@@ -190,4 +221,3 @@ const canSwapAt = (from: number, to: number) => {
     </div>
   );
 }
-
