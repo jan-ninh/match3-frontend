@@ -1,4 +1,4 @@
-import type { EngineEvent, EngineState, LevelId, SwapRejectReason } from './types';
+import type { AnimDoneIgnoreReason, AnimDoneMode, EngineAnimKind, EngineEvent, EngineState, LevelId, SwapRejectReason } from './types';
 import { getLevelDefinition } from './levels';
 import { buildInitialBoard, canSwap, swapCellsImmutable, swapPiecesPositionsImmutable } from './board';
 import { detectMatches } from './match';
@@ -29,6 +29,16 @@ function pushEvents(state: EngineState, newEvents: EngineEvent[]): EngineState {
 
 function mkSeededInit(levelId: LevelId, width: number, height: number, seed: number): EngineEvent {
   return { type: 'seededInit', levelId, width, height, seed };
+}
+
+function mkAnimDone(mode: AnimDoneMode, anim: { kind: EngineAnimKind; enteredAtMs: number; durationMs: number; token: number }, nowMs: number): EngineEvent {
+  const dtMs = Math.max(0, nowMs - anim.enteredAtMs);
+  const deltaMs = dtMs - anim.durationMs; // negative = early, positive = late
+  return { type: 'animDone', mode, kind: anim.kind, token: anim.token, dtMs, deltaMs };
+}
+
+function mkAnimDoneIgnored(kind: EngineAnimKind, token: number, reason: AnimDoneIgnoreReason): EngineEvent {
+  return { type: 'animDoneIgnored', kind, token, reason };
 }
 
 function isSelectableCell(state: EngineState, index: number): boolean {
@@ -149,18 +159,29 @@ function beginSwapAnimating(state: EngineState, from: number, to: number, opts?:
   return pushEvents(withAnim, events);
 }
 
-function applySwapAnimDone(state: EngineState, token: number): EngineState {
-  if (state.phase !== 'swapAnimating') return state;
-  if (!state.pendingSwap) return state;
-  if (!state.anim || state.anim.kind !== 'swap' || state.anim.token !== token) return state;
+function applySwapAnimDone(state: EngineState, token: number, mode: AnimDoneMode): EngineState {
+  const ignore = (reason: AnimDoneIgnoreReason): EngineState => {
+    if (mode !== 'early') return state;
+    if (!import.meta.env.DEV) return state;
+    return pushEvents(state, [mkAnimDoneIgnored('swap', token, reason)]);
+  };
 
+  if (state.phase !== 'swapAnimating') return ignore('wrongPhase');
+  if (!state.pendingSwap) return ignore('missingPendingSwap');
+
+  const a = state.anim;
+  if (!a) return ignore('missingAnim');
+  if (a.kind !== 'swap') return ignore('wrongKind');
+  if (a.token !== token) return ignore('wrongToken');
+
+  const doneEvent = mkAnimDone(mode, a, state.nowMs);
   const { from, to, snapCells, snapPieces } = state.pendingSwap;
 
   // outcome gate: swap must create at least one match
   const m = detectMatches(state);
 
   if (m.clearIndices.length === 0) {
-    const events: EngineEvent[] = [];
+    const events: EngineEvent[] = [doneEvent];
 
     let revertedBase: EngineState = {
       ...state,
@@ -187,7 +208,7 @@ function applySwapAnimDone(state: EngineState, token: number): EngineState {
   }
 
   // matches exist => continue resolve chain
-  const preEvents: EngineEvent[] = [];
+  const preEvents: EngineEvent[] = [doneEvent];
 
   let startResolve: EngineState = {
     ...state,
@@ -210,11 +231,21 @@ function applySwapAnimDone(state: EngineState, token: number): EngineState {
   return final;
 }
 
-function applySwapBackAnimDone(state: EngineState, token: number): EngineState {
-  if (state.phase !== 'swapBackAnimating') return state;
-  if (!state.anim || state.anim.kind !== 'swapBack' || state.anim.token !== token) return state;
+function applySwapBackAnimDone(state: EngineState, token: number, mode: AnimDoneMode): EngineState {
+  const ignore = (reason: AnimDoneIgnoreReason): EngineState => {
+    if (mode !== 'early') return state;
+    if (!import.meta.env.DEV) return state;
+    return pushEvents(state, [mkAnimDoneIgnored('swapBack', token, reason)]);
+  };
 
-  const events: EngineEvent[] = [];
+  if (state.phase !== 'swapBackAnimating') return ignore('wrongPhase');
+
+  const a = state.anim;
+  if (!a) return ignore('missingAnim');
+  if (a.kind !== 'swapBack') return ignore('wrongKind');
+  if (a.token !== token) return ignore('wrongToken');
+
+  const events: EngineEvent[] = [mkAnimDone(mode, a, state.nowMs)];
 
   const base: EngineState = { ...state, anim: null };
   const next = setPhase(base, 'idle', events);
@@ -228,8 +259,8 @@ function tryAutoFinishAnim(state: EngineState): EngineState {
 
   if (state.nowMs < a.deadlineAtMs) return state;
 
-  if (a.kind === 'swap') return applySwapAnimDone(state, a.token);
-  if (a.kind === 'swapBack') return applySwapBackAnimDone(state, a.token);
+  if (a.kind === 'swap') return applySwapAnimDone(state, a.token, 'auto');
+  if (a.kind === 'swapBack') return applySwapBackAnimDone(state, a.token, 'auto');
 
   return state;
 }
@@ -272,11 +303,11 @@ export function engineReducer(state: EngineState, action: EngineAction): EngineS
       }
 
       case 'swapAnimDone': {
-        return applySwapAnimDone(state, action.token);
+        return applySwapAnimDone(state, action.token, 'early');
       }
 
       case 'swapBackAnimDone': {
-        return applySwapBackAnimDone(state, action.token);
+        return applySwapBackAnimDone(state, action.token, 'early');
       }
 
       case 'clickCell': {

@@ -1,6 +1,15 @@
 import { Fragment, useEffect, useMemo, useRef } from 'react';
 import type { EngineEvent } from '@/gamelogic';
 
+function fmtNum(n: number): string {
+  return Number.isFinite(n) ? n.toFixed(1) : 'NaN';
+}
+
+function fmtSigned(n: number): string {
+  const sign = n >= 0 ? '+' : '';
+  return `${sign}${fmtNum(n)}`;
+}
+
 function formatEvent(e: EngineEvent): string {
   switch (e.type) {
     case 'seededInit':
@@ -17,6 +26,10 @@ function formatEvent(e: EngineEvent): string {
       return `swap(from=${e.from}, to=${e.to})`;
     case 'swapBack':
       return `swapBack(from=${e.from}, to=${e.to})`;
+    case 'animDone':
+      return `animDone(${e.mode}, kind=${e.kind}, token=${e.token}, dt=${fmtNum(e.dtMs)}ms, delta=${fmtSigned(e.deltaMs)}ms)`;
+    case 'animDoneIgnored':
+      return `animDoneIgnored(kind=${e.kind}, token=${e.token}, reason=${e.reason})`;
     case 'swapRejected':
       return `swapRejected(from=${e.from}, to=${e.to}, reason=${e.reason})`;
     case 'matchesFound':

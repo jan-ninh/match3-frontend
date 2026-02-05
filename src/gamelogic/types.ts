@@ -40,6 +40,17 @@ export type PendingSwap = {
 
 export type SwapRejectReason = 'locked' | 'notAdjacent' | 'blocked' | 'empty';
 
+export type EngineAnimKind = 'swap' | 'swapBack';
+
+export type AnimDoneMode = 'early' | 'auto';
+
+export type AnimDoneIgnoreReason =
+  | 'missingAnim'
+  | 'wrongPhase'
+  | 'wrongKind'
+  | 'wrongToken'
+  | 'missingPendingSwap';
+
 export type EngineEvent =
   | { type: 'seededInit'; levelId: LevelId; width: number; height: number; seed: number }
   | { type: 'reset'; levelId: LevelId; seed: number }
@@ -48,6 +59,8 @@ export type EngineEvent =
   | { type: 'selectionCleared' }
   | { type: 'swap'; from: number; to: number }
   | { type: 'swapBack'; from: number; to: number }
+  | { type: 'animDone'; mode: AnimDoneMode; kind: EngineAnimKind; token: number; dtMs: number; deltaMs: number }
+  | { type: 'animDoneIgnored'; kind: EngineAnimKind; token: number; reason: AnimDoneIgnoreReason }
   | { type: 'swapRejected'; from: number; to: number; reason: SwapRejectReason }
   | { type: 'matchesFound'; clears: number; groups: number }
   | { type: 'cleared'; count: number }
@@ -55,8 +68,6 @@ export type EngineEvent =
   | { type: 'refilled'; count: number }
   | { type: 'deadlockCheck'; hasMove: boolean }
   | { type: 'shuffled'; attempts: number };
-
-export type EngineAnimKind = 'swap' | 'swapBack';
 
 export type EngineAnim = {
   kind: EngineAnimKind;
