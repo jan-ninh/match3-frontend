@@ -22,11 +22,12 @@ export function isAnimatingPhase(phase: EnginePhase): boolean {
   return phase === 'swapAnimating' || phase === 'swapBackAnimating' || phase === 'fallAnimating';
 }
 
-export function animKindForPhase(phase: EnginePhase): 'swap' | 'swapBack' | null {
+export function animKindForPhase(phase: EnginePhase): 'swap' | 'swapBack' | 'fall' | null {
   if (phase === 'swapAnimating') return 'swap';
   if (phase === 'swapBackAnimating') return 'swapBack';
   if (phase === 'fallAnimating') return 'fall';
   return null;
 }
+
 
 
