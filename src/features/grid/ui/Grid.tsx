@@ -162,6 +162,7 @@ export default function Grid({
             pieces={pieceList}
             dragPieceId={dragPieceId}
             isDragging={isDragging}
+            phase={state.phase}
             swapMs={swapMs}
             previewActive={previewActive}
             previewOtherPieceId={previewOtherPieceId}
@@ -176,3 +177,4 @@ export default function Grid({
     </>
   );
 }
+

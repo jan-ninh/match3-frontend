@@ -1,4 +1,6 @@
-import type { Piece, PieceId } from '@/gamelogic';
+import { useLayoutEffect, useRef, useState } from 'react';
+
+import type { EnginePhase, Piece, PieceId } from '@/gamelogic';
 import type { Axis } from '@/devtools';
 import { cellPixelXY } from '../lib/math';
 import { PREVIEW_MS, TILE_SIZE, tileDist, EASING } from '../lib/constants';
@@ -9,6 +11,7 @@ type Props = {
   pieces: Piece[];
   dragPieceId: PieceId | null;
   isDragging: boolean;
+  phase: EnginePhase;
 
   swapMs: number;
   previewActive: boolean;
@@ -26,6 +29,7 @@ export default function GridPiecesLayer({
   pieces,
   dragPieceId,
   isDragging,
+  phase,
   swapMs,
   previewActive,
   previewOtherPieceId,
@@ -35,10 +39,54 @@ export default function GridPiecesLayer({
   showDebugLabels = false,
   setDraggedEl,
 }: Props) {
+  const prevCellIndexByIdRef = useRef<Map<number, number>>(new Map());
+  const [, bumpSpawnNonce] = useState(0);
+
+  const allowAnim = phase === 'swapAnimating' || phase === 'swapBackAnimating' || phase === 'fallAnimating';
+  const spawnEnabled = phase === 'fallAnimating' && swapMs > 0;
+
+  useLayoutEffect(() => {
+    const prev = prevCellIndexByIdRef.current;
+
+    let hasNewSpawn = false;
+    if (spawnEnabled) {
+      for (const pp of pieces) {
+        if (!prev.has(pp.id)) {
+          hasNewSpawn = true;
+          break;
+        }
+      }
+    }
+
+    const next = new Map<number, number>();
+    for (const pp of pieces) next.set(pp.id, pp.cellIndex);
+    prevCellIndexByIdRef.current = next;
+
+    if (!hasNewSpawn) return;
+    if (typeof window === 'undefined') return;
+    if (typeof window.requestAnimationFrame !== 'function') return;
+
+    const raf = window.requestAnimationFrame(() => {
+      bumpSpawnNonce((v) => (v + 1) | 0);
+    });
+
+    return () => window.cancelAnimationFrame(raf);
+  }, [pieces, spawnEnabled]);
+
   return (
     <div className="absolute inset-0 pointer-events-none">
       {pieces.map((pp) => {
         const basePos = cellPixelXY(pp.cellIndex, width);
+
+        const prevCellIndex = prevCellIndexByIdRef.current.get(pp.id);
+        const isNewPiece = prevCellIndex === undefined;
+
+        let spawnOffsetY = 0;
+        if (spawnEnabled && isNewPiece) {
+          const y = Math.floor(pp.cellIndex / width);
+          spawnOffsetY = -(y + 1) * tileDist;
+        }
+
         const isThisDragged = dragPieceId === pp.id;
         const applyDragOffset = isThisDragged && isDragging;
 
@@ -53,7 +101,8 @@ export default function GridPiecesLayer({
         const previewMs = swapMs === 0 ? 0 : PREVIEW_MS;
         const transitionForPreviewNeighbor = previewActive && previewOtherPieceId === pp.id ? `transform ${previewMs}ms ${EASING}` : undefined;
 
-        const outerTransition = applyDragOffset ? 'none' : (transitionForPreviewNeighbor ?? `transform ${swapMs}ms ${EASING}`);
+        const baseTransition = allowAnim ? `transform ${swapMs}ms ${EASING}` : undefined;
+        const outerTransition = applyDragOffset ? 'none' : (transitionForPreviewNeighbor ?? baseTransition);
 
         const isShaking = shakePieceId === pp.id;
 
@@ -72,7 +121,7 @@ export default function GridPiecesLayer({
             style={{
               width: TILE_SIZE,
               height: TILE_SIZE,
-              transform: `translate(${basePos.x + previewOffsetX}px, ${basePos.y + previewOffsetY}px)`,
+              transform: `translate(${basePos.x + previewOffsetX}px, ${basePos.y + previewOffsetY + spawnOffsetY}px)`,
               transition: outerTransition,
               willChange: 'transform',
               zIndex: isThisDragged ? 80 : 20,
@@ -87,3 +136,4 @@ export default function GridPiecesLayer({
     </div>
   );
 }
+
