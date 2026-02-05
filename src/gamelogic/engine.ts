@@ -7,19 +7,22 @@ import { assertBoardIntegrity, assertPhaseInvariants } from './invariants';
 import { ANIM_EPSILON_MS, SWAP_MS } from './animTimings';
 import { setPhase } from './phaseState';
 
-type InitAction = { type: 'initLevel'; levelId: LevelId };
-type ClickAction = { type: 'clickCell'; index: number };
-type ResetAction = { type: 'resetBoard' };
-type SwapAttemptAction = { type: 'swapAttempt'; from: number; to: number };
+type InitAction = { type: 'initLevel'; levelId: LevelId; nowMs?: number };
+type ClickAction = { type: 'clickCell'; index: number; nowMs?: number };
+type ResetAction = { type: 'resetBoard'; nowMs?: number };
+type SwapAttemptAction = { type: 'swapAttempt'; from: number; to: number; nowMs?: number };
+
+ // time injection / wake-up (no-op except nowMs + auto-finish)
+type WakeAction = { type: 'wake'; nowMs: number };
 
 // engine-owned time
 type TickAction = { type: 'tick'; nowMs: number };
 
 // optional UI “done” signals (never the only escape hatch)
-type SwapAnimDoneAction = { type: 'swapAnimDone'; token: number };
-type SwapBackAnimDoneAction = { type: 'swapBackAnimDone'; token: number };
+type SwapAnimDoneAction = { type: 'swapAnimDone'; token: number; nowMs?: number };
+type SwapBackAnimDoneAction = { type: 'swapBackAnimDone'; token: number; nowMs?: number };
 
-export type EngineAction = InitAction | ClickAction | ResetAction | SwapAttemptAction | TickAction | SwapAnimDoneAction | SwapBackAnimDoneAction;
+export type EngineAction = InitAction | ClickAction | ResetAction | SwapAttemptAction | WakeAction | TickAction | SwapAnimDoneAction | SwapBackAnimDoneAction;
 
 function pushEvents(state: EngineState, newEvents: EngineEvent[]): EngineState {
   const merged = [...state.events, ...newEvents];
@@ -266,13 +269,23 @@ function tryAutoFinishAnim(state: EngineState): EngineState {
 }
 
 export function engineReducer(state: EngineState, action: EngineAction): EngineState {
+  const withNow = (() => {
+    const t = action.nowMs;
+    if (typeof t !== 'number' || !Number.isFinite(t)) return state;
+    const nowMs = Math.max(state.nowMs, t);
+    return state.nowMs === nowMs ? state : { ...state, nowMs };
+  })();
+
+  // Auto-finish first: if deadline passed, unlock phase before processing the incoming action.
+  const pre = tryAutoFinishAnim(withNow);
+
   const next = (() => {
+    const state = pre;
+
     switch (action.type) {
-      case 'tick': {
-        const incoming = Number.isFinite(action.nowMs) ? action.nowMs : state.nowMs;
-        const nowMs = Math.max(state.nowMs, incoming);
-        const withNow = state.nowMs === nowMs ? state : { ...state, nowMs };
-        return tryAutoFinishAnim(withNow);
+      case 'tick':
+      case 'wake': {
+        return state;
       }
 
       case 'initLevel': {
@@ -357,3 +370,4 @@ export function engineReducer(state: EngineState, action: EngineAction): EngineS
 
   return next;
 }
+

@@ -47,10 +47,27 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
       didInitRef.current = true;
       return;
     }
-    dispatch({ type: 'initLevel', levelId } as EngineAction);
+    dispatch({ type: 'initLevel', levelId, nowMs: performance.now() } as EngineAction);
   }, [levelId]);
 
   const inputLocked = state.inputLocked;
+  // 0) Low-noise wake-ups (tab return / focus)
+  useEffect(() => {
+    const wake = () => dispatch({ type: 'wake', nowMs: performance.now() } as EngineAction);
+
+    const onFocus = () => wake();
+    const onVis = () => {
+      if (!document.hidden) wake();
+    };
+
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVis);
+
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVis);
+    };
+  }, []);
 
   // 1) UI → Engine "done" bridge (NO rAF loop)
   useEffect(() => {
@@ -60,8 +77,8 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
     if (state.phase === 'swapAnimating' && a.kind === 'swap') {
       const id = window.setTimeout(() => {
         // keep engine clock fresh so follow-up beginAnim uses correct nowMs
-        dispatch({ type: 'tick', nowMs: performance.now() } as EngineAction);
-        dispatch({ type: 'swapAnimDone', token: a.token } as EngineAction);
+        dispatch({ type: 'wake', nowMs: performance.now() } as EngineAction);
+        dispatch({ type: 'swapAnimDone', token: a.token, nowMs: performance.now() } as EngineAction);
       }, a.durationMs);
 
       return () => window.clearTimeout(id);
@@ -69,8 +86,8 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
 
     if (state.phase === 'swapBackAnimating' && a.kind === 'swapBack') {
       const id = window.setTimeout(() => {
-        dispatch({ type: 'tick', nowMs: performance.now() } as EngineAction);
-        dispatch({ type: 'swapBackAnimDone', token: a.token } as EngineAction);
+        dispatch({ type: 'wake', nowMs: performance.now() } as EngineAction);
+        dispatch({ type: 'swapBackAnimDone', token: a.token, nowMs: performance.now() } as EngineAction);
       }, a.durationMs);
 
       return () => window.clearTimeout(id);
@@ -87,7 +104,7 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
 
     const delay = Math.max(0, a.deadlineAtMs - performance.now());
     const id = window.setTimeout(() => {
-      dispatch({ type: 'tick', nowMs: performance.now() } as EngineAction);
+      dispatch({ type: 'wake', nowMs: performance.now() } as EngineAction);
     }, delay + 5);
 
     return () => window.clearTimeout(id);
@@ -97,29 +114,24 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
     return canSwap(from, to, state.width, state.cells).ok;
   };
 
-  const onIntent = (intent: unknown) => {
+    const onIntent = (intent: unknown) => {
     const i = intent as unknown as { type?: unknown; index?: unknown; from?: unknown; to?: unknown };
 
-    // tick-before-intent so enteredAtMs is always fresh enough
-    const tickNow = () => dispatch({ type: 'tick', nowMs: performance.now() } as EngineAction);
-
     if (i?.type === 'click' && typeof i.index === 'number') {
-      tickNow();
-      dispatch({ type: 'clickCell', index: i.index } as EngineAction);
+      dispatch({ type: 'clickCell', index: i.index, nowMs: performance.now() } as EngineAction);
       return;
     }
 
     if (i?.type === 'swap' && typeof i.from === 'number' && typeof i.to === 'number') {
-      tickNow();
-      dispatch({ type: 'swapAttempt', from: i.from, to: i.to } as EngineAction);
+      dispatch({ type: 'swapAttempt', from: i.from, to: i.to, nowMs: performance.now() } as EngineAction);
       return;
     }
 
     dispatch(intent as EngineAction);
-  };
+  };;
 
   const onDevResetBoard = () => {
-    dispatch({ type: 'resetBoard' } as EngineAction);
+    dispatch({ type: 'resetBoard', nowMs: performance.now() } as EngineAction);
   };
 
   const events = useMemo<EngineEvent[]>(() => {
@@ -217,3 +229,4 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
     </div>
   );
 }
+
