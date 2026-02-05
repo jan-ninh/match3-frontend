@@ -2,7 +2,7 @@ import { Route, Routes } from 'react-router';
 import MainLayout from '@/app/layouts/MainLayout';
 import GameLayout from '@/app/layouts/GameLayout';
 import { OverlayProvider } from '@/features/overlays';
-import { AboutUs, GameStartPage, GameplayPage, LeaderboardPage, LevelMapPage, ProfileDashboard } from '@/pages';
+import { AboutUs, GameStartPage, GameplayPage, LeaderboardPage, LevelMapPage, LoadingPage, ProfileDashboard } from '@/pages';
 
 export default function App() {
   return (
@@ -10,6 +10,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<MainLayout />}>
           <Route index element={<GameStartPage />} />
+          <Route path="loading" element={<LoadingPage />} />
           <Route path="about-us" element={<AboutUs />} />
 
           <Route path="game-map" element={<GameLayout />}>

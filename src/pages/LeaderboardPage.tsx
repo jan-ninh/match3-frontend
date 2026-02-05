@@ -1,4 +1,4 @@
-import { PodiumCard, RankRow, YourPositionCard } from '@/components';
+import { Navbar, PodiumCard, RankRow, YourPositionCard } from '@/components';
 import type { User } from '@/types';
 
 type Props = {
@@ -18,7 +18,7 @@ export default function LeaderboardPage({ users = [], currentUserId = '11' }: Pr
     { id: '8', name: 'Hannah', score: 800 },
     { id: '9', name: 'Ian', score: 780 },
     { id: '10', name: 'Jane', score: 750 },
-    { id: '11', name: 'Karl', score: 720 }
+    { id: '11', name: 'Karl', score: 720 },
   ];
 
   const sorted = [...(users.length ? users : testUsers)].sort((a, b) => b.score - a.score);
@@ -30,32 +30,35 @@ export default function LeaderboardPage({ users = [], currentUserId = '11' }: Pr
   const currentRank = currentIndex >= 0 ? currentIndex + 1 : undefined;
 
   return (
-    <div className="max-w-xl mx-auto bg-gray-100 text-gray-900 p-6 rounded-xl">
-      <div className="flex justify-center items-end mb-6 flex-wrap sm:flex-nowrap gap-4">
-        {[
-          { user: topThree[1], order: 1, position: 2 },
-          { user: topThree[0], order: 2, position: 1 },
-          { user: topThree[2], order: 3, position: 3 }
-        ]
-          .filter((x) => x.user)
-          .map((x) => (
-            <div key={x.user!.id} style={{ order: x.order }}>
-              <PodiumCard user={x.user!} position={x.position} />
-            </div>
-          ))}
-      </div>
-
-      <div>
-        {restTopTen.map((user, idx) => (
-          <RankRow key={user.id} user={user} rank={idx + 4} />
-        ))}
-      </div>
-
-      {currentUser && currentRank && currentRank > 10 && (
-        <div className="mt-4">
-          <YourPositionCard user={currentUser} rank={currentRank} />
+    <>
+      <Navbar />
+      <div className="max-w-xl mx-auto bg-gray-100 text-gray-900 p-6 rounded-xl">
+        <div className="flex justify-center items-end mb-6 flex-wrap sm:flex-nowrap gap-4">
+          {[
+            { user: topThree[1], order: 1, position: 2 },
+            { user: topThree[0], order: 2, position: 1 },
+            { user: topThree[2], order: 3, position: 3 },
+          ]
+            .filter((x) => x.user)
+            .map((x) => (
+              <div key={x.user!.id} style={{ order: x.order }}>
+                <PodiumCard user={x.user!} position={x.position} />
+              </div>
+            ))}
         </div>
-      )}
-    </div>
+
+        <div>
+          {restTopTen.map((user, idx) => (
+            <RankRow key={user.id} user={user} rank={idx + 4} />
+          ))}
+        </div>
+
+        {currentUser && currentRank && currentRank > 10 && (
+          <div className="mt-4">
+            <YourPositionCard user={currentUser} rank={currentRank} />
+          </div>
+        )}
+      </div>
+    </>
   );
 }
