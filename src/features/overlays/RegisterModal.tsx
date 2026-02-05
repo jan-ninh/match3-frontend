@@ -26,6 +26,7 @@ export default function RegisterModal({ onClose, onSwitchToLogin }: Props) {
     // Basic validation
     if (pw1 !== pw2) {
       setError('Passwords do not match');
+      setError('Passwords do not match');
       return;
     }
     try {

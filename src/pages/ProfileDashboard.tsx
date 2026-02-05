@@ -1,4 +1,4 @@
-import { Avatar, BadgeGrid, ProfileHeader, ProgressBar, StatsGrid, Navbar, Button } from '@/components';
+﻿import { Avatar, BadgeGrid, ProfileHeader, ProgressBar, StatsGrid, Navbar, Button } from '@/components';
 import badges from '@/data/badges';
 import { useNavigate } from 'react-router';
 
