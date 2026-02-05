@@ -27,16 +27,18 @@ export default function LevelMapPage() {
   if (!progress) return <div className="p-6">Loading levels…</div>;
 
   return (
-    <div className="p-6">
+    <>
       <Navbar />
-      <h1 className="text-xl font-bold mb-4 text-center">Level Map</h1>
-      <LevelGrid progress={progress} onSelect={onSelect} />
+      <div className="p-6">
+        <h1 className="text-xl font-bold mb-4 text-center">Level Map</h1>
+        <LevelGrid progress={progress} onSelect={onSelect} />
 
-      <div className="mt-6 flex justify-center">
-        <button onClick={unlockLevel2} className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20">
-          Unlock Level 2 (test)
-        </button>
+        <div className="mt-6 flex justify-center">
+          <button onClick={unlockLevel2} className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20">
+            Unlock Level 2 (test)
+          </button>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
