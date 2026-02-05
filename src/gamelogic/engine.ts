@@ -12,7 +12,10 @@ type ClickAction = { type: 'clickCell'; index: number; nowMs?: number };
 type ResetAction = { type: 'resetBoard'; nowMs?: number };
 type SwapAttemptAction = { type: 'swapAttempt'; from: number; to: number; nowMs?: number };
 
- // time injection / wake-up (no-op except nowMs + auto-finish)
+// animation timing (single source of truth; UI may update via setSwapMs)
+type SetSwapMsAction = { type: 'setSwapMs'; swapMs: number; nowMs?: number };
+
+// time injection / wake-up (no-op except nowMs + auto-finish)
 type WakeAction = { type: 'wake'; nowMs: number };
 
 // engine-owned time
@@ -22,7 +25,16 @@ type TickAction = { type: 'tick'; nowMs: number };
 type SwapAnimDoneAction = { type: 'swapAnimDone'; token: number; nowMs?: number };
 type SwapBackAnimDoneAction = { type: 'swapBackAnimDone'; token: number; nowMs?: number };
 
-export type EngineAction = InitAction | ClickAction | ResetAction | SwapAttemptAction | WakeAction | TickAction | SwapAnimDoneAction | SwapBackAnimDoneAction;
+export type EngineAction =
+  | InitAction
+  | ClickAction
+  | ResetAction
+  | SwapAttemptAction
+  | SetSwapMsAction
+  | WakeAction
+  | TickAction
+  | SwapAnimDoneAction
+  | SwapBackAnimDoneAction;
 
 function pushEvents(state: EngineState, newEvents: EngineEvent[]): EngineState {
   const merged = [...state.events, ...newEvents];
@@ -60,10 +72,16 @@ function nextAnimToken(base: number): number {
   return ((base >>> 0) + 1) >>> 0;
 }
 
+function sanitizeSwapMs(v: number): number {
+  if (typeof v !== 'number' || !Number.isFinite(v)) return SWAP_MS;
+  return Math.max(0, Math.round(v));
+}
+
 function beginAnim(state: EngineState, kind: 'swap' | 'swapBack', durationMs: number): EngineState {
   const token = nextAnimToken(state.animToken);
   const enteredAtMs = state.nowMs;
-  const deadlineAtMs = enteredAtMs + durationMs + ANIM_EPSILON_MS;
+  const epsilon = durationMs > 0 ? ANIM_EPSILON_MS : 0;
+  const deadlineAtMs = enteredAtMs + durationMs + epsilon;
 
   return {
     ...state,
@@ -72,7 +90,7 @@ function beginAnim(state: EngineState, kind: 'swap' | 'swapBack', durationMs: nu
   };
 }
 
-function createState(levelId: LevelId, seed: number, extraEvents: EngineEvent[] = [], animTokenBase = 0): EngineState {
+function createState(levelId: LevelId, seed: number, extraEvents: EngineEvent[] = [], animTokenBase = 0, swapMs = SWAP_MS): EngineState {
   const level = getLevelDefinition(levelId);
   const built = buildInitialBoard(level, seed);
 
@@ -96,6 +114,9 @@ function createState(levelId: LevelId, seed: number, extraEvents: EngineEvent[] 
     phase: 'init',
     inputLocked: true,
 
+    // animation timing (UI reads this)
+    swapMs: sanitizeSwapMs(swapMs),
+
     nowMs: 0,
     anim: null,
     animToken: animTokenBase,
@@ -116,7 +137,7 @@ function createState(levelId: LevelId, seed: number, extraEvents: EngineEvent[] 
 
 export function createInitialState(levelId: LevelId): EngineState {
   const level = getLevelDefinition(levelId);
-  return createState(levelId, level.baseSeed, [], 1);
+  return createState(levelId, level.baseSeed, [], 1, SWAP_MS);
 }
 
 function selectionClearedIfNeeded(prevSelected: number | null, nextSelected: number | null): EngineEvent[] {
@@ -154,12 +175,21 @@ function beginSwapAnimating(state: EngineState, from: number, to: number, opts?:
 
   baseState = setPhase(baseState, 'swapAnimating', events);
 
-  const withAnim = beginAnim(baseState, 'swap', SWAP_MS);
+  const withAnim = beginAnim(baseState, 'swap', baseState.swapMs);
 
   events.push({ type: 'swap', from, to });
   if (opts?.forceSelectionCleared || hadSelection) events.push({ type: 'selectionCleared' });
 
-  return pushEvents(withAnim, events);
+  const seeded = pushEvents(withAnim, events);
+
+  // reduced motion / 0ms => no wait phase: finish inside the same reducer turn
+  const a = seeded.anim;
+  if (a && a.durationMs === 0) {
+    const afterSwap = applySwapAnimDone(seeded, a.token, 'auto');
+    return autoFinishAll(afterSwap);
+  }
+
+  return seeded;
 }
 
 function applySwapAnimDone(state: EngineState, token: number, mode: AnimDoneMode): EngineState {
@@ -197,7 +227,7 @@ function applySwapAnimDone(state: EngineState, token: number, mode: AnimDoneMode
 
     revertedBase = setPhase(revertedBase, 'swapBackAnimating', events);
 
-    const withAnim = beginAnim(revertedBase, 'swapBack', SWAP_MS);
+    const withAnim = beginAnim(revertedBase, 'swapBack', revertedBase.swapMs);
     events.push({ type: 'swapBack', from, to });
 
     const withEvents = pushEvents(withAnim, events);
@@ -268,6 +298,17 @@ function tryAutoFinishAnim(state: EngineState): EngineState {
   return state;
 }
 
+function autoFinishAll(state: EngineState): EngineState {
+  // bounded: swap -> swapBack at most once
+  let s = state;
+  for (let i = 0; i < 2; i++) {
+    const next = tryAutoFinishAnim(s);
+    if (next === s) break;
+    s = next;
+  }
+  return s;
+}
+
 export function engineReducer(state: EngineState, action: EngineAction): EngineState {
   const withNow = (() => {
     const t = action.nowMs;
@@ -277,7 +318,7 @@ export function engineReducer(state: EngineState, action: EngineAction): EngineS
   })();
 
   // Auto-finish first: if deadline passed, unlock phase before processing the incoming action.
-  const pre = tryAutoFinishAnim(withNow);
+  const pre = autoFinishAll(withNow);
 
   const next = (() => {
     const state = pre;
@@ -288,10 +329,26 @@ export function engineReducer(state: EngineState, action: EngineAction): EngineS
         return state;
       }
 
+      case 'setSwapMs': {
+        const nextSwapMs = sanitizeSwapMs(action.swapMs);
+        if (state.swapMs === nextSwapMs) return state;
+
+        let nextState: EngineState = { ...state, swapMs: nextSwapMs };
+
+        // reduced motion toggle while animating => force immediate finish (no drift window)
+        if (nextSwapMs === 0 && nextState.anim) {
+          const a = nextState.anim;
+          nextState = { ...nextState, anim: { ...a, durationMs: 0, deadlineAtMs: a.enteredAtMs } };
+          return autoFinishAll(nextState);
+        }
+
+        return nextState;
+      }
+
       case 'initLevel': {
         const level = getLevelDefinition(action.levelId);
         const base = nextAnimToken(state.animToken);
-        return createState(action.levelId, level.baseSeed, [], base);
+        return createState(action.levelId, level.baseSeed, [], base, state.swapMs);
       }
 
       case 'resetBoard': {
@@ -301,7 +358,7 @@ export function engineReducer(state: EngineState, action: EngineAction): EngineS
         const resetEvent: EngineEvent = { type: 'reset', levelId: state.levelId, seed: newSeed };
         const base = nextAnimToken(state.animToken);
 
-        return createState(state.levelId, newSeed, [resetEvent], base);
+        return createState(state.levelId, newSeed, [resetEvent], base, state.swapMs);
       }
 
       case 'swapAttempt': {
@@ -370,4 +427,3 @@ export function engineReducer(state: EngineState, action: EngineAction): EngineS
 
   return next;
 }
-

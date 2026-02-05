@@ -100,6 +100,9 @@ export type EngineState = {
   phase: EnginePhase;
   inputLocked: boolean;
 
+  // animation timing (single source of truth; UI reads this)
+  swapMs: number;
+
   // engine-owned monotonic clock (updated via tick(nowMs))
   nowMs: number;
 

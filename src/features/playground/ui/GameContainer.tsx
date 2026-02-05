@@ -20,8 +20,11 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
 
   const [debugEnabled, setDebugEnabled] = useState<boolean>(false);
 
-  // reduced motion => skip animations (swapMs=0)
-  const [reducedMotion, setReducedMotion] = useState<boolean>(false);
+  // reduced motion => swapMs=0
+  const [reducedMotion, setReducedMotion] = useState<boolean>(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return false;
+    return !!window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  });
 
   useEffect(() => {
     if (typeof window === 'undefined' || !window.matchMedia) return;
@@ -72,6 +75,13 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
 
   const [state, dispatch] = useReducer(engineReducer, levelId, createInitialState);
 
+  // keep Engine timing in sync (Engine is the source of truth)
+  const desiredSwapMs = reducedMotion ? 0 : SWAP_MS;
+  useLayoutEffect(() => {
+    if (state.swapMs === desiredSwapMs) return;
+    dispatch({ type: 'setSwapMs', swapMs: desiredSwapMs, nowMs: performance.now() } as EngineAction);
+  }, [desiredSwapMs, state.swapMs]);
+
   // ensure level change actually re-inits engine (skip first run)
   const didInitRef = useRef(false);
   useEffect(() => {
@@ -84,7 +94,7 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
 
   const inputLocked = state.inputLocked;
 
-  const swapMs = reducedMotion ? 0 : SWAP_MS; // 0) Low-noise wake-ups (tab return / focus)
+  // 0) Low-noise wake-ups (tab return / focus)
   useEffect(() => {
     const wake = () => dispatch({ type: 'wake', nowMs: performance.now() } as EngineAction);
 
@@ -257,7 +267,7 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
           onIntent={onIntent}
           debugEnabled={debugEnabled}
           onDevResetBoard={onDevResetBoard}
-          swapMs={swapMs}
+          swapMs={state.swapMs}
         />
       </div>
     </div>
