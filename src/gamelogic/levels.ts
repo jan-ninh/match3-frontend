@@ -8,7 +8,8 @@ export function getLevelDefinition(levelId: number): LevelDefinition {
   const height = 9;
 
   // reserved corner (gate in level 1; plain blocks otherwise)
-  const cornerBlocks = [7 + 7 * width, 8 + 7 * width, 7 + 8 * width, 8 + 8 * width];
+  // const cornerBlocks = [7 + 7 * width, 8 + 7 * width, 7 + 8 * width, 8 + 8 * width];
+  const cornerBlocks: number[] = [];
 
   const firewallNodes =
     levelId === 1
@@ -40,4 +41,3 @@ export function getLevelDefinition(levelId: number): LevelDefinition {
     baseSeed: seed,
   };
 }
-
