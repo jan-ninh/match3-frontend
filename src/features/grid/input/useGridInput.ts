@@ -20,16 +20,18 @@ export type UseGridInputArgs = {
 
   // NEW: runtime debug toggle (Dev panels + all debug work)
   debugEnabled: boolean;
-};
 
-export function useGridInput({ state, inputLocked, canSwapAt, onIntent, debugEnabled }: UseGridInputArgs) {
+  // animation timing (runtime)
+  swapMs?: number;};
+
+export function useGridInput({ state, inputLocked, canSwapAt, onIntent, debugEnabled, swapMs = SWAP_MS }: UseGridInputArgs) {
   const { width, height, cells, pieces } = state;
 
   const pressRef = useRef<PressState | null>(null);
 
   // rAF transform infra (no React re-render per pointer move)
   const { draggedElRef, dragBasePxRef, dragDxRef, dragDyRef, ensureRafRunning, stopRaf, snapBackDraggedPiece, clearDragRefs } = useRafDragTransform({
-    swapMs: SWAP_MS,
+    swapMs,
     easing: EASING,
     getShouldContinue: () => !!(pressRef.current?.active && pressRef.current?.hasExceededThreshold),
   });
@@ -212,3 +214,4 @@ export function useGridInput({ state, inputLocked, canSwapAt, onIntent, debugEna
     setDraggedEl,
   };
 }
+

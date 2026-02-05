@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
 
 import type { EngineAction, EngineEvent } from '@/gamelogic';
-import { canSwap, createInitialState, engineReducer } from '@/gamelogic';
+import { canSwap, createInitialState, engineReducer, SWAP_MS } from '@/gamelogic';
 
 import { DebugEventLog } from '@/devtools';
 import { Grid } from '@/features/grid';
@@ -19,6 +19,38 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
   const [showLockoutHints, setShowLockoutHints] = useState<boolean>(false);
 
   const [debugEnabled, setDebugEnabled] = useState<boolean>(false);
+
+  // reduced motion => skip animations (swapMs=0)
+  const [reducedMotion, setReducedMotion] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+    const apply = () => setReducedMotion(!!mq.matches);
+    const handler = (e: MediaQueryListEvent) => {
+      void e;
+      apply();
+    };
+
+    apply();
+
+    // modern browsers
+    if (typeof mq.addEventListener === 'function') {
+      mq.addEventListener('change', handler);
+      return () => mq.removeEventListener('change', handler);
+    }
+
+    // legacy Safari fallback (no type-guard that narrows to never)
+    const legacy = mq as unknown as {
+      addListener?: (l: (e: MediaQueryListEvent) => void) => void;
+      removeListener?: (l: (e: MediaQueryListEvent) => void) => void;
+    };
+
+    legacy.addListener?.(handler);
+    return () => legacy.removeListener?.(handler);
+  }, []);
 
   useEffect(() => {
     if (!isDev) return;
@@ -51,7 +83,8 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
   }, [levelId]);
 
   const inputLocked = state.inputLocked;
-  // 0) Low-noise wake-ups (tab return / focus)
+
+  const swapMs = reducedMotion ? 0 : SWAP_MS; // 0) Low-noise wake-ups (tab return / focus)
   useEffect(() => {
     const wake = () => dispatch({ type: 'wake', nowMs: performance.now() } as EngineAction);
 
@@ -114,7 +147,7 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
     return canSwap(from, to, state.width, state.cells).ok;
   };
 
-    const onIntent = (intent: unknown) => {
+  const onIntent = (intent: unknown) => {
     const i = intent as unknown as { type?: unknown; index?: unknown; from?: unknown; to?: unknown };
 
     if (i?.type === 'click' && typeof i.index === 'number') {
@@ -128,7 +161,7 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
     }
 
     dispatch(intent as EngineAction);
-  };;
+  };
 
   const onDevResetBoard = () => {
     dispatch({ type: 'resetBoard', nowMs: performance.now() } as EngineAction);
@@ -224,9 +257,9 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
           onIntent={onIntent}
           debugEnabled={debugEnabled}
           onDevResetBoard={onDevResetBoard}
+          swapMs={swapMs}
         />
       </div>
     </div>
   );
 }
-

@@ -1,7 +1,7 @@
 import type { Piece, PieceId } from '@/gamelogic';
 import type { Axis } from '@/devtools';
 import { cellPixelXY } from '../lib/math';
-import { PREVIEW_MS, SWAP_MS, TILE_SIZE, tileDist, EASING } from '../lib/constants';
+import { PREVIEW_MS, TILE_SIZE, tileDist, EASING } from '../lib/constants';
 import Tile from './Tile';
 
 type Props = {
@@ -10,6 +10,7 @@ type Props = {
   dragPieceId: PieceId | null;
   isDragging: boolean;
 
+  swapMs: number;
   previewActive: boolean;
   previewOtherPieceId: PieceId | null;
   previewAxis: Axis | null;
@@ -25,6 +26,7 @@ export default function GridPiecesLayer({
   pieces,
   dragPieceId,
   isDragging,
+  swapMs,
   previewActive,
   previewOtherPieceId,
   previewAxis,
@@ -48,9 +50,10 @@ export default function GridPiecesLayer({
           else previewOffsetY = -previewDir * tileDist;
         }
 
-        const transitionForPreviewNeighbor = previewActive && previewOtherPieceId === pp.id ? `transform ${PREVIEW_MS}ms ${EASING}` : undefined;
+        const previewMs = swapMs === 0 ? 0 : PREVIEW_MS;
+        const transitionForPreviewNeighbor = previewActive && previewOtherPieceId === pp.id ? `transform ${previewMs}ms ${EASING}` : undefined;
 
-        const outerTransition = applyDragOffset ? 'none' : (transitionForPreviewNeighbor ?? `transform ${SWAP_MS}ms ${EASING}`);
+        const outerTransition = applyDragOffset ? 'none' : (transitionForPreviewNeighbor ?? `transform ${swapMs}ms ${EASING}`);
 
         const isShaking = shakePieceId === pp.id;
 
@@ -86,4 +89,5 @@ export default function GridPiecesLayer({
     </div>
   );
 }
+
 
