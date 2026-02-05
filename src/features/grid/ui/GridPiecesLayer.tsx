@@ -16,6 +16,7 @@ type Props = {
   previewDir: -1 | 0 | 1;
 
   shakePieceId: PieceId | null;
+  showDebugLabels?: boolean;
 
   setDraggedEl: (el: HTMLDivElement | null, basePos: { x: number; y: number }) => void;
 };
@@ -29,6 +30,7 @@ export default function GridPiecesLayer({
   previewAxis,
   previewDir,
   shakePieceId,
+  showDebugLabels = false,
   setDraggedEl,
 }: Props) {
   return (
@@ -75,10 +77,13 @@ export default function GridPiecesLayer({
           >
             <Tile type={pp.type} dragging={isThisDragged && isDragging} preview={previewActive && previewOtherPieceId === pp.id} shaking={isShaking} />
 
-            <div className="absolute bottom-1 right-1 text-[10px] leading-none text-white/85 drop-shadow font-mono">#{pp.id}</div>
+            {showDebugLabels ? (
+              <div className="absolute bottom-1 right-1 text-[10px] leading-none text-white/85 drop-shadow font-mono">#{pp.id}</div>
+            ) : null}
           </div>
         );
       })}
     </div>
   );
 }
+

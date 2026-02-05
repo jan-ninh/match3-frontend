@@ -116,6 +116,8 @@ export default function Grid({
   }, [onDevResetBoard, inputLocked]);
 
   const lockoutCursor = inputLocked && showLockoutHints ? 'cursor-not-allowed' : '';
+  const showDebugLabels = isDev && debugEnabled;
+
 
   const leftLane = typeof document !== 'undefined' ? (document.getElementById('dev-left-lane') as HTMLElement | null) : null;
 
@@ -150,7 +152,7 @@ export default function Grid({
         <GridLockoutOverlay active={inputLocked} show={showLockoutHints} />
 
         <div className="relative" style={{ width: innerW, height: innerH }}>
-          <GridCellsLayer width={width} height={height} cells={cells} onCellPointerDown={onCellPointerDown} />
+          <GridCellsLayer width={width} height={height} cells={cells} onCellPointerDown={onCellPointerDown} showDebugLabels={showDebugLabels} />
 
           <GridOverlaysLayer selectionPos={selectionPos} overPos={overPos} />
 
@@ -171,3 +173,4 @@ export default function Grid({
     </>
   );
 }
+
