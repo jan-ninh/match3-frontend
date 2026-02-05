@@ -1,5 +1,6 @@
-import { Navbar, PodiumCard, RankRow, YourPositionCard } from '@/components';
+import { Button, Navbar, PodiumCard, RankRow, YourPositionCard } from '@/components';
 import type { User } from '@/types';
+import { useNavigate } from 'react-router';
 
 type Props = {
   users?: User[];
@@ -20,7 +21,7 @@ export default function LeaderboardPage({ users = [], currentUserId = '11' }: Pr
     { id: '10', name: 'Jane', score: 750 },
     { id: '11', name: 'Karl', score: 720 },
   ];
-
+  const navigate = useNavigate();
   const sorted = [...(users.length ? users : testUsers)].sort((a, b) => b.score - a.score);
   const topThree = sorted.slice(0, 3);
   const restTopTen = sorted.slice(3, 10);
@@ -58,6 +59,9 @@ export default function LeaderboardPage({ users = [], currentUserId = '11' }: Pr
             <YourPositionCard user={currentUser} rank={currentRank} />
           </div>
         )}
+      </div>
+      <div className="m-6 flex justify-center">
+        <Button key={'Back'} label={'Back'} onClick={() => navigate('/game-map')} />
       </div>
     </>
   );

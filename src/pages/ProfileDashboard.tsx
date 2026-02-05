@@ -1,7 +1,9 @@
-import { Avatar, BadgeGrid, ProfileHeader, ProgressBar, StatsGrid, Navbar } from '@/components';
+﻿import { Avatar, BadgeGrid, ProfileHeader, ProgressBar, StatsGrid, Navbar, Button } from '@/components';
 import badges from '@/data/badges';
+import { useNavigate } from 'react-router';
 
 export default function ProfileDashboard() {
+  const navigate = useNavigate();
   return (
     <>
       <Navbar />
@@ -21,6 +23,9 @@ export default function ProfileDashboard() {
 
         <ProgressBar percent={65} />
         <BadgeGrid badges={badges} />
+      </div>
+      <div className="m-6 flex justify-center">
+        <Button key={'Back'} label={'Back'} onClick={() => navigate('/game-map')} />
       </div>
     </>
   );

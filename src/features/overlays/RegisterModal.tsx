@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import Modal from '@/components/Modal';
-import { apiRegister } from '@/api/auth';
+import { useAuth } from '@/context/AuthContext';
 
 type Props = {
   onClose: () => void;
@@ -8,6 +8,7 @@ type Props = {
 };
 
 export default function RegisterModal({ onClose, onSwitchToLogin }: Props) {
+  const { register } = useAuth();
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [pw1, setPw1] = useState('');
@@ -19,8 +20,12 @@ export default function RegisterModal({ onClose, onSwitchToLogin }: Props) {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    const trimmedEmail = email.trim();
+    const trimmedUsername = username.trim();
     // Basic validation
     if (pw1 !== pw2) {
+      setError('Passwords do not match');
       setError('Passwords do not match');
       return;
     }
@@ -28,7 +33,7 @@ export default function RegisterModal({ onClose, onSwitchToLogin }: Props) {
       setLoading(true);
 
       // Call backend register endpoint
-      await apiRegister(email, username, pw1);
+      await register(trimmedEmail, trimmedUsername, pw1);
 
       // If register succeeds:
       // close register modal and switch to login
@@ -36,7 +41,8 @@ export default function RegisterModal({ onClose, onSwitchToLogin }: Props) {
       onSwitchToLogin();
     } catch (err: any) {
       // Show backend or network error
-      setError(err?.message ?? 'Register failed');
+      const serverMessage = err?.payload?.error ?? err?.message;
+      setError(serverMessage ?? 'Register failed');
     } finally {
       setLoading(false);
     }
@@ -52,6 +58,7 @@ export default function RegisterModal({ onClose, onSwitchToLogin }: Props) {
           onChange={(e) => setUsername(e.target.value)}
           autoComplete="username"
           required
+          disabled={loading}
         />
         <input
           className="px-3 py-2 rounded-lg bg-black/30"
@@ -60,6 +67,7 @@ export default function RegisterModal({ onClose, onSwitchToLogin }: Props) {
           onChange={(e) => setEmail(e.target.value)}
           autoComplete="email"
           required
+          disabled={loading}
         />
         <input
           className="px-3 py-2 rounded-lg bg-black/30"
@@ -69,6 +77,7 @@ export default function RegisterModal({ onClose, onSwitchToLogin }: Props) {
           onChange={(e) => setPw1(e.target.value)}
           autoComplete="new-password"
           required
+          disabled={loading}
         />
         <input
           className="px-3 py-2 rounded-lg bg-black/30"
@@ -78,6 +87,7 @@ export default function RegisterModal({ onClose, onSwitchToLogin }: Props) {
           onChange={(e) => setPw2(e.target.value)}
           autoComplete="new-password"
           required
+          disabled={loading}
         />
         {/* Error message */}
         {error && <div className="text-sm text-red-400">{error}</div>}
@@ -85,7 +95,7 @@ export default function RegisterModal({ onClose, onSwitchToLogin }: Props) {
           {loading ? 'Creating account...' : 'Create account'}
         </button>
 
-        <button type="button" onClick={onSwitchToLogin} className="px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10">
+        <button type="button" disabled={loading} onClick={onSwitchToLogin} className="px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10">
           back to login
         </button>
       </form>
