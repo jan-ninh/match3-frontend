@@ -120,7 +120,6 @@ export default function Grid({
   const lockoutCursor = inputLocked && showLockoutHints ? 'cursor-not-allowed' : '';
   const showDebugLabels = isDev && debugEnabled;
 
-
   const leftLane = typeof document !== 'undefined' ? (document.getElementById('dev-left-lane') as HTMLElement | null) : null;
 
   const devPanels =
@@ -177,5 +176,3 @@ export default function Grid({
     </>
   );
 }
-
-

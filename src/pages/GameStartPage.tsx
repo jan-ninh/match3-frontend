@@ -5,7 +5,7 @@ export default function GameStartPage() {
   const navigate = useNavigate();
 
   const menuButtons = [
-    { label: 'PLAY', onClick: () => navigate('/game-map') },
+    { label: 'PLAY', onClick: () => navigate('/loading') },
     { label: 'ABOUT US', onClick: () => navigate('/about-us') },
     { label: 'QUIT', onClick: () => navigate('/') },
   ];

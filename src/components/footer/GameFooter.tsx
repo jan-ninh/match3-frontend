@@ -2,13 +2,10 @@ import { footerActions } from './footerAction';
 
 type Props = {
   openSettings: () => void;
-  openPowerChoice: (args: { title: string }) => void;
-  openWin: (level: number) => void;
-  openLose: (level: number) => void;
 };
 
-export default function GameFooter({ openSettings, openPowerChoice, openWin, openLose }: Props) {
-  const actions = footerActions(openSettings, openPowerChoice, openWin, openLose);
+export default function GameFooter({ openSettings }: Props) {
+  const actions = footerActions(openSettings);
 
   return (
     <div className="flex flex-wrap justify-center gap-4 p-4 rounded-xl">

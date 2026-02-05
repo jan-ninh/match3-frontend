@@ -1,5 +1,6 @@
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { useOverlays } from '@/features/overlays';
+import { useAuth } from '@/context/AuthContext';
 
 type NavLinkItem = {
   kind: 'link';
@@ -19,14 +20,45 @@ type NavItem = NavLinkItem | NavActionItem;
 
 export default function Navbar() {
   const { openLogin, openSettings } = useOverlays();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
 
-  const navItems: NavItem[] = [
+  const isAuthenticated = !!user;
+  //this item will show at first
+  const baseItems: NavItem[] = [
     { kind: 'link', label: 'Home', icon: '/icons/home.svg', to: '/game-map' },
-    { kind: 'action', label: 'Login', icon: '/icons/login.svg', onClick: openLogin },
-    { kind: 'link', label: 'Leaderboard', icon: '/icons/cup.svg', to: '/game-map/leaderboard' },
-    { kind: 'link', label: 'Profile', icon: '/icons/user.svg', to: '/game-map/profile' },
     { kind: 'action', label: 'Settings', icon: '/icons/setting.svg', onClick: openSettings },
   ];
+  //these items will show when user is loged in
+  const authItems: NavItem[] = [
+    { kind: 'link', label: 'Leaderboard', icon: '/icons/cup.svg', to: '/game-map/leaderboard' },
+    { kind: 'link', label: 'Lives', icon: '/icons/heart.svg', to: '/game-map' },
+    { kind: 'link', label: 'Profile', icon: '/icons/user.svg', to: '/game-map/profile' },
+  ];
+
+  const navItems: NavItem[] = isAuthenticated
+    ? [
+        ...baseItems,
+        ...authItems,
+        {
+          kind: 'action',
+          label: 'Logout',
+          icon: '/icons/logout.svg',
+          onClick: () => {
+            logout();
+            navigate('/game-map');
+          },
+        },
+      ]
+    : [
+        ...baseItems,
+        {
+          kind: 'action',
+          label: 'Login',
+          icon: '/icons/login.svg',
+          onClick: openLogin,
+        },
+      ];
 
   return (
     <nav className="flex justify-between p-6 items-center">

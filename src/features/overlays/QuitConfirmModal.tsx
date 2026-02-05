@@ -12,7 +12,7 @@ export default function QuitConfirmModal({ open, onClose }: Props) {
   const back = () => onClose();
   const quit = () => {
     onClose();
-    navigate('/');
+    navigate('/game-map');
   };
 
   return (
