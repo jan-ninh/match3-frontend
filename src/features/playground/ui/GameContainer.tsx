@@ -114,7 +114,7 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
     return canSwap(from, to, state.width, state.cells).ok;
   };
 
-    const onIntent = (intent: unknown) => {
+  const onIntent = (intent: unknown) => {
     const i = intent as unknown as { type?: unknown; index?: unknown; from?: unknown; to?: unknown };
 
     if (i?.type === 'click' && typeof i.index === 'number') {
@@ -128,7 +128,7 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
     }
 
     dispatch(intent as EngineAction);
-  };;
+  };
 
   const onDevResetBoard = () => {
     dispatch({ type: 'resetBoard', nowMs: performance.now() } as EngineAction);
@@ -229,4 +229,3 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
     </div>
   );
 }
-
