@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import LevelGrid from '@/components/level/LevelGrid';
+import { Navbar, LevelGrid } from '@/components';
 import { getProgress, unlockLevel } from '@/services/progress/progressActions';
 import type { LevelId, Progress } from '@/services/progress/ProgressStore';
 
@@ -28,6 +28,7 @@ export default function LevelMapPage() {
 
   return (
     <div className="p-6">
+      <Navbar />
       <h1 className="text-xl font-bold mb-4 text-center">Level Map</h1>
       <LevelGrid progress={progress} onSelect={onSelect} />
 
