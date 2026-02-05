@@ -166,6 +166,7 @@ export default function Grid({
             previewAxis={previewAxisUI}
             previewDir={previewDirUI}
             shakePieceId={shakePieceId}
+            showDebugLabels={showDebugLabels}
             setDraggedEl={setDraggedEl}
           />
         </div>
@@ -173,4 +174,5 @@ export default function Grid({
     </>
   );
 }
+
 
