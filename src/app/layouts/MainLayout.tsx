@@ -1,4 +1,5 @@
 import { Outlet } from 'react-router';
+import stageBg from '@/assets/bg/match3-bg-01.png';
 
 export default function MainLayout() {
   return (
@@ -10,8 +11,21 @@ export default function MainLayout() {
         </div>
 
         {/* GAME VIEWPORT (720x960) */}
-        <div id="app-stage" className="w-180 min-h-240 bg-neutral-700 text-white">
-          <Outlet />
+        <div
+          id="app-stage"
+          className="w-180 min-h-240 text-white relative overflow-hidden"
+          style={{
+            backgroundImage: `url(${stageBg})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
+          }}
+        >
+          {/* subtle dim for UI readability */}
+          <div className="absolute inset-0 bg-black/15 pointer-events-none" />
+          <div className="relative z-10">
+            <Outlet />
+          </div>
         </div>
 
         {/* RIGHT LANE  */}
