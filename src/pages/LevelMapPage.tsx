@@ -2,11 +2,13 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Navbar, LevelGrid } from '@/components';
 import { getProgress, unlockLevel } from '@/services/progress/progressActions';
+import { useOverlays } from '@/features/overlays';
 import type { LevelId, Progress } from '@/services/progress/ProgressStore';
 
 export default function LevelMapPage() {
   const navigate = useNavigate();
   const [progress, setProgress] = useState<Progress | null>(null);
+  const { openPowerChoice } = useOverlays();
 
   useEffect(() => {
     void (async () => {
@@ -16,7 +18,10 @@ export default function LevelMapPage() {
   }, []);
 
   const onSelect = (level: LevelId) => {
-    navigate(`/game-map/play-game?level=${level}`);
+    openPowerChoice({ 
+      title: 'Choose your Power!',
+      onChoose: () => navigate(`/game-map/play-game?level=${level}`)
+    });
   };
 
   const unlockLevel2 = async () => {

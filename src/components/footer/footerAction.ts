@@ -8,16 +8,16 @@ type ActionItem = {
 
 export const footerActions = (
   openSettings: () => void,
-  openPowerChoice: (args: { title: string }) => void,
+
   openWin: (level: number) => void,
   openLose: (level: number) => void,
 ): ActionItem[] => [
   {
     id: 'power-up',
     label: 'Power Choice',
-    icon: '/icons/add-time.svg',
+    icon: '/icons/extraTime.svg',
     badge: '/icons/flash.svg',
-    onClick: () => openPowerChoice({ title: 'Choose your Power!' }),
+    onClick: () => console.log('Power Choice clicked'),
   },
   {
     id: 'debug-win',
