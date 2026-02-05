@@ -1,4 +1,4 @@
-﻿import { Avatar, BadgeGrid, ProfileHeader, ProgressBar, StatsGrid, Navbar } from '@/components';
+import { Avatar, BadgeGrid, ProfileHeader, ProgressBar, StatsGrid, Navbar } from '@/components';
 import badges from '@/data/badges';
 
 export default function ProfileDashboard() {
