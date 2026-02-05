@@ -44,6 +44,19 @@ function formatEvent(e: EngineEvent): string {
       return `deadlockCheck(hasMove=${String(e.hasMove)})`;
     case 'shuffled':
       return `shuffled(attempts=${e.attempts})`;
+    case 'movesSpent':
+      return `movesSpent(left=${e.left})`;
+    case 'firewallDamaged':
+      return `firewallDamaged(index=${e.index}, hp=${e.hp})`;
+    case 'firewallDestroyed':
+      return `firewallDestroyed(index=${e.index})`;
+    case 'gateOpened':
+      return 'gateOpened()';
+    case 'win':
+      return 'win()';
+    case 'lose':
+      return 'lose()';
+
     default: {
       const _exhaustive: never = e;
       return JSON.stringify(_exhaustive);

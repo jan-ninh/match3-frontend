@@ -104,7 +104,15 @@ function createState(levelId: LevelId, seed: number, extraEvents: EngineEvent[] 
 
     seed,
     rngState: built.rngState,
-    allowedTypes: level.allowedTypes,
+    allowedTypes: level.allowedTypes, 
+    movesTotal: level.moves,
+    movesLeft: level.moves,
+
+    breachesTotal: level.firewallNodes.length,
+    breachesRemaining: level.firewallNodes.length,
+
+    gateOpen: false,
+    gateIndices: level.gateIndices,
 
     cells: built.cells,
     pieces: built.pieces,
@@ -561,5 +569,6 @@ case 'clickCell': {
 
   return next;
 }
+
 
 

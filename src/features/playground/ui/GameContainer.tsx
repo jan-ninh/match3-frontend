@@ -94,6 +94,13 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
 
   const inputLocked = state.inputLocked;
 
+  const breachTotal = state.breachesTotal ?? 0;
+  const breachLeft = state.breachesRemaining ?? 0;
+  const breachDone = Math.max(0, breachTotal - breachLeft);
+
+  const isWin = state.phase === 'win';
+  const isLose = state.phase === 'lose';
+
   // 0) Low-noise wake-ups (tab return / focus)
   useEffect(() => {
     const wake = () => dispatch({ type: 'wake', nowMs: performance.now() } as EngineAction);
@@ -224,6 +231,14 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
           <div className="text-sm text-white/70">
             Board: {state.width}x{state.height} Seed: <span className="font-mono">{state.seed ?? '—'}</span>
           </div>
+
+          <div className="mt-1 text-sm text-white/80 flex flex-wrap items-center gap-x-4 gap-y-1">
+            <div className="font-mono">BREACH {breachDone}/{breachTotal}</div>
+            <div className="font-mono">MOVES {state.movesLeft ?? '—'}</div>
+            <div className="text-white/60">Matches neben einem Knoten beschädigen ihn.</div>
+            {isWin ? <div className="text-emerald-300/90 font-semibold">WIN — Gate open</div> : null}
+            {isLose ? <div className="text-rose-300/90 font-semibold">LOSE — out of moves</div> : null}
+          </div>
         </div>
 
         <div className="flex items-center gap-2">
@@ -273,5 +288,6 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
     </div>
   );
 }
+
 
 

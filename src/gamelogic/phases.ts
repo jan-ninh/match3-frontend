@@ -12,7 +12,9 @@ export type EnginePhase =
   | 'shuffle'
   | 'swapAnimating'
   | 'swapBackAnimating'
-  | 'fallAnimating';
+  | 'fallAnimating'
+  | 'win'
+  | 'lose';
 
 export function isInputLocked(phase: EnginePhase): boolean {
   return phase !== 'idle';
@@ -28,6 +30,7 @@ export function animKindForPhase(phase: EnginePhase): 'swap' | 'swapBack' | 'fal
   if (phase === 'fallAnimating') return 'fall';
   return null;
 }
+
 
 
 

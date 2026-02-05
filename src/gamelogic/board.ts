@@ -43,12 +43,26 @@ export function buildInitialBoard(level: LevelDefinition, seed: number): BuildBo
   let rngState = initRngState(seed);
 
   const blocked = new Set(level.blockedIndices);
+
+  const firewallHp = new Map<number, number>(level.firewallNodes.map((n) => [n.index, n.hp]));
+  const gate = new Set(level.gateIndices);
   const size = width * height;
 
-  const cells: Cell[] = Array.from({ length: size }, (_, index) => ({
-    blocked: isBlockedIndex(blocked, index),
-    pieceId: null,
-  }));
+  const cells: Cell[] = Array.from({ length: size }, (_, index) => {
+    const hp = firewallHp.get(index) ?? null;
+    if (hp !== null) {
+      return { blocked: true, pieceId: null, obstacle: 'firewall', hp, maxHp: hp };
+    }
+
+    if (gate.has(index)) {
+      return { blocked: true, pieceId: null, obstacle: 'gate', gateOpen: false };
+    }
+
+    return {
+      blocked: isBlockedIndex(blocked, index),
+      pieceId: null,
+    };
+  });
 
   const pieces: Record<PieceId, Piece> = {};
   let nextPieceId = 0;
@@ -123,3 +137,4 @@ export function swapPiecesPositionsImmutable(
     [toPid]: { ...pieces[toPid]!, cellIndex: from },
   };
 }
+

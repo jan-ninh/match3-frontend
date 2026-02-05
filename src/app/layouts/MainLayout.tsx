@@ -1,5 +1,5 @@
 import { Outlet } from 'react-router';
-import stageBg from '@/assets/bg/match3-bg-01.png';
+import stageBg from '@/assets/bg/match3-bg-03-techbay.png';
 
 export default function MainLayout() {
   return (

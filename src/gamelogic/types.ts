@@ -3,13 +3,23 @@ import type { RngState } from './rng';
 
 export type LevelId = number;
 
-export type PieceType = 'red' | 'blue' | 'green' | 'yellow' | 'purple' | 'orange';
+export type PieceType = 'blue' | 'green' | 'purple' | 'orange' | 'cyan' | 'pink' | 'yellow';
 
 export type PieceId = number;
+
+export type CellObstacle = 'firewall' | 'gate';
 
 export type Cell = {
   blocked: boolean;
   pieceId: PieceId | null;
+
+  // optional obstacles
+  obstacle?: CellObstacle;
+  hp?: number;
+  maxHp?: number;
+
+  // gate visuals (stays blocked)
+  gateOpen?: boolean;
 };
 
 export type Piece = {
@@ -20,13 +30,23 @@ export type Piece = {
   cellIndex: number;
 };
 
+export type FirewallNodeDef = {
+  index: number;
+  hp: number;
+};
+
 export type LevelDefinition = {
   id: LevelId;
   width: number;
   height: number;
 
+  moves: number;
+
   blockedIndices: number[];
   allowedTypes: PieceType[];
+
+  firewallNodes: FirewallNodeDef[];
+  gateIndices: number[];
 
   baseSeed: number;
 };
@@ -67,7 +87,13 @@ export type EngineEvent =
   | { type: 'gravity' }
   | { type: 'refilled'; count: number }
   | { type: 'deadlockCheck'; hasMove: boolean }
-  | { type: 'shuffled'; attempts: number };
+  | { type: 'shuffled'; attempts: number }
+  | { type: 'movesSpent'; left: number }
+  | { type: 'firewallDamaged'; index: number; hp: number }
+  | { type: 'firewallDestroyed'; index: number }
+  | { type: 'gateOpened' }
+  | { type: 'win' }
+  | { type: 'lose' };
 
 export type EngineAnim = {
   kind: EngineAnimKind;
@@ -90,6 +116,15 @@ export type EngineState = {
 
   // cached level rules
   allowedTypes: PieceType[];
+
+  movesTotal: number;
+  movesLeft: number;
+
+  breachesTotal: number;
+  breachesRemaining: number;
+
+  gateOpen: boolean;
+  gateIndices: number[];
 
   cells: Cell[];
   pieces: Record<PieceId, Piece>;
@@ -115,5 +150,6 @@ export type EngineState = {
   events: EngineEvent[];
   pendingSwap: PendingSwap | null;
 };
+
 
 

@@ -7,6 +7,87 @@ import { assertPhaseInvariants } from './invariants';
 
 type BoardView = Pick<EngineState, 'width' | 'height' | 'cells' | 'pieces'>;
 
+function setGateOpen(state: EngineState, open: boolean, events?: EngineEvent[]): EngineState {
+  if (state.gateOpen === open) return state;
+
+  let nextCells = state.cells;
+  if (state.gateIndices.length) {
+    nextCells = nextCells.slice();
+    for (const idx of state.gateIndices) {
+      const c = nextCells[idx];
+      if (!c) continue;
+      nextCells[idx] = { ...c, blocked: true, pieceId: null, obstacle: 'gate', gateOpen: open };
+    }
+  }
+
+  if (open) events?.push({ type: 'gateOpened' });
+  return { ...state, gateOpen: open, cells: nextCells };
+}
+
+function applyFirewallDamage(state: EngineState, clearIndices: number[], events: EngineEvent[]): EngineState {
+  if (state.breachesRemaining <= 0) return state;
+  if (clearIndices.length === 0) return state;
+
+  const clear = new Set<number>(clearIndices);
+  const { width, height } = state;
+
+  let nextCells = state.cells;
+  let changed = false;
+
+  let remaining = state.breachesRemaining;
+
+  for (let i = 0; i < state.cells.length; i++) {
+    const c = state.cells[i]!;
+    if (c.obstacle !== 'firewall') continue;
+
+    const hp = typeof c.hp === 'number' ? c.hp : 0;
+    if (hp <= 0) continue;
+
+    const x = i % width;
+    const y = Math.floor(i / width);
+
+    const hit =
+      (x > 0 && clear.has(i - 1)) ||
+      (x + 1 < width && clear.has(i + 1)) ||
+      (y > 0 && clear.has(i - width)) ||
+      (y + 1 < height && clear.has(i + width));
+
+    if (!hit) continue;
+
+    const nextHp = hp - 1;
+
+    if (!changed) {
+      nextCells = state.cells.slice();
+      changed = true;
+    }
+
+    if (nextHp > 0) {
+      nextCells[i] = { ...c, hp: nextHp };
+      events.push({ type: 'firewallDamaged', index: i, hp: nextHp });
+      continue;
+    }
+
+    // destroyed => becomes a normal empty cell (unblocked)
+    nextCells[i] = { blocked: false, pieceId: null };
+    remaining = Math.max(0, remaining - 1);
+    events.push({ type: 'firewallDestroyed', index: i });
+  }
+
+  let nextState = state;
+
+  if (changed || remaining !== state.breachesRemaining) {
+    nextState = { ...nextState, cells: nextCells, breachesRemaining: remaining };
+  } else {
+    nextState = { ...nextState, breachesRemaining: remaining };
+  }
+
+  if (remaining <= 0 && !nextState.gateOpen) {
+    nextState = setGateOpen(nextState, true, events);
+  }
+
+  return nextState;
+}
+
 function clearCellsAndPieces(state: EngineState, indices: number[]): EngineState {
   const nextCells = state.cells.slice();
   const nextPieces: Record<PieceId, Piece> = { ...state.pieces };
@@ -27,7 +108,7 @@ function clearCellsAndPieces(state: EngineState, indices: number[]): EngineState
 function applyGravity(state: EngineState): EngineState {
   const { width, height } = state;
 
-  const nextCells = state.cells.map((c) => ({ blocked: c.blocked, pieceId: null as PieceId | null }));
+  const nextCells = state.cells.map((c) => ({ ...c, pieceId: null as PieceId | null }));
   const nextPieces: Record<PieceId, Piece> = { ...state.pieces };
 
   const size = width * height;
@@ -136,6 +217,7 @@ export function resolveOnce(state: EngineState): ResolveOnceResult {
   }
 
   events.push({ type: 'matchesFound', clears: m.clearIndices.length, groups: m.groups });
+  s = applyFirewallDamage(s, m.clearIndices, events);
 
   events.push({ type: 'phase', phase: 'clear' });
   s = clearCellsAndPieces(s, m.clearIndices);
@@ -174,7 +256,7 @@ export function shuffleUntilValid(state: EngineState, maxAttempts: number): { st
     const sh = rngShuffleInPlace(rngState, perm);
     rngState = sh.state;
 
-    const nextCells = state.cells.map((c) => ({ blocked: c.blocked, pieceId: null as PieceId | null }));
+    const nextCells = state.cells.map((c) => ({ ...c, pieceId: null as PieceId | null }));
     const nextPieces: Record<PieceId, Piece> = { ...state.pieces };
 
     for (let k = 0; k < indices.length; k++) {
@@ -205,7 +287,7 @@ export function shuffleUntilValid(state: EngineState, maxAttempts: number): { st
   const sh = rngShuffleInPlace(rngState, perm);
   rngState = sh.state;
 
-  const nextCells = state.cells.map((c) => ({ blocked: c.blocked, pieceId: null as PieceId | null }));
+  const nextCells = state.cells.map((c) => ({ ...c, pieceId: null as PieceId | null }));
   const nextPieces: Record<PieceId, Piece> = { ...state.pieces };
 
   for (let k = 0; k < indices.length; k++) {
@@ -256,6 +338,7 @@ export function stabilizeBoard(
     if (m.clearIndices.length === 0) break;
 
     events.push({ type: 'matchesFound', clears: m.clearIndices.length, groups: m.groups });
+    s = applyFirewallDamage(s, m.clearIndices, events);
 
     toPhase('mark');
     // (future) spawnPlan/specials go here
@@ -299,6 +382,7 @@ export function stabilizeBoard(
       if (m.clearIndices.length === 0) break;
 
       events.push({ type: 'matchesFound', clears: m.clearIndices.length, groups: m.groups });
+      s = applyFirewallDamage(s, m.clearIndices, events);
 
       toPhase('mark');
 
@@ -326,5 +410,6 @@ export function stabilizeBoard(
 
   return { state: s, events };
 }
+
 
 
