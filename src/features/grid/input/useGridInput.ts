@@ -7,10 +7,9 @@ import type { DebugSnapshot } from '@/devtools';
 import { useDevSnapshot } from '../lib/useDevSnapshot';
 import { useRafDragTransform } from '../lib/useRafDragTransform';
 
-import { DEBUG_OVERLAY_HZ, EASING, SWAP_MS } from '../lib/constants';
-
 import { createGridInputController } from './useGridInput.controller';
 import { makeInitialDebugSnapshot, setDebugInactive, setDebugStart, updateDebugFromPress } from './useGridInput.debug';
+import { DEBUG_OVERLAY_HZ, EASING, SWAP_MS } from '../lib/constants';
 
 export type UseGridInputArgs = {
   state: EngineState;
@@ -22,7 +21,8 @@ export type UseGridInputArgs = {
   debugEnabled: boolean;
 
   // animation timing (runtime)
-  swapMs?: number;};
+  swapMs?: number;
+};
 
 export function useGridInput({ state, inputLocked, canSwapAt, onIntent, debugEnabled, swapMs = SWAP_MS }: UseGridInputArgs) {
   const { width, height, cells, pieces } = state;
@@ -214,4 +214,3 @@ export function useGridInput({ state, inputLocked, canSwapAt, onIntent, debugEna
     setDraggedEl,
   };
 }
-
