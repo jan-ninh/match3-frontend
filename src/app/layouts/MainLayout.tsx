@@ -10,7 +10,7 @@ export default function MainLayout() {
         </div>
 
         {/* GAME VIEWPORT (720x960) */}
-        <div id="app-stage" className="w-[720px] min-h-[960px] bg-neutral-700 text-white">
+        <div id="app-stage" className="w-180 min-h-240 bg-neutral-700 text-white">
           <Outlet />
         </div>
 

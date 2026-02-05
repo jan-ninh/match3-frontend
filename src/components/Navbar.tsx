@@ -23,6 +23,7 @@ export default function Navbar() {
   const navItems: NavItem[] = [
     { kind: 'link', label: 'Home', icon: '/icons/home.svg', to: '/game-map' },
     { kind: 'action', label: 'Login', icon: '/icons/login.svg', onClick: openLogin },
+    { kind: 'link', label: 'logout', icon: '/icons/logout.svg', to: '/game-map' },
     { kind: 'link', label: 'Leaderboard', icon: '/icons/cup.svg', to: '/game-map/leaderboard' },
     { kind: 'link', label: 'Home', icon: '/icons/heart.svg', to: '/game-map' },
     { kind: 'link', label: 'Profile', icon: '/icons/user.svg', to: '/game-map/profile' },
