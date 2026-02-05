@@ -40,7 +40,7 @@ export type PendingSwap = {
 
 export type SwapRejectReason = 'locked' | 'notAdjacent' | 'blocked' | 'empty';
 
-export type EngineAnimKind = 'swap' | 'swapBack';
+export type EngineAnimKind = 'swap' | 'swapBack' | 'fall';
 
 export type AnimDoneMode = 'early' | 'auto';
 
@@ -115,3 +115,5 @@ export type EngineState = {
   events: EngineEvent[];
   pendingSwap: PendingSwap | null;
 };
+
+

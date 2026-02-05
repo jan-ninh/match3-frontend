@@ -1,8 +1,8 @@
 import type { AnimDoneIgnoreReason, AnimDoneMode, EngineAnimKind, EngineEvent, EngineState, LevelId, SwapRejectReason } from './types';
 import { getLevelDefinition } from './levels';
 import { buildInitialBoard, canSwap, swapCellsImmutable, swapPiecesPositionsImmutable } from './board';
-import { detectMatches } from './match';
-import { stabilizeBoard } from './cascade';
+import { detectMatches, hasAnyMoves } from './match';
+import { resolveOnce, shuffleUntilValid, stabilizeBoard } from './cascade';
 import { assertBoardIntegrity, assertPhaseInvariants } from './invariants';
 import { ANIM_EPSILON_MS, SWAP_MS } from './animTimings';
 import { setPhase } from './phaseState';
@@ -24,6 +24,8 @@ type TickAction = { type: 'tick'; nowMs: number };
 // optional UI “done” signals (never the only escape hatch)
 type SwapAnimDoneAction = { type: 'swapAnimDone'; token: number; nowMs?: number };
 type SwapBackAnimDoneAction = { type: 'swapBackAnimDone'; token: number; nowMs?: number };
+type FallAnimDoneAction = { type: 'fallAnimDone'; token: number; nowMs?: number };
+
 
 export type EngineAction =
   | InitAction
@@ -34,7 +36,8 @@ export type EngineAction =
   | WakeAction
   | TickAction
   | SwapAnimDoneAction
-  | SwapBackAnimDoneAction;
+  | SwapBackAnimDoneAction
+  | FallAnimDoneAction;
 
 function pushEvents(state: EngineState, newEvents: EngineEvent[]): EngineState {
   const merged = [...state.events, ...newEvents];
@@ -77,7 +80,7 @@ function sanitizeSwapMs(v: number): number {
   return Math.max(0, Math.round(v));
 }
 
-function beginAnim(state: EngineState, kind: 'swap' | 'swapBack', durationMs: number): EngineState {
+function beginAnim(state: EngineState, kind: EngineAnimKind, durationMs: number): EngineState {
   const token = nextAnimToken(state.animToken);
   const enteredAtMs = state.nowMs;
   const epsilon = durationMs > 0 ? ANIM_EPSILON_MS : 0;
@@ -240,28 +243,41 @@ function applySwapAnimDone(state: EngineState, token: number, mode: AnimDoneMode
     return withEvents;
   }
 
-  // matches exist => continue resolve chain
-  const preEvents: EngineEvent[] = [doneEvent];
+  // matches exist => resolve once, then wait for falling animation
+  const events: EngineEvent[] = [doneEvent];
 
-  let startResolve: EngineState = {
+  let s: EngineState = {
     ...state,
     pendingSwap: null,
     anim: null,
   };
 
-  startResolve = setPhase(startResolve, 'inputLock', preEvents);
+  s = setPhase(s, 'inputLock', events);
 
-  const seeded = pushEvents(startResolve, preEvents);
+  const step = resolveOnce(s);
+  s = step.state;
+  events.push(...step.events);
 
-  const stabilized = stabilizeBoard(seeded);
-  const final = pushEvents(stabilized.state, stabilized.events);
-
-  if (import.meta.env.DEV) {
-    assertBoardIntegrity(final, 'swap+stabilize');
-    assertPhaseInvariants(final, 'swap+stabilize');
+  // unexpected: nothing to resolve => go idle
+  if (!step.didResolve) {
+    s = setPhase(s, 'idle', events);
+    return pushEvents(s, events);
   }
 
-  return final;
+  s = setPhase(s, 'fallAnimating', events);
+  s = beginAnim(s, 'fall', s.swapMs);
+
+  const withEvents = pushEvents(s, events);
+
+  if (import.meta.env.DEV) {
+    assertBoardIntegrity(withEvents, 'swap+resolveOnce+fall');
+    assertPhaseInvariants(withEvents, 'swap+resolveOnce+fall');
+  }
+
+  // reduced motion => finish immediately
+  if (withEvents.anim?.durationMs === 0) return autoFinishAll(withEvents);
+
+  return withEvents;
 }
 
 function applySwapBackAnimDone(state: EngineState, token: number, mode: AnimDoneMode): EngineState {
@@ -286,6 +302,121 @@ function applySwapBackAnimDone(state: EngineState, token: number, mode: AnimDone
   return pushEvents(next, events);
 }
 
+function applyFallAnimDone(state: EngineState, token: number, mode: AnimDoneMode): EngineState {
+  const ignore = (reason: AnimDoneIgnoreReason): EngineState => {
+    if (mode !== 'early') return state;
+    if (!import.meta.env.DEV) return state;
+    return pushEvents(state, [mkAnimDoneIgnored('fall', token, reason)]);
+  };
+
+  if (state.phase !== 'fallAnimating') return ignore('wrongPhase');
+
+  const a = state.anim;
+  if (!a) return ignore('missingAnim');
+  if (a.kind !== 'fall') return ignore('wrongKind');
+  if (a.token !== token) return ignore('wrongToken');
+
+  const doneEvent = mkAnimDone(mode, a, state.nowMs);
+
+  const events: EngineEvent[] = [doneEvent];
+
+  let s: EngineState = { ...state, anim: null };
+
+  // continue resolve chain (if any)
+  s = setPhase(s, 'inputLock', events);
+
+  const step = resolveOnce(s);
+  s = step.state;
+  events.push(...step.events);
+
+  if (step.didResolve) {
+    s = setPhase(s, 'fallAnimating', events);
+    s = beginAnim(s, 'fall', s.swapMs);
+
+    const withEvents = pushEvents(s, events);
+
+    if (import.meta.env.DEV) {
+      assertBoardIntegrity(withEvents, 'fall+resolveOnce');
+      assertPhaseInvariants(withEvents, 'fall+resolveOnce');
+    }
+
+    if (withEvents.anim?.durationMs === 0) return autoFinishAll(withEvents);
+    return withEvents;
+  }
+
+  // no matches => deadlock check
+  s = setPhase(s, 'deadlockCheck', events);
+  const hasMove = hasAnyMoves(s);
+  events.push({ type: 'deadlockCheck', hasMove });
+
+  if (hasMove) {
+    s = setPhase(s, 'idle', events);
+    const withEvents = pushEvents(s, events);
+
+    if (import.meta.env.DEV) {
+      assertBoardIntegrity(withEvents, 'fall->idle');
+      assertPhaseInvariants(withEvents, 'fall->idle');
+    }
+
+    return withEvents;
+  }
+
+  // deadlock => shuffle (instant)
+  s = setPhase(s, 'shuffle', events);
+  const sh = shuffleUntilValid(s, 200);
+  s = sh.state;
+  events.push({ type: 'shuffled', attempts: sh.attempts });
+
+  // if shuffle produced matches, resolve once and animate
+  const post = resolveOnce(s);
+  s = post.state;
+  events.push(...post.events);
+
+  if (post.didResolve) {
+    s = setPhase(s, 'fallAnimating', events);
+    s = beginAnim(s, 'fall', s.swapMs);
+
+    const withEvents = pushEvents(s, events);
+
+    if (import.meta.env.DEV) {
+      assertBoardIntegrity(withEvents, 'shuffle->resolveOnce+fall');
+      assertPhaseInvariants(withEvents, 'shuffle->resolveOnce+fall');
+    }
+
+    if (withEvents.anim?.durationMs === 0) return autoFinishAll(withEvents);
+    return withEvents;
+  }
+
+  // SECOND deadlock check after post-resolve (guarantee playable)
+  s = setPhase(s, 'deadlockCheck', events);
+  const hasMove2 = hasAnyMoves(s);
+  events.push({ type: 'deadlockCheck', hasMove: hasMove2 });
+
+  if (!hasMove2) {
+    // last resort: full stabilize
+    const stabilized = stabilizeBoard(s, { maxShuffleAttempts: 400 });
+    const allEvents: EngineEvent[] = [...events, ...stabilized.events];
+    const merged = pushEvents(stabilized.state, allEvents);
+
+    if (import.meta.env.DEV) {
+      assertBoardIntegrity(merged, 'shuffle->stabilize');
+      assertPhaseInvariants(merged, 'shuffle->stabilize');
+    }
+
+    return merged;
+  }
+
+  s = setPhase(s, 'idle', events);
+  const final = pushEvents(s, events);
+
+  if (import.meta.env.DEV) {
+    assertBoardIntegrity(final, 'fall->shuffle->idle');
+    assertPhaseInvariants(final, 'fall->shuffle->idle');
+  }
+
+  return final;
+}
+
 function tryAutoFinishAnim(state: EngineState): EngineState {
   const a = state.anim;
   if (!a) return state;
@@ -294,21 +425,21 @@ function tryAutoFinishAnim(state: EngineState): EngineState {
 
   if (a.kind === 'swap') return applySwapAnimDone(state, a.token, 'auto');
   if (a.kind === 'swapBack') return applySwapBackAnimDone(state, a.token, 'auto');
+  if (a.kind === 'fall') return applyFallAnimDone(state, a.token, 'auto');
 
   return state;
 }
 
 function autoFinishAll(state: EngineState): EngineState {
-  // bounded: swap -> swapBack at most once
+  // bounded loop to avoid infinite locks if a bug slips in
   let s = state;
-  for (let i = 0; i < 2; i++) {
+  for (let i = 0; i < 128; i++) {
     const next = tryAutoFinishAnim(s);
     if (next === s) break;
     s = next;
   }
   return s;
 }
-
 export function engineReducer(state: EngineState, action: EngineAction): EngineState {
   const withNow = (() => {
     const t = action.nowMs;
@@ -380,7 +511,10 @@ export function engineReducer(state: EngineState, action: EngineAction): EngineS
         return applySwapBackAnimDone(state, action.token, 'early');
       }
 
-      case 'clickCell': {
+            case 'fallAnimDone': {
+        return applyFallAnimDone(state, action.token, 'early');
+      }
+case 'clickCell': {
         if (state.phase !== 'idle') return state;
 
         const clicked = action.index;
@@ -427,3 +561,5 @@ export function engineReducer(state: EngineState, action: EngineAction): EngineS
 
   return next;
 }
+
+

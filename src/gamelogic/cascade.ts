@@ -119,7 +119,43 @@ function applyRefill(state: EngineState): { state: EngineState; spawned: number 
   };
 }
 
-function shuffleUntilValid(state: EngineState, maxAttempts: number): { state: EngineState; attempts: number } {
+export type ResolveOnceResult = {
+  state: EngineState;
+  events: EngineEvent[];
+  didResolve: boolean;
+};
+
+export function resolveOnce(state: EngineState): ResolveOnceResult {
+  let s = state;
+  const events: EngineEvent[] = [];
+
+  events.push({ type: 'phase', phase: 'detect' });
+  const m = detectMatches(s);
+  if (m.clearIndices.length === 0) {
+    return { state: s, events, didResolve: false };
+  }
+
+  events.push({ type: 'matchesFound', clears: m.clearIndices.length, groups: m.groups });
+
+  events.push({ type: 'phase', phase: 'clear' });
+  s = clearCellsAndPieces(s, m.clearIndices);
+  events.push({ type: 'cleared', count: m.clearIndices.length });
+
+  events.push({ type: 'phase', phase: 'gravity' });
+  s = applyGravity(s);
+  events.push({ type: 'gravity' });
+
+  events.push({ type: 'phase', phase: 'refill' });
+  const ref = applyRefill(s);
+  s = ref.state;
+  events.push({ type: 'refilled', count: ref.spawned });
+
+  events.push({ type: 'phase', phase: 'settle' });
+
+  return { state: s, events, didResolve: true };
+}
+
+export function shuffleUntilValid(state: EngineState, maxAttempts: number): { state: EngineState; attempts: number } {
   const indices: number[] = [];
   const pieceIds: PieceId[] = [];
 
@@ -290,3 +326,5 @@ export function stabilizeBoard(
 
   return { state: s, events };
 }
+
+

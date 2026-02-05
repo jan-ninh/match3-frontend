@@ -117,33 +117,34 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
     const a = state.anim;
     if (!a) return;
 
-    if (state.phase === 'swapAnimating' && a.kind === 'swap') {
-      const id = window.setTimeout(() => {
-        // keep engine clock fresh so follow-up beginAnim uses correct nowMs
-        dispatch({ type: 'wake', nowMs: performance.now() } as EngineAction);
-        dispatch({ type: 'swapAnimDone', token: a.token, nowMs: performance.now() } as EngineAction);
-      }, a.durationMs);
+    const id = window.setTimeout(() => {
+      const now = performance.now();
 
-      return () => window.clearTimeout(id);
-    }
+      // keep engine clock fresh so follow-up beginAnim uses correct nowMs
+      dispatch({ type: 'wake', nowMs: now } as EngineAction);
 
-    if (state.phase === 'swapBackAnimating' && a.kind === 'swapBack') {
-      const id = window.setTimeout(() => {
-        dispatch({ type: 'wake', nowMs: performance.now() } as EngineAction);
-        dispatch({ type: 'swapBackAnimDone', token: a.token, nowMs: performance.now() } as EngineAction);
-      }, a.durationMs);
+      if (a.kind === 'swap') {
+        dispatch({ type: 'swapAnimDone', token: a.token, nowMs: now } as EngineAction);
+        return;
+      }
 
-      return () => window.clearTimeout(id);
-    }
-  }, [state.phase, state.anim?.token, state.anim?.kind, state.anim?.durationMs]);
+      if (a.kind === 'swapBack') {
+        dispatch({ type: 'swapBackAnimDone', token: a.token, nowMs: now } as EngineAction);
+        return;
+      }
 
+      if (a.kind === 'fall') {
+        dispatch({ type: 'fallAnimDone', token: a.token, nowMs: now } as EngineAction);
+        return;
+      }
+    }, a.durationMs);
+
+    return () => window.clearTimeout(id);
+  }, [state.anim?.token, state.anim?.kind, state.anim?.durationMs]);
   // 2) Deadline fallback (single timer, no per-frame ticking)
   useEffect(() => {
     const a = state.anim;
     if (!a) return;
-
-    const isWaitPhase = state.phase === 'swapAnimating' || state.phase === 'swapBackAnimating';
-    if (!isWaitPhase) return;
 
     const delay = Math.max(0, a.deadlineAtMs - performance.now());
     const id = window.setTimeout(() => {
@@ -151,8 +152,7 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
     }, delay + 5);
 
     return () => window.clearTimeout(id);
-  }, [state.phase, state.anim?.token, state.anim?.deadlineAtMs]);
-
+  }, [state.anim?.token, state.anim?.deadlineAtMs]);
   const canSwapAt = (from: number, to: number) => {
     return canSwap(from, to, state.width, state.cells).ok;
   };
@@ -273,3 +273,5 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
     </div>
   );
 }
+
+
