@@ -3,13 +3,19 @@ import { GameContainer } from '@/features/playground';
 import { useOverlays } from '@/features/overlays';
 
 export default function GameplayPage() {
-  const { openSettings, openPowerChoice, openWin, openLose } = useOverlays();
+  const { openSettings, openWin, openLose } = useOverlays();
 
   return (
     <div className="p-8 flex flex-col gap-8">
       <Header time={'120'} moves={45} targetLabel="Collect 40 Red" />
       <GameContainer />
-      <GameFooter openSettings={openSettings} openPowerChoice={openPowerChoice} openWin={openWin} openLose={openLose} />
+      <GameFooter openSettings={openSettings} />
+      <button type="button" className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 border border-white/10 text-white/80" onClick={() => openWin()}>
+        test win
+      </button>
+      <button type="button" className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 border border-white/10 text-white/80" onClick={() => openLose()}>
+        test lose
+      </button>
     </div>
   );
 }

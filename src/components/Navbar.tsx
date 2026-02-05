@@ -24,6 +24,7 @@ export default function Navbar() {
     { kind: 'link', label: 'Home', icon: '/icons/home.svg', to: '/game-map' },
     { kind: 'action', label: 'Login', icon: '/icons/login.svg', onClick: openLogin },
     { kind: 'link', label: 'Leaderboard', icon: '/icons/cup.svg', to: '/game-map/leaderboard' },
+    { kind: 'link', label: 'Home', icon: '/icons/heart.svg', to: '/game-map' },
     { kind: 'link', label: 'Profile', icon: '/icons/user.svg', to: '/game-map/profile' },
     { kind: 'action', label: 'Settings', icon: '/icons/setting.svg', onClick: openSettings },
   ];

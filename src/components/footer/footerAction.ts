@@ -6,32 +6,27 @@ type ActionItem = {
   onClick: () => void;
 };
 
-export const footerActions = (
-  openSettings: () => void,
-
-  openWin: (level: number) => void,
-  openLose: (level: number) => void,
-): ActionItem[] => [
+export const footerActions = (openSettings: () => void): ActionItem[] => [
   {
     id: 'power-up',
     label: 'Power Choice',
     icon: '/icons/extraTime.svg',
     badge: '/icons/flash.svg',
-    onClick: () => console.log('Power Choice clicked'),
+    onClick: () => console.log('extraTime Choice clicked'),
   },
   {
     id: 'debug-win',
     label: 'Debug Win',
     icon: '/icons/bomb.svg',
     badge: '/icons/flash.svg',
-    onClick: () => openWin(1),
+    onClick: () => console.log('Bomb Choice clicked'),
   },
   {
     id: 'debug-lose',
     label: 'Debug Lose',
     icon: '/icons/rocket.svg',
     badge: '/icons/flash.svg',
-    onClick: () => openLose(1),
+    onClick: () => console.log('Power Choice clicked'),
   },
   {
     id: 'tip',
