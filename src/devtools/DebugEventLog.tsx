@@ -1,18 +1,49 @@
 import { Fragment, useEffect, useMemo, useRef } from 'react';
 import type { EngineEvent } from '@/gamelogic';
 
+function fmtNum(n: number): string {
+  return Number.isFinite(n) ? n.toFixed(1) : 'NaN';
+}
+
+function fmtSigned(n: number): string {
+  const sign = n >= 0 ? '+' : '';
+  return `${sign}${fmtNum(n)}`;
+}
+
 function formatEvent(e: EngineEvent): string {
   switch (e.type) {
     case 'seededInit':
       return `seededInit(level=${e.levelId}, ${e.width}x${e.height}, seed=${e.seed})`;
+    case 'reset':
+      return `reset(level=${e.levelId}, seed=${e.seed})`;
+    case 'phase':
+      return `phase(${e.phase})`;
     case 'select':
       return `select(index=${e.index})`;
     case 'selectionCleared':
       return 'selectionCleared()';
     case 'swap':
       return `swap(from=${e.from}, to=${e.to})`;
+    case 'swapBack':
+      return `swapBack(from=${e.from}, to=${e.to})`;
+    case 'animDone':
+      return `animDone(${e.mode}, kind=${e.kind}, token=${e.token}, dt=${fmtNum(e.dtMs)}ms, delta=${fmtSigned(e.deltaMs)}ms)`;
+    case 'animDoneIgnored':
+      return `animDoneIgnored(kind=${e.kind}, token=${e.token}, reason=${e.reason})`;
     case 'swapRejected':
       return `swapRejected(from=${e.from}, to=${e.to}, reason=${e.reason})`;
+    case 'matchesFound':
+      return `matchesFound(clears=${e.clears}, groups=${e.groups})`;
+    case 'cleared':
+      return `cleared(count=${e.count})`;
+    case 'gravity':
+      return 'gravity()';
+    case 'refilled':
+      return `refilled(count=${e.count})`;
+    case 'deadlockCheck':
+      return `deadlockCheck(hasMove=${String(e.hasMove)})`;
+    case 'shuffled':
+      return `shuffled(attempts=${e.attempts})`;
     default: {
       const _exhaustive: never = e;
       return JSON.stringify(_exhaustive);

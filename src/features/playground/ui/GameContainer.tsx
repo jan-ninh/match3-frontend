@@ -16,16 +16,14 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
   const isDev = import.meta.env.DEV;
 
   const [levelId, setLevelId] = useState<number>(initialLevelId);
-  const [showLockoutHints, setShowLockoutHints] = useState<boolean>(true);
+  const [showLockoutHints, setShowLockoutHints] = useState<boolean>(false);
 
-  // NEW
   const [debugEnabled, setDebugEnabled] = useState<boolean>(false);
 
   useEffect(() => {
     if (!isDev) return;
 
     const onKeyDown = (e: KeyboardEvent) => {
-      // avoid toggling while typing in inputs
       const tag = (e.target as HTMLElement | null)?.tagName?.toLowerCase();
       const isTyping = tag === 'input' || tag === 'textarea' || (e.target as HTMLElement | null)?.isContentEditable;
 
@@ -42,31 +40,98 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
 
   const [state, dispatch] = useReducer(engineReducer, levelId, createInitialState);
 
-  const inputLocked = useMemo(() => {
-    const anyState = state as unknown as { inputLocked?: boolean; phase?: string };
-    if (typeof anyState.inputLocked === 'boolean') return anyState.inputLocked;
-    if (typeof anyState.phase === 'string') return anyState.phase !== 'idle';
-    return false;
-  }, [state]);
+  // ensure level change actually re-inits engine (skip first run)
+  const didInitRef = useRef(false);
+  useEffect(() => {
+    if (!didInitRef.current) {
+      didInitRef.current = true;
+      return;
+    }
+    dispatch({ type: 'initLevel', levelId, nowMs: performance.now() } as EngineAction);
+  }, [levelId]);
+
+  const inputLocked = state.inputLocked;
+  // 0) Low-noise wake-ups (tab return / focus)
+  useEffect(() => {
+    const wake = () => dispatch({ type: 'wake', nowMs: performance.now() } as EngineAction);
+
+    const onFocus = () => wake();
+    const onVis = () => {
+      if (!document.hidden) wake();
+    };
+
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVis);
+
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVis);
+    };
+  }, []);
+
+  // 1) UI → Engine "done" bridge (NO rAF loop)
+  useEffect(() => {
+    const a = state.anim;
+    if (!a) return;
+
+    if (state.phase === 'swapAnimating' && a.kind === 'swap') {
+      const id = window.setTimeout(() => {
+        // keep engine clock fresh so follow-up beginAnim uses correct nowMs
+        dispatch({ type: 'wake', nowMs: performance.now() } as EngineAction);
+        dispatch({ type: 'swapAnimDone', token: a.token, nowMs: performance.now() } as EngineAction);
+      }, a.durationMs);
+
+      return () => window.clearTimeout(id);
+    }
+
+    if (state.phase === 'swapBackAnimating' && a.kind === 'swapBack') {
+      const id = window.setTimeout(() => {
+        dispatch({ type: 'wake', nowMs: performance.now() } as EngineAction);
+        dispatch({ type: 'swapBackAnimDone', token: a.token, nowMs: performance.now() } as EngineAction);
+      }, a.durationMs);
+
+      return () => window.clearTimeout(id);
+    }
+  }, [state.phase, state.anim?.token, state.anim?.kind, state.anim?.durationMs]);
+
+  // 2) Deadline fallback (single timer, no per-frame ticking)
+  useEffect(() => {
+    const a = state.anim;
+    if (!a) return;
+
+    const isWaitPhase = state.phase === 'swapAnimating' || state.phase === 'swapBackAnimating';
+    if (!isWaitPhase) return;
+
+    const delay = Math.max(0, a.deadlineAtMs - performance.now());
+    const id = window.setTimeout(() => {
+      dispatch({ type: 'wake', nowMs: performance.now() } as EngineAction);
+    }, delay + 5);
+
+    return () => window.clearTimeout(id);
+  }, [state.phase, state.anim?.token, state.anim?.deadlineAtMs]);
 
   const canSwapAt = (from: number, to: number) => {
     return canSwap(from, to, state.width, state.cells).ok;
   };
 
-  const onIntent = (intent: unknown) => {
+    const onIntent = (intent: unknown) => {
     const i = intent as unknown as { type?: unknown; index?: unknown; from?: unknown; to?: unknown };
 
     if (i?.type === 'click' && typeof i.index === 'number') {
-      dispatch({ type: 'clickCell', index: i.index } as EngineAction);
+      dispatch({ type: 'clickCell', index: i.index, nowMs: performance.now() } as EngineAction);
       return;
     }
 
     if (i?.type === 'swap' && typeof i.from === 'number' && typeof i.to === 'number') {
-      dispatch({ type: 'swapAttempt', from: i.from, to: i.to } as EngineAction);
+      dispatch({ type: 'swapAttempt', from: i.from, to: i.to, nowMs: performance.now() } as EngineAction);
       return;
     }
 
     dispatch(intent as EngineAction);
+  };;
+
+  const onDevResetBoard = () => {
+    dispatch({ type: 'resetBoard', nowMs: performance.now() } as EngineAction);
   };
 
   const events = useMemo<EngineEvent[]>(() => {
@@ -119,7 +184,6 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* optional: show current debug state */}
           {isDev ? (
             <div className="text-xs text-white/50 px-2 py-1 rounded-md border border-white/10 bg-black/20">Debug: {debugEnabled ? 'on' : 'off'} (press D)</div>
           ) : null}
@@ -158,9 +222,11 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
           onToggleShowLockoutHints={() => setShowLockoutHints((v) => !v)}
           canSwapAt={canSwapAt}
           onIntent={onIntent}
-          debugEnabled={debugEnabled} // NEW
+          debugEnabled={debugEnabled}
+          onDevResetBoard={onDevResetBoard}
         />
       </div>
     </div>
   );
 }
+

@@ -1,15 +1,24 @@
 type ToggleItem = {
+  kind: 'toggle';
   label: string;
   value: boolean;
   onToggle?: () => void;
 };
 
+type ActionItem = {
+  kind: 'action';
+  label: string;
+  onPress?: () => void;
+  disabled?: boolean;
+};
+
 type Props = {
   locked: boolean;
   items: ToggleItem[];
+  actions?: ActionItem[];
 };
 
-export default function DebugDevToolsPanel({ locked, items }: Props) {
+export default function DebugDevToolsPanel({ locked, items, actions = [] }: Props) {
   return (
     <div className="w-[260px] shrink-0 rounded-2xl border border-white/10 bg-black/30 p-3 shadow-lg">
       <div className="flex items-center justify-between">
@@ -45,6 +54,28 @@ export default function DebugDevToolsPanel({ locked, items }: Props) {
                 >
                   {item.value ? 'ON' : 'OFF'}
                 </div>
+              </div>
+            </button>
+          );
+        })}
+
+        {actions.length ? <div className="h-px bg-white/10" /> : null}
+
+        {actions.map((a) => {
+          const disabled = !!a.disabled || !a.onPress;
+
+          const cls = [
+            'w-full px-3 py-2 rounded-lg text-left',
+            'border border-white/10',
+            disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/10',
+            'bg-black/20 text-white/80',
+          ].join(' ');
+
+          return (
+            <button key={a.label} type="button" className={cls} onClick={() => a.onPress?.()} disabled={disabled}>
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-xs">{a.label}</div>
+                <div className="font-mono text-[10px] px-1.5 py-0.5 rounded-md border border-white/10 text-white/60">RUN</div>
               </div>
             </button>
           );

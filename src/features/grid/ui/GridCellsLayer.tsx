@@ -7,9 +7,10 @@ type Props = {
   height: number;
   cells: Cell[];
   onCellPointerDown: (index: number, e: React.PointerEvent<HTMLButtonElement>) => void;
+  showDebugLabels?: boolean;
 };
 
-export default function GridCellsLayer({ width, height, cells, onCellPointerDown }: Props) {
+export default function GridCellsLayer({ width, height, cells, onCellPointerDown, showDebugLabels = false }: Props) {
   return (
     <div
       className="grid"
@@ -51,9 +52,11 @@ export default function GridCellsLayer({ width, height, cells, onCellPointerDown
             aria-label={cell.blocked ? `blocked cell ${index}` : `cell ${index}`}
             onPointerDown={(e) => onCellPointerDown(index, e)}
           >
-            <div className="absolute top-1 left-1 text-[10px] leading-none text-white/80 drop-shadow">
-              {x},{y}
-            </div>
+            {showDebugLabels ? (
+              <div className="absolute top-1 left-1 text-[10px] leading-none text-white/80 drop-shadow">
+                {x},{y}
+              </div>
+            ) : null}
 
             {cell.blocked ? <div className="absolute inset-0 flex items-center justify-center text-white/20 text-2xl">✕</div> : null}
           </button>
@@ -62,3 +65,4 @@ export default function GridCellsLayer({ width, height, cells, onCellPointerDown
     </div>
   );
 }
+

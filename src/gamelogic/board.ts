@@ -1,11 +1,12 @@
 import type { Cell, LevelDefinition, Piece, PieceId, PieceType, SwapRejectReason } from './types';
-import { createRng } from './rng';
+import { initRngState, rngNextInt, type RngState } from './rng';
 import { areAdjacent, xyOf } from './coords';
 
 type BuildBoardResult = {
   cells: Cell[];
   pieces: Record<PieceId, Piece>;
   nextPieceId: number;
+  rngState: RngState;
 };
 
 function isBlockedIndex(blocked: Set<number>, index: number): boolean {
@@ -36,10 +37,10 @@ function wouldCreateSpawnTriple(candidate: PieceType, index: number, width: numb
   return false;
 }
 
-export function buildInitialBoard(level: LevelDefinition): BuildBoardResult {
+export function buildInitialBoard(level: LevelDefinition, seed: number): BuildBoardResult {
   const { width, height, allowedTypes } = level;
 
-  const rng = createRng(level.baseSeed);
+  let rngState = initRngState(seed);
 
   const blocked = new Set(level.blockedIndices);
   const size = width * height;
@@ -58,14 +59,21 @@ export function buildInitialBoard(level: LevelDefinition): BuildBoardResult {
     let chosen: PieceType | null = null;
 
     for (let attempt = 0; attempt < 24; attempt++) {
-      const t = allowedTypes[rng.nextInt(allowedTypes.length)]!;
+      const r = rngNextInt(rngState, allowedTypes.length);
+      rngState = r.state;
+
+      const t = allowedTypes[r.value]!;
       if (!wouldCreateSpawnTriple(t, index, width, cells, pieces)) {
         chosen = t;
         break;
       }
     }
 
-    if (!chosen) chosen = allowedTypes[rng.nextInt(allowedTypes.length)]!;
+    if (!chosen) {
+      const r = rngNextInt(rngState, allowedTypes.length);
+      rngState = r.state;
+      chosen = allowedTypes[r.value]!;
+    }
 
     const id = nextPieceId as PieceId;
     nextPieceId++;
@@ -74,7 +82,7 @@ export function buildInitialBoard(level: LevelDefinition): BuildBoardResult {
     cells[index].pieceId = id;
   }
 
-  return { cells, pieces, nextPieceId };
+  return { cells, pieces, nextPieceId, rngState };
 }
 
 export function canSwap(from: number, to: number, width: number, cells: Cell[]): { ok: true } | { ok: false; reason: SwapRejectReason } {
