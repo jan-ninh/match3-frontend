@@ -233,6 +233,12 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
         <div className="flex-1 rounded-2xl border border-fuchsia-400/20 bg-black/55 backdrop-blur px-5 py-3 shadow-[0_10px_30px_rgba(0,0,0,0.50)]">
           <div className="text-xs tracking-widest text-fuchsia-200/80 uppercase">Objective</div>
           <div className="mt-0.5 text-base font-semibold text-white/90">Collect 20 Red</div>
+          <div data-ui="objective-meta" className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-white/70">
+            <div className="font-mono text-white/80 tabular-nums">BREACH {breachDone}/{breachTotal}</div>
+            <div className="text-white/55">Matches neben einem Knoten beschädigen ihn.</div>
+            {isWin ? <div className="text-emerald-300/90 font-semibold">WIN — Gate open</div> : null}
+            {isLose ? <div className="text-rose-300/90 font-semibold">LOSE — out of moves</div> : null}
+          </div>
         </div>
 
         <div className="min-w-[88px] text-center rounded-2xl border border-white/10 bg-black/45 backdrop-blur px-4 py-2 shadow-[0_10px_30px_rgba(0,0,0,0.45)]">
@@ -248,13 +254,7 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
             Board: {state.width}x{state.height} Seed: <span className="font-mono">{state.seed ?? '—'}</span>
           </div>
 
-          <div className="mt-1 text-sm text-white/80 flex flex-wrap items-center gap-x-4 gap-y-1">
-            <div className="font-mono">BREACH {breachDone}/{breachTotal}</div>
-            <div className="text-white/60">Matches neben einem Knoten beschädigen ihn.</div>
-            {isWin ? <div className="text-emerald-300/90 font-semibold">WIN — Gate open</div> : null}
-            {isLose ? <div className="text-rose-300/90 font-semibold">LOSE — out of moves</div> : null}
-          </div>
-        </div>
+                  </div>
 
         <div className="flex items-center gap-2">
           {isDev ? (
@@ -303,6 +303,7 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
     </div>
   );
 }
+
 
 
 
