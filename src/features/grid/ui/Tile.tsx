@@ -47,7 +47,7 @@ export default function Tile({ type, selected, dragging, preview, locked, shakin
     backgroundImage: `url(${sprite.sheet})`,
     backgroundRepeat: 'no-repeat',
     backgroundSize: `${sprite.cols * 100}% ${sprite.rows * 100}%`,
-    backgroundPosition: `calc(-100% * ${sprite.col}) calc(-100% * ${sprite.row})`,
+    backgroundPosition: `${sprite.cols <= 1 ? 0 : (sprite.col * 100) / (sprite.cols - 1)}% ${sprite.rows <= 1 ? 0 : (sprite.row * 100) / (sprite.rows - 1)}%`,
   };
 
   return (
@@ -56,3 +56,4 @@ export default function Tile({ type, selected, dragging, preview, locked, shakin
     </div>
   );
 }
+

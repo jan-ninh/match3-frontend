@@ -23,7 +23,7 @@ export function getLevelDefinition(levelId: number): LevelDefinition {
 
   const blockedIndices = levelId === 1 ? [...cornerBlocks, ...firewallNodes.map((n) => n.index)] : cornerBlocks;
 
-  const moves = levelId === 1 ? 11 : 20;
+  const moves = 20;
 
   const baseSeed = 12345;
   const seed = deriveSeed(baseSeed, levelId);
@@ -40,3 +40,4 @@ export function getLevelDefinition(levelId: number): LevelDefinition {
     baseSeed: seed,
   };
 }
+

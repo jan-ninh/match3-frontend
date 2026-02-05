@@ -224,6 +224,22 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
   return (
     <div className="w-full">
       {eventLogPortal}
+      <div className="mb-4 flex items-start justify-between gap-4">
+        <div className="min-w-[88px] text-center rounded-2xl border border-white/10 bg-black/45 backdrop-blur px-4 py-2 shadow-[0_10px_30px_rgba(0,0,0,0.45)]">
+          <div className="text-2xl font-semibold text-white/90 tabular-nums">120</div>
+          <div className="text-xs tracking-widest text-white/60 uppercase">Time</div>
+        </div>
+
+        <div className="flex-1 rounded-2xl border border-fuchsia-400/20 bg-black/55 backdrop-blur px-5 py-3 shadow-[0_10px_30px_rgba(0,0,0,0.50)]">
+          <div className="text-xs tracking-widest text-fuchsia-200/80 uppercase">Objective</div>
+          <div className="mt-0.5 text-base font-semibold text-white/90">Collect 20 Red</div>
+        </div>
+
+        <div className="min-w-[88px] text-center rounded-2xl border border-white/10 bg-black/45 backdrop-blur px-4 py-2 shadow-[0_10px_30px_rgba(0,0,0,0.45)]">
+          <div className="text-2xl font-semibold text-white/90 tabular-nums">{state.movesLeft ?? '—'}</div>
+          <div className="text-xs tracking-widest text-white/60 uppercase">Moves</div>
+        </div>
+      </div>
 
       <div className="flex items-center justify-between gap-3 mb-3">
         <div>
@@ -234,7 +250,6 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
 
           <div className="mt-1 text-sm text-white/80 flex flex-wrap items-center gap-x-4 gap-y-1">
             <div className="font-mono">BREACH {breachDone}/{breachTotal}</div>
-            <div className="font-mono">MOVES {state.movesLeft ?? '—'}</div>
             <div className="text-white/60">Matches neben einem Knoten beschädigen ihn.</div>
             {isWin ? <div className="text-emerald-300/90 font-semibold">WIN — Gate open</div> : null}
             {isLose ? <div className="text-rose-300/90 font-semibold">LOSE — out of moves</div> : null}
@@ -288,6 +303,7 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
     </div>
   );
 }
+
 
 
 

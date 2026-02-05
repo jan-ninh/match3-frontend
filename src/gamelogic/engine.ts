@@ -174,12 +174,12 @@ function beginSwapAnimating(state: EngineState, from: number, to: number, opts?:
   const hadSelection = state.selectedIndex !== null;
 
   const swapped = applySwapCommit(state, from, to);
-
+  const nextMovesLeft = Math.max(0, state.movesLeft - 1);
   const events: EngineEvent[] = [];
-
+  if (nextMovesLeft !== state.movesLeft) events.push({ type: 'movesSpent', left: nextMovesLeft });
   let baseState: EngineState = {
     ...swapped,
-    selectedIndex: null,
+    movesLeft: nextMovesLeft,    selectedIndex: null,
     pendingSwap: { from, to, snapCells, snapPieces },
     anim: null,
   };
@@ -565,10 +565,17 @@ case 'clickCell': {
     }
   })();
 
-  if (import.meta.env.DEV) assertPhaseInvariants(next, `engineReducer:${action.type}`);
+  let final = next;
 
-  return next;
+  // If we reached idle with 0 moves, end the game (after the current chain finished).
+  if (final.phase === 'idle' && final.movesLeft <= 0) {
+    const evs: EngineEvent[] = [];
+    const s = setPhase(final, 'lose', evs);
+    evs.push({ type: 'lose' });
+    final = pushEvents(s, evs);
+  }
+
+  if (import.meta.env.DEV) assertPhaseInvariants(final, `engineReducer:${action.type}`);
+
+  return final;
 }
-
-
-

@@ -39,8 +39,8 @@ function frameToSprite(name: keyof AtlasJson['frames']): TileSprite | null {
   const x = f.frame.x;
   const y = f.frame.y;
 
-  const col = Math.round(x / FRAME_W);
-  const row = Math.round(y / FRAME_H);
+  const col = Math.floor(x / FRAME_W);
+  const row = Math.floor(y / FRAME_H);
 
   return { sheet: sheetUrl, col, row, cols: COLS, rows: ROWS };
 }
@@ -57,3 +57,4 @@ export function preloadTiles(): void {
   const img = new Image();
   img.src = sheetUrl;
 }
+
