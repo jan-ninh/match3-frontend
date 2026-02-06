@@ -37,6 +37,9 @@ type Props = {
 
   // dev action: reset board (only shown when debugEnabled)
   onDevResetBoard?: () => void;
+  // dev action: level nav (only shown when debugEnabled)
+  onDevPrevLevel?: () => void;
+  onDevNextLevel?: () => void;
 };
 
 export default function Grid({
@@ -49,6 +52,8 @@ export default function Grid({
   swapMs,
   debugEnabled = false,
   onDevResetBoard,
+  onDevPrevLevel,
+  onDevNextLevel,
 }: Props) {
   const { width, height, cells, selectedIndex } = state;
 
@@ -110,12 +115,24 @@ export default function Grid({
     return [
       {
         kind: 'action' as const,
+        label: 'level: Prev',
+        onPress: onDevPrevLevel,
+        disabled: inputLocked,
+      },
+      {
+        kind: 'action' as const,
+        label: 'level: Next',
+        onPress: onDevNextLevel,
+        disabled: inputLocked,
+      },
+      {
+        kind: 'action' as const,
         label: 'reset: Board',
         onPress: onDevResetBoard,
         disabled: inputLocked,
       },
     ];
-  }, [onDevResetBoard, inputLocked]);
+  }, [onDevPrevLevel, onDevNextLevel, onDevResetBoard, inputLocked]);
 
   const lockoutCursor = inputLocked && showLockoutHints ? 'cursor-not-allowed' : '';
   const showDebugLabels = isDev && debugEnabled;
@@ -127,7 +144,7 @@ export default function Grid({
       ? createPortal(
           <div className="flex flex-col gap-3">
             <DebugInputPanel width={width} snapshot={debugSnapshot} hz={DEBUG_OVERLAY_HZ} />
-            <DebugDevToolsPanel locked={inputLocked} items={devItems} actions={devActions} />
+            <DebugDevToolsPanel locked={inputLocked} meta={{ levelId: state.levelId, width, height, seed: state.seed }} items={devItems} actions={devActions} />
           </div>,
           leftLane,
         )

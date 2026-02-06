@@ -12,13 +12,21 @@ type ActionItem = {
   disabled?: boolean;
 };
 
+type Meta = {
+  levelId: number;
+  width: number;
+  height: number;
+  seed: number;
+};
+
 type Props = {
   locked: boolean;
+  meta?: Meta;
   items: ToggleItem[];
   actions?: ActionItem[];
 };
 
-export default function DebugDevToolsPanel({ locked, items, actions = [] }: Props) {
+export default function DebugDevToolsPanel({ locked, meta, items, actions = [] }: Props) {
   return (
     <div className="w-[260px] shrink-0 rounded-2xl border border-white/10 bg-black/30 p-3 shadow-lg">
       <div className="flex items-center justify-between">
@@ -26,7 +34,24 @@ export default function DebugDevToolsPanel({ locked, items, actions = [] }: Prop
         <div className="text-white/50 text-xs">dev</div>
       </div>
 
-      <div className="mt-2 grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-[11px] leading-snug">
+      
+      {meta ? (
+        <div className="mt-2 rounded-xl border border-white/10 bg-black/20 p-2">
+          <div className="text-[11px] font-semibold text-white/70">session</div>
+          <div className="mt-1 grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-[11px] leading-snug">
+            <div className="text-white/55">level</div>
+            <div className="font-mono text-white/85">LEVEL {meta.levelId}</div>
+
+            <div className="text-white/55">board</div>
+            <div className="font-mono text-white/85">
+              {meta.width}x{meta.height}
+            </div>
+
+            <div className="text-white/55">seed</div>
+            <div className="font-mono text-white/85">{meta.seed}</div>
+          </div>
+        </div>
+      ) : null}<div className="mt-2 grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-[11px] leading-snug">
         <div className="text-white/55">locked</div>
         <div className="font-mono text-white/85">{String(locked)}</div>
       </div>

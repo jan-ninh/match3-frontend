@@ -185,6 +185,8 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
     dispatch({ type: 'resetBoard', nowMs: performance.now() } as EngineAction);
   };
 
+  const onDevNextLevel = () => setLevelId((v) => v + 1);
+  const onDevPrevLevel = () => setLevelId((v) => Math.max(1, v - 1));
   const events = useMemo<EngineEvent[]>(() => {
     const anyState = state as unknown as { events?: EngineEvent[] };
     return anyState.events ?? [];
@@ -226,6 +228,13 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
     <div className="w-full">
       {eventLogPortal}
       <div className="mb-4 flex items-start justify-between gap-4">
+        <div
+          data-ui="level-badge"
+          className="min-w-[112px] text-center rounded-2xl border border-fuchsia-400/20 bg-black/45 backdrop-blur px-4 py-2 shadow-[0_10px_30px_rgba(0,0,0,0.45),0_0_24px_rgba(217,70,239,0.16)]"
+        >
+          <div className="text-2xl font-semibold text-white/90 tabular-nums tracking-wide">LEVEL {state.levelId}</div>
+          <div className="text-xs tracking-widest text-fuchsia-200/70 uppercase">Stage</div>
+        </div>
         <div className="min-w-[88px] text-center rounded-2xl border border-white/10 bg-black/45 backdrop-blur px-4 py-2 shadow-[0_10px_30px_rgba(0,0,0,0.45)]">
           <div className="text-2xl font-semibold text-white/90 tabular-nums">120</div>
           <div className="text-xs tracking-widest text-white/60 uppercase">Time</div>
@@ -253,45 +262,6 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
         </div>
       </div>
 
-      <div className="flex items-center justify-between gap-3 mb-3">
-        <div>
-          <div className="text-lg font-semibold text-white/90">Level {state.levelId ?? levelId}</div>
-          <div className="text-sm text-white/70">
-            Board: {state.width}x{state.height} Seed: <span className="font-mono">{state.seed ?? '—'}</span>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {isDev ? (
-            <div className="text-xs text-white/50 px-2 py-1 rounded-md border border-white/10 bg-black/20">Debug: {debugEnabled ? 'on' : 'off'} (press D)</div>
-          ) : null}
-
-          <button
-            type="button"
-            className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 border border-white/10 text-white/80"
-            onClick={() => setShowLockoutHints((v) => !v)}
-          >
-            Lockout hints: {showLockoutHints ? 'on' : 'off'}
-          </button>
-
-          <button
-            type="button"
-            className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 border border-white/10 text-white/80"
-            onClick={() => setLevelId((v) => v + 1)}
-          >
-            Next level
-          </button>
-
-          <button
-            type="button"
-            className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 border border-white/10 text-white/80"
-            onClick={() => setLevelId((v) => Math.max(1, v - 1))}
-          >
-            Prev level
-          </button>
-        </div>
-      </div>
-
       <div ref={gridRowRef} className="flex justify-center items-start">
         <Grid
           state={state}
@@ -302,6 +272,8 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
           onIntent={onIntent}
           debugEnabled={debugEnabled}
           onDevResetBoard={onDevResetBoard}
+          onDevPrevLevel={onDevPrevLevel}
+          onDevNextLevel={onDevNextLevel}
           swapMs={state.swapMs}
         />
       </div>
