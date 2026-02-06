@@ -53,7 +53,7 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
         isLose={isLose}
       />
 
-      <div ref={gridRowRef} className="flex justify-center items-start">
+      <div ref={gridRowRef} className="flex justify-center items-start pt-12">
         <Grid
           state={state}
           inputLocked={inputLocked}

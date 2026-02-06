@@ -1,4 +1,5 @@
 import { useMemo, useRef } from 'react';
+import type { CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 
 import type { EngineState } from '@/gamelogic';
@@ -41,6 +42,8 @@ type Props = {
   onDevPrevLevel?: () => void;
   onDevNextLevel?: () => void;
 };
+
+type CssVars = CSSProperties & { '--boardDim'?: number };
 
 export default function Grid({
   state,
@@ -137,6 +140,21 @@ export default function Grid({
   const lockoutCursor = inputLocked && showLockoutHints ? 'cursor-not-allowed' : '';
   const showDebugLabels = isDev && debugEnabled;
 
+  const shellStyle: CssVars = {
+    width: innerW + BOARD_PADDING * 2,
+    touchAction: 'none',
+    WebkitUserSelect: 'none',
+    userSelect: 'none',
+
+    // 0..1 (higher = darker / less BG visible)
+    '--boardDim': 0.92,
+
+    // applies to the padding/rim area of the board shell
+    backgroundColor: 'rgb(0 0 0 / var(--boardDim))',
+  };
+
+
+
   const leftLane = typeof document !== 'undefined' ? (document.getElementById('dev-left-lane') as HTMLElement | null) : null;
 
   const devPanels =
@@ -156,13 +174,9 @@ export default function Grid({
 
       <div
         ref={containerRef}
-        className={`relative rounded-2xl p-3 bg-black/20 border border-white/10 shadow-[0_18px_60px_rgba(0,0,0,0.55)] select-none ${lockoutCursor}`}
-        style={{
-          width: innerW + BOARD_PADDING * 2,
-          touchAction: 'none',
-          WebkitUserSelect: 'none',
-          userSelect: 'none',
-        }}
+        className={`relative rounded-2xl p-3 border border-white/10 shadow-[0_18px_60px_rgba(0,0,0,0.55)] select-none ${lockoutCursor}`}
+        style={shellStyle}
+
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerCancel}
@@ -170,6 +184,10 @@ export default function Grid({
         <GridLockoutOverlay active={inputLocked} show={showLockoutHints} />
 
         <div className="relative" style={{ width: innerW, height: innerH }}>
+          <div
+            className="absolute inset-0 rounded-2xl pointer-events-none"
+            style={{ backgroundColor: 'rgb(0 0 0 / var(--boardDim))' }}
+          />
           <div
             className="absolute inset-0 rounded-2xl pointer-events-none"
             style={{
