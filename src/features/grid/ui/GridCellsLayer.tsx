@@ -23,12 +23,13 @@ export default function GridCellsLayer({ width, height, cells, onCellPointerDown
     >
       {cells.map((cell, index) => {
         const isGate = cell.obstacle === 'gate';
-        const blockedOverlayStyle: React.CSSProperties | undefined = cell.blocked && !isGate
-          ? {
-              backgroundImage:
-                'repeating-linear-gradient(45deg, rgba(255,255,255,0.06), rgba(255,255,255,0.06) 6px, rgba(255,255,255,0.0) 6px, rgba(255,255,255,0.0) 12px)',
-            }
-          : undefined;
+        const blockedOverlayStyle: React.CSSProperties | undefined =
+          cell.blocked && !isGate
+            ? {
+                backgroundImage:
+                  'repeating-linear-gradient(45deg, rgba(255,255,255,0.06), rgba(255,255,255,0.06) 6px, rgba(255,255,255,0.0) 6px, rgba(255,255,255,0.0) 12px)',
+              }
+            : undefined;
 
         const gateSprite = isGate ? getGateSprite(!!cell.gateOpen) : null;
 
@@ -44,7 +45,7 @@ export default function GridCellsLayer({ width, height, cells, onCellPointerDown
           'relative rounded-xl border border-white/0',
           'focus:outline-none',
           'transition-colors duration-150',
-          isGate ? 'bg-[rgba(255,255,255,0.02)] border-white/10' : cell.blocked ? 'bg-slate-900 border-slate-700' : 'bg-[rgba(255,255,255,0.03)]',
+          isGate ? 'bg-[rgba(255,255,255,0.015)] border-white/10' : cell.blocked ? 'bg-slate-900 border-slate-700' : 'bg-[rgba(0,0,0,0.22)]',
         ].join(' ');
 
         const { x, y } = xyOf(index, width);
@@ -86,5 +87,3 @@ export default function GridCellsLayer({ width, height, cells, onCellPointerDown
     </div>
   );
 }
-
-

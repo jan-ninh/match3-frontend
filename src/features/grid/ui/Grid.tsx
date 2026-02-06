@@ -170,14 +170,14 @@ export default function Grid({
         <GridLockoutOverlay active={inputLocked} show={showLockoutHints} />
 
         <div className="relative" style={{ width: innerW, height: innerH }}>
-  <div
-    className="absolute inset-0 rounded-2xl pointer-events-none"
-    style={{
-      background:
-        'linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 40%, rgba(0,0,0,0.22) 100%)',
-      boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08), inset 0 -18px 40px rgba(0,0,0,0.55)',
-    }}
-  />
+          <div
+            className="absolute inset-0 rounded-2xl pointer-events-none"
+            style={{
+              background: 'linear-gradient(180deg, rgba(255,255,255,0.055) 0%, rgba(255,255,255,0.022) 40%, rgba(0,0,0,0.94) 100%)',
+
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08), inset 0 -18px 40px rgba(0,0,0,0.55)',
+            }}
+          />
           <GridCellsLayer width={width} height={height} cells={cells} onCellPointerDown={onCellPointerDown} showDebugLabels={showDebugLabels} />
 
           <GridOverlaysLayer selectionPos={selectionPos} overPos={overPos} />
@@ -202,4 +202,3 @@ export default function Grid({
     </>
   );
 }
-
