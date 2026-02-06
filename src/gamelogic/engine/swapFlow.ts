@@ -9,6 +9,7 @@ import { beginAnim } from './anim';
 import { autoFinishAll } from './autoFinish';
 import { mkAnimDone, mkAnimDoneIgnored, pushEvents } from './events';
 import { applyFallAnimDone } from './fallFlow';
+import type { ApplyAnimDone } from './autoFinish';
 
 function applySwapCommit(state: EngineState, from: number, to: number): EngineState {
   const fromPid = state.cells[from]!.pieceId!;
@@ -20,19 +21,14 @@ function applySwapCommit(state: EngineState, from: number, to: number): EngineSt
   return { ...state, cells: nextCells, pieces: nextPieces, selectedIndex: null };
 }
 
-const applyDone = (st: EngineState, kind: any, tok: number, mode: AnimDoneMode): EngineState => {
+const applyDone: ApplyAnimDone = (st, kind, tok, mode) => {
   if (kind === 'swap') return applySwapAnimDone(st, tok, mode);
   if (kind === 'swapBack') return applySwapBackAnimDone(st, tok, mode);
   if (kind === 'fall') return applyFallAnimDone(st, tok, mode);
   return st;
 };
 
-export function beginSwapAnimating(
-  state: EngineState,
-  from: number,
-  to: number,
-  opts?: { forceSelectionCleared?: boolean },
-): EngineState {
+export function beginSwapAnimating(state: EngineState, from: number, to: number, opts?: { forceSelectionCleared?: boolean }): EngineState {
   // snapshot (for deterministic swapBack)
   const snapCells = state.cells;
   const snapPieces = state.pieces;
@@ -40,14 +36,12 @@ export function beginSwapAnimating(
   const hadSelection = state.selectedIndex !== null;
 
   const swapped = applySwapCommit(state, from, to);
-  const nextMovesLeft = Math.max(0, state.movesLeft - 1);
 
+  // moves are spent only if the swap actually creates a match (see applySwapAnimDone)
   const events: EngineEvent[] = [];
-  if (nextMovesLeft !== state.movesLeft) events.push({ type: 'movesSpent', left: nextMovesLeft });
 
   let baseState: EngineState = {
     ...swapped,
-    movesLeft: nextMovesLeft,
     selectedIndex: null,
     pendingSwap: { from, to, snapCells, snapPieces },
     anim: null,
@@ -124,8 +118,13 @@ export function applySwapAnimDone(state: EngineState, token: number, mode: AnimD
   // matches exist => resolve once, then wait for falling animation
   const events: EngineEvent[] = [doneEvent];
 
+  // spend a move only if the swap actually creates a match
+  const nextMovesLeft = Math.max(0, state.movesLeft - 1);
+  if (nextMovesLeft !== state.movesLeft) events.push({ type: 'movesSpent', left: nextMovesLeft });
+
   let s: EngineState = {
     ...state,
+    movesLeft: nextMovesLeft,
     pendingSwap: null,
     anim: null,
   };

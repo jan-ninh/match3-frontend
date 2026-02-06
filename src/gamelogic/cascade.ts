@@ -20,7 +20,7 @@ function setGateOpen(state: EngineState, open: boolean, events?: EngineEvent[]):
     }
   }
 
-  if (open) events?.push({ type: 'gateOpened' });
+  if (open && state.gateIndices.length) events?.push({ type: 'gateOpened' });
   return { ...state, gateOpen: open, cells: nextCells };
 }
 
@@ -417,6 +417,7 @@ export function stabilizeBoard(
 
   return { state: s, events };
 }
+
 
 
 
