@@ -1,6 +1,7 @@
+import type { CSSProperties } from 'react';
+
 import type { PieceType } from '@/gamelogic';
-import { TYPE_COLORS } from '@/gamelogic';
-import { getTileSrc } from './tiles';
+import { getTileSprite } from './tiles';
 
 type Props = {
   type: PieceType;
@@ -16,7 +17,7 @@ type Props = {
 };
 
 export default function Tile({ type, selected, dragging, preview, locked, shaking, className }: Props) {
-  const src = getTileSrc(type);
+  const sprite = getTileSprite(type);
 
   const outerCls = [
     'w-full h-full rounded-xl',
@@ -29,22 +30,31 @@ export default function Tile({ type, selected, dragging, preview, locked, shakin
     .filter(Boolean)
     .join(' ');
 
-  // Fallback (falls Asset fehlt)
-  if (!src) {
+  // Fallback (falls Sprite/Atlas fehlt)
+  if (!sprite) {
     return (
       <div
         className={outerCls}
         style={{
-          backgroundColor: TYPE_COLORS[type],
+          backgroundColor: 'rgba(255,255,255,0.06)',
           boxShadow: '0 6px 16px rgba(0,0,0,0.35)',
         }}
       />
     );
   }
 
+  const spriteStyle: CSSProperties = {
+    filter: type === 'yellow' ? 'hue-rotate(90deg) saturate(1.35) brightness(1.05)' : undefined,
+    backgroundImage: `url(${sprite.sheet})`,
+    backgroundRepeat: 'no-repeat',
+    backgroundSize: `${sprite.cols * 100}% ${sprite.rows * 100}%`,
+    backgroundPosition: `${sprite.cols <= 1 ? 0 : (sprite.col * 100) / (sprite.cols - 1)}% ${sprite.rows <= 1 ? 0 : (sprite.row * 100) / (sprite.rows - 1)}%`,
+  };
+
   return (
     <div className={outerCls} style={{ boxShadow: '0 6px 16px rgba(0,0,0,0.35)' }}>
-      <img src={src} alt="" aria-hidden="true" draggable={false} className="w-full h-full object-contain select-none pointer-events-none" />
+      <div className="w-full h-full select-none pointer-events-none" style={spriteStyle} />
     </div>
   );
 }
+

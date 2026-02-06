@@ -30,6 +30,7 @@ type Props = {
 
   // Grid emits only intents. Parent decides what to do with them.
   onIntent: (intent: { type: 'click'; index: number } | { type: 'swap'; from: number; to: number }) => void;
+  swapMs: number;
 
   // runtime debug toggle (press D)
   debugEnabled?: boolean;
@@ -45,6 +46,7 @@ export default function Grid({
   onToggleShowLockoutHints,
   canSwapAt,
   onIntent,
+  swapMs,
   debugEnabled = false,
   onDevResetBoard,
 }: Props) {
@@ -74,7 +76,7 @@ export default function Grid({
     onPointerCancel,
 
     setDraggedEl,
-  } = useGridInput({ state, inputLocked, canSwapAt, onIntent, debugEnabled });
+  } = useGridInput({ state, inputLocked, canSwapAt, onIntent, debugEnabled, swapMs });
 
   const { w: innerW, h: innerH } = useMemo(() => boardInnerSizePx(width, height), [width, height]);
 
@@ -118,7 +120,6 @@ export default function Grid({
   const lockoutCursor = inputLocked && showLockoutHints ? 'cursor-not-allowed' : '';
   const showDebugLabels = isDev && debugEnabled;
 
-
   const leftLane = typeof document !== 'undefined' ? (document.getElementById('dev-left-lane') as HTMLElement | null) : null;
 
   const devPanels =
@@ -161,11 +162,14 @@ export default function Grid({
             pieces={pieceList}
             dragPieceId={dragPieceId}
             isDragging={isDragging}
+            phase={state.phase}
+            swapMs={swapMs}
             previewActive={previewActive}
             previewOtherPieceId={previewOtherPieceId}
             previewAxis={previewAxisUI}
             previewDir={previewDirUI}
             shakePieceId={shakePieceId}
+            showDebugLabels={showDebugLabels}
             setDraggedEl={setDraggedEl}
           />
         </div>

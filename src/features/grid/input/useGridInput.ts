@@ -7,10 +7,9 @@ import type { DebugSnapshot } from '@/devtools';
 import { useDevSnapshot } from '../lib/useDevSnapshot';
 import { useRafDragTransform } from '../lib/useRafDragTransform';
 
-import { DEBUG_OVERLAY_HZ, EASING, SWAP_MS } from '../lib/constants';
-
 import { createGridInputController } from './useGridInput.controller';
 import { makeInitialDebugSnapshot, setDebugInactive, setDebugStart, updateDebugFromPress } from './useGridInput.debug';
+import { DEBUG_OVERLAY_HZ, EASING, SWAP_MS } from '../lib/constants';
 
 export type UseGridInputArgs = {
   state: EngineState;
@@ -20,16 +19,19 @@ export type UseGridInputArgs = {
 
   // NEW: runtime debug toggle (Dev panels + all debug work)
   debugEnabled: boolean;
+
+  // animation timing (runtime)
+  swapMs?: number;
 };
 
-export function useGridInput({ state, inputLocked, canSwapAt, onIntent, debugEnabled }: UseGridInputArgs) {
+export function useGridInput({ state, inputLocked, canSwapAt, onIntent, debugEnabled, swapMs = SWAP_MS }: UseGridInputArgs) {
   const { width, height, cells, pieces } = state;
 
   const pressRef = useRef<PressState | null>(null);
 
   // rAF transform infra (no React re-render per pointer move)
   const { draggedElRef, dragBasePxRef, dragDxRef, dragDyRef, ensureRafRunning, stopRaf, snapBackDraggedPiece, clearDragRefs } = useRafDragTransform({
-    swapMs: SWAP_MS,
+    swapMs,
     easing: EASING,
     getShouldContinue: () => !!(pressRef.current?.active && pressRef.current?.hasExceededThreshold),
   });

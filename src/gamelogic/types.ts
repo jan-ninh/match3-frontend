@@ -3,13 +3,23 @@ import type { RngState } from './rng';
 
 export type LevelId = number;
 
-export type PieceType = 'red' | 'blue' | 'green' | 'yellow' | 'purple' | 'orange';
+export type PieceType = 'red' | 'blue' | 'green' | 'purple' | 'orange' | 'cyan' | 'pink' | 'yellow';
 
 export type PieceId = number;
+
+export type CellObstacle = 'firewall' | 'gate';
 
 export type Cell = {
   blocked: boolean;
   pieceId: PieceId | null;
+
+  // optional obstacles
+  obstacle?: CellObstacle;
+  hp?: number;
+  maxHp?: number;
+
+  // gate visuals (stays blocked)
+  gateOpen?: boolean;
 };
 
 export type Piece = {
@@ -20,13 +30,23 @@ export type Piece = {
   cellIndex: number;
 };
 
+export type FirewallNodeDef = {
+  index: number;
+  hp: number;
+};
+
 export type LevelDefinition = {
   id: LevelId;
   width: number;
   height: number;
 
+  moves: number;
+
   blockedIndices: number[];
   allowedTypes: PieceType[];
+
+  firewallNodes: FirewallNodeDef[];
+  gateIndices: number[];
 
   baseSeed: number;
 };
@@ -40,16 +60,11 @@ export type PendingSwap = {
 
 export type SwapRejectReason = 'locked' | 'notAdjacent' | 'blocked' | 'empty';
 
-export type EngineAnimKind = 'swap' | 'swapBack';
+export type EngineAnimKind = 'swap' | 'swapBack' | 'fall';
 
 export type AnimDoneMode = 'early' | 'auto';
 
-export type AnimDoneIgnoreReason =
-  | 'missingAnim'
-  | 'wrongPhase'
-  | 'wrongKind'
-  | 'wrongToken'
-  | 'missingPendingSwap';
+export type AnimDoneIgnoreReason = 'missingAnim' | 'wrongPhase' | 'wrongKind' | 'wrongToken' | 'missingPendingSwap';
 
 export type EngineEvent =
   | { type: 'seededInit'; levelId: LevelId; width: number; height: number; seed: number }
@@ -67,7 +82,13 @@ export type EngineEvent =
   | { type: 'gravity' }
   | { type: 'refilled'; count: number }
   | { type: 'deadlockCheck'; hasMove: boolean }
-  | { type: 'shuffled'; attempts: number };
+  | { type: 'shuffled'; attempts: number }
+  | { type: 'movesSpent'; left: number }
+  | { type: 'firewallDamaged'; index: number; hp: number }
+  | { type: 'firewallDestroyed'; index: number }
+  | { type: 'gateOpened' }
+  | { type: 'win' }
+  | { type: 'lose' };
 
 export type EngineAnim = {
   kind: EngineAnimKind;
@@ -91,6 +112,15 @@ export type EngineState = {
   // cached level rules
   allowedTypes: PieceType[];
 
+  movesTotal: number;
+  movesLeft: number;
+
+  breachesTotal: number;
+  breachesRemaining: number;
+
+  gateOpen: boolean;
+  gateIndices: number[];
+
   cells: Cell[];
   pieces: Record<PieceId, Piece>;
   nextPieceId: number;
@@ -99,6 +129,9 @@ export type EngineState = {
 
   phase: EnginePhase;
   inputLocked: boolean;
+
+  // animation timing (single source of truth; UI reads this)
+  swapMs: number;
 
   // engine-owned monotonic clock (updated via tick(nowMs))
   nowMs: number;

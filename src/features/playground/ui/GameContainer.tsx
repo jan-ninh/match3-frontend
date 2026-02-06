@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom';
 import { useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
 
 import type { EngineAction, EngineEvent } from '@/gamelogic';
-import { canSwap, createInitialState, engineReducer } from '@/gamelogic';
+import { canSwap, createInitialState, engineReducer, SWAP_MS } from '@/gamelogic';
+import signExitUrl from '@/assets/tiles/art-01/sign_exit.png';
 
 import { DebugEventLog } from '@/devtools';
 import { Grid } from '@/features/grid';
@@ -19,6 +20,41 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
   const [showLockoutHints, setShowLockoutHints] = useState<boolean>(false);
 
   const [debugEnabled, setDebugEnabled] = useState<boolean>(false);
+
+  // reduced motion => swapMs=0
+  const [reducedMotion, setReducedMotion] = useState<boolean>(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return false;
+    return !!window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+    const apply = () => setReducedMotion(!!mq.matches);
+    const handler = (e: MediaQueryListEvent) => {
+      void e;
+      apply();
+    };
+
+    apply();
+
+    // modern browsers
+    if (typeof mq.addEventListener === 'function') {
+      mq.addEventListener('change', handler);
+      return () => mq.removeEventListener('change', handler);
+    }
+
+    // legacy Safari fallback (no type-guard that narrows to never)
+    const legacy = mq as unknown as {
+      addListener?: (l: (e: MediaQueryListEvent) => void) => void;
+      removeListener?: (l: (e: MediaQueryListEvent) => void) => void;
+    };
+
+    legacy.addListener?.(handler);
+    return () => legacy.removeListener?.(handler);
+  }, []);
 
   useEffect(() => {
     if (!isDev) return;
@@ -40,6 +76,13 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
 
   const [state, dispatch] = useReducer(engineReducer, levelId, createInitialState);
 
+  // keep Engine timing in sync (Engine is the source of truth)
+  const desiredSwapMs = reducedMotion ? 0 : SWAP_MS;
+  useLayoutEffect(() => {
+    if (state.swapMs === desiredSwapMs) return;
+    dispatch({ type: 'setSwapMs', swapMs: desiredSwapMs, nowMs: performance.now() } as EngineAction);
+  }, [desiredSwapMs, state.swapMs]);
+
   // ensure level change actually re-inits engine (skip first run)
   const didInitRef = useRef(false);
   useEffect(() => {
@@ -51,6 +94,14 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
   }, [levelId]);
 
   const inputLocked = state.inputLocked;
+
+  const breachTotal = state.breachesTotal ?? 0;
+  const breachLeft = state.breachesRemaining ?? 0;
+  const breachDone = Math.max(0, breachTotal - breachLeft);
+
+  const isWin = state.phase === 'win';
+  const isLose = state.phase === 'lose';
+
   // 0) Low-noise wake-ups (tab return / focus)
   useEffect(() => {
     const wake = () => dispatch({ type: 'wake', nowMs: performance.now() } as EngineAction);
@@ -74,33 +125,34 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
     const a = state.anim;
     if (!a) return;
 
-    if (state.phase === 'swapAnimating' && a.kind === 'swap') {
-      const id = window.setTimeout(() => {
-        // keep engine clock fresh so follow-up beginAnim uses correct nowMs
-        dispatch({ type: 'wake', nowMs: performance.now() } as EngineAction);
-        dispatch({ type: 'swapAnimDone', token: a.token, nowMs: performance.now() } as EngineAction);
-      }, a.durationMs);
+    const id = window.setTimeout(() => {
+      const now = performance.now();
 
-      return () => window.clearTimeout(id);
-    }
+      // keep engine clock fresh so follow-up beginAnim uses correct nowMs
+      dispatch({ type: 'wake', nowMs: now } as EngineAction);
 
-    if (state.phase === 'swapBackAnimating' && a.kind === 'swapBack') {
-      const id = window.setTimeout(() => {
-        dispatch({ type: 'wake', nowMs: performance.now() } as EngineAction);
-        dispatch({ type: 'swapBackAnimDone', token: a.token, nowMs: performance.now() } as EngineAction);
-      }, a.durationMs);
+      if (a.kind === 'swap') {
+        dispatch({ type: 'swapAnimDone', token: a.token, nowMs: now } as EngineAction);
+        return;
+      }
 
-      return () => window.clearTimeout(id);
-    }
-  }, [state.phase, state.anim?.token, state.anim?.kind, state.anim?.durationMs]);
+      if (a.kind === 'swapBack') {
+        dispatch({ type: 'swapBackAnimDone', token: a.token, nowMs: now } as EngineAction);
+        return;
+      }
 
+      if (a.kind === 'fall') {
+        dispatch({ type: 'fallAnimDone', token: a.token, nowMs: now } as EngineAction);
+        return;
+      }
+    }, a.durationMs);
+
+    return () => window.clearTimeout(id);
+  }, [state.anim?.token, state.anim?.kind, state.anim?.durationMs]);
   // 2) Deadline fallback (single timer, no per-frame ticking)
   useEffect(() => {
     const a = state.anim;
     if (!a) return;
-
-    const isWaitPhase = state.phase === 'swapAnimating' || state.phase === 'swapBackAnimating';
-    if (!isWaitPhase) return;
 
     const delay = Math.max(0, a.deadlineAtMs - performance.now());
     const id = window.setTimeout(() => {
@@ -108,8 +160,7 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
     }, delay + 5);
 
     return () => window.clearTimeout(id);
-  }, [state.phase, state.anim?.token, state.anim?.deadlineAtMs]);
-
+  }, [state.anim?.token, state.anim?.deadlineAtMs]);
   const canSwapAt = (from: number, to: number) => {
     return canSwap(from, to, state.width, state.cells).ok;
   };
@@ -174,6 +225,33 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
   return (
     <div className="w-full">
       {eventLogPortal}
+      <div className="mb-4 flex items-start justify-between gap-4">
+        <div className="min-w-[88px] text-center rounded-2xl border border-white/10 bg-black/45 backdrop-blur px-4 py-2 shadow-[0_10px_30px_rgba(0,0,0,0.45)]">
+          <div className="text-2xl font-semibold text-white/90 tabular-nums">120</div>
+          <div className="text-xs tracking-widest text-white/60 uppercase">Time</div>
+        </div>
+
+        <div className="flex-1 rounded-2xl border border-fuchsia-400/20 bg-black/55 backdrop-blur px-5 py-3 shadow-[0_10px_30px_rgba(0,0,0,0.50)]">
+          <div className="text-xs tracking-widest text-fuchsia-200/80 uppercase flex items-center gap-2">
+            <span>Objective</span>
+            <img src={signExitUrl} alt="" className="w-4 h-4 opacity-80" />
+          </div>
+          <div className="mt-0.5 text-base font-semibold text-white/90">{state.gateOpen ? 'Gate opened' : 'Open the Gate'}</div>
+          <div data-ui="objective-meta" className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-white/70">
+            <div className="font-mono text-white/80 tabular-nums">
+              BREACH {breachDone}/{breachTotal}
+            </div>
+            <div className="text-white/55">Matches next to a node damage it.</div>
+            {isWin ? <div className="text-emerald-300/90 font-semibold">WIN — Gate open</div> : null}
+            {isLose ? <div className="text-rose-300/90 font-semibold">LOSE — out of moves</div> : null}
+          </div>
+        </div>
+
+        <div className="min-w-[88px] text-center rounded-2xl border border-white/10 bg-black/45 backdrop-blur px-4 py-2 shadow-[0_10px_30px_rgba(0,0,0,0.45)]">
+          <div className="text-2xl font-semibold text-white/90 tabular-nums">{state.movesLeft ?? '—'}</div>
+          <div className="text-xs tracking-widest text-white/60 uppercase">Moves</div>
+        </div>
+      </div>
 
       <div className="flex items-center justify-between gap-3 mb-3">
         <div>
@@ -224,8 +302,10 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
           onIntent={onIntent}
           debugEnabled={debugEnabled}
           onDevResetBoard={onDevResetBoard}
+          swapMs={state.swapMs}
         />
       </div>
     </div>
   );
 }
+

@@ -1,30 +1,55 @@
 import type { PieceType } from '@/gamelogic';
 
-import tileBlue from '@/assets/tiles/tile_basic_blue.svg';
-import tileGreen from '@/assets/tiles/tile_basic_green.svg';
-import tileOrange from '@/assets/tiles/tile_basic_orange.svg';
-import tilePurple from '@/assets/tiles/tile_basic_purple.svg';
-import tileRed from '@/assets/tiles/tile_basic_red.svg';
-import tileYellow from '@/assets/tiles/tile_basic_yellow.svg';
+import canisterBlueUrl from '@/assets/tiles/art-01/canister_blue.png';
+import chipGreenUrl from '@/assets/tiles/art-01/chip_green.png';
+import coreRedUrl from '@/assets/tiles/art-01/core_red.png';
+import crystalPrismUrl from '@/assets/tiles/art-01/crystal_prism.png';
+import runePurpleUrl from '@/assets/tiles/art-01/rune_purple.png';
+import shardBlueUrl from '@/assets/tiles/art-01/shard_blue.png';
+import signExitUrl from '@/assets/tiles/art-01/sign_exit.png';
+import core_red from '@/assets/tiles/art-01/core_red.png';
 
-export const TILE_SRC_BY_TYPE: Record<PieceType, string> = {
-  blue: tileBlue,
-  green: tileGreen,
-  orange: tileOrange,
-  purple: tilePurple,
-  red: tileRed,
-  yellow: tileYellow,
+export type TileSprite = {
+  sheet: string;
+  col: number;
+  row: number;
+  cols: number;
+  rows: number;
 };
 
-export const ALL_TILE_SRCS = Object.values(TILE_SRC_BY_TYPE);
+const SPRITE_1X1 = { col: 0, row: 0, cols: 1, rows: 1 } as const;
 
-export function getTileSrc(type: PieceType): string {
-  return TILE_SRC_BY_TYPE[type];
+// UI-only reskin: keep PieceType as-is, map to new Art-01 PNGs.
+const TILE_URL_BY_TYPE: Record<PieceType, string> = {
+  red: core_red,
+  blue: shardBlueUrl,
+  green: chipGreenUrl,
+  purple: runePurpleUrl,
+  orange: coreRedUrl,
+  cyan: crystalPrismUrl,
+  pink: canisterBlueUrl,
+  yellow: crystalPrismUrl, // duplicate; yellow gets CSS filter in <Tile />
+};
+
+function urlToSprite(url: string): TileSprite {
+  return { sheet: url, ...SPRITE_1X1 };
+}
+
+export function getTileSprite(type: PieceType): TileSprite | null {
+  const url = TILE_URL_BY_TYPE[type];
+  return url ? urlToSprite(url) : null;
+}
+
+// sign_exit stands in for the "neon gate" objective.
+export function getGateSprite(open: boolean): TileSprite | null {
+  void open;
+  return urlToSprite(signExitUrl);
 }
 
 export function preloadTiles(): void {
-  for (const src of ALL_TILE_SRCS) {
+  const urls = [...new Set([...Object.values(TILE_URL_BY_TYPE), signExitUrl])];
+  for (const url of urls) {
     const img = new Image();
-    img.src = src;
+    img.src = url;
   }
 }
