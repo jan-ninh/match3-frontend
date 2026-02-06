@@ -44,6 +44,7 @@ export default function Tile({ type, selected, dragging, preview, locked, shakin
   }
 
   const spriteStyle: CSSProperties = {
+    filter: type === 'yellow' ? 'hue-rotate(90deg) saturate(1.35) brightness(1.05)' : undefined,
     backgroundImage: `url(${sprite.sheet})`,
     backgroundRepeat: 'no-repeat',
     backgroundSize: `${sprite.cols * 100}% ${sprite.rows * 100}%`,

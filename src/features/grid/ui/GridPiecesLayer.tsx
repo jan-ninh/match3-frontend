@@ -129,7 +129,7 @@ export default function GridPiecesLayer({
           >
             <Tile type={pp.type} dragging={isThisDragged && isDragging} preview={previewActive && previewOtherPieceId === pp.id} shaking={isShaking} />
 
-            {showDebugLabels ? <div className="absolute bottom-1 right-1 text-[10px] leading-none text-white/85 drop-shadow font-mono">#{pp.id}</div> : null}
+            {showDebugLabels ? <div className="absolute bottom-1 right-1 text-[10px] leading-none text-white/85 drop-shadow font-mono">#{pp.id} {pp.type}</div> : null}
           </div>
         );
       })}

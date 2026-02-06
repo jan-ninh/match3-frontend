@@ -26,7 +26,7 @@ const TILE_URL_BY_TYPE: Record<PieceType, string> = {
   orange: coreRedUrl,
   cyan: crystalPrismUrl,
   pink: canisterBlueUrl,
-  yellow: crystalPrismUrl, // temporary duplicate
+  yellow: crystalPrismUrl, // duplicate; yellow gets CSS filter in <Tile />
 };
 
 function urlToSprite(url: string): TileSprite {
