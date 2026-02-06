@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } fro
 
 import type { EngineAction, EngineEvent } from '@/gamelogic';
 import { canSwap, createInitialState, engineReducer, SWAP_MS } from '@/gamelogic';
+import signExitUrl from '@/assets/tiles/art-01/sign_exit.png';
 
 import { DebugEventLog } from '@/devtools';
 import { Grid } from '@/features/grid';
@@ -231,11 +232,16 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
         </div>
 
         <div className="flex-1 rounded-2xl border border-fuchsia-400/20 bg-black/55 backdrop-blur px-5 py-3 shadow-[0_10px_30px_rgba(0,0,0,0.50)]">
-          <div className="text-xs tracking-widest text-fuchsia-200/80 uppercase">Objective</div>
-          <div className="mt-0.5 text-base font-semibold text-white/90">Collect 20 Red</div>
+          <div className="text-xs tracking-widest text-fuchsia-200/80 uppercase flex items-center gap-2">
+            <span>Objective</span>
+            <img src={signExitUrl} alt="" className="w-4 h-4 opacity-80" />
+          </div>
+          <div className="mt-0.5 text-base font-semibold text-white/90">{state.gateOpen ? 'Gate opened' : 'Open the Gate'}</div>
           <div data-ui="objective-meta" className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-white/70">
-            <div className="font-mono text-white/80 tabular-nums">BREACH {breachDone}/{breachTotal}</div>
-            <div className="text-white/55">Matches neben einem Knoten beschädigen ihn.</div>
+            <div className="font-mono text-white/80 tabular-nums">
+              BREACH {breachDone}/{breachTotal}
+            </div>
+            <div className="text-white/55">Matches next to a node damage it.</div>
             {isWin ? <div className="text-emerald-300/90 font-semibold">WIN — Gate open</div> : null}
             {isLose ? <div className="text-rose-300/90 font-semibold">LOSE — out of moves</div> : null}
           </div>
@@ -253,8 +259,7 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
           <div className="text-sm text-white/70">
             Board: {state.width}x{state.height} Seed: <span className="font-mono">{state.seed ?? '—'}</span>
           </div>
-
-                  </div>
+        </div>
 
         <div className="flex items-center gap-2">
           {isDev ? (
@@ -303,8 +308,4 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
     </div>
   );
 }
-
-
-
-
 
