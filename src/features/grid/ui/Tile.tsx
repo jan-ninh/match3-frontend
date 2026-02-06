@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react';
 
 import type { PieceType } from '@/gamelogic';
+import { TILE_SIZE } from '../lib/constants';
 import { getTileSprite } from './tiles';
 
 type Props = {
@@ -43,12 +44,14 @@ export default function Tile({ type, selected, dragging, preview, locked, shakin
     );
   }
 
+  const scaleX = TILE_SIZE / sprite.w;
+  const scaleY = TILE_SIZE / sprite.h;
+
   const spriteStyle: CSSProperties = {
-    filter: type === 'yellow' ? 'hue-rotate(90deg) saturate(1.35) brightness(1.05)' : undefined,
     backgroundImage: `url(${sprite.sheet})`,
     backgroundRepeat: 'no-repeat',
-    backgroundSize: `${sprite.cols * 100}% ${sprite.rows * 100}%`,
-    backgroundPosition: `${sprite.cols <= 1 ? 0 : (sprite.col * 100) / (sprite.cols - 1)}% ${sprite.rows <= 1 ? 0 : (sprite.row * 100) / (sprite.rows - 1)}%`,
+    backgroundSize: `${sprite.sheetW * scaleX}px ${sprite.sheetH * scaleY}px`,
+    backgroundPosition: `${-sprite.x * scaleX}px ${-sprite.y * scaleY}px`,
   };
 
   return (
@@ -57,4 +60,3 @@ export default function Tile({ type, selected, dragging, preview, locked, shakin
     </div>
   );
 }
-

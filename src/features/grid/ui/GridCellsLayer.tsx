@@ -1,7 +1,8 @@
 import type { Cell } from '@/gamelogic';
 import { xyOf } from '@/gamelogic';
 import { GAP, TILE_SIZE } from '../lib/constants';
-import { getGateSprite } from './tiles';
+import type { TileSprite } from './tiles';
+import { getGateSprite, getFirewallSprite } from './tiles';
 
 type Props = {
   width: number;
@@ -11,10 +12,22 @@ type Props = {
   showDebugLabels?: boolean;
 };
 
+function spriteToStyle(sprite: TileSprite): React.CSSProperties {
+  const scaleX = TILE_SIZE / sprite.w;
+  const scaleY = TILE_SIZE / sprite.h;
+
+  return {
+    backgroundImage: 'url(' + sprite.sheet + ')',
+    backgroundRepeat: 'no-repeat',
+    backgroundSize: `${sprite.sheetW * scaleX}px ${sprite.sheetH * scaleY}px`,
+    backgroundPosition: `${-sprite.x * scaleX}px ${-sprite.y * scaleY}px`,
+  };
+}
+
 export default function GridCellsLayer({ width, height, cells, onCellPointerDown, showDebugLabels = false }: Props) {
   return (
     <div
-      className="grid relative z-10"
+      className="grid"
       style={{
         gap: `${GAP}px`,
         gridTemplateColumns: `repeat(${width}, ${TILE_SIZE}px)`,
@@ -23,8 +36,10 @@ export default function GridCellsLayer({ width, height, cells, onCellPointerDown
     >
       {cells.map((cell, index) => {
         const isGate = cell.obstacle === 'gate';
+        const isFirewall = cell.obstacle === 'firewall';
+
         const blockedOverlayStyle: React.CSSProperties | undefined =
-          cell.blocked && !isGate
+          cell.blocked && !isGate && !isFirewall
             ? {
                 backgroundImage:
                   'repeating-linear-gradient(45deg, rgba(255,255,255,0.06), rgba(255,255,255,0.06) 6px, rgba(255,255,255,0.0) 6px, rgba(255,255,255,0.0) 12px)',
@@ -32,20 +47,18 @@ export default function GridCellsLayer({ width, height, cells, onCellPointerDown
             : undefined;
 
         const gateSprite = isGate ? getGateSprite(!!cell.gateOpen) : null;
+        const firewallSprite = isFirewall ? getFirewallSprite() : null;
 
-        const gateSpriteStyle: React.CSSProperties | undefined = gateSprite
-          ? {
-              backgroundImage: 'url(' + gateSprite.sheet + ')',
-              backgroundRepeat: 'no-repeat',
-              backgroundSize: '100% 100%',
-              backgroundPosition: '0% 0%',
-            }
-          : undefined;
+        const gateSpriteStyle: React.CSSProperties | undefined = gateSprite ? spriteToStyle(gateSprite) : undefined;
+        const firewallSpriteStyle: React.CSSProperties | undefined = firewallSprite ? spriteToStyle(firewallSprite) : undefined;
+
         const base = [
-          'relative rounded-xl border border-white/0',
+          'relative rounded-xl border',
           'focus:outline-none',
-          'transition-colors duration-150',
-          isGate ? 'bg-[rgba(255,255,255,0.015)] border-white/10' : cell.blocked ? 'bg-slate-900 border-slate-700' : 'bg-[rgba(0,0,0,0.22)]',
+          'transition-transform duration-150',
+          cell.blocked ? 'border-slate-700 bg-slate-900' : 'border-white/10 bg-[#111827]',
+          cell.blocked ? '' : 'shadow-sm',
+          'hover:scale-[1.02]',
         ].join(' ');
 
         const { x, y } = xyOf(index, width);
@@ -73,10 +86,21 @@ export default function GridCellsLayer({ width, height, cells, onCellPointerDown
               <div
                 className={[
                   'absolute inset-2 rounded-lg border border-white/10',
-                  cell.gateOpen ? 'bg-emerald-500/10 shadow-[0_0_18px_rgba(16,185,129,0.18)]' : 'bg-fuchsia-500/10 shadow-[0_0_18px_rgba(217,70,239,0.18)]',
+                  cell.gateOpen
+                    ? 'bg-emerald-500/10 shadow-[0_0_18px_rgba(16,185,129,0.18)]'
+                    : 'bg-fuchsia-500/10 shadow-[0_0_18px_rgba(217,70,239,0.18)]',
                 ].join(' ')}
               >
                 <div className="absolute inset-1 rounded-md opacity-90" style={gateSpriteStyle} />
+              </div>
+            ) : isFirewall ? (
+              <div className="absolute inset-2 rounded-lg border border-white/10 bg-rose-500/10 shadow-[0_0_18px_rgba(244,63,94,0.18)]">
+                <div className="absolute inset-1 rounded-md opacity-90" style={firewallSpriteStyle} />
+                {showDebugLabels ? (
+                  <div className="absolute bottom-1 right-1 text-[10px] leading-none text-white/80 drop-shadow font-mono">
+                    {cell.hp ?? ''}
+                  </div>
+                ) : null}
               </div>
             ) : cell.blocked ? (
               <div className="absolute inset-0 flex items-center justify-center text-white/20 text-2xl">✕</div>
