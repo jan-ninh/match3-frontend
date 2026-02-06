@@ -27,9 +27,15 @@ export default function GameplayHud({ boardWidth, levelId, gateOpen, breachDone,
   const segDone = Math.min(Math.max(0, breachDone), segTotal);
 
   const chip = isWin
-    ? { label: 'WIN', cls: 'border-emerald-300/30 bg-emerald-500/10 text-emerald-200/90 shadow-[0_0_18px_rgba(16,185,129,0.18)]' }
+    ? {
+        label: 'WIN',
+        cls: 'border-emerald-300/30 bg-emerald-500/10 text-emerald-200/90 shadow-[0_0_18px_rgba(16,185,129,0.18)]',
+      }
     : isLose
-      ? { label: 'LOSE', cls: 'border-rose-300/30 bg-rose-500/10 text-rose-200/90 shadow-[0_0_18px_rgba(244,63,94,0.16)]' }
+      ? {
+          label: 'LOSE',
+          cls: 'border-rose-300/30 bg-rose-500/10 text-rose-200/90 shadow-[0_0_18px_rgba(244,63,94,0.16)]',
+        }
       : null;
 
   const objBorder = gateOpen ? 'border-emerald-300/20' : 'border-fuchsia-300/20';
@@ -64,61 +70,82 @@ export default function GameplayHud({ boardWidth, levelId, gateOpen, breachDone,
       </div>
 
       {/* Objective Card */}
-      <div
-        className={[
-          'relative inline-block w-fit max-w-full mx-auto overflow-hidden rounded-2xl border bg-black/55 backdrop-blur px-5 py-3',
-          objBorder,
-          objGlow,
-        ].join(' ')}
-      >
-        {/* Soft neon bloom */}
+      <div className={['relative w-full', objGlow].join(' ')}>
+        <div className="pointer-events-none absolute -inset-10 rounded-[28px] bg-black/55 blur-2xl" aria-hidden="true" />
+
         <div
-          className="pointer-events-none absolute -inset-10 opacity-70"
-          style={{
-            background: gateOpen
-              ? 'radial-gradient(closest-side, rgba(16,185,129,0.16), rgba(0,0,0,0) 70%)'
-              : 'radial-gradient(closest-side, rgba(217,70,239,0.16), rgba(0,0,0,0) 70%)',
-          }}
-        />
+          className={[
+            'relative overflow-hidden rounded-2xl p-[1px]',
+            gateOpen
+              ? 'bg-[linear-gradient(90deg,rgba(16,185,129,0.38),rgba(34,211,238,0.28),rgba(255,255,255,0.08))]'
+              : 'bg-[linear-gradient(90deg,rgba(217,70,239,0.38),rgba(34,211,238,0.28),rgba(255,255,255,0.08))]',
+          ].join(' ')}
+        >
+          <div className={['relative overflow-hidden rounded-2xl border bg-black/75 backdrop-blur-2xl px-6 py-4', objBorder].join(' ')}>
+            {/* Soft neon bloom */}
+            <div
+              className="pointer-events-none absolute -inset-10 opacity-70"
+              style={{
+                background: gateOpen
+                  ? 'radial-gradient(closest-side, rgba(16,185,129,0.16), rgba(0,0,0,0) 70%)'
+                  : 'radial-gradient(closest-side, rgba(217,70,239,0.16), rgba(0,0,0,0) 70%)',
+              }}
+              aria-hidden="true"
+            />
 
-        <div className="relative">
-          <div className="flex items-start gap-3">
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <div className="text-[10px] tracking-[0.28em] seen text-white/55 uppercase">Objective</div>
-                {chip ? (
-                  <div className={['ml-auto px-2 py-1 rounded-full border text-[10px] tracking-[0.22em] uppercase transition-all', chip.cls].join(' ')}>
-                    {chip.label}
+            <div className="relative">
+              <div className="flex items-start gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <img
+                      src={objectiveIconUrl}
+                      alt="Objective"
+                      className="h-6 w-6 shrink-0 rounded-lg border border-white/10 bg-black/30 p-1"
+                      draggable={false}
+                    />
+
+                    <div className="text-[10px] tracking-[0.28em] text-white/55 uppercase">Objective</div>
+
+                    {chip ? (
+                      <div className={['ml-auto px-2 py-1 rounded-full border text-[10px] tracking-[0.22em] uppercase transition-all', chip.cls].join(' ')}>
+                        {chip.label}
+                      </div>
+                    ) : null}
                   </div>
-                ) : null}
-              </div>
 
-              <div className="mt-0.5 text-base font-semibold text-white/90">{gateOpen ? 'Gate opened' : 'Open the Gate'}</div>
+                  <div className="mt-0.5 text-lg font-semibold text-white/90">{gateOpen ? 'Gate opened' : 'Open the Gate'}</div>
 
-              <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-white/70">
-                {/* Breach segments */}
-                <div className="flex items-center gap-2">
-                  <div className="font-mono text-white/80 tabular-nums">
-                    BREACH {breachDone}/{breachTotal}
-                  </div>
+                  <div className="mt-2 rounded-xl border border-white/10 bg-black/35 px-3 py-2 shadow-[0_0_18px_rgba(0,0,0,0.35)]">
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-white/70">
+                      {/* Breach segments */}
+                      <div className="flex items-center gap-2">
+                        <div className="font-mono text-white/80 tabular-nums">
+                          BREACH {breachDone}/{breachTotal}
+                        </div>
 
-                  {segTotal > 0 ? (
-                    <div className="flex items-center gap-1.5">
-                      {Array.from({ length: segTotal }, (_, i) => {
-                        const done = i < segDone;
-                        const cls = done
-                          ? gateOpen
-                            ? 'border-emerald-300/35 bg-emerald-400/25 shadow-[0_0_14px_rgba(16,185,129,0.18)]'
-                            : 'border-fuchsia-300/35 bg-fuchsia-400/25 shadow-[0_0_14px_rgba(217,70,239,0.18)]'
-                          : 'border-white/15 bg-white/5';
+                        {segTotal > 0 ? (
+                          <div className="flex items-center gap-1.5">
+                            {Array.from({ length: segTotal }, (_, i) => {
+                              const done = i < segDone;
 
-                        return <div key={i} className={['h-2.5 w-4 rounded-full border transition-all duration-200', cls].join(' ')} aria-hidden="true" />;
-                      })}
+                              const cls = done
+                                ? gateOpen
+                                  ? 'border-emerald-300/35 bg-emerald-400/25 shadow-[0_0_14px_rgba(16,185,129,0.18)]'
+                                  : 'border-fuchsia-300/35 bg-fuchsia-400/25 shadow-[0_0_14px_rgba(217,70,239,0.18)]'
+                                : 'border-white/15 bg-white/5';
+
+                              return (
+                                <div key={i} className={['h-2.5 w-4 rounded-full border transition-all duration-200', cls].join(' ')} aria-hidden="true" />
+                              );
+                            })}
+                          </div>
+                        ) : null}
+                      </div>
+
+                      <div className="text-white/55">Matches next to a node damage it.</div>
                     </div>
-                  ) : null}
+                  </div>
                 </div>
-
-                <div className="text-white/55">Matches next to a node damage it.</div>
               </div>
             </div>
           </div>
