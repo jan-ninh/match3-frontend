@@ -1,6 +1,6 @@
+// src/features/playground/ui/GameContainer.tsx
 import { useRef, useState } from 'react';
 
-import signExitUrl from '@/assets/tiles/art-01/sign_exit.png';
 import { Grid } from '@/features/grid';
 
 import { useDevHotkeys } from '../lib/useDevHotkeys';
@@ -17,8 +17,7 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
   const [showLockoutHints, setShowLockoutHints] = useState<boolean>(false);
   const [debugEnabled, setDebugEnabled] = useState<boolean>(false);
 
-  const { isDev, state, inputLocked, canSwapAt, onIntent, onDevResetBoard, onDevNextLevel, onDevPrevLevel, events } =
-    useMatch3Engine({ initialLevelId });
+  const { isDev, state, inputLocked, canSwapAt, onIntent, onDevResetBoard, onDevNextLevel, onDevPrevLevel, events } = useMatch3Engine({ initialLevelId });
 
   useDevHotkeys({
     enabled: isDev,
@@ -46,14 +45,12 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
 
       <GameplayHud
         levelId={state.levelId}
-        boardWidth={state.width}
         gateOpen={state.gateOpen}
         breachDone={breachDone}
         breachTotal={breachTotal}
         movesLeft={state.movesLeft ?? '—'}
         isWin={isWin}
         isLose={isLose}
-        objectiveIconUrl={signExitUrl}
       />
 
       <div ref={gridRowRef} className="flex justify-center items-start">
