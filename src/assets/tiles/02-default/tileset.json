@@ -1,0 +1,59 @@
+{
+  "id": "02-default",
+
+  "basics": {
+    "b-blue-canister": "piece_canister_blue.png",
+    "b-cyan-hex": "piece_hex_cyan.png",
+    "b-green-chip": "piece_chip_green.png",
+    "b-magenta-shard": "piece_shard_magenta.png",
+    "b-purple-orb": "piece_orb_purple.png",
+    "b-purple-rune": "piece_rune_purple.png",
+    "b-red-target": "piece_target_red.png",
+    "b-rainbow-prism": "piece_prism_rainbow.png",
+    "b-teal-mask": "piece_mask_teal.png"
+  },
+
+  "palettes": {
+    "six-core": {
+      "red": "b-red-target",
+      "blue": "b-blue-canister",
+      "green": "b-green-chip",
+      "purple": "b-purple-rune",
+      "cyan": "b-cyan-hex",
+      "yellow": "b-rainbow-prism"
+    },
+    "eight-full": {
+      "red": "b-red-target",
+      "blue": "b-blue-canister",
+      "green": "b-green-chip",
+      "purple": "b-purple-rune",
+      "orange": "b-magenta-shard",
+      "cyan": "b-cyan-hex",
+      "pink": "b-purple-orb",
+      "yellow": "b-rainbow-prism"
+    }
+  },
+
+  "defaultPalette": "six-core",
+
+  "levelPalettes": {
+    "1": "six-core"
+  },
+
+  "specials": {
+    "gateClosed": "special_gate.png",
+    "gateOpen": "special_gate.png",
+    "firewall": "piece_mask_teal.png"
+  },
+
+  "pieces": {
+    "red": "piece_target_red.png",
+    "blue": "piece_canister_blue.png",
+    "green": "piece_chip_green.png",
+    "purple": "piece_rune_purple.png",
+    "orange": "piece_shard_magenta.png",
+    "cyan": "piece_hex_cyan.png",
+    "pink": "piece_orb_purple.png",
+    "yellow": "piece_prism_rainbow.png"
+  }
+}
