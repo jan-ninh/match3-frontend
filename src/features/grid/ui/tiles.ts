@@ -40,7 +40,7 @@ type TilesetJson = {
   basics?: Record<string, string>;
 
   // palettes map "paletteName" -> PieceType -> (basicId OR frameKey)
-  palettes?: Record<string, Partial<Record<PieceType, string>>>;
+  palettes?: Record<string, Partial<Record<string, string>>>;
 
   // optional: default palette name
   defaultPalette?: string;
@@ -123,6 +123,14 @@ let currentLevelId: number | null = null;
 // manual override (dev): if set, it wins over env/level/default
 let manualPaletteName: string | null = null;
 
+const SIX_CORE_TYPE_ORDER: PieceType[] = ['red', 'blue', 'green', 'purple', 'cyan', 'yellow'];
+const SIX_CORE_SLOT_KEYS = ['01', '02', '03', '04', '05', '06'] as const;
+
+function slotKeyForSixCoreType(type: PieceType): (typeof SIX_CORE_SLOT_KEYS)[number] | null {
+  const i = SIX_CORE_TYPE_ORDER.indexOf(type);
+  return i >= 0 ? SIX_CORE_SLOT_KEYS[i] : null;
+}
+
 function getActive(): LoadedTileset | null {
   if (!activeTilesetId) return null;
   return TILESETS_BY_ID[activeTilesetId] ?? null;
@@ -172,8 +180,17 @@ function getFrameKeyForPieceType(cfg: TilesetJson, type: PieceType): string | nu
   const paletteName = resolvePaletteName(cfg);
   if (paletteName) {
     const palette = cfg.palettes?.[paletteName];
-    const v = palette?.[type];
-    if (v) return resolveFrameKeyFromPaletteValue(cfg, v);
+
+    // Mode A: direct PieceType -> (basicId OR frameKey)
+    const direct = palette?.[type];
+    if (direct) return resolveFrameKeyFromPaletteValue(cfg, direct);
+
+    // Mode B: "six-core slots": "01".."06" -> (basicId OR frameKey)
+    const slotKey = slotKeyForSixCoreType(type);
+    if (slotKey) {
+      const v = palette?.[slotKey];
+      if (v) return resolveFrameKeyFromPaletteValue(cfg, v);
+    }
   }
 
   const legacy = cfg.pieces?.[type];

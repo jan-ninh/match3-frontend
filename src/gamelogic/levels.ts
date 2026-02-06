@@ -1,7 +1,7 @@
 import type { LevelDefinition, PieceType } from './types';
 import { deriveSeed } from './rng';
 
-const DEFAULT_TYPES: PieceType[] = ['blue', 'green', 'purple', 'orange', 'cyan', 'pink', 'yellow'];
+const DEFAULT_TYPES: PieceType[] = ['red', 'blue', 'green', 'purple', 'cyan', 'yellow'];
 
 export function getLevelDefinition(levelId: number): LevelDefinition {
   const width = 9;
