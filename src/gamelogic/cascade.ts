@@ -305,10 +305,11 @@ export function shuffleUntilValid(state: EngineState, maxAttempts: number): { st
 
 export function stabilizeBoard(
   state: EngineState,
-  opts?: { maxResolveLoops?: number; maxShuffleAttempts?: number },
+  opts?: { maxResolveLoops?: number; maxShuffleAttempts?: number; maxDeadlockPasses?: number },
 ): { state: EngineState; events: EngineEvent[] } {
   const maxResolveLoops = opts?.maxResolveLoops ?? 64;
   const maxShuffleAttempts = opts?.maxShuffleAttempts ?? 200;
+  const maxDeadlockPasses = opts?.maxDeadlockPasses ?? 4;
 
   let s: EngineState = state;
   const events: EngineEvent[] = [];
@@ -363,19 +364,23 @@ export function stabilizeBoard(
     // (instant settle for now)
   }
 
-  // deadlock -> shuffle -> resolve-loop again (to guarantee match-free)
-  toPhase('deadlockCheck');
-  const hasMove = hasAnyMoves(s);
-  events.push({ type: 'deadlockCheck', hasMove });
+  // deadlock -> shuffle -> post-resolve -> recheck (bounded passes)
+  for (let pass = 0; pass < maxDeadlockPasses; pass++) {
+    toPhase('deadlockCheck');
+    const hasMove = hasAnyMoves(s);
+    events.push({ type: 'deadlockCheck', hasMove });
 
-  if (!hasMove) {
+    if (hasMove) break;
+
+    const attemptsCap = pass === maxDeadlockPasses - 1 ? maxShuffleAttempts * 5 : maxShuffleAttempts;
+
     toPhase('shuffle');
-    const sh = shuffleUntilValid(s, maxShuffleAttempts);
+    const sh = shuffleUntilValid(s, attemptsCap);
     s = sh.state;
     devAssert('stabilize:shuffleUntilValid');
     events.push({ type: 'shuffled', attempts: sh.attempts });
 
-    // post-shuffle safety resolve
+    // post-shuffle safety resolve (to guarantee match-free)
     for (let loop = 0; loop < maxResolveLoops; loop++) {
       toPhase('detect');
       const m = detectMatches(s);
@@ -385,6 +390,7 @@ export function stabilizeBoard(
       s = applyFirewallDamage(s, m.clearIndices, events);
 
       toPhase('mark');
+      // (future) spawnPlan/specials go here
 
       toPhase('clear');
       s = clearCellsAndPieces(s, m.clearIndices);
@@ -403,6 +409,7 @@ export function stabilizeBoard(
       events.push({ type: 'refilled', count: ref.spawned });
 
       toPhase('settle');
+      // (instant settle for now)
     }
   }
 
