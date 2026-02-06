@@ -46,7 +46,7 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
 
       <GameplayHud
         levelId={state.levelId}
-        timeValue={120}
+        boardWidth={state.width}
         gateOpen={state.gateOpen}
         breachDone={breachDone}
         breachTotal={breachTotal}
