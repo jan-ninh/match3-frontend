@@ -40,14 +40,12 @@ export function beginSwapAnimating(
   const hadSelection = state.selectedIndex !== null;
 
   const swapped = applySwapCommit(state, from, to);
-  const nextMovesLeft = Math.max(0, state.movesLeft - 1);
 
+  // moves are spent only if the swap actually creates a match (see applySwapAnimDone)
   const events: EngineEvent[] = [];
-  if (nextMovesLeft !== state.movesLeft) events.push({ type: 'movesSpent', left: nextMovesLeft });
 
   let baseState: EngineState = {
     ...swapped,
-    movesLeft: nextMovesLeft,
     selectedIndex: null,
     pendingSwap: { from, to, snapCells, snapPieces },
     anim: null,
@@ -124,8 +122,13 @@ export function applySwapAnimDone(state: EngineState, token: number, mode: AnimD
   // matches exist => resolve once, then wait for falling animation
   const events: EngineEvent[] = [doneEvent];
 
+  // spend a move only if the swap actually creates a match
+  const nextMovesLeft = Math.max(0, state.movesLeft - 1);
+  if (nextMovesLeft !== state.movesLeft) events.push({ type: 'movesSpent', left: nextMovesLeft });
+
   let s: EngineState = {
     ...state,
+    movesLeft: nextMovesLeft,
     pendingSwap: null,
     anim: null,
   };
