@@ -1,30 +1,38 @@
+// src/gamelogic/levels.ts
 import type { LevelDefinition, PieceType } from './types';
 import { deriveSeed } from './rng';
 
-const DEFAULT_TYPES: PieceType[] = ['red', 'blue', 'green', 'purple', 'cyan', 'yellow'];
+// Slightly smaller palette for early levels => more intentional play near objectives.
+const DEFAULT_TYPES: PieceType[] = ['blue', 'green', 'purple', 'orange', 'cyan', 'yellow'];
 
 export function getLevelDefinition(levelId: number): LevelDefinition {
-  const width = 9;
-  const height = 9;
+  // Smaller board for Level 1 clarity / faster pacing
+  const width = 8;
+  const height = 8;
 
-  // reserved corner (gate in level 1; plain blocks otherwise)
-  // const cornerBlocks = [7 + 7 * width, 8 + 7 * width, 7 + 8 * width, 8 + 8 * width];
-  const cornerBlocks: number[] = [];
+  // Exit gate (2x2) in level 1 only (bottom-right)
+  // (6,6) (7,6) (6,7) (7,7)
+  const cornerBlocks = levelId === 1 ? [6 + 6 * width, 7 + 6 * width, 6 + 7 * width, 7 + 7 * width] : [];
 
+  // “Nodes” (firewall) must be damaged by making matches adjacent to them.
+  // Each node has hp=2 => needs 2 adjacent match-resolves (can be across turns/cascades).
   const firewallNodes =
     levelId === 1
       ? [
-          { index: 3 + 3 * width, hp: 2 }, // (3,3)
-          { index: 5 + 4 * width, hp: 2 }, // (5,4)
-          { index: 4 + 6 * width, hp: 2 }, // (4,6)
+          { index: 2 + 2 * width, hp: 2 }, // (2,2)
+          { index: 5 + 3 * width, hp: 2 }, // (5,3)
+          { index: 3 + 5 * width, hp: 2 }, // (3,5)
         ]
       : [];
 
+  // Gate tiles are blocked cells that become “open” once all nodes are destroyed.
   const gateIndices = levelId === 1 ? cornerBlocks : [];
 
+  // Block the objective tiles themselves (nodes + gate footprint).
   const blockedIndices = levelId === 1 ? [...cornerBlocks, ...firewallNodes.map((n) => n.index)] : cornerBlocks;
 
-  const moves = 20;
+  // Tighter than 20 so Level 1 has a little bite.
+  const moves = 14;
 
   const baseSeed = 12345;
   const seed = deriveSeed(baseSeed, levelId);

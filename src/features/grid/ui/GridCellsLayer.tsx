@@ -23,8 +23,9 @@ export default function GridCellsLayer({ width, height, cells, onCellPointerDown
     >
       {cells.map((cell, index) => {
         const isGate = cell.obstacle === 'gate';
+        const isFirewall = cell.obstacle === 'firewall';
         const blockedOverlayStyle: React.CSSProperties | undefined =
-          cell.blocked && !isGate
+          cell.blocked && !isGate && !isFirewall
             ? {
                 backgroundImage:
                   'repeating-linear-gradient(45deg, rgba(255,255,255,0.06), rgba(255,255,255,0.06) 6px, rgba(255,255,255,0.0) 6px, rgba(255,255,255,0.0) 12px)',
@@ -50,7 +51,7 @@ export default function GridCellsLayer({ width, height, cells, onCellPointerDown
           'relative rounded-xl border',
           'focus:outline-none',
           'transition-transform duration-150',
-          cell.blocked ? 'border-slate-700 bg-slate-900' : 'border-white/10 bg-[#111827]',
+          isGate ? 'border-white/10 bg-[#111827]' : isFirewall ? 'border-cyan-300/25 bg-slate-950/70' : cell.blocked ? 'border-slate-700 bg-slate-900' : 'border-white/10 bg-[#111827]',
           cell.blocked ? '' : 'shadow-sm',
           'hover:scale-[1.02]',
         ].join(' ');
@@ -87,6 +88,33 @@ export default function GridCellsLayer({ width, height, cells, onCellPointerDown
                       : 'bg-fuchsia-500/10 shadow-[0_0_18px_rgba(217,70,239,0.18)]',
                   ].join(' ')}
                 />
+              </>
+            ) : isFirewall ? (
+              <>
+                <div className="absolute inset-0 rounded-xl bg-slate-950/70" />
+                <div className="absolute inset-0 rounded-xl border border-cyan-300/20 shadow-[0_0_18px_rgba(34,211,238,0.18)]" />
+                <div className="absolute inset-2 rounded-lg bg-cyan-500/10 shadow-[0_0_20px_rgba(34,211,238,0.18)]" />
+
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="h-5 w-5 rounded-full bg-cyan-300/20 border border-cyan-200/20 shadow-[0_0_14px_rgba(34,211,238,0.25)]" />
+                </div>
+
+                {typeof cell.hp === 'number' && typeof cell.maxHp === 'number' ? (
+                  <div className="absolute bottom-1 left-1 right-1 flex justify-center gap-1">
+                    {Array.from({ length: Math.min(3, cell.maxHp) }, (_, i) => {
+                      const on = i < (cell.hp ?? 0);
+                      return (
+                        <div
+                          key={i}
+                          className={[
+                            'h-1.5 w-4 rounded-full border',
+                            on ? 'bg-cyan-400/55 border-cyan-200/35 shadow-[0_0_10px_rgba(34,211,238,0.18)]' : 'bg-white/5 border-white/15',
+                          ].join(' ')}
+                        />
+                      );
+                    })}
+                  </div>
+                ) : null}
               </>
             ) : cell.blocked ? (
               <div className="absolute inset-0 flex items-center justify-center text-white/20 text-2xl">✕</div>

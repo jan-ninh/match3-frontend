@@ -14,7 +14,7 @@ type Props = {
 };
 
 export default function GameplayHud({ levelId, gateOpen, breachDone, breachTotal, movesLeft, isWin, isLose }: Props) {
-  const title = gateOpen ? 'Gate opened' : 'Open the Gates!';
+  const title = gateOpen ? 'Exit unlocked' : 'Crack the Nodes!';
 
   const chip = isWin
     ? { label: 'WIN', cls: 'border-emerald-300/30 bg-emerald-500/10 text-emerald-200/90' }
@@ -114,7 +114,7 @@ export default function GameplayHud({ levelId, gateOpen, breachDone, breachTotal
                 <div className="text-white/25">•</div>
               </div>
 
-              <div className="text-xs text-white/55 whitespace-nowrap">Matches next to a node damage it.</div>
+              <div className="text-xs text-white/55 whitespace-nowrap">Adjacent matches damage nodes. Break all 3 to unlock the exit.</div>
             </div>
           </div>
         </div>
