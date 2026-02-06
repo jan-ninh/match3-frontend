@@ -8,6 +8,6 @@ export type HeaderProps = {
   targetLabel?: string;
 };
 
-export default function Header({ time, moves, targetLabel }: HeaderProps) {
-  return <div className="w-full flex justify-between items-center">{/* <TimeDisplay tib */}</div>;
+export default function Header() {
+  return <div className="w-full flex justify-between items-center" />;
 }

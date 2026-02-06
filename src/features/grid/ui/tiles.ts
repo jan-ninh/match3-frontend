@@ -7,6 +7,7 @@ import crystalPrismUrl from '@/assets/tiles/art-01/crystal_prism.png';
 import runePurpleUrl from '@/assets/tiles/art-01/rune_purple.png';
 import shardBlueUrl from '@/assets/tiles/art-01/shard_blue.png';
 import signExitUrl from '@/assets/tiles/art-01/sign_exit.png';
+import core_red from '@/assets/tiles/art-01/core_red.png';
 
 export type TileSprite = {
   sheet: string;
@@ -20,6 +21,7 @@ const SPRITE_1X1 = { col: 0, row: 0, cols: 1, rows: 1 } as const;
 
 // UI-only reskin: keep PieceType as-is, map to new Art-01 PNGs.
 const TILE_URL_BY_TYPE: Record<PieceType, string> = {
+  red: core_red,
   blue: shardBlueUrl,
   green: chipGreenUrl,
   purple: runePurpleUrl,

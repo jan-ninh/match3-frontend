@@ -3,7 +3,7 @@ import type { RngState } from './rng';
 
 export type LevelId = number;
 
-export type PieceType = 'blue' | 'green' | 'purple' | 'orange' | 'cyan' | 'pink' | 'yellow';
+export type PieceType = 'red' | 'blue' | 'green' | 'purple' | 'orange' | 'cyan' | 'pink' | 'yellow';
 
 export type PieceId = number;
 
@@ -64,12 +64,7 @@ export type EngineAnimKind = 'swap' | 'swapBack' | 'fall';
 
 export type AnimDoneMode = 'early' | 'auto';
 
-export type AnimDoneIgnoreReason =
-  | 'missingAnim'
-  | 'wrongPhase'
-  | 'wrongKind'
-  | 'wrongToken'
-  | 'missingPendingSwap';
+export type AnimDoneIgnoreReason = 'missingAnim' | 'wrongPhase' | 'wrongKind' | 'wrongToken' | 'missingPendingSwap';
 
 export type EngineEvent =
   | { type: 'seededInit'; levelId: LevelId; width: number; height: number; seed: number }
@@ -150,6 +145,3 @@ export type EngineState = {
   events: EngineEvent[];
   pendingSwap: PendingSwap | null;
 };
-
-
-
