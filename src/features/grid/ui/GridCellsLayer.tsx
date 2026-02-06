@@ -14,7 +14,7 @@ type Props = {
 export default function GridCellsLayer({ width, height, cells, onCellPointerDown, showDebugLabels = false }: Props) {
   return (
     <div
-      className="grid"
+      className="grid relative z-10"
       style={{
         gap: `${GAP}px`,
         gridTemplateColumns: `repeat(${width}, ${TILE_SIZE}px)`,
@@ -41,12 +41,10 @@ export default function GridCellsLayer({ width, height, cells, onCellPointerDown
             }
           : undefined;
         const base = [
-          'relative rounded-xl border',
+          'relative rounded-xl border border-white/0',
           'focus:outline-none',
-          'transition-transform duration-150',
-          cell.blocked ? 'border-slate-700 bg-slate-900' : 'border-white/10 bg-[#111827]',
-          cell.blocked ? '' : 'shadow-sm',
-          'hover:scale-[1.02]',
+          'transition-colors duration-150',
+          isGate ? 'bg-[rgba(255,255,255,0.02)] border-white/10' : cell.blocked ? 'bg-slate-900 border-slate-700' : 'bg-[rgba(255,255,255,0.03)]',
         ].join(' ');
 
         const { x, y } = xyOf(index, width);

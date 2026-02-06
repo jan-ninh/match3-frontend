@@ -156,7 +156,7 @@ export default function Grid({
 
       <div
         ref={containerRef}
-        className={`relative rounded-2xl p-3 bg-black/30 border border-white/10 shadow-lg select-none ${lockoutCursor}`}
+        className={`relative rounded-2xl p-3 bg-black/20 border border-white/10 shadow-[0_18px_60px_rgba(0,0,0,0.55)] select-none ${lockoutCursor}`}
         style={{
           width: innerW + BOARD_PADDING * 2,
           touchAction: 'none',
@@ -170,6 +170,14 @@ export default function Grid({
         <GridLockoutOverlay active={inputLocked} show={showLockoutHints} />
 
         <div className="relative" style={{ width: innerW, height: innerH }}>
+  <div
+    className="absolute inset-0 rounded-2xl pointer-events-none"
+    style={{
+      background:
+        'linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 40%, rgba(0,0,0,0.22) 100%)',
+      boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08), inset 0 -18px 40px rgba(0,0,0,0.55)',
+    }}
+  />
           <GridCellsLayer width={width} height={height} cells={cells} onCellPointerDown={onCellPointerDown} showDebugLabels={showDebugLabels} />
 
           <GridOverlaysLayer selectionPos={selectionPos} overPos={overPos} />
