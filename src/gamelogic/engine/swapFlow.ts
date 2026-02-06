@@ -9,6 +9,7 @@ import { beginAnim } from './anim';
 import { autoFinishAll } from './autoFinish';
 import { mkAnimDone, mkAnimDoneIgnored, pushEvents } from './events';
 import { applyFallAnimDone } from './fallFlow';
+import type { ApplyAnimDone } from './autoFinish';
 
 function applySwapCommit(state: EngineState, from: number, to: number): EngineState {
   const fromPid = state.cells[from]!.pieceId!;
@@ -20,19 +21,14 @@ function applySwapCommit(state: EngineState, from: number, to: number): EngineSt
   return { ...state, cells: nextCells, pieces: nextPieces, selectedIndex: null };
 }
 
-const applyDone = (st: EngineState, kind: any, tok: number, mode: AnimDoneMode): EngineState => {
+const applyDone: ApplyAnimDone = (st, kind, tok, mode) => {
   if (kind === 'swap') return applySwapAnimDone(st, tok, mode);
   if (kind === 'swapBack') return applySwapBackAnimDone(st, tok, mode);
   if (kind === 'fall') return applyFallAnimDone(st, tok, mode);
   return st;
 };
 
-export function beginSwapAnimating(
-  state: EngineState,
-  from: number,
-  to: number,
-  opts?: { forceSelectionCleared?: boolean },
-): EngineState {
+export function beginSwapAnimating(state: EngineState, from: number, to: number, opts?: { forceSelectionCleared?: boolean }): EngineState {
   // snapshot (for deterministic swapBack)
   const snapCells = state.cells;
   const snapPieces = state.pieces;
