@@ -1,0 +1,18 @@
+{
+  "id": "01-default",
+  "pieces": {
+    "red": "piece_red.png",
+    "blue": "piece_blue.png",
+    "green": "piece_green.png",
+    "purple": "piece_purple.png",
+    "orange": "piece_orange.png",
+    "cyan": "piece_cyan.png",
+    "pink": "piece_pink.png",
+    "yellow": "piece_yellow.png"
+  },
+  "specials": {
+    "gateClosed": "special_gate_closed.png",
+    "gateOpen": "special_gate_open.png",
+    "firewall": "special_gate_open.png"
+  }
+}
