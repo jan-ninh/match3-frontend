@@ -101,7 +101,12 @@ export function applySwapAnimDone(state: EngineState, token: number, mode: AnimD
 
     revertedBase = setPhase(revertedBase, 'swapBackAnimating', events);
 
-    const withAnim = beginAnim(revertedBase, 'swapBack', revertedBase.swapMs);
+    //Testing SwapBack
+    const SWAP_BACK_FACTOR = 0.4;
+    const SWAP_BACK_MIN_MS = 80;
+    const swapBackMs =
+      revertedBase.swapMs === 0 ? 0 : Math.min(revertedBase.swapMs, Math.max(SWAP_BACK_MIN_MS, Math.round(revertedBase.swapMs * SWAP_BACK_FACTOR)));
+    const withAnim = beginAnim(revertedBase, 'swapBack', swapBackMs);
     events.push({ type: 'swapBack', from, to });
 
     const withEvents = pushEvents(withAnim, events);

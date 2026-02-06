@@ -227,41 +227,53 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
   return (
     <div className="w-full">
       {eventLogPortal}
-      <div className="mb-4 flex items-start justify-between gap-4">
+      <div
+        data-ui="hud-bar"
+        className="mb-8 grid grid-cols-1 gap-3 rounded-xl border border-white/10 bg-black/40 backdrop-blur px-4 py-3 shadow-[0_16px_48px_rgba(0,0,0,0.55)] md:grid-cols-[auto_1fr_auto] md:items-center md:gap-4"
+      >
+        {/* LEFT: Level badge  */}
         <div
           data-ui="level-badge"
-          className="min-w-[112px] text-center rounded-2xl border border-fuchsia-400/20 bg-black/45 backdrop-blur px-4 py-2 shadow-[0_10px_30px_rgba(0,0,0,0.45),0_0_24px_rgba(217,70,239,0.16)]"
+          className="justify-self-start rounded-2xl border border-fuchsia-400/20 bg-black/45 px-4 py-2 shadow-[0_10px_30px_rgba(0,0,0,0.45),0_0_28px_rgba(217,70,239,0.16)]"
         >
-          <div className="text-2xl font-semibold text-white/90 tabular-nums tracking-wide">LEVEL {state.levelId}</div>
-          <div className="text-xs tracking-widest text-fuchsia-200/70 uppercase">Stage</div>
-        </div>
-        <div className="min-w-[88px] text-center rounded-2xl border border-white/10 bg-black/45 backdrop-blur px-4 py-2 shadow-[0_10px_30px_rgba(0,0,0,0.45)]">
-          <div className="text-2xl font-semibold text-white/90 tabular-nums">120</div>
-          <div className="text-xs tracking-widest text-white/60 uppercase">Time</div>
+          <div className="text-[11px] tracking-[0.28em] text-fuchsia-200/70 uppercase">Stage</div>
+          <div className="mt-0.5 text-xl font-semibold text-white/90 tabular-nums tracking-wide">LEVEL {state.levelId}</div>
         </div>
 
-        <div className="flex-1 rounded-2xl border border-fuchsia-400/20 bg-black/55 backdrop-blur px-5 py-3 shadow-[0_10px_30px_rgba(0,0,0,0.50)]">
-          <div className="text-xs tracking-widest text-fuchsia-200/80 uppercase flex items-center gap-2">
+        {/* CENTER: Objective (single calm panel) */}
+        <div data-ui="objective-panel" className="rounded-2xl border border-fuchsia-400/20 bg-black/35 px-4 py-3 shadow-[0_10px_30px_rgba(0,0,0,0.40)]">
+          <div className="flex items-center gap-2 text-[11px] tracking-[0.28em] text-fuchsia-200/70 uppercase">
             <span>Objective</span>
             <img src={signExitUrl} alt="" className="w-4 h-4 opacity-80" />
           </div>
-          <div className="mt-0.5 text-base font-semibold text-white/90">{state.gateOpen ? 'Gate opened' : 'Open the Gate'}</div>
-          <div data-ui="objective-meta" className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-white/70">
+
+          <div className="mt-0.5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <div className="text-base font-semibold text-white/90">{state.gateOpen ? 'Gate opened' : 'Open the Gate'}</div>
+            {isWin ? <div className="text-emerald-300/90 font-semibold text-sm">WIN</div> : null}
+            {isLose ? <div className="text-rose-300/90 font-semibold text-sm">LOSE</div> : null}
+          </div>
+
+          <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-white/70">
             <div className="font-mono text-white/80 tabular-nums">
               BREACH {breachDone}/{breachTotal}
             </div>
             <div className="text-white/55">Matches next to a node damage it.</div>
-            {isWin ? <div className="text-emerald-300/90 font-semibold">WIN — Gate open</div> : null}
-            {isLose ? <div className="text-rose-300/90 font-semibold">LOSE — out of moves</div> : null}
           </div>
         </div>
 
-        <div className="min-w-[88px] text-center rounded-2xl border border-white/10 bg-black/45 backdrop-blur px-4 py-2 shadow-[0_10px_30px_rgba(0,0,0,0.45)]">
-          <div className="text-2xl font-semibold text-white/90 tabular-nums">{state.movesLeft ?? '—'}</div>
-          <div className="text-xs tracking-widest text-white/60 uppercase">Moves</div>
+        {/* RIGHT: Stats (two equal chips) */}
+        <div data-ui="hud-stats" className="flex items-center justify-start gap-3 md:justify-self-end">
+          <div className="w-[96px] text-center rounded-2xl border border-white/10 bg-black/35 px-3 py-2 shadow-[0_10px_30px_rgba(0,0,0,0.40)]">
+            <div className="text-[11px] tracking-[0.28em] text-white/55 uppercase">Time</div>
+            <div className="mt-0.5 text-xl font-semibold text-white/90 tabular-nums">120</div>
+          </div>
+
+          <div className="w-[96px] text-center rounded-2xl border border-white/10 bg-black/35 px-3 py-2 shadow-[0_10px_30px_rgba(0,0,0,0.40)]">
+            <div className="text-[11px] tracking-[0.28em] text-white/55 uppercase">Moves</div>
+            <div className="mt-0.5 text-xl font-semibold text-white/90 tabular-nums">{state.movesLeft ?? '—'}</div>
+          </div>
         </div>
       </div>
-
       <div ref={gridRowRef} className="flex justify-center items-start">
         <Grid
           state={state}
@@ -280,4 +292,3 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
     </div>
   );
 }
-
