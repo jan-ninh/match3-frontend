@@ -1,7 +1,8 @@
 // src/features/playground/ui/GameContainer.tsx
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { Grid } from '@/features/grid';
+import { cycleTilesetPalette, setTilesetLevel, preloadTiles } from '@/features/grid/ui/tiles';
 
 import { useDevHotkeys } from '../lib/useDevHotkeys';
 import { useDevPanelsTopSync } from '../lib/useDevPanelsTopSync';
@@ -18,6 +19,18 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
   const [debugEnabled, setDebugEnabled] = useState<boolean>(false);
 
   const { isDev, state, inputLocked, canSwapAt, onIntent, onDevResetBoard, onDevNextLevel, onDevPrevLevel, events } = useMatch3Engine({ initialLevelId });
+  const [, bumpTilesRerender] = useState(0);
+
+  const onDevNextTilesPalette = () => {
+    cycleTilesetPalette();
+    preloadTiles();
+    bumpTilesRerender((v) => (v + 1) | 0);
+  };
+
+  useEffect(() => {
+    setTilesetLevel(state.levelId);
+    preloadTiles();
+  }, [state.levelId]);
 
   useDevHotkeys({
     enabled: isDev,
@@ -65,6 +78,7 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
           onDevResetBoard={onDevResetBoard}
           onDevPrevLevel={onDevPrevLevel}
           onDevNextLevel={onDevNextLevel}
+          onDevNextTilesPalette={onDevNextTilesPalette}
           swapMs={state.swapMs}
         />
       </div>

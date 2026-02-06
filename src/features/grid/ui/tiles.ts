@@ -2,204 +2,257 @@ import type { PieceType } from '@/gamelogic';
 
 export type TileSprite = {
   sheet: string;
+
+  // frame rect in the source atlas (px)
   x: number;
   y: number;
   w: number;
   h: number;
+
+  // atlas sheet size (px)
   sheetW: number;
   sheetH: number;
 };
 
-type AtlasFrame = {
-  frame: { x: number; y: number; w: number; h: number };
-  rotated?: boolean;
-  trimmed?: boolean;
-};
-
 type AtlasJson = {
-  frames: Record<string, AtlasFrame>;
-  meta: { size: { w: number; h: number } };
-};
-
-type TilesetJson = {
-  id?: string;
-  version?: number;
-  pieces: Record<PieceType, string>;
-  specials: {
-    gateClosed: string;
-    gateOpen: string;
-    firewall: string;
+  frames: Record<
+    string,
+    {
+      frame: { x: number; y: number; w: number; h: number };
+      rotated?: boolean;
+      trimmed?: boolean;
+      spriteSourceSize?: { x: number; y: number; w: number; h: number };
+      sourceSize?: { w: number; h: number };
+    }
+  >;
+  meta?: {
+    image?: string;
+    size?: { w: number; h: number };
+    scale?: string;
   };
 };
 
-type JsonModule<T> = { default: T };
+type TilesetJson = {
+  id: string;
+
+  // NEW (Fall 2): a tileset can contain MANY basics (e.g. 20).
+  // basics maps "basicId" -> "frameKey" (frameKey must exist in atlas.frames)
+  basics?: Record<string, string>;
+
+  // palettes map "paletteName" -> PieceType -> (basicId OR frameKey)
+  palettes?: Record<string, Partial<Record<PieceType, string>>>;
+
+  // optional: default palette name
+  defaultPalette?: string;
+
+  // optional: per-level palette routing (keys are LevelId as string)
+  levelPalettes?: Record<string, string>;
+
+  // Legacy (still supported): direct PieceType -> frameKey
+  pieces?: Record<PieceType, string>;
+
+  // Specials (frameKey OR basicId)
+  specials?: Record<string, string>;
+};
 
 type LoadedTileset = {
   id: string;
-  atlasUrl: string;
+  cfg: TilesetJson;
   atlas: AtlasJson;
-  spec: TilesetJson;
+  sheetUrl: string;
 };
 
-const DEFAULT_TILESET_ID = '00-default';
-
-const PIECE_TYPES: PieceType[] = ['red', 'blue', 'green', 'purple', 'orange', 'cyan', 'pink', 'yellow'];
-const SPECIAL_KEYS = ['gateClosed', 'gateOpen', 'firewall'] as const;
-
-function tilesetIdFromPath(p: string): string {
-  const marker = '/src/assets/tiles/';
-  const i = p.indexOf(marker);
-  if (i < 0) return '';
-  const rest = p.slice(i + marker.length);
-  return rest.split('/')[0] ?? '';
+function envStr(v: unknown): string | null {
+  if (typeof v !== 'string') return null;
+  const s = v.trim();
+  return s.length ? s : null;
 }
 
-function buildIndex(): Record<string, LoadedTileset> {
-  const atlasUrls = import.meta.glob('/src/assets/tiles/*/atlas.png', { eager: true, import: 'default' }) as Record<string, string>;
-  const atlasJsons = import.meta.glob('/src/assets/tiles/*/atlas.json', { eager: true }) as Record<string, JsonModule<AtlasJson>>;
-  const tilesetJsons = import.meta.glob('/src/assets/tiles/*/tileset.json', { eager: true }) as Record<string, JsonModule<TilesetJson>>;
+const tilesetMods = import.meta.glob('../../../assets/tiles/*/tileset.json', { eager: true, import: 'default' }) as Record<string, TilesetJson>;
+const atlasMods = import.meta.glob('../../../assets/tiles/*/atlas.json', { eager: true, import: 'default' }) as Record<string, AtlasJson>;
+const sheetMods = import.meta.glob('../../../assets/tiles/*/atlas.png', { eager: true, import: 'default' }) as Record<string, string>;
 
-  const idx: Record<string, LoadedTileset> = {};
+function extractTilesetId(path: string): string | null {
+  const key = '/assets/tiles/';
+  const i = path.lastIndexOf(key);
+  if (i < 0) return null;
 
-  for (const [path, url] of Object.entries(atlasUrls)) {
-    const id = tilesetIdFromPath(path);
-    if (!id) continue;
+  const rest = path.slice(i + key.length); // "{id}/tileset.json"
+  const slash = rest.indexOf('/');
+  if (slash < 0) return null;
 
-    const atlasPath = `/src/assets/tiles/${id}/atlas.json`;
-    const specPath = `/src/assets/tiles/${id}/tileset.json`;
-
-    const atlasMod = atlasJsons[atlasPath];
-    const specMod = tilesetJsons[specPath];
-    if (!atlasMod?.default || !specMod?.default) continue;
-
-    idx[id] = { id, atlasUrl: url, atlas: atlasMod.default, spec: specMod.default };
-  }
-
-  return idx;
+  return rest.slice(0, slash);
 }
 
-const INDEX = buildIndex();
+const TILESETS_BY_ID: Record<string, LoadedTileset> = {};
 
-function getRequestedTilesetId(): string | null {
-  const raw = import.meta.env.VITE_TILESET as string | undefined;
-  const v = typeof raw === 'string' ? raw.trim() : '';
-  return v ? v : null;
-}
+for (const [tilesetPath, cfg] of Object.entries(tilesetMods)) {
+  const id = extractTilesetId(tilesetPath);
+  if (!id) continue;
 
-function pickTileset(): LoadedTileset | null {
-  const requested = getRequestedTilesetId();
-  const isDev = import.meta.env.DEV;
+  const atlasPath = tilesetPath.replace('tileset.json', 'atlas.json');
+  const sheetPath = tilesetPath.replace('tileset.json', 'atlas.png');
 
-  if (requested && !INDEX[requested]) {
-    const known = Object.keys(INDEX).sort().join(', ');
-    const msg = `Unknown VITE_TILESET "${requested}". Known: ${known || '(none)'}`;
-    if (isDev) throw new Error(msg);
-    console.warn(msg);
-  }
+  const atlas = atlasMods[atlasPath];
+  const sheetUrl = sheetMods[sheetPath];
 
-  const id = requested && INDEX[requested] ? requested : DEFAULT_TILESET_ID;
-  const ts = INDEX[id] ?? null;
-
-  if (!ts) {
-    const known = Object.keys(INDEX).sort().join(', ');
-    const msg = `Missing tileset "${id}". Known: ${known || '(none)'}`;
-    if (isDev) throw new Error(msg);
-    console.warn(msg);
-  }
-
-  return ts;
-}
-
-function failOrWarn(msg: string): void {
-  if (import.meta.env.DEV) throw new Error(msg);
-  console.warn(msg);
-}
-
-function validateAtlas(atlas: AtlasJson): void {
-  if (!atlas?.frames || !atlas?.meta?.size) {
-    failOrWarn('Invalid atlas.json: expected { frames, meta.size }.');
-    return;
-  }
-
-  for (const [k, v] of Object.entries(atlas.frames)) {
-    if (v.rotated || v.trimmed) {
-      failOrWarn(`Unsupported atlas frame "${k}": rotated/trimmed not supported (must be false).`);
-      return;
+  if (!atlas || !sheetUrl) {
+    // fail fast in dev builds (misconfigured folder)
+    if (import.meta.env.DEV) {
+      throw new Error(`Tileset "${id}" missing atlas.json or atlas.png (expected: ${atlasPath}, ${sheetPath})`);
     }
-  }
-}
-
-function validateTileset(ts: LoadedTileset): void {
-  validateAtlas(ts.atlas);
-
-  for (const t of PIECE_TYPES) {
-    const frameKey = ts.spec?.pieces?.[t];
-    if (!frameKey) failOrWarn(`tileset.json missing pieces.${t} in tileset "${ts.id}".`);
-    if (frameKey && !ts.atlas.frames[frameKey]) failOrWarn(`tileset "${ts.id}": frame "${frameKey}" not found in atlas (pieces.${t}).`);
+    continue;
   }
 
-  for (const k of SPECIAL_KEYS) {
-    const frameKey = ts.spec?.specials?.[k];
-    if (!frameKey) failOrWarn(`tileset.json missing specials.${k} in tileset "${ts.id}".`);
-    if (frameKey && !ts.atlas.frames[frameKey]) failOrWarn(`tileset "${ts.id}": frame "${frameKey}" not found in atlas (specials.${k}).`);
+  TILESETS_BY_ID[id] = { id, cfg, atlas, sheetUrl };
+}
+
+function pickDefaultTilesetId(): string | null {
+  const ids = Object.keys(TILESETS_BY_ID).sort();
+  if (!ids.length) return null;
+
+  const envId = envStr((import.meta as any).env?.VITE_TILESET);
+  if (envId && TILESETS_BY_ID[envId]) return envId;
+
+  return ids[0] ?? null;
+}
+
+let activeTilesetId: string | null = pickDefaultTilesetId();
+let currentLevelId: number | null = null;
+
+// manual override (dev): if set, it wins over env/level/default
+let manualPaletteName: string | null = null;
+
+function getActive(): LoadedTileset | null {
+  if (!activeTilesetId) return null;
+  return TILESETS_BY_ID[activeTilesetId] ?? null;
+}
+
+function resolvePaletteName(cfg: TilesetJson): string | null {
+  if (manualPaletteName) return manualPaletteName;
+
+  const envPalette = envStr((import.meta as any).env?.VITE_TILE_PALETTE);
+  if (envPalette && cfg.palettes?.[envPalette]) return envPalette;
+
+  if (currentLevelId !== null) {
+    const byLevel = cfg.levelPalettes?.[String(currentLevelId)];
+    if (byLevel && cfg.palettes?.[byLevel]) return byLevel;
   }
+
+  const def = cfg.defaultPalette;
+  if (def && cfg.palettes?.[def]) return def;
+
+  return null;
 }
 
-const ACTIVE = pickTileset();
-if (ACTIVE) validateTileset(ACTIVE);
-
-export function getActiveTilesetId(): string | null {
-  return ACTIVE?.id ?? null;
+function resolveFrameKeyFromPaletteValue(cfg: TilesetJson, v: string): string {
+  // If "v" is a basicId and exists in basics -> map to frameKey, else assume it's already a frameKey.
+  const mapped = cfg.basics?.[v];
+  return mapped ?? v;
 }
 
-function frameToSprite(frameKey: string): TileSprite | null {
-  if (!ACTIVE) return null;
+function frameToSprite(sheetUrl: string, atlas: AtlasJson, frameKey: string): TileSprite | null {
+  const f = atlas.frames?.[frameKey]?.frame;
+  const size = atlas.meta?.size;
 
-  const f = ACTIVE.atlas.frames?.[frameKey];
-  const size = ACTIVE.atlas.meta?.size;
   if (!f || !size) return null;
 
   return {
-    sheet: ACTIVE.atlasUrl,
-    x: f.frame.x,
-    y: f.frame.y,
-    w: f.frame.w,
-    h: f.frame.h,
+    sheet: sheetUrl,
+    x: f.x,
+    y: f.y,
+    w: f.w,
+    h: f.h,
     sheetW: size.w,
     sheetH: size.h,
   };
 }
 
-export function getTileSprite(type: PieceType): TileSprite | null {
-  if (!ACTIVE) return null;
+function getFrameKeyForPieceType(cfg: TilesetJson, type: PieceType): string | null {
+  const paletteName = resolvePaletteName(cfg);
+  if (paletteName) {
+    const palette = cfg.palettes?.[paletteName];
+    const v = palette?.[type];
+    if (v) return resolveFrameKeyFromPaletteValue(cfg, v);
+  }
 
-  const frameKey = ACTIVE.spec?.pieces?.[type];
+  const legacy = cfg.pieces?.[type];
+  return legacy ?? null;
+}
+
+function getFrameKeyForSpecial(cfg: TilesetJson, key: string): string | null {
+  const v = cfg.specials?.[key];
+  if (!v) return null;
+  return resolveFrameKeyFromPaletteValue(cfg, v);
+}
+
+export function setTilesetLevel(levelId: number): void {
+  currentLevelId = levelId;
+}
+
+export function clearManualTilesetPalette(): void {
+  manualPaletteName = null;
+}
+
+export function getAvailablePalettes(): string[] {
+  const t = getActive();
+  const names = Object.keys(t?.cfg.palettes ?? {});
+  names.sort();
+  return names;
+}
+
+export function cycleTilesetPalette(): string | null {
+  const t = getActive();
+  if (!t) return null;
+
+  const names = getAvailablePalettes();
+  if (!names.length) return null;
+
+  const current = resolvePaletteName(t.cfg) ?? '';
+  const idx = Math.max(-1, names.indexOf(current));
+  const next = names[(idx + 1) % names.length] ?? names[0]!;
+  manualPaletteName = next;
+
+  return next;
+}
+
+export function getTilesetRuntimeInfo(): { tilesetId: string | null; palette: string | null; paletteMode: 'auto' | 'manual' } {
+  const t = getActive();
+  if (!t) return { tilesetId: null, palette: null, paletteMode: 'auto' };
+
+  const palette = resolvePaletteName(t.cfg);
+  return { tilesetId: t.id, palette, paletteMode: manualPaletteName ? 'manual' : 'auto' };
+}
+
+export function getTileSprite(type: PieceType): TileSprite | null {
+  const t = getActive();
+  if (!t) return null;
+
+  const frameKey = getFrameKeyForPieceType(t.cfg, type);
   if (!frameKey) return null;
 
-  return frameToSprite(frameKey);
+  return frameToSprite(t.sheetUrl, t.atlas, frameKey);
 }
 
 export function getGateSprite(open: boolean): TileSprite | null {
-  if (!ACTIVE) return null;
+  const t = getActive();
+  if (!t) return null;
 
-  const frameKey = open ? ACTIVE.spec?.specials?.gateOpen : ACTIVE.spec?.specials?.gateClosed;
+  const frameKey = open ? getFrameKeyForSpecial(t.cfg, 'gateOpen') : getFrameKeyForSpecial(t.cfg, 'gateClosed');
   if (!frameKey) return null;
 
-  return frameToSprite(frameKey);
-}
-
-export function getFirewallSprite(): TileSprite | null {
-  if (!ACTIVE) return null;
-
-  const frameKey = ACTIVE.spec?.specials?.firewall;
-  if (!frameKey) return null;
-
-  return frameToSprite(frameKey);
+  return frameToSprite(t.sheetUrl, t.atlas, frameKey);
 }
 
 export function preloadTiles(): void {
-  if (!ACTIVE) return;
+  const t = getActive();
+  if (!t) return;
 
-  const img = new Image();
-  img.src = ACTIVE.atlasUrl;
+  const urls = new Set<string>();
+  urls.add(t.sheetUrl);
+
+  for (const u of urls) {
+    const img = new Image();
+    img.src = u;
+  }
 }

@@ -1,8 +1,7 @@
 import type { Cell } from '@/gamelogic';
 import { xyOf } from '@/gamelogic';
 import { GAP, TILE_SIZE } from '../lib/constants';
-import type { TileSprite } from './tiles';
-import { getGateSprite, getFirewallSprite } from './tiles';
+import { getGateSprite } from './tiles';
 
 type Props = {
   width: number;
@@ -11,18 +10,6 @@ type Props = {
   onCellPointerDown: (index: number, e: React.PointerEvent<HTMLButtonElement>) => void;
   showDebugLabels?: boolean;
 };
-
-function spriteToStyle(sprite: TileSprite): React.CSSProperties {
-  const scaleX = TILE_SIZE / sprite.w;
-  const scaleY = TILE_SIZE / sprite.h;
-
-  return {
-    backgroundImage: 'url(' + sprite.sheet + ')',
-    backgroundRepeat: 'no-repeat',
-    backgroundSize: `${sprite.sheetW * scaleX}px ${sprite.sheetH * scaleY}px`,
-    backgroundPosition: `${-sprite.x * scaleX}px ${-sprite.y * scaleY}px`,
-  };
-}
 
 export default function GridCellsLayer({ width, height, cells, onCellPointerDown, showDebugLabels = false }: Props) {
   return (
@@ -36,10 +23,8 @@ export default function GridCellsLayer({ width, height, cells, onCellPointerDown
     >
       {cells.map((cell, index) => {
         const isGate = cell.obstacle === 'gate';
-        const isFirewall = cell.obstacle === 'firewall';
-
         const blockedOverlayStyle: React.CSSProperties | undefined =
-          cell.blocked && !isGate && !isFirewall
+          cell.blocked && !isGate
             ? {
                 backgroundImage:
                   'repeating-linear-gradient(45deg, rgba(255,255,255,0.06), rgba(255,255,255,0.06) 6px, rgba(255,255,255,0.0) 6px, rgba(255,255,255,0.0) 12px)',
@@ -47,10 +32,19 @@ export default function GridCellsLayer({ width, height, cells, onCellPointerDown
             : undefined;
 
         const gateSprite = isGate ? getGateSprite(!!cell.gateOpen) : null;
-        const firewallSprite = isFirewall ? getFirewallSprite() : null;
 
-        const gateSpriteStyle: React.CSSProperties | undefined = gateSprite ? spriteToStyle(gateSprite) : undefined;
-        const firewallSpriteStyle: React.CSSProperties | undefined = firewallSprite ? spriteToStyle(firewallSprite) : undefined;
+        // Render atlas frame as a full-tile background (same scaling logic as <Tile />)
+        const gateSpriteStyle: React.CSSProperties | undefined = gateSprite
+          ? (() => {
+              const scale = TILE_SIZE / gateSprite.w;
+              return {
+                backgroundImage: `url(${gateSprite.sheet})`,
+                backgroundRepeat: 'no-repeat',
+                backgroundSize: `${gateSprite.sheetW * scale}px ${gateSprite.sheetH * scale}px`,
+                backgroundPosition: `${-gateSprite.x * scale}px ${-gateSprite.y * scale}px`,
+              };
+            })()
+          : undefined;
 
         const base = [
           'relative rounded-xl border',
@@ -83,25 +77,17 @@ export default function GridCellsLayer({ width, height, cells, onCellPointerDown
             ) : null}
 
             {isGate ? (
-              <div
-                className={[
-                  'absolute inset-2 rounded-lg border border-white/10',
-                  cell.gateOpen
-                    ? 'bg-emerald-500/10 shadow-[0_0_18px_rgba(16,185,129,0.18)]'
-                    : 'bg-fuchsia-500/10 shadow-[0_0_18px_rgba(217,70,239,0.18)]',
-                ].join(' ')}
-              >
-                <div className="absolute inset-1 rounded-md opacity-90" style={gateSpriteStyle} />
-              </div>
-            ) : isFirewall ? (
-              <div className="absolute inset-2 rounded-lg border border-white/10 bg-rose-500/10 shadow-[0_0_18px_rgba(244,63,94,0.18)]">
-                <div className="absolute inset-1 rounded-md opacity-90" style={firewallSpriteStyle} />
-                {showDebugLabels ? (
-                  <div className="absolute bottom-1 right-1 text-[10px] leading-none text-white/80 drop-shadow font-mono">
-                    {cell.hp ?? ''}
-                  </div>
-                ) : null}
-              </div>
+              <>
+                <div className="absolute inset-0 rounded-xl opacity-90" style={gateSpriteStyle} />
+                <div
+                  className={[
+                    'absolute inset-2 rounded-lg border border-white/10',
+                    cell.gateOpen
+                      ? 'bg-emerald-500/10 shadow-[0_0_18px_rgba(16,185,129,0.18)]'
+                      : 'bg-fuchsia-500/10 shadow-[0_0_18px_rgba(217,70,239,0.18)]',
+                  ].join(' ')}
+                />
+              </>
             ) : cell.blocked ? (
               <div className="absolute inset-0 flex items-center justify-center text-white/20 text-2xl">✕</div>
             ) : null}

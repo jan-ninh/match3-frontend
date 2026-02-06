@@ -44,14 +44,13 @@ export default function Tile({ type, selected, dragging, preview, locked, shakin
     );
   }
 
-  const scaleX = TILE_SIZE / sprite.w;
-  const scaleY = TILE_SIZE / sprite.h;
+  const scale = TILE_SIZE / sprite.w;
 
   const spriteStyle: CSSProperties = {
     backgroundImage: `url(${sprite.sheet})`,
     backgroundRepeat: 'no-repeat',
-    backgroundSize: `${sprite.sheetW * scaleX}px ${sprite.sheetH * scaleY}px`,
-    backgroundPosition: `${-sprite.x * scaleX}px ${-sprite.y * scaleY}px`,
+    backgroundSize: `${sprite.sheetW * scale}px ${sprite.sheetH * scale}px`,
+    backgroundPosition: `${-sprite.x * scale}px ${-sprite.y * scale}px`,
   };
 
   return (

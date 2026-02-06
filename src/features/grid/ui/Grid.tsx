@@ -41,6 +41,7 @@ type Props = {
   // dev action: level nav (only shown when debugEnabled)
   onDevPrevLevel?: () => void;
   onDevNextLevel?: () => void;
+  onDevNextTilesPalette?: () => void;
 };
 
 type CssVars = CSSProperties & { '--boardDim'?: number };
@@ -57,6 +58,7 @@ export default function Grid({
   onDevResetBoard,
   onDevPrevLevel,
   onDevNextLevel,
+  onDevNextTilesPalette,
 }: Props) {
   const { width, height, cells, selectedIndex } = state;
 
@@ -134,8 +136,19 @@ export default function Grid({
         onPress: onDevResetBoard,
         disabled: inputLocked,
       },
-    ];
-  }, [onDevPrevLevel, onDevNextLevel, onDevResetBoard, inputLocked]);
+    
+      {
+
+        kind: 'action' as const,
+
+        label: 'tiles: Next palette',
+
+        onPress: onDevNextTilesPalette,
+
+        disabled: inputLocked,
+
+      },];
+  }, [onDevPrevLevel, onDevNextLevel, onDevResetBoard, onDevNextTilesPalette, inputLocked]);
 
   const lockoutCursor = inputLocked && showLockoutHints ? 'cursor-not-allowed' : '';
   const showDebugLabels = isDev && debugEnabled;
