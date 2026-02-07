@@ -10,7 +10,7 @@ export const DASHBOARD_STYLE = {
   text: {
     primary: 'text-gray-800',
     secondary: 'text-gray-600',
-    muted: 'text-gray-400',
+    muted: 'text-white/70',
   },
   progress: {
     track: 'bg-white/60',
