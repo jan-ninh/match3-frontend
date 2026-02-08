@@ -24,8 +24,11 @@ export default function GridCellsLayer({ width, height, cells, onCellPointerDown
       {cells.map((cell, index) => {
         const isGate = cell.obstacle === 'gate';
         const isFirewall = cell.obstacle === 'firewall';
+        const { x, y } = xyOf(index, width);
+        const isCornerBlocked = cell.blocked && !isGate && !isFirewall && x >= width - 2 && y >= height - 2;
+
         const blockedOverlayStyle: React.CSSProperties | undefined =
-          cell.blocked && !isGate && !isFirewall
+          cell.blocked && !isGate && !isFirewall && !isCornerBlocked
             ? {
                 backgroundImage:
                   'repeating-linear-gradient(45deg, rgba(255,255,255,0.06), rgba(255,255,255,0.06) 6px, rgba(255,255,255,0.0) 6px, rgba(255,255,255,0.0) 12px)',
@@ -46,6 +49,20 @@ export default function GridCellsLayer({ width, height, cells, onCellPointerDown
               };
             })()
           : undefined;
+        const cornerSprite = isCornerBlocked ? getGateSprite(false) : null;
+
+        const cornerSpriteStyle: React.CSSProperties | undefined = cornerSprite
+          ? (() => {
+              const scale = TILE_SIZE / cornerSprite.w;
+              return {
+                backgroundImage: `url(${cornerSprite.sheet})`,
+                backgroundRepeat: 'no-repeat',
+                backgroundSize: `${cornerSprite.sheetW * scale}px ${cornerSprite.sheetH * scale}px`,
+                backgroundPosition: `${-cornerSprite.x * scale}px ${-cornerSprite.y * scale}px`,
+              };
+            })()
+          : undefined;
+
 
         const base = [
           'relative rounded-xl border',
@@ -56,7 +73,6 @@ export default function GridCellsLayer({ width, height, cells, onCellPointerDown
           'hover:scale-[1.02]',
         ].join(' ');
 
-        const { x, y } = xyOf(index, width);
 
         return (
           <button
@@ -116,6 +132,8 @@ export default function GridCellsLayer({ width, height, cells, onCellPointerDown
                   </div>
                 ) : null}
               </>
+            ) : isCornerBlocked && cornerSpriteStyle ? (
+              <div className="absolute inset-0 rounded-xl opacity-95" style={cornerSpriteStyle} />
             ) : cell.blocked ? (
               <div className="absolute inset-0 flex items-center justify-center text-white/20 text-2xl">✕</div>
             ) : null}
@@ -125,3 +143,4 @@ export default function GridCellsLayer({ width, height, cells, onCellPointerDown
     </div>
   );
 }
+

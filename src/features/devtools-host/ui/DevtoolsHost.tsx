@@ -11,13 +11,32 @@ import GameContainer from './GameContainer';
 
 type Props = {
   initialLevelId?: number;
+
+  onWin?: (levelId: number) => void;
+  onLose?: (levelId: number) => void;
 };
 
-export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
+export default function DevtoolsHost({ initialLevelId = 1, onWin, onLose }: Props) {
   const [showLockoutHints, setShowLockoutHints] = useState<boolean>(false);
   const [debugEnabled, setDebugEnabled] = useState<boolean>(false);
 
-  const { isDev, state, inputLocked, canSwapAt, onIntent, onDevResetBoard, onDevNextLevel, onDevPrevLevel, events } = useMatch3Engine({ initialLevelId });
+  const { isDev, state, inputLocked, canSwapAt, onIntent, onDevResetBoard, onDevNextLevel, onDevPrevLevel, events } = useMatch3Engine({
+    initialLevelId,
+  });
+
+  const prevPhaseRef = useRef(state.phase);
+
+  useEffect(() => {
+    const prev = prevPhaseRef.current;
+    const next = state.phase;
+
+    if (prev !== next) {
+      if (next === 'win') onWin?.(state.levelId);
+      if (next === 'lose') onLose?.(state.levelId);
+    }
+
+    prevPhaseRef.current = next;
+  }, [state.phase, state.levelId, onWin, onLose]);
 
   const gridRowRef = useRef<HTMLDivElement | null>(null);
 
