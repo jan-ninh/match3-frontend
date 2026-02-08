@@ -1,5 +1,5 @@
 import { GameFooter } from '@/components';
-import { DevtoolsHost } from '@/features/playground';
+import { DevtoolsHost } from '@/features/devtools-host';
 import { useOverlays } from '@/features/overlays';
 
 export default function GameplayPage() {

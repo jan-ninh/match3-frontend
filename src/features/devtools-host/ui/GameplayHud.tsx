@@ -1,4 +1,4 @@
-// src/features/playground/ui/GameplayHud.tsx
+// src/features/devtools-host/ui/GameplayHud.tsx
 type Props = {
   levelId: number;
 
