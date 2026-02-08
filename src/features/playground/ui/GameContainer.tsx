@@ -1,41 +1,75 @@
-// src/features/playground/ui/GameContainer.tsx
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
+import type { RefObject } from 'react';
+
+import type { EngineState } from '@/gamelogic';
 
 import { Grid } from '@/features/grid';
-import { cycleTilesetPalette, setTilesetLevel, preloadTiles } from '@/features/grid/ui/tiles';
+import { preloadTiles, setTilesetLevel } from '@/features/grid/ui/tiles';
 
-import { useDevHotkeys } from '../lib/useDevHotkeys';
-import { useDevPanelsTopSync } from '../lib/useDevPanelsTopSync';
-import { useMatch3Engine } from '../lib/useMatch3Engine';
-import DevPanels from './DevPanels';
 import GameplayHud from './GameplayHud';
 
 type Props = {
-  initialLevelId?: number;
+  state: EngineState;
+
+  inputLocked: boolean;
+
+  // Game rules injected: Grid doesn't know what is "legal".
+  canSwapAt: (from: number, to: number) => boolean;
+
+  // Grid emits only intents. Parent decides what to do with them.
+  onIntent: (intent: { type: 'click'; index: number } | { type: 'swap'; from: number; to: number }) => void;
+
+  // Runtime / environment
+  isDev?: boolean;
+  debugEnabled?: boolean;
+
+  // Dev-only visuals for lockout feedback (cursor/dim/badge).
+  showLockoutHints?: boolean;
+  onToggleShowLockoutHints?: () => void;
+
+  // Dev actions (optional)
+  onDevResetBoard?: () => void;
+  onDevPrevLevel?: () => void;
+  onDevNextLevel?: () => void;
+  onDevNextTilesPalette?: () => void;
+
+  // Optional ref injection (devtoolsHost uses this for panel top sync)
+  gridRowRef?: RefObject<HTMLDivElement | null>;
+
+  // Used by devtoolsHost to force rerender on tiles palette changes.
+  // Not used directly here, but prop changes trigger re-render.
+  tilesVersion?: number;
 };
 
-export default function GameContainer({ initialLevelId = 1 }: Props) {
-  const [showLockoutHints, setShowLockoutHints] = useState<boolean>(false);
-  const [debugEnabled, setDebugEnabled] = useState<boolean>(false);
+export default function GameContainer(props: Props) {
+  const {
+    state,
+    inputLocked,
+    canSwapAt,
+    onIntent,
 
-  const { isDev, state, inputLocked, canSwapAt, onIntent, onDevResetBoard, onDevNextLevel, onDevPrevLevel, events } = useMatch3Engine({ initialLevelId });
-  const [, bumpTilesRerender] = useState(0);
+    isDev = false,
+    debugEnabled = false,
 
-  const onDevNextTilesPalette = () => {
-    cycleTilesetPalette();
-    preloadTiles();
-    bumpTilesRerender((v) => (v + 1) | 0);
-  };
+    showLockoutHints = false,
+    onToggleShowLockoutHints,
+
+    onDevResetBoard,
+    onDevPrevLevel,
+    onDevNextLevel,
+    onDevNextTilesPalette,
+
+    gridRowRef: externalGridRowRef,
+  } = props;
+
+  // allow devtoolsHost to inject the ref; otherwise fall back to an internal one
+  const internalGridRowRef = useRef<HTMLDivElement | null>(null);
+  const gridRowRef = externalGridRowRef ?? internalGridRowRef;
 
   useEffect(() => {
     setTilesetLevel(state.levelId);
     preloadTiles();
   }, [state.levelId]);
-
-  useDevHotkeys({
-    enabled: isDev,
-    onToggle: () => setDebugEnabled((v) => !v),
-  });
 
   const breachTotal = state.breachesTotal ?? 0;
   const breachLeft = state.breachesRemaining ?? 0;
@@ -44,18 +78,8 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
   const isWin = state.phase === 'win';
   const isLose = state.phase === 'lose';
 
-  const gridRowRef = useRef<HTMLDivElement | null>(null);
-
-  useDevPanelsTopSync({
-    enabled: isDev && debugEnabled,
-    gridRowRef,
-    deps: [state.levelId, state.width, state.height, showLockoutHints],
-  });
-
   return (
     <div className="w-full">
-      <DevPanels enabled={isDev && debugEnabled} events={events} />
-
       <GameplayHud
         levelId={state.levelId}
         gateOpen={state.gateOpen}
@@ -71,7 +95,7 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
           state={state}
           inputLocked={inputLocked}
           showLockoutHints={showLockoutHints}
-          onToggleShowLockoutHints={() => setShowLockoutHints((v) => !v)}
+          onToggleShowLockoutHints={onToggleShowLockoutHints}
           canSwapAt={canSwapAt}
           onIntent={onIntent}
           debugEnabled={debugEnabled}
@@ -82,6 +106,9 @@ export default function GameContainer({ initialLevelId = 1 }: Props) {
           swapMs={state.swapMs}
         />
       </div>
+
+      {/* keep props read for React rerendering on dev palette changes */}
+      {isDev ? null : null}
     </div>
   );
 }
