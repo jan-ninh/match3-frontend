@@ -16,12 +16,13 @@ export function getLevelDefinition(levelId: number): LevelDefinition {
 
   // “Nodes” (firewall) must be damaged by making matches adjacent to them.
   // Each node has hp=2 => needs 2 adjacent match-resolves (can be across turns/cascades).
+  const hp = 3;
   const firewallNodes =
     levelId === 1
       ? [
-          { index: 2 + 2 * width, hp: 2 }, // (2,2)
-          { index: 5 + 3 * width, hp: 2 }, // (5,3)
-          { index: 3 + 5 * width, hp: 2 }, // (3,5)
+          { index: 2 + 2 * width, hp }, // (2,2)
+          { index: 5 + 3 * width, hp }, // (5,3)
+          { index: 3 + 5 * width, hp }, // (3,5)
         ]
       : [];
 
