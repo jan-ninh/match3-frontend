@@ -13,7 +13,7 @@ export function makeLevel01({ baseSeed, allowedTypes }: Args): LevelDefinition {
   const width = 8;
   const height = 8;
 
-  // Exit gate (2x2) in level 1 only (bottom-right)
+  // Blocked corner cells (2x2) in Level 1 (bottom-right)
   // (6,6) (7,6) (6,7) (7,7)
   const cornerBlocks = [6 + 6 * width, 7 + 6 * width, 6 + 7 * width, 7 + 7 * width];
 
@@ -26,10 +26,10 @@ export function makeLevel01({ baseSeed, allowedTypes }: Args): LevelDefinition {
     { index: 3 + 5 * width, hp }, // (3,5)
   ];
 
-  // Gate tiles are blocked cells that become “open” once all nodes are destroyed.
-  const gateIndices = cornerBlocks;
+  // Gate system exists in engine, but Level 01 doesn't use gate tiles yet.
+  const gateIndices: number[] = [];
 
-  // Block the objective tiles themselves (nodes + gate footprint).
+  // Block the objective tiles themselves (nodes + corner blocks).
   const blockedIndices = [...cornerBlocks, ...firewallNodes.map((n) => n.index)];
 
   // Tighter than 20 so Level 1 has a little bite.
