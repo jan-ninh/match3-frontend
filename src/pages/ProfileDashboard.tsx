@@ -48,17 +48,18 @@ export default function ProfileDashboard() {
   }, [profile, currentStage]);
 
   const achievedBadges = useMemo(() => {
-    if (!profile) return [];
-    // Map profile badges to badge data
-    return profile.badges.map((badge) => {
-      const badgeData = badges.find((b) => b.id === badge.badgeKey);
-      return {
-        id: badgeData?.id || badge.badgeKey,
-        label: badgeData?.label || 'Unknown Badge',
-        icon: badgeData?.icon || '🏆',
-        unlocked: true,
-      };
-    });
+    if (!profile) return badges;
+    
+    // Create a set of unlocked badge keys from profile for O(1) lookup
+    const unlockedKeys = new Set(profile.badges.map((b) => b.badgeKey));
+    
+    // Map all badges from data, checking if each is unlocked
+    return badges.map((badge) => ({
+      id: badge.id,
+      label: badge.label,
+      icon: badge.icon,
+      unlocked: unlockedKeys.has(badge.id),
+    }));
   }, [profile]);
 
   if (!profile) {
