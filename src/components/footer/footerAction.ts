@@ -1,32 +1,39 @@
 type ActionItem = {
   id: string;
   icon: string;
-  badge?: string;
   label: string;
   onClick: () => void;
+  badge?: string;
+  count?: number;
 };
 
-export const footerActions = (openSettings: () => void): ActionItem[] => [
+import type { PowerKey, Powers } from '@/types';
+
+export const footerActions = (
+  openSettings: () => void,
+  powers: Powers,
+  onUsePower: (key: PowerKey) => void,
+): ActionItem[] => [
   {
-    id: 'power-up',
-    label: 'Power Choice',
-    icon: '/icons/extraTime.svg',
-    badge: '/icons/flash.svg',
-    onClick: () => console.log('extraTime Choice clicked'),
-  },
-  {
-    id: 'debug-win',
-    label: 'Debug Win',
+    id: 'bomb',
+    label: 'Bomb',
     icon: '/icons/bomb.svg',
-    badge: '/icons/flash.svg',
-    onClick: () => console.log('Bomb Choice clicked'),
+    count: powers.bomb,
+    onClick: () => onUsePower('bomb'),
   },
   {
-    id: 'debug-lose',
-    label: 'Debug Lose',
+    id: 'rocket',
+    label: 'Rocket',
     icon: '/icons/rocket.svg',
-    badge: '/icons/flash.svg',
-    onClick: () => console.log('Power Choice clicked'),
+    count: powers.rocket,
+    onClick: () => onUsePower('rocket'),
+  },
+  {
+    id: 'extraTime',
+    label: 'Extra Time',
+    icon: '/icons/extraTime.svg',
+    count: powers.extraTime,
+    onClick: () => onUsePower('extraTime'),
   },
   {
     id: 'tip',
