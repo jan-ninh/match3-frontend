@@ -11,7 +11,7 @@ type Props = { badges: Badge[] };
 
 export default function BadgeGrid({ badges }: Props) {
   return (
-    <div className={`grid grid-cols-3 gap-3 justify-items-center rounded-2xl p-4 bg-white/50 backdrop-blur-md ${S.glass.full}`}>
+    <div className={`grid grid-cols-3 gap-3 justify-items-center rounded-2xl p-4 bg-white/10 backdrop-blur-sm ${S.glass.full}`}>
       {badges.map((badge) => (
         <div
           key={badge.id}

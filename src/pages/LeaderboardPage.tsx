@@ -46,7 +46,7 @@ export default function LeaderboardPage() {
   return (
     <>
       <Navbar />
-      <div className="max-w-xl mx-auto bg-gray-100 text-gray-900 p-6 rounded-xl">
+      <div className="max-w-xl mx-auto backdrop-blur-sm bg-white/10 text-gray-900 p-6 rounded-xl">
         {loading && <div className="text-center text-gray-500 py-8">Loading leaderboard...</div>}
         {!loading && error && <div className="text-center text-red-600 py-8">{error}</div>}
 
