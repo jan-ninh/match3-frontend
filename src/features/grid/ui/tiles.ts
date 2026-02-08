@@ -111,13 +111,14 @@ function pickDefaultTilesetId(): string | null {
   const ids = Object.keys(TILESETS_BY_ID).sort();
   if (!ids.length) return null;
 
-  const envId = envStr((import.meta as any).env?.VITE_TILESET);
+  const envId = envStr(import.meta.env.VITE_TILESET);
+
   if (envId && TILESETS_BY_ID[envId]) return envId;
 
   return ids[0] ?? null;
 }
 
-let activeTilesetId: string | null = pickDefaultTilesetId();
+const activeTilesetId: string | null = pickDefaultTilesetId();
 let currentLevelId: number | null = null;
 
 // manual override (dev): if set, it wins over env/level/default
@@ -139,7 +140,8 @@ function getActive(): LoadedTileset | null {
 function resolvePaletteName(cfg: TilesetJson): string | null {
   if (manualPaletteName) return manualPaletteName;
 
-  const envPalette = envStr((import.meta as any).env?.VITE_TILE_PALETTE);
+  const envPalette = envStr(import.meta.env.VITE_TILE_PALETTE);
+
   if (envPalette && cfg.palettes?.[envPalette]) return envPalette;
 
   if (currentLevelId !== null) {
