@@ -2,11 +2,16 @@
 import badges from '@/data/badges';
 import { useNavigate } from 'react-router';
 import { useAuth } from '@/context/AuthContext';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 
 export default function ProfileDashboard() {
   const navigate = useNavigate();
-  const { profile } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
+
+  useEffect(() => {
+    if (!user || profile) return;
+    refreshProfile().catch(() => {});
+  }, [user, profile, refreshProfile]);
 
   const stats = useMemo(() => {
     if (!profile) return [];
