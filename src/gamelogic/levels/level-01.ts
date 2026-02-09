@@ -6,14 +6,22 @@ type Args = {
   allowedTypes: PieceType[];
 };
 
-export function makeLevel01({ baseSeed, allowedTypes }: Args): LevelDefinition {
-  const id = 1;
+type MakeLevelLike01Args = {
+  levelId: number;
+  baseSeed: number;
+  allowedTypes: PieceType[];
+};
 
-  // Smaller board for Level 1 clarity / faster pacing
+/**
+ * Level-01 rules template.
+ * Use this for early levels so they all share the same structure/objective (for now).
+ */
+export function makeLevelLike01({ levelId, baseSeed, allowedTypes }: MakeLevelLike01Args): LevelDefinition {
+  // Smaller board for clarity / faster pacing
   const width = 8;
   const height = 8;
 
-  // Blocked corner cells (2x2) in Level 1 (bottom-right)
+  // Blocked corner cells (2x2) in bottom-right:
   // (6,6) (7,6) (6,7) (7,7)
   const cornerBlocks = [6 + 6 * width, 7 + 6 * width, 6 + 7 * width, 7 + 7 * width];
 
@@ -26,19 +34,19 @@ export function makeLevel01({ baseSeed, allowedTypes }: Args): LevelDefinition {
     { index: 3 + 5 * width, hp }, // (3,5)
   ];
 
-  // Gate system exists in engine, but Level 01 doesn't use gate tiles yet.
+  // Gate system exists in engine, but template doesn't use gate tiles yet.
   const gateIndices: number[] = [];
 
   // Block the objective tiles themselves (nodes + corner blocks).
   const blockedIndices = [...cornerBlocks, ...firewallNodes.map((n) => n.index)];
 
-  // Tighter than 20 so Level 1 has a little bite.
+  // Tighter than 20 so it has a little bite.
   const moves = 14;
 
-  const seed = deriveSeed(baseSeed, id);
+  const seed = deriveSeed(baseSeed, levelId);
 
   return {
-    id,
+    id: levelId,
     width,
     height,
     moves,
@@ -48,4 +56,8 @@ export function makeLevel01({ baseSeed, allowedTypes }: Args): LevelDefinition {
     gateIndices,
     baseSeed: seed,
   };
+}
+
+export function makeLevel01({ baseSeed, allowedTypes }: Args): LevelDefinition {
+  return makeLevelLike01({ levelId: 1, baseSeed, allowedTypes });
 }
