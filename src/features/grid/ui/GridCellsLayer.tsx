@@ -24,7 +24,10 @@ export default function GridCellsLayer({ width, height, cells, onCellPointerDown
       {cells.map((cell, index) => {
         const isGate = cell.obstacle === 'gate';
         const isFirewall = cell.obstacle === 'firewall';
+
         const { x, y } = xyOf(index, width);
+
+        // bottom-right 2x2 (blocked) should show the old "gate" sprite (4th sprite)
         const isCornerBlocked = cell.blocked && !isGate && !isFirewall && x >= width - 2 && y >= height - 2;
 
         const blockedOverlayStyle: React.CSSProperties | undefined =
@@ -49,6 +52,7 @@ export default function GridCellsLayer({ width, height, cells, onCellPointerDown
               };
             })()
           : undefined;
+
         const cornerSprite = isCornerBlocked ? getGateSprite(false) : null;
 
         const cornerSpriteStyle: React.CSSProperties | undefined = cornerSprite
@@ -63,16 +67,20 @@ export default function GridCellsLayer({ width, height, cells, onCellPointerDown
             })()
           : undefined;
 
-
         const base = [
           'relative rounded-xl border',
           'focus:outline-none',
           'transition-transform duration-150',
-          isGate ? 'border-white/10 bg-[#111827]' : isFirewall ? 'border-cyan-300/25 bg-slate-950/70' : cell.blocked ? 'border-slate-700 bg-slate-900' : 'border-white/10 bg-[#111827]',
+          isGate
+            ? 'border-white/10 bg-[#111827]'
+            : isFirewall
+              ? 'border-cyan-300/25 bg-slate-950/70'
+              : cell.blocked
+                ? 'border-slate-700 bg-slate-900'
+                : 'border-white/10 bg-[#111827]',
           cell.blocked ? '' : 'shadow-sm',
           'hover:scale-[1.02]',
         ].join(' ');
-
 
         return (
           <button
@@ -99,9 +107,7 @@ export default function GridCellsLayer({ width, height, cells, onCellPointerDown
                 <div
                   className={[
                     'absolute inset-2 rounded-lg border border-white/10',
-                    cell.gateOpen
-                      ? 'bg-emerald-500/10 shadow-[0_0_18px_rgba(16,185,129,0.18)]'
-                      : 'bg-fuchsia-500/10 shadow-[0_0_18px_rgba(217,70,239,0.18)]',
+                    cell.gateOpen ? 'bg-emerald-500/10 shadow-[0_0_18px_rgba(16,185,129,0.18)]' : 'bg-fuchsia-500/10 shadow-[0_0_18px_rgba(217,70,239,0.18)]',
                   ].join(' ')}
                 />
               </>
@@ -143,4 +149,3 @@ export default function GridCellsLayer({ width, height, cells, onCellPointerDown
     </div>
   );
 }
-
