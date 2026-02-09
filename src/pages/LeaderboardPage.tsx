@@ -1,63 +1,85 @@
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router';
 import { Button, Navbar, PodiumCard, RankRow, YourPositionCard } from '@/components';
 import type { User } from '@/types';
-import { useNavigate } from 'react-router';
+import { apiLeaderboardTop10 } from '@/api/leaderboard';
+import { useAuth } from '@/context/AuthContext';
 
-type Props = {
-  users?: User[];
-  currentUserId?: string;
-};
-
-export default function LeaderboardPage({ users = [], currentUserId = '11' }: Props) {
-  const testUsers: User[] = [
-    { id: '1', name: 'Alice', score: 1200 },
-    { id: '2', name: 'Bob', score: 1100 },
-    { id: '3', name: 'Charlie', score: 1050 },
-    { id: '4', name: 'David', score: 980 },
-    { id: '5', name: 'Eve', score: 950 },
-    { id: '6', name: 'Frank', score: 900 },
-    { id: '7', name: 'Grace', score: 850 },
-    { id: '8', name: 'Hannah', score: 800 },
-    { id: '9', name: 'Ian', score: 780 },
-    { id: '10', name: 'Jane', score: 750 },
-    { id: '11', name: 'Karl', score: 720 },
-  ];
+export default function LeaderboardPage() {
   const navigate = useNavigate();
-  const sorted = [...(users.length ? users : testUsers)].sort((a, b) => b.score - a.score);
+  const { user } = useAuth();
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    apiLeaderboardTop10()
+      .then((items) => {
+        if (!isMounted) return;
+        setUsers(items);
+      })
+      .catch((err: any) => {
+        if (!isMounted) return;
+        setError(err?.message || 'Failed to load leaderboard');
+      })
+      .finally(() => {
+        if (!isMounted) return;
+        setLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const currentUserId = user?.id;
+
+  const sorted = useMemo(() => [...users].sort((a, b) => b.score - a.score), [users]);
   const topThree = sorted.slice(0, 3);
   const restTopTen = sorted.slice(3, 10);
 
-  const currentIndex = sorted.findIndex((u) => u.id === currentUserId);
+  const currentIndex = currentUserId ? sorted.findIndex((u) => u.id === currentUserId) : -1;
   const currentUser = currentIndex >= 0 ? sorted[currentIndex] : undefined;
   const currentRank = currentIndex >= 0 ? currentIndex + 1 : undefined;
 
   return (
     <>
       <Navbar />
-      <div className="max-w-xl mx-auto bg-gray-100 text-gray-900 p-6 rounded-xl">
-        <div className="flex justify-center items-end mb-6 flex-wrap sm:flex-nowrap gap-4">
-          {[
-            { user: topThree[1], order: 1, position: 2 },
-            { user: topThree[0], order: 2, position: 1 },
-            { user: topThree[2], order: 3, position: 3 },
-          ]
-            .filter((x) => x.user)
-            .map((x) => (
-              <div key={x.user!.id} style={{ order: x.order }}>
-                <PodiumCard user={x.user!} position={x.position} />
+      <div className="max-w-xl mx-auto backdrop-blur-sm bg-white/10 text-gray-900 p-6 rounded-xl">
+        {loading && <div className="text-center text-gray-500 py-8">Loading leaderboard...</div>}
+        {!loading && error && <div className="text-center text-red-600 py-8">{error}</div>}
+
+        {!loading && !error && (
+          <>
+            <div className="flex justify-center items-end mb-6 flex-wrap sm:flex-nowrap gap-4">
+              {[
+                { user: topThree[1], order: 1, position: 2 },
+                { user: topThree[0], order: 2, position: 1 },
+                { user: topThree[2], order: 3, position: 3 },
+              ]
+                .filter((x) => x.user)
+                .map((x) => (
+                  <div key={`${x.position}-${x.user?.id ?? x.user?.name ?? x.order}`} style={{ order: x.order }}>
+                    <PodiumCard user={x.user!} position={x.position} />
+                  </div>
+                ))}
+            </div>
+
+            <div>
+              {restTopTen.map((user, idx) => (
+                <RankRow key={`${user.id ?? user.name ?? 'row'}-${idx}`} user={user} rank={idx + 4} />
+              ))}
+            </div>
+
+            {currentUser && currentRank && currentRank > 10 && (
+              <div className="mt-4">
+                <YourPositionCard user={currentUser} rank={currentRank} />
               </div>
-            ))}
-        </div>
+            )}
 
-        <div>
-          {restTopTen.map((user, idx) => (
-            <RankRow key={user.id} user={user} rank={idx + 4} />
-          ))}
-        </div>
-
-        {currentUser && currentRank && currentRank > 10 && (
-          <div className="mt-4">
-            <YourPositionCard user={currentUser} rank={currentRank} />
-          </div>
+            {!sorted.length && <div className="text-center text-gray-500 py-8">No leaderboard data yet.</div>}
+          </>
         )}
       </div>
       <div className="m-6 flex justify-center">

@@ -8,7 +8,7 @@ type Props = {
 
 export default function PodiumCard({ user, position }: Props) {
   const height = position === 1 ? 'h-48' : position === 2 ? 'h-36' : 'h-32';
-  const bgColor = position === 1 ? 'bg-yellow-400' : position === 2 ? 'bg-gray-400' : 'bg-orange-300';
+  const bgColor = position === 1 ? 'bg-yellow-400/50' : position === 2 ? 'bg-gray-400/50' : 'bg-orange-300/50';
 
   return (
     <div className={`flex flex-col items-center rounded-xl w-24 ${height} ${bgColor} mx-2`}>

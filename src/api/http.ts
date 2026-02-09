@@ -12,9 +12,11 @@ export async function request<T = unknown>(path: string, opts: ReqOpts = {}): Pr
     'Content-Type': 'application/json',
   };
 
+  // Ensure headers is always an object
+  const existingHeaders = fetchOpts.headers as Record<string, string> | undefined;
   fetchOpts.headers = {
     ...defaultHeaders,
-    ...(fetchOpts.headers as Record<string, string> | undefined),
+    ...existingHeaders,
   };
 
   const res = await fetch(url, fetchOpts);

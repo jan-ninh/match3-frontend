@@ -15,6 +15,7 @@ export type UserDTO = {
 export async function apiLogin(email: string, password: string): Promise<UserDTO> {
   return request('/api/auth/login', {
     method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
   });
 }
@@ -22,6 +23,7 @@ export async function apiLogin(email: string, password: string): Promise<UserDTO
 export async function apiRegister(email: string, username: string, password: string): Promise<UserDTO> {
   return request('/api/auth/register', {
     method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, username, password, confirmPassword: password }),
   });
 }
