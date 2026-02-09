@@ -7,7 +7,6 @@ type LeaderboardEntryDTO = {
   username: string;
   totalScore: number;
 };
-
 type Top10Response = {
   top10: LeaderboardEntryDTO[];
 };
