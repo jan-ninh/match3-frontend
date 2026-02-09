@@ -170,6 +170,13 @@ export function engineReducer(state: EngineState, action: EngineAction): EngineS
 
   let final = next;
 
+  // If gate opened, win (after the current chain finished).
+  if (final.phase === 'idle' && final.breachesRemaining <= 0 && final.gateOpen) {
+    const evs: EngineEvent[] = [];
+    const s = setPhase(final, 'win', evs);
+    evs.push({ type: 'win' });
+    final = pushEvents(s, evs);
+  }
   // If we reached idle with 0 moves, end the game (after the current chain finished).
   if (final.phase === 'idle' && final.movesLeft <= 0) {
     const evs: EngineEvent[] = [];

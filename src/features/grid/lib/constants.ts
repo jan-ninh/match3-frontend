@@ -2,7 +2,7 @@ import { SWAP_MS } from '@/gamelogic';
 
 // Sizing
 export const TILE_SIZE = 56;
-export const GAP = 8; // tailwind gap-2 => 0.5rem => 8px
+export const GAP = 2; // tailwind gap-2 => 0.5rem => 8px
 export const BOARD_PADDING = 12; // p-3 => 12px
 export const tileDist = TILE_SIZE + GAP;
 

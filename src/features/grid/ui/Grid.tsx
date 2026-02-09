@@ -1,4 +1,5 @@
 import { useMemo, useRef } from 'react';
+import type { CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 
 import type { EngineState } from '@/gamelogic';
@@ -37,7 +38,13 @@ type Props = {
 
   // dev action: reset board (only shown when debugEnabled)
   onDevResetBoard?: () => void;
+  // dev action: level nav (only shown when debugEnabled)
+  onDevPrevLevel?: () => void;
+  onDevNextLevel?: () => void;
+  onDevNextTilesPalette?: () => void;
 };
+
+type CssVars = CSSProperties & { '--boardDim'?: number };
 
 export default function Grid({
   state,
@@ -49,6 +56,9 @@ export default function Grid({
   swapMs,
   debugEnabled = false,
   onDevResetBoard,
+  onDevPrevLevel,
+  onDevNextLevel,
+  onDevNextTilesPalette,
 }: Props) {
   const { width, height, cells, selectedIndex } = state;
 
@@ -110,15 +120,53 @@ export default function Grid({
     return [
       {
         kind: 'action' as const,
+        label: 'level: Prev',
+        onPress: onDevPrevLevel,
+        disabled: inputLocked,
+      },
+      {
+        kind: 'action' as const,
+        label: 'level: Next',
+        onPress: onDevNextLevel,
+        disabled: inputLocked,
+      },
+      {
+        kind: 'action' as const,
         label: 'reset: Board',
         onPress: onDevResetBoard,
         disabled: inputLocked,
       },
-    ];
-  }, [onDevResetBoard, inputLocked]);
+    
+      {
+
+        kind: 'action' as const,
+
+        label: 'tiles: Next palette',
+
+        onPress: onDevNextTilesPalette,
+
+        disabled: inputLocked,
+
+      },];
+  }, [onDevPrevLevel, onDevNextLevel, onDevResetBoard, onDevNextTilesPalette, inputLocked]);
 
   const lockoutCursor = inputLocked && showLockoutHints ? 'cursor-not-allowed' : '';
   const showDebugLabels = isDev && debugEnabled;
+
+  const shellStyle: CssVars = {
+    width: innerW + BOARD_PADDING * 2,
+    touchAction: 'none',
+    WebkitUserSelect: 'none',
+    userSelect: 'none',
+
+    // 0..1 (higher = darker / less BG visible)
+    '--boardDim': 0.92,
+
+    // applies to the padding/rim area of the board shell
+    backgroundColor: 'rgb(0 0 0 / var(--boardDim))',
+  };
+
+
 
   const leftLane = typeof document !== 'undefined' ? (document.getElementById('dev-left-lane') as HTMLElement | null) : null;
 
@@ -127,7 +175,7 @@ export default function Grid({
       ? createPortal(
           <div className="flex flex-col gap-3">
             <DebugInputPanel width={width} snapshot={debugSnapshot} hz={DEBUG_OVERLAY_HZ} />
-            <DebugDevToolsPanel locked={inputLocked} items={devItems} actions={devActions} />
+            <DebugDevToolsPanel locked={inputLocked} meta={{ levelId: state.levelId, width, height, seed: state.seed }} items={devItems} actions={devActions} />
           </div>,
           leftLane,
         )
@@ -139,13 +187,9 @@ export default function Grid({
 
       <div
         ref={containerRef}
-        className={`relative rounded-2xl p-3 bg-black/30 border border-white/10 shadow-lg select-none ${lockoutCursor}`}
-        style={{
-          width: innerW + BOARD_PADDING * 2,
-          touchAction: 'none',
-          WebkitUserSelect: 'none',
-          userSelect: 'none',
-        }}
+        className={`relative rounded-2xl p-3 border border-white/10 shadow-[0_18px_60px_rgba(0,0,0,0.55)] select-none ${lockoutCursor}`}
+        style={shellStyle}
+
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerCancel}
@@ -153,6 +197,18 @@ export default function Grid({
         <GridLockoutOverlay active={inputLocked} show={showLockoutHints} />
 
         <div className="relative" style={{ width: innerW, height: innerH }}>
+          <div
+            className="absolute inset-0 rounded-2xl pointer-events-none"
+            style={{ backgroundColor: 'rgb(0 0 0 / var(--boardDim))' }}
+          />
+          <div
+            className="absolute inset-0 rounded-2xl pointer-events-none"
+            style={{
+              background: 'linear-gradient(180deg, rgba(255,255,255,0.055) 0%, rgba(255,255,255,0.022) 40%, rgba(0,0,0,0.94) 100%)',
+
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08), inset 0 -18px 40px rgba(0,0,0,0.55)',
+            }}
+          />
           <GridCellsLayer width={width} height={height} cells={cells} onCellPointerDown={onCellPointerDown} showDebugLabels={showDebugLabels} />
 
           <GridOverlaysLayer selectionPos={selectionPos} overPos={overPos} />
@@ -177,4 +233,3 @@ export default function Grid({
     </>
   );
 }
-
