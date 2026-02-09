@@ -23,7 +23,8 @@ export default function Tile({ type, selected, dragging, preview, locked, shakin
   const outerCls = [
     'w-full h-full rounded-xl',
     locked ? 'opacity-70' : '',
-    selected || preview ? 'ring-2 ring-white/20' : '',
+    // Selected-Look sitzt bewusst in <GridOverlaysLayer /> (HUD/Marker-Style).
+    preview ? 'ring-2 ring-white/20' : '',
     dragging ? 'scale-[1.03]' : '',
     shaking ? 'animate-[shakeX_180ms_ease-in-out_1]' : '',
     className ?? '',
