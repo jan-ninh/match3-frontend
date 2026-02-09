@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Navbar, LevelGrid } from '@/components';
-import { getProgress, unlockLevel } from '@/services/progress/progressActions';
+import { getProgress } from '@/services/progress/progressActions';
 import { useOverlays } from '@/features/overlays';
 import type { LevelId, Progress } from '@/services/progress/ProgressStore';
 import { apiProfile } from '@/api/user';
@@ -27,9 +27,7 @@ export default function LevelMapPage() {
     const highestCompleted = completedLevels.length ? Math.max(...completedLevels) : 0;
     highestCompletedRef.current = highestCompleted;
 
-    const unlockedLevels = Array.from(
-      new Set([1, ...completedLevels, ...(highestCompleted > 0 ? [highestCompleted + 1] : [])]),
-    ).sort((a, b) => a - b);
+    const unlockedLevels = Array.from(new Set([1, ...completedLevels, ...(highestCompleted > 0 ? [highestCompleted + 1] : [])])).sort((a, b) => a - b);
 
     return {
       unlockedLevels,
@@ -70,13 +68,6 @@ export default function LevelMapPage() {
     });
   };
 
-  const unlockLevel2 = async () => {
-    const last = highestCompletedRef.current || 1;
-    const nextLevel = last + 1;
-    const next = await unlockLevel(nextLevel);
-    setProgress(next);
-  };
-
   if (!progress) return <div className="p-6">Loading levels…</div>;
 
   return (
@@ -85,12 +76,6 @@ export default function LevelMapPage() {
       <div className="p-6">
         <h1 className="text-xl font-bold mb-4 text-center">Level Map</h1>
         <LevelGrid progress={progress} onSelect={onSelect} />
-
-        <div className="mt-6 flex justify-center">
-          <button onClick={unlockLevel2} className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20">
-            Unlock Level 2 (test)
-          </button>
-        </div>
       </div>
     </>
   );

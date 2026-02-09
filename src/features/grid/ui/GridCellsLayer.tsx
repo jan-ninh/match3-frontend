@@ -23,33 +23,64 @@ export default function GridCellsLayer({ width, height, cells, onCellPointerDown
     >
       {cells.map((cell, index) => {
         const isGate = cell.obstacle === 'gate';
-        const blockedOverlayStyle: React.CSSProperties | undefined = cell.blocked && !isGate
-          ? {
-              backgroundImage:
-                'repeating-linear-gradient(45deg, rgba(255,255,255,0.06), rgba(255,255,255,0.06) 6px, rgba(255,255,255,0.0) 6px, rgba(255,255,255,0.0) 12px)',
-            }
-          : undefined;
+        const isFirewall = cell.obstacle === 'firewall';
+
+        const { x, y } = xyOf(index, width);
+
+        // bottom-right 2x2 (blocked) should show the old "gate" sprite (4th sprite)
+        const isCornerBlocked = cell.blocked && !isGate && !isFirewall && x >= width - 2 && y >= height - 2;
+
+        const blockedOverlayStyle: React.CSSProperties | undefined =
+          cell.blocked && !isGate && !isFirewall && !isCornerBlocked
+            ? {
+                backgroundImage:
+                  'repeating-linear-gradient(45deg, rgba(255,255,255,0.06), rgba(255,255,255,0.06) 6px, rgba(255,255,255,0.0) 6px, rgba(255,255,255,0.0) 12px)',
+              }
+            : undefined;
 
         const gateSprite = isGate ? getGateSprite(!!cell.gateOpen) : null;
 
+        // Render atlas frame as a full-tile background (same scaling logic as <Tile />)
         const gateSpriteStyle: React.CSSProperties | undefined = gateSprite
-          ? {
-              backgroundImage: 'url(' + gateSprite.sheet + ')',
-              backgroundRepeat: 'no-repeat',
-              backgroundSize: '100% 100%',
-              backgroundPosition: '0% 0%',
-            }
+          ? (() => {
+              const scale = TILE_SIZE / gateSprite.w;
+              return {
+                backgroundImage: `url(${gateSprite.sheet})`,
+                backgroundRepeat: 'no-repeat',
+                backgroundSize: `${gateSprite.sheetW * scale}px ${gateSprite.sheetH * scale}px`,
+                backgroundPosition: `${-gateSprite.x * scale}px ${-gateSprite.y * scale}px`,
+              };
+            })()
           : undefined;
+
+        const cornerSprite = isCornerBlocked ? getGateSprite(false) : null;
+
+        const cornerSpriteStyle: React.CSSProperties | undefined = cornerSprite
+          ? (() => {
+              const scale = TILE_SIZE / cornerSprite.w;
+              return {
+                backgroundImage: `url(${cornerSprite.sheet})`,
+                backgroundRepeat: 'no-repeat',
+                backgroundSize: `${cornerSprite.sheetW * scale}px ${cornerSprite.sheetH * scale}px`,
+                backgroundPosition: `${-cornerSprite.x * scale}px ${-cornerSprite.y * scale}px`,
+              };
+            })()
+          : undefined;
+
         const base = [
           'relative rounded-xl border',
           'focus:outline-none',
           'transition-transform duration-150',
-          cell.blocked ? 'border-slate-700 bg-slate-900' : 'border-white/10 bg-[#111827]',
+          isGate
+            ? 'border-white/10 bg-[#111827]'
+            : isFirewall
+              ? 'border-cyan-300/25 bg-slate-950/70'
+              : cell.blocked
+                ? 'border-slate-700 bg-slate-900'
+                : 'border-white/10 bg-[#111827]',
           cell.blocked ? '' : 'shadow-sm',
           'hover:scale-[1.02]',
         ].join(' ');
-
-        const { x, y } = xyOf(index, width);
 
         return (
           <button
@@ -71,14 +102,44 @@ export default function GridCellsLayer({ width, height, cells, onCellPointerDown
             ) : null}
 
             {isGate ? (
-              <div
-                className={[
-                  'absolute inset-2 rounded-lg border border-white/10',
-                  cell.gateOpen ? 'bg-emerald-500/10 shadow-[0_0_18px_rgba(16,185,129,0.18)]' : 'bg-fuchsia-500/10 shadow-[0_0_18px_rgba(217,70,239,0.18)]',
-                ].join(' ')}
-              >
-                <div className="absolute inset-1 rounded-md opacity-90" style={gateSpriteStyle} />
-              </div>
+              <>
+                <div className="absolute inset-0 rounded-xl opacity-90" style={gateSpriteStyle} />
+                <div
+                  className={[
+                    'absolute inset-2 rounded-lg border border-white/10',
+                    cell.gateOpen ? 'bg-emerald-500/10 shadow-[0_0_18px_rgba(16,185,129,0.18)]' : 'bg-fuchsia-500/10 shadow-[0_0_18px_rgba(217,70,239,0.18)]',
+                  ].join(' ')}
+                />
+              </>
+            ) : isFirewall ? (
+              <>
+                <div className="absolute inset-0 rounded-xl bg-slate-950/70" />
+                <div className="absolute inset-0 rounded-xl border border-cyan-300/20 shadow-[0_0_18px_rgba(34,211,238,0.18)]" />
+                <div className="absolute inset-2 rounded-lg bg-cyan-500/10 shadow-[0_0_20px_rgba(34,211,238,0.18)]" />
+
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="h-5 w-5 rounded-full bg-cyan-300/20 border border-cyan-200/20 shadow-[0_0_14px_rgba(34,211,238,0.25)]" />
+                </div>
+
+                {typeof cell.hp === 'number' && typeof cell.maxHp === 'number' ? (
+                  <div className="absolute bottom-1 left-1 right-1 flex justify-center gap-1">
+                    {Array.from({ length: Math.min(3, cell.maxHp) }, (_, i) => {
+                      const on = i < (cell.hp ?? 0);
+                      return (
+                        <div
+                          key={i}
+                          className={[
+                            'h-1.5 w-4 rounded-full border',
+                            on ? 'bg-cyan-400/55 border-cyan-200/35 shadow-[0_0_10px_rgba(34,211,238,0.18)]' : 'bg-white/5 border-white/15',
+                          ].join(' ')}
+                        />
+                      );
+                    })}
+                  </div>
+                ) : null}
+              </>
+            ) : isCornerBlocked && cornerSpriteStyle ? (
+              <div className="absolute inset-0 rounded-xl opacity-95" style={cornerSpriteStyle} />
             ) : cell.blocked ? (
               <div className="absolute inset-0 flex items-center justify-center text-white/20 text-2xl">✕</div>
             ) : null}
@@ -88,5 +149,3 @@ export default function GridCellsLayer({ width, height, cells, onCellPointerDown
     </div>
   );
 }
-
-
