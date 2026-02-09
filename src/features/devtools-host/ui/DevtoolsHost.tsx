@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { cycleTilesetPalette, preloadTiles } from '@/features/grid/ui/tiles';
+import { useOverlays } from '@/features/overlays';
+import { completeLevel, resetProgress } from '@/services/progress/progressActions';
 
 import { useDevHotkeys } from '../lib/useDevHotkeys';
 import { useDevPanelsTopSync } from '../lib/useDevPanelsTopSync';
@@ -11,32 +13,17 @@ import GameContainer from './GameContainer';
 
 type Props = {
   initialLevelId?: number;
-
-  onWin?: (levelId: number) => void;
-  onLose?: (levelId: number) => void;
 };
 
-export default function DevtoolsHost({ initialLevelId = 1, onWin, onLose }: Props) {
+export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
   const [showLockoutHints, setShowLockoutHints] = useState<boolean>(false);
   const [debugEnabled, setDebugEnabled] = useState<boolean>(false);
 
-  const { isDev, state, inputLocked, canSwapAt, onIntent, onDevResetBoard, onDevNextLevel, onDevPrevLevel, events } = useMatch3Engine({
+  const { openWin, openLose } = useOverlays();
+
+  const { isDev, state, inputLocked, canSwapAt, onIntent, onDevResetBoard, onDevNextLevel, onDevPrevLevel, onDevSetLevel, events } = useMatch3Engine({
     initialLevelId,
   });
-
-  const prevPhaseRef = useRef(state.phase);
-
-  useEffect(() => {
-    const prev = prevPhaseRef.current;
-    const next = state.phase;
-
-    if (prev !== next) {
-      if (next === 'win') onWin?.(state.levelId);
-      if (next === 'lose') onLose?.(state.levelId);
-    }
-
-    prevPhaseRef.current = next;
-  }, [state.phase, state.levelId, onWin, onLose]);
 
   const gridRowRef = useRef<HTMLDivElement | null>(null);
 
@@ -60,6 +47,23 @@ export default function DevtoolsHost({ initialLevelId = 1, onWin, onLose }: Prop
     setTilesVersion((v) => (v + 1) | 0);
   };
 
+  const onDevWin = async () => {
+    const lvl = state.levelId;
+    await completeLevel(lvl);
+    openWin(lvl);
+  };
+
+  const onDevLose = async () => {
+    const lvl = state.levelId;
+    await resetProgress();
+    onDevSetLevel(1);
+    openLose(lvl);
+  };
+
+  const onDevResetProgress = async () => {
+    await resetProgress();
+  };
+
   // defensive: when leaving dev mode, reset the top-offset CSS var
   useEffect(() => {
     if (isDev && debugEnabled) return;
@@ -68,7 +72,7 @@ export default function DevtoolsHost({ initialLevelId = 1, onWin, onLose }: Prop
 
   return (
     <div className="w-full">
-      <DevPanels enabled={isDev && debugEnabled} events={events} />
+      <DevPanels enabled={isDev && debugEnabled} events={events} onDevWin={onDevWin} onDevLose={onDevLose} onDevResetProgress={onDevResetProgress} />
 
       <GameContainer
         state={state}

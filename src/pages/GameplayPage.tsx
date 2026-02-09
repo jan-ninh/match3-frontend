@@ -1,66 +1,26 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router';
-
 import { GameFooter } from '@/components';
 import { DevtoolsHost } from '@/features/devtools-host';
 import { useOverlays } from '@/features/overlays';
-import { getProgress } from '@/services/progress/progressActions';
-import type { LevelId } from '@/services/progress/ProgressStore';
 
-const TOTAL_LEVELS = 12;
+function readInitialLevelIdFromUrl(): number {
+  if (typeof window === 'undefined') return 1;
 
-function clampLevelId(n: number): LevelId {
-  const x = Math.trunc(n);
-  const clamped = Math.min(TOTAL_LEVELS, Math.max(1, x));
-  return clamped as LevelId;
-}
+  const raw = new URLSearchParams(window.location.search).get('level');
+  const n = raw ? Number(raw) : NaN;
 
-function parseLevelFromSearch(search: string): LevelId {
-  const params = new URLSearchParams(search);
-  const raw = params.get('level');
-  const n = raw ? Number(raw) : 1;
-  if (!Number.isFinite(n)) return 1 as LevelId;
-  return clampLevelId(n);
+  if (!Number.isFinite(n)) return 1;
+  return Math.max(1, Math.floor(n));
 }
 
 export default function GameplayPage() {
-  const { openSettings, openWin, openLose } = useOverlays();
-  const location = useLocation();
-  const navigate = useNavigate();
+  const { openSettings } = useOverlays();
 
-  const requestedLevel = useMemo(() => parseLevelFromSearch(location.search), [location.search]);
-  const [allowedLevel, setAllowedLevel] = useState<LevelId | null>(null);
-
-  useEffect(() => {
-    let alive = true;
-
-    void (async () => {
-      const p = await getProgress();
-
-      const unlocked = new Set(p.unlockedLevels);
-      const completed = new Set(p.completedLevels);
-      const isUnlocked = requestedLevel === 1 || unlocked.has(requestedLevel) || completed.has(requestedLevel - 1);
-
-      if (!alive) return;
-
-      if (!isUnlocked) {
-        navigate('/game-map', { replace: true });
-        return;
-      }
-
-      setAllowedLevel(requestedLevel);
-    })();
-
-    return () => {
-      alive = false;
-    };
-  }, [requestedLevel, navigate]);
-
-  if (allowedLevel === null) return <div className="p-8">Loading…</div>;
+  const initialLevelId = readInitialLevelIdFromUrl();
 
   return (
     <div className="p-8 flex flex-col gap-8">
-      <DevtoolsHost key={allowedLevel} initialLevelId={allowedLevel} onWin={(level) => openWin(level)} onLose={(level) => openLose(level)} />
+      {/* key erzwingt Remount, falls du innerhalb derselben Route den level-Query änderst */}
+      <DevtoolsHost key={initialLevelId} initialLevelId={initialLevelId} />
       <GameFooter openSettings={openSettings} />
     </div>
   );

@@ -159,6 +159,7 @@ export function useMatch3Engine({ initialLevelId = 1 }: Args) {
 
   const onDevNextLevel = useCallback(() => setLevelId((v) => v + 1), []);
   const onDevPrevLevel = useCallback(() => setLevelId((v) => Math.max(1, v - 1)), []);
+  const onDevSetLevel = useCallback((id: number) => setLevelId(() => Math.max(1, id | 0)), []);
 
   return {
     isDev,
@@ -173,5 +174,6 @@ export function useMatch3Engine({ initialLevelId = 1 }: Args) {
     onDevResetBoard,
     onDevNextLevel,
     onDevPrevLevel,
+    onDevSetLevel,
   };
 }
