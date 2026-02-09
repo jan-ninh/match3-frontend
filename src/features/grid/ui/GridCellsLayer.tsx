@@ -70,16 +70,17 @@ export default function GridCellsLayer({ width, height, cells, onCellPointerDown
         const base = [
           'relative rounded-xl border',
           'focus:outline-none',
-          'transition-transform duration-150',
+          // 'transition-transform duration-150',
           isGate
-            ? 'border-white/10 bg-[#111827]'
+            ? 'border-slate-500/5 bg-transparent'
             : isFirewall
-              ? 'border-cyan-300/25 bg-slate-950/70'
+              ? 'border-slate-500/5 bg-transparent'
               : cell.blocked
-                ? 'border-slate-700 bg-slate-900'
+                ? 'border-slate-500/5 bg-transparent'
                 : 'border-slate-500/5 bg-transparent', // Zellen (auf denen die Tiles liegen)
+
           cell.blocked ? '' : 'shadow-sm',
-          'hover:scale-[1.02]',
+          // 'hover:scale-[1.02]',
         ].join(' ');
 
         return (

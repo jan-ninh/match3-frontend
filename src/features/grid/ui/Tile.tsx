@@ -17,7 +17,7 @@ type Props = {
   className?: string;
 };
 
-export default function Tile({ type, selected, dragging, preview, locked, shaking, className }: Props) {
+export default function Tile({ type, dragging, preview, locked, shaking, className }: Props) {
   const sprite = getTileSprite(type);
 
   const outerCls = [

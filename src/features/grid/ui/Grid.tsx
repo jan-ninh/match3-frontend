@@ -72,7 +72,6 @@ export default function Grid({
 
     dragPieceId,
     isDragging,
-    overIndexUI,
     shakePieceId,
 
     previewActive,
@@ -97,13 +96,38 @@ export default function Grid({
     return cellPixelXY(selectedIndex, width);
   }, [selectedIndex, cells, width]);
 
-  const overPos = useMemo(() => {
+  // DnD preview target slot (adjacent swap target)
+  const targetPos = useMemo(() => {
     if (!isDragging) return null;
-    if (overIndexUI === null) return null;
-    const cell = cells[overIndexUI];
+    if (!previewActive) return null;
+    if (!previewAxisUI) return null;
+    if (previewDirUI === 0) return null;
+    if (dragPieceId === null) return null;
+
+    const dragged = pieceList.find((p) => p.id === dragPieceId);
+    if (!dragged) return null;
+
+    const fromIndex = dragged.cellIndex;
+
+    let toIndex = fromIndex;
+
+    if (previewAxisUI === 'x') {
+      const x = fromIndex % width;
+      if (previewDirUI === -1 && x === 0) return null;
+      if (previewDirUI === 1 && x === width - 1) return null;
+      toIndex = fromIndex + previewDirUI;
+    } else {
+      const y = Math.floor(fromIndex / width);
+      if (previewDirUI === -1 && y === 0) return null;
+      if (previewDirUI === 1 && y === height - 1) return null;
+      toIndex = fromIndex + previewDirUI * width;
+    }
+
+    const cell = cells[toIndex];
     if (!cell || cell.blocked) return null;
-    return cellPixelXY(overIndexUI, width);
-  }, [isDragging, overIndexUI, cells, width]);
+
+    return cellPixelXY(toIndex, width);
+  }, [isDragging, previewActive, previewAxisUI, previewDirUI, dragPieceId, pieceList, width, height, cells]);
 
   const devItems = useMemo(() => {
     return [
@@ -136,9 +160,8 @@ export default function Grid({
         onPress: onDevResetBoard,
         disabled: inputLocked,
       },
-    
-      {
 
+      {
         kind: 'action' as const,
 
         label: 'tiles: Next palette',
@@ -146,8 +169,8 @@ export default function Grid({
         onPress: onDevNextTilesPalette,
 
         disabled: inputLocked,
-
-      },];
+      },
+    ];
   }, [onDevPrevLevel, onDevNextLevel, onDevResetBoard, onDevNextTilesPalette, inputLocked]);
 
   const lockoutCursor = inputLocked && showLockoutHints ? 'cursor-not-allowed' : '';
@@ -165,8 +188,6 @@ export default function Grid({
     // applies to the padding/rim area of the board shell
     backgroundColor: 'rgb(0 0 0 / var(--boardDim))',
   };
-
-
 
   const leftLane = typeof document !== 'undefined' ? (document.getElementById('dev-left-lane') as HTMLElement | null) : null;
 
@@ -189,7 +210,6 @@ export default function Grid({
         ref={containerRef}
         className={`relative rounded-2xl p-3 border border-white/10 shadow-[0_18px_60px_rgba(0,0,0,0.55)] select-none ${lockoutCursor}`}
         style={shellStyle}
-
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerCancel}
@@ -197,21 +217,18 @@ export default function Grid({
         <GridLockoutOverlay active={inputLocked} show={showLockoutHints} />
 
         <div className="relative" style={{ width: innerW, height: innerH }}>
-          <div
-            className="absolute inset-0 rounded-2xl pointer-events-none"
-            style={{ backgroundColor: 'rgb(0 0 0 / var(--boardDim))' }}
-          />
+          <div className="absolute inset-0 rounded-2xl pointer-events-none" style={{ backgroundColor: 'rgb(0 0 0 / var(--boardDim))' }} />
           <div
             className="absolute inset-0 rounded-2xl pointer-events-none"
             style={{
               background: 'linear-gradient(180deg, rgba(255,255,255,0.055) 0%, rgba(255,255,255,0.022) 40%, rgba(0,0,0,0.94) 100%)',
-
               boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08), inset 0 -18px 40px rgba(0,0,0,0.55)',
             }}
           />
+
           <GridCellsLayer width={width} height={height} cells={cells} onCellPointerDown={onCellPointerDown} showDebugLabels={showDebugLabels} />
 
-          <GridOverlaysLayer selectionPos={selectionPos} overPos={overPos} />
+          <GridOverlaysLayer selectionPos={selectionPos} targetPos={targetPos} />
 
           <GridPiecesLayer
             width={width}
