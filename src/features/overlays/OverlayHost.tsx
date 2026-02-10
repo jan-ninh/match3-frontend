@@ -17,6 +17,8 @@ export default function OverlayHost() {
   const { active, data, api, powerChoiceOnChooseRef } = ctx;
   const is = (name: typeof active) => active === name;
 
+  const noop = () => {};
+
   return (
     <>
       <SettingsModal open={is('settings')} onClose={api.close} />
@@ -26,7 +28,7 @@ export default function OverlayHost() {
       <PowerChoiceModal
         open={is('powerChoice')}
         title={data.powerChoiceTitle ?? 'Choose your Power!'}
-        onClose={api.close}
+        onClose={noop}
         onChoose={(powerId) => {
           powerChoiceOnChooseRef.current?.(powerId);
           api.close();

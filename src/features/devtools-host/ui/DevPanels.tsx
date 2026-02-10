@@ -2,6 +2,7 @@ import { createPortal } from 'react-dom';
 
 import type { EngineEvent } from '@/gamelogic';
 import { DebugEventLog } from '@/devtools';
+import { useNavigate } from 'react-router';
 
 type Props = {
   enabled: boolean;
@@ -13,7 +14,7 @@ type Props = {
 
 export default function DevPanels({ enabled, events, onDevWin, onDevLose, onDevResetProgress }: Props) {
   const rightLane = typeof document !== 'undefined' ? (document.getElementById('dev-right-lane') as HTMLElement | null) : null;
-
+  const navigate = useNavigate();
   if (!enabled || !rightLane) return null;
 
   return createPortal(
@@ -46,6 +47,13 @@ export default function DevPanels({ enabled, events, onDevWin, onDevLose, onDevR
             className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 border border-white/10 text-white/80"
           >
             Reset Progress
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate(`/game-map`)}
+            className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 border border-white/10 text-white/80"
+          >
+            Return to map
           </button>
         </div>
       </div>
