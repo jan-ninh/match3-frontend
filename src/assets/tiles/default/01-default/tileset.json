@@ -2,35 +2,36 @@
   "id": "01-default",
 
   "basics": {
-    "b-01": "piece_rune_purple.png",
-    "b-02": "piece_prism_rainbow.png",
-    "b-03": "piece_chip_green.png",
-    "b-04": "piece_canister_blue.png",
-    "b-05": "piece_target_red.png",
-    "b-06": "piece_shard_magenta.png",
-    "b-07": "piece_orb_purple.png",
-    "b-08": "piece_mask_teal.png",
-    "b-09": "piece_hex_cyan.png"
+    "b-01": "piece_01.png",
+    "b-02": "piece_02.png",
+    "b-03": "piece_03.png",
+    "b-04": "piece_04.png",
+    "b-05": "piece_05.png",
+    "b-06": "piece_06.png",
+    "b-07": "piece_07.png",
+    "b-08": "piece_08.png",
+    "b-09": "piece_09.png",
+    "b-10": "piece_10.png"
   },
 
   "palettes": {
     "six-core": {
-      "01": "b-02",
-      "02": "b-03",
-      "03": "b-04",
-      "04": "b-05",
+      "01": "b-01",
+      "02": "b-02",
+      "03": "b-03",
+      "04": "b-06",
       "05": "b-07",
-      "06": "b-01"
+      "06": "b-08"
     },
     "eight-full": {
-      "red": "b-05",
-      "blue": "b-04",
+      "red": "b-01",
+      "blue": "b-02",
       "green": "b-03",
-      "purple": "b-01",
+      "purple": "b-05",
       "orange": "b-06",
-      "cyan": "b-09",
-      "pink": "b-07",
-      "yellow": "b-02"
+      "cyan": "b-07",
+      "pink": "b-08",
+      "yellow": "b-09"
     }
   },
 
@@ -40,20 +41,14 @@
     "1": "six-core"
   },
 
-  "specials": {
-    "gateClosed": "special_gate.png",
-    "gateOpen": "special_gate.png",
-    "firewall": "piece_mask_teal.png"
-  },
-
   "pieces": {
-    "red": "piece_target_red.png",
-    "blue": "piece_canister_blue.png",
-    "green": "piece_chip_green.png",
-    "purple": "piece_rune_purple.png",
-    "orange": "piece_shard_magenta.png",
-    "cyan": "piece_hex_cyan.png",
-    "pink": "piece_orb_purple.png",
-    "yellow": "piece_prism_rainbow.png"
+    "red": "piece_01.png",
+    "blue": "piece_02.png",
+    "green": "piece_03.png",
+    "purple": "piece_04.png",
+    "orange": "piece_05.png",
+    "cyan": "piece_06.png",
+    "pink": "piece_07.png",
+    "yellow": "piece_08.png"
   }
 }
