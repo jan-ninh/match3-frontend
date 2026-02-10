@@ -1,11 +1,12 @@
 import { Link, useNavigate } from 'react-router';
 import { useOverlays } from '@/features/overlays';
 import { useAuth } from '@/context/AuthContext';
+import SpriteIcon from '@/components/SpriteIcon'; // default export assumed
 
 type NavLinkItem = {
   kind: 'link';
   label: string;
-  icon: string;
+  icon: string; // either sprite frame name (e.g. "home") OR an image URL ("/icons/foo.svg" or "https://...")
   to: string;
 };
 
@@ -24,16 +25,18 @@ export default function Navbar() {
   const navigate = useNavigate();
 
   const isAuthenticated = !!user;
-  //this item will show at first
+
+  // NOTE: icons here use sprite frame names (no path): "home", "settings", "leaderboard", "heart", "profile", "login", "logout"
+  // If you ever want to use a plain image URL instead, put the URL (e.g. "/icons/custom.svg") and the component will fall back to <img>.
   const baseItems: NavItem[] = [
-    { kind: 'link', label: 'Home', icon: '/icons/home.svg', to: '/game-map' },
-    { kind: 'action', label: 'Settings', icon: '/icons/setting.svg', onClick: openSettings },
+    { kind: 'link', label: 'Home', icon: 'home', to: '/game-map' },
+    { kind: 'action', label: 'Settings', icon: 'settings', onClick: openSettings },
   ];
-  //these items will show when user is loged in
+
   const authItems: NavItem[] = [
-    { kind: 'link', label: 'Leaderboard', icon: '/icons/cup.svg', to: '/game-map/leaderboard' },
-    { kind: 'link', label: 'Lives', icon: '/icons/heart.svg', to: '/game-map' },
-    { kind: 'link', label: 'Profile', icon: '/icons/user.svg', to: '/game-map/profile' },
+    { kind: 'link', label: 'Leaderboard', icon: 'leaderboard', to: '/game-map/leaderboard' },
+    { kind: 'link', label: 'Lives', icon: 'heart', to: '/game-map' },
+    { kind: 'link', label: 'Profile', icon: 'profile', to: '/game-map/profile' },
   ];
 
   const navItems: NavItem[] = isAuthenticated
@@ -43,7 +46,7 @@ export default function Navbar() {
         {
           kind: 'action',
           label: 'Logout',
-          icon: '/icons/logout.svg',
+          icon: 'logout',
           onClick: () => {
             logout();
             navigate('/game-map');
@@ -55,36 +58,48 @@ export default function Navbar() {
         {
           kind: 'action',
           label: 'Login',
-          icon: '/icons/login.svg',
+          icon: 'login',
           onClick: openLogin,
         },
       ];
 
+  // helper: detect if icon is a URL (we'll fallback to regular <img>)
+  const isUrl = (s: string) => {
+    return s.startsWith('/') || s.startsWith('http') || s.endsWith('.svg') || s.endsWith('.png') || s.endsWith('.jpg');
+  };
+
   return (
     <nav className="flex justify-between p-6 items-center">
       <h1 className="text-xl font-bold">Match-3</h1>
-
-      <ul className="flex gap-6 items-center">
+      <ul className="flex gap-1 items-center">
         {navItems.map((item) => (
-          <li key={item.label}>
+          <li key={item.label} className="flex items-center">
             {item.kind === 'link' ? (
               <Link
                 to={item.to}
-                className="flex flex-col items-center p-1 hover:bg-white/10 transition-colors rounded"
+                className="flex items-center justify-center p-1 hover:bg-white/20 transition-colors rounded"
                 aria-label={item.label}
                 title={item.label}
               >
-                <img src={item.icon} alt={item.label} className="w-8 h-8" />
+                {isUrl(item.icon) ? (
+                  <img src={item.icon} alt={item.label} className=" object-contain" />
+                ) : (
+                  <SpriteIcon name={item.icon} width={48} height={48} className="" alt={item.label} flipX={item.label === 'Logout'} />
+                )}
               </Link>
             ) : (
               <button
                 type="button"
                 onClick={item.onClick}
-                className="flex flex-col items-center p-1 hover:bg-white/10 transition-colors rounded"
+                className="flex items-center justify-center p-1 hover:bg-white/20 transition-colors rounded"
                 aria-label={item.label}
                 title={item.label}
               >
-                <img src={item.icon} alt={item.label} className="w-8 h-8" />
+                {isUrl(item.icon) ? (
+                  <img src={item.icon} alt={item.label} className=" object-contain" />
+                ) : (
+                  <SpriteIcon name={item.icon} width={48} height={48} className="" alt={item.label} flipX={item.label === 'Logout'} />
+                )}
               </button>
             )}
           </li>

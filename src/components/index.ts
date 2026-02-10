@@ -1,7 +1,9 @@
 export { default as Avatar } from './Avatar';
-export { default as Button } from './Button';
+export { default as CyberButton } from './CyberButton';
+export { CyberTitle } from './CyberTitle';
 export { default as Modal } from './Modal';
 export { default as Navbar } from './Navbar';
+export { default as SpriteIcon } from './SpriteIcon';
 
 export { default as GameFooter } from './footer/GameFooter';
 

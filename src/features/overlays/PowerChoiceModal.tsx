@@ -11,9 +11,9 @@ const powerIds: PowerId[] = ['bomb', 'rocket', 'extraTime'];
 
 export default function PowerChoiceModal({ open, title, onClose, onChoose }: Props) {
   return (
-    <Modal open={open} onClose={onClose} title="" size="md" closeOnBackdrop={false}>
+    <Modal open={open} onClose={onClose} title="Boosters" size="md" closeOnBackdrop={false}>
       <div className="flex flex-col items-center gap-4 py-4">
-        <div className="text-xl font-semibold">{title}</div>
+        <div className="text-2xl font-semibold text-cyan-600">{title}</div>
         <div className="flex gap-3 mt-2">
           {powerIds.map((id) => (
             <button

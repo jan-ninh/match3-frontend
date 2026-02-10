@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import Modal from '@/components/Modal';
 import { useAuth } from '@/context/AuthContext';
+import { CyberButton } from '@/components';
 
 type Props = {
   onClose: () => void;
@@ -90,14 +91,13 @@ export default function RegisterModal({ onClose, onSwitchToLogin }: Props) {
           disabled={loading}
         />
         {/* Error message */}
-        {error && <div className="text-sm text-red-400">{error}</div>}
-        <button type="submit" disabled={loading} className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20">
-          {loading ? 'Creating account...' : 'Create account'}
-        </button>
-
-        <button type="button" disabled={loading} onClick={onSwitchToLogin} className="px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10">
-          back to login
-        </button>
+        {error && <div className="text-sm  text-pink-400">{error}</div>}
+        <div className="flex justify-center">
+          <CyberButton type="submit" disabled={loading} size="md" className="" label={loading ? 'Creating account...' : 'Create Account'} />
+        </div>
+        <div className="flex justify-center">
+          <CyberButton type="button" disabled={loading} onClick={onSwitchToLogin} size="md" className="text-md" label="Back to Log In" />
+        </div>
       </form>
     </Modal>
   );

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Navbar, LevelGrid } from '@/components';
+import { Navbar, LevelGrid, CyberTitle } from '@/components';
 import { getProgress } from '@/services/progress/progressActions';
 import { useOverlays } from '@/features/overlays';
 import type { LevelId, Progress } from '@/services/progress/ProgressStore';
@@ -74,7 +74,9 @@ export default function LevelMapPage() {
     <>
       <Navbar />
       <div className="p-6">
-        <h1 className="text-xl font-bold mb-4 text-center">Level Map</h1>
+        <CyberTitle size="md" className="text-center">
+          Level Map
+        </CyberTitle>
         <LevelGrid progress={progress} onSelect={onSelect} />
       </div>
     </>
