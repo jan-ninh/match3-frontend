@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { cycleTilesetPalette, preloadTiles } from '@/features/grid/ui/tiles';
 import { cycleSpecialTilesetPalette, preloadSpecialTiles } from '@/features/grid/ui/tiles-special';
@@ -54,41 +54,22 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
     setTilesVersion((v) => (v + 1) | 0);
   };
 
-  const onDevWin = async () => {
-    const lvl = state.levelId;
-    await completeLevel(lvl);
-    openWin(lvl);
-  };
-
-  const onDevLose = async () => {
-    const lvl = state.levelId;
-    await resetProgress();
-    onDevSetLevel(1);
-    openLose(lvl);
-  };
-
-  const onDevResetProgress = async () => {
-    await resetProgress();
-  };
-
   const handledWinLevelRef = useRef<number | null>(null);
   const handledLoseLevelRef = useRef<number | null>(null);
 
-  useEffect(() => {
-    const lvl = state.levelId;
-
-    if (state.phase === 'win') {
-      if (handledWinLevelRef.current === lvl) return;
-      handledWinLevelRef.current = lvl;
-
+  const beginWinRewardFlow = useCallback(
+    (lvl: number) => {
       openPowerChoice({
         title: 'Choose your Power!',
         onChoose: async (powerId) => {
           // 1) Optimistic local powers update (immediate feedback)
-          let nextPowers = powers;
-          if (powerId === 'bomb') nextPowers = { ...powers, bomb: powers.bomb + 1 };
-          if (powerId === 'rocket') nextPowers = { ...powers, rocket: powers.rocket + 1 };
-          if (powerId === 'extraTime') nextPowers = { ...powers, extraTime: powers.extraTime + 1 };
+          const nextPowers =
+            powerId === 'bomb'
+              ? { ...powers, bomb: powers.bomb + 1 }
+              : powerId === 'rocket'
+                ? { ...powers, rocket: powers.rocket + 1 }
+                : { ...powers, extraTime: powers.extraTime + 1 };
+
           setPowers(nextPowers);
 
           // 2) Persist reward for logged-in users (best-effort)
@@ -113,7 +94,39 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
           openWin(lvl);
         },
       });
+    },
+    [openPowerChoice, powers, setPowers, user?.id, updatePowers, openWin],
+  );
 
+  const onDevWin = async () => {
+    const lvl = state.levelId;
+
+    // prevent double-trigger if the engine is already in win phase for this lvl
+    handledWinLevelRef.current = lvl;
+
+    // IMPORTANT: do NOT openWin directly; go through PowerChoice flow
+    beginWinRewardFlow(lvl);
+  };
+
+  const onDevLose = async () => {
+    const lvl = state.levelId;
+    await resetProgress();
+    onDevSetLevel(1);
+    openLose(lvl);
+  };
+
+  const onDevResetProgress = async () => {
+    await resetProgress();
+  };
+
+  useEffect(() => {
+    const lvl = state.levelId;
+
+    if (state.phase === 'win') {
+      if (handledWinLevelRef.current === lvl) return;
+      handledWinLevelRef.current = lvl;
+
+      beginWinRewardFlow(lvl);
       return;
     }
 
@@ -132,7 +145,7 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
 
       return;
     }
-  }, [state.phase, state.levelId, openPowerChoice, openWin, openLose, powers, setPowers, user?.id, updatePowers]);
+  }, [state.phase, state.levelId, beginWinRewardFlow, openLose]);
 
   // defensive: when leaving dev mode, reset the top-offset CSS var
   useEffect(() => {
