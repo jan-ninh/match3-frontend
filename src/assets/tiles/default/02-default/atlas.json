@@ -1,70 +1,70 @@
 {
   "frames": {
-    "piece_canister_blue.png": {
-      "frame": { "x": 1024, "y": 0, "w": 256, "h": 256 },
-      "rotated": false,
-      "trimmed": false,
-      "spriteSourceSize": { "x": 0, "y": 0, "w": 256, "h": 256 },
-      "sourceSize": { "w": 256, "h": 256 }
-    },
-    "piece_chip_green.png": {
-      "frame": { "x": 512, "y": 0, "w": 256, "h": 256 },
-      "rotated": false,
-      "trimmed": false,
-      "spriteSourceSize": { "x": 0, "y": 0, "w": 256, "h": 256 },
-      "sourceSize": { "w": 256, "h": 256 }
-    },
-    "piece_hex_cyan.png": {
-      "frame": { "x": 1024, "y": 256, "w": 256, "h": 256 },
-      "rotated": false,
-      "trimmed": false,
-      "spriteSourceSize": { "x": 0, "y": 0, "w": 256, "h": 256 },
-      "sourceSize": { "w": 256, "h": 256 }
-    },
-    "piece_mask_teal.png": {
-      "frame": { "x": 768, "y": 256, "w": 256, "h": 256 },
-      "rotated": false,
-      "trimmed": false,
-      "spriteSourceSize": { "x": 0, "y": 0, "w": 256, "h": 256 },
-      "sourceSize": { "w": 256, "h": 256 }
-    },
-    "piece_orb_purple.png": {
-      "frame": { "x": 512, "y": 256, "w": 256, "h": 256 },
-      "rotated": false,
-      "trimmed": false,
-      "spriteSourceSize": { "x": 0, "y": 0, "w": 256, "h": 256 },
-      "sourceSize": { "w": 256, "h": 256 }
-    },
-    "piece_prism_rainbow.png": {
-      "frame": { "x": 256, "y": 0, "w": 256, "h": 256 },
-      "rotated": false,
-      "trimmed": false,
-      "spriteSourceSize": { "x": 0, "y": 0, "w": 256, "h": 256 },
-      "sourceSize": { "w": 256, "h": 256 }
-    },
-    "piece_rune_purple.png": {
+    "piece_01.png": {
       "frame": { "x": 0, "y": 0, "w": 256, "h": 256 },
       "rotated": false,
       "trimmed": false,
       "spriteSourceSize": { "x": 0, "y": 0, "w": 256, "h": 256 },
       "sourceSize": { "w": 256, "h": 256 }
     },
-    "piece_shard_magenta.png": {
-      "frame": { "x": 256, "y": 256, "w": 256, "h": 256 },
+    "piece_02.png": {
+      "frame": { "x": 256, "y": 0, "w": 256, "h": 256 },
       "rotated": false,
       "trimmed": false,
       "spriteSourceSize": { "x": 0, "y": 0, "w": 256, "h": 256 },
       "sourceSize": { "w": 256, "h": 256 }
     },
-    "piece_target_red.png": {
+    "piece_03.png": {
+      "frame": { "x": 512, "y": 0, "w": 256, "h": 256 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 256, "h": 256 },
+      "sourceSize": { "w": 256, "h": 256 }
+    },
+    "piece_04.png": {
+      "frame": { "x": 768, "y": 0, "w": 256, "h": 256 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 256, "h": 256 },
+      "sourceSize": { "w": 256, "h": 256 }
+    },
+    "piece_05.png": {
+      "frame": { "x": 1024, "y": 0, "w": 256, "h": 256 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 256, "h": 256 },
+      "sourceSize": { "w": 256, "h": 256 }
+    },
+    "piece_06.png": {
       "frame": { "x": 0, "y": 256, "w": 256, "h": 256 },
       "rotated": false,
       "trimmed": false,
       "spriteSourceSize": { "x": 0, "y": 0, "w": 256, "h": 256 },
       "sourceSize": { "w": 256, "h": 256 }
     },
-    "special_gate.png": {
-      "frame": { "x": 768, "y": 0, "w": 256, "h": 256 },
+    "piece_07.png": {
+      "frame": { "x": 256, "y": 256, "w": 256, "h": 256 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 256, "h": 256 },
+      "sourceSize": { "w": 256, "h": 256 }
+    },
+    "piece_08.png": {
+      "frame": { "x": 512, "y": 256, "w": 256, "h": 256 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 256, "h": 256 },
+      "sourceSize": { "w": 256, "h": 256 }
+    },
+    "piece_09.png": {
+      "frame": { "x": 768, "y": 256, "w": 256, "h": 256 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 256, "h": 256 },
+      "sourceSize": { "w": 256, "h": 256 }
+    },
+    "piece_10.png": {
+      "frame": { "x": 1024, "y": 256, "w": 256, "h": 256 },
       "rotated": false,
       "trimmed": false,
       "spriteSourceSize": { "x": 0, "y": 0, "w": 256, "h": 256 },

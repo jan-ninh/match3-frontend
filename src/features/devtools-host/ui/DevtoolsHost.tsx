@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { cycleTilesetPalette, preloadTiles } from '@/features/grid/ui/tiles';
+import { cycleSpecialTilesetPalette, preloadSpecialTiles } from '@/features/grid/ui/tiles-special';
 import { useOverlays } from '@/features/overlays';
 import { completeLevel, resetProgress } from '@/services/progress/progressActions';
 
@@ -43,7 +44,9 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
 
   const onDevNextTilesPalette = () => {
     cycleTilesetPalette();
+    cycleSpecialTilesetPalette();
     preloadTiles();
+    preloadSpecialTiles();
     setTilesVersion((v) => (v + 1) | 0);
   };
 

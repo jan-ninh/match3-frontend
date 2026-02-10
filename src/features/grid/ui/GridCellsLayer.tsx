@@ -1,7 +1,7 @@
 import type { Cell } from '@/gamelogic';
 import { xyOf } from '@/gamelogic';
 import { GAP, TILE_SIZE } from '../lib/constants';
-import { getGateSprite } from './tiles';
+import { getGateSprite, getSpecialTileSprite, specialTile_04 } from './tiles-special';
 
 type Props = {
   width: number;
@@ -12,6 +12,21 @@ type Props = {
 };
 
 export default function GridCellsLayer({ width, height, cells, onCellPointerDown, showDebugLabels = false }: Props) {
+  // blocked cells use piece_04.png (special tileset basic b-04)
+  const blockedSprite = getSpecialTileSprite(specialTile_04);
+
+  const blockedSpriteStyleBase: React.CSSProperties | undefined = blockedSprite
+    ? (() => {
+        const scale = TILE_SIZE / blockedSprite.w;
+        return {
+          backgroundImage: `url(${blockedSprite.sheet})`,
+          backgroundRepeat: 'no-repeat',
+          backgroundSize: `${blockedSprite.sheetW * scale}px ${blockedSprite.sheetH * scale}px`,
+          backgroundPosition: `${-blockedSprite.x * scale}px ${-blockedSprite.y * scale}px`,
+        };
+      })()
+    : undefined;
+
   return (
     <div
       className="grid"
@@ -24,23 +39,12 @@ export default function GridCellsLayer({ width, height, cells, onCellPointerDown
       {cells.map((cell, index) => {
         const isGate = cell.obstacle === 'gate';
         const isFirewall = cell.obstacle === 'firewall';
+        const isBlockedPlain = cell.blocked && !isGate && !isFirewall;
 
         const { x, y } = xyOf(index, width);
 
-        // bottom-right 2x2 (blocked) should show the old "gate" sprite (4th sprite)
-        const isCornerBlocked = cell.blocked && !isGate && !isFirewall && x >= width - 2 && y >= height - 2;
-
-        const blockedOverlayStyle: React.CSSProperties | undefined =
-          cell.blocked && !isGate && !isFirewall && !isCornerBlocked
-            ? {
-                backgroundImage:
-                  'repeating-linear-gradient(45deg, rgba(255,255,255,0.06), rgba(255,255,255,0.06) 6px, rgba(255,255,255,0.0) 6px, rgba(255,255,255,0.0) 12px)',
-              }
-            : undefined;
-
         const gateSprite = isGate ? getGateSprite(!!cell.gateOpen) : null;
 
-        // Render atlas frame as a full-tile background (same scaling logic as <Tile />)
         const gateSpriteStyle: React.CSSProperties | undefined = gateSprite
           ? (() => {
               const scale = TILE_SIZE / gateSprite.w;
@@ -53,34 +57,9 @@ export default function GridCellsLayer({ width, height, cells, onCellPointerDown
             })()
           : undefined;
 
-        const cornerSprite = isCornerBlocked ? getGateSprite(false) : null;
-
-        const cornerSpriteStyle: React.CSSProperties | undefined = cornerSprite
-          ? (() => {
-              const scale = TILE_SIZE / cornerSprite.w;
-              return {
-                backgroundImage: `url(${cornerSprite.sheet})`,
-                backgroundRepeat: 'no-repeat',
-                backgroundSize: `${cornerSprite.sheetW * scale}px ${cornerSprite.sheetH * scale}px`,
-                backgroundPosition: `${-cornerSprite.x * scale}px ${-cornerSprite.y * scale}px`,
-              };
-            })()
-          : undefined;
-
         const base = [
-          'relative rounded-xl border',
-          'focus:outline-none',
-          // 'transition-transform duration-150',
-          isGate
-            ? 'border-slate-500/5 bg-transparent'
-            : isFirewall
-              ? 'border-slate-500/5 bg-transparent'
-              : cell.blocked
-                ? 'border-slate-500/5 bg-transparent'
-                : 'border-slate-500/5 bg-transparent', // Zellen (auf denen die Tiles liegen)
-
-          cell.blocked ? '' : 'shadow-sm',
-          // 'hover:scale-[1.02]',
+          'relative rounded-xl border border-slate-500/5 bg-transparent focus:outline-none',
+          cell.blocked ? 'cursor-not-allowed' : 'cursor-pointer shadow-sm',
         ].join(' ');
 
         return (
@@ -91,8 +70,8 @@ export default function GridCellsLayer({ width, height, cells, onCellPointerDown
             style={{
               width: TILE_SIZE,
               height: TILE_SIZE,
-              ...(blockedOverlayStyle ?? {}),
             }}
+            disabled={cell.blocked}
             aria-label={cell.blocked ? `blocked cell ${index}` : `cell ${index}`}
             onPointerDown={(e) => onCellPointerDown(index, e)}
           >
@@ -139,10 +118,8 @@ export default function GridCellsLayer({ width, height, cells, onCellPointerDown
                   </div>
                 ) : null}
               </>
-            ) : isCornerBlocked && cornerSpriteStyle ? (
-              <div className="absolute inset-0 rounded-xl opacity-95" style={cornerSpriteStyle} />
-            ) : cell.blocked ? (
-              <div className="absolute inset-0 flex items-center justify-center text-white/20 text-2xl">✕</div>
+            ) : isBlockedPlain && blockedSpriteStyleBase ? (
+              <div className="absolute inset-0 rounded-xl opacity-95" style={blockedSpriteStyleBase} />
             ) : null}
           </button>
         );
