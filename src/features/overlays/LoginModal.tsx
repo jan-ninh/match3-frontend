@@ -44,7 +44,7 @@ export default function LoginModal({ onClose, onSwitchToRegister }: Props) {
           autoComplete="current-password"
           disabled={loading}
         />
-        {error && <div className="text-sm text-red-400">{error}</div>}
+        {error && <div className="text-sm text-pink-400">{error}</div>}
         <div className="flex justify-center">
           <CyberButton type="submit" size="md" className="" label={`${loading ? 'Logging in...' : 'Log in'}`} />
         </div>

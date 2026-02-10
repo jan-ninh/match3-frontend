@@ -1,13 +1,18 @@
 // Example: SettingsModal
 import { useState } from 'react';
-
+import { useOverlays } from './useOverlays';
 import { CyberButton, Modal } from '@/components';
 
 export default function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [soundOn, setSoundOn] = useState(true);
   const [volume, setVolume] = useState(70);
   const [graphics, setGraphics] = useState<'low' | 'medium' | 'high'>('high');
-
+  const api = useOverlays();
+  const isInGame = location.pathname === '/game-map/play-game';
+  const handleClose = () => {
+    onClose(); // close settings
+    api.openQuitConfirm(); // open quit confirm
+  };
   return (
     <Modal open={open} onClose={onClose} title="Settings" size="md">
       {/* Sound + Volume */}
@@ -26,7 +31,8 @@ export default function SettingsModal({ open, onClose }: { open: boolean; onClos
       </div>
 
       {/* Graphics */}
-      <div className="flex justify-center gap-3 mb-6">
+      <div className="flex justify-center items-center gap-3 mb-6">
+        <p className="text-cyan-600">Graphics:</p>
         {(['low', 'medium', 'high'] as const).map((g) => (
           <button
             key={g}
@@ -39,14 +45,19 @@ export default function SettingsModal({ open, onClose }: { open: boolean; onClos
       </div>
 
       {/* Feedback */}
-      <div className="flex justify-center mb-4">
-        <CyberButton label="Send Feedback" onClick={() => alert('Feedback coming soon!')} />
+      <div className="flex justify-center my-4">
+        <CyberButton label="Send Feedback" onClick={() => alert('Feedback coming soon!')} size="md" />
       </div>
 
       {/* Close main button */}
-      <div className="flex justify-center">
-        <CyberButton label="Close" onClick={onClose} />
+      <div className="flex justify-center my-4">
+        <CyberButton label="Close" onClick={onClose} size="md" />
       </div>
+      {isInGame && (
+        <div className="flex justify-center">
+          <CyberButton label="Quit Game" onClick={handleClose} size="md" />
+        </div>
+      )}
     </Modal>
   );
 }

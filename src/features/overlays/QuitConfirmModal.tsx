@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router';
 import Modal from '@/components/Modal';
+import { CyberButton } from '@/components';
 
 type Props = {
   open: boolean;
@@ -16,17 +17,13 @@ export default function QuitConfirmModal({ open, onClose }: Props) {
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="" size="sm" closeOnBackdrop={false}>
+    <Modal open={open} onClose={onClose} title="Are you sure?" size="sm" closeOnBackdrop={false}>
       <div className="flex flex-col items-center gap-4 py-6">
-        <div className="text-lg text-white/90">you will lose 1 heart</div>
+        <div className="text-2xl font-semibold text-cyan-600">You will lose 1 Heart</div>
 
         <div className="flex gap-3">
-          <button type="button" onClick={back} className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20">
-            back
-          </button>
-          <button type="button" onClick={quit} className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20">
-            quit
-          </button>
+          <CyberButton type="button" label="back" size="sm" onClick={back} className="" />
+          <CyberButton type="button" label="quit" size="sm" onClick={quit} className="" />
         </div>
       </div>
     </Modal>
