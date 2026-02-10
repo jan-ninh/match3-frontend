@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Button, Navbar, PodiumCard, RankRow, YourPositionCard } from '@/components';
+import { CyberButton, Navbar, PodiumCard, RankRow, YourPositionCard } from '@/components';
 import type { User } from '@/types';
 import { apiLeaderboardTop10 } from '@/api/leaderboard';
 import { useAuth } from '@/context/AuthContext';
@@ -83,7 +83,7 @@ export default function LeaderboardPage() {
         )}
       </div>
       <div className="m-6 flex justify-center">
-        <Button key={'Back'} label={'Back'} onClick={() => navigate('/game-map')} />
+        <CyberButton key={'Back'} label={'Back'} onClick={() => navigate('/game-map')} />
       </div>
     </>
   );

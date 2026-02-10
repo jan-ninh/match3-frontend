@@ -1,4 +1,4 @@
-﻿import { Avatar, BadgeGrid, ProfileHeader, ProgressBar, StatsGrid, Navbar, Button } from '@/components';
+﻿import { Avatar, BadgeGrid, ProfileHeader, ProgressBar, StatsGrid, Navbar, CyberButton } from '@/components';
 import badges from '@/data/badges';
 import { useNavigate } from 'react-router';
 import { useAuth } from '@/context/AuthContext';
@@ -54,10 +54,10 @@ export default function ProfileDashboard() {
 
   const achievedBadges = useMemo(() => {
     if (!profile) return badges;
-    
+
     // Create a set of unlocked badge keys from profile for O(1) lookup
     const unlockedKeys = new Set(profile.badges.map((b) => b.badgeKey));
-    
+
     // Map all badges from data, checking if each is unlocked
     return badges.map((badge) => ({
       id: badge.id,
@@ -93,7 +93,7 @@ export default function ProfileDashboard() {
         <BadgeGrid badges={achievedBadges} />
       </div>
       <div className="m-6 flex justify-center">
-        <Button key={'Back'} label={'Back'} onClick={() => navigate('/game-map')} />
+        <CyberButton key={'Back'} label={'Back'} onClick={() => navigate('/game-map')} />
       </div>
     </>
   );

@@ -1,101 +1,46 @@
-import { useEffect, useMemo, useRef } from 'react';
-import { createPortal } from 'react-dom';
+// src/components/BaseModal.tsx
 import type { ReactNode } from 'react';
-
-// Intentionally keep the modal mounted (even when `open === false`).
-// Reason: avoid mount/unmount work on every open/close (portal creation, layout/paint, focus setup).
-// This makes lightweight modals (e.g. Login) feel instant and reduces UI jank; we toggle visibility via CSS instead.
-
-type ModalSize = 'sm' | 'md' | 'lg';
 
 type Props = {
   open: boolean;
   title?: string;
+  onClose: () => void;
   children: ReactNode;
-
-  onClose?: () => void;
-
+  size?: 'sm' | 'md' | 'lg';
   closeOnBackdrop?: boolean;
-  showCloseButton?: boolean;
-  size?: ModalSize;
-
-  className?: string;
 };
 
-function sizeClass(size: ModalSize): string {
-  switch (size) {
-    case 'sm':
-      return 'w-[360px]';
-    case 'md':
-      return 'w-[480px]';
-    case 'lg':
-      return 'w-[720px]';
-    default:
-      return 'w-[480px]';
-  }
-}
+export default function BaseModal({ open, title, onClose, children, size = 'md', closeOnBackdrop = true }: Props) {
+  if (!open) return null;
 
-export default function Modal({ open, title, children, onClose, closeOnBackdrop = true, showCloseButton = true, size = 'md', className }: Props) {
-  const panelRef = useRef<HTMLDivElement | null>(null);
-
-  const portalTarget = useMemo(() => {
-    if (typeof document === 'undefined') return null;
-    return document.body;
-  }, []);
-
-  useEffect(() => {
-    if (!open) return;
-
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose?.();
-    };
-
-    window.addEventListener('keydown', onKeyDown);
-    queueMicrotask(() => panelRef.current?.focus());
-
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [open, onClose]);
-
-  if (!portalTarget) return null;
-
-  const overlayClasses = [
-    'fixed inset-0 z-[9999] flex items-center justify-center',
-    'transition-opacity duration-150',
-    open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none',
-  ].join(' ');
-
-  const panelClasses = [
-    'relative z-10 rounded-xl bg-neutral-800 text-white shadow-xl outline-none',
-    'max-h-[85vh] overflow-auto',
-    'p-4',
-    sizeClass(size),
-    className ?? '',
-  ].join(' ');
-
-  const onBackdropMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!closeOnBackdrop) return;
-    if (e.target === e.currentTarget) onClose?.();
+  /// Size classes for the modal container
+  const sizeClasses = {
+    sm: 'max-w-sm',
+    md: 'max-w-md',
+    lg: 'max-w-lg',
   };
 
-  return createPortal(
-    <div className={overlayClasses} aria-hidden={!open}>
-      <div className="absolute inset-0 bg-black/60" />
-      <div className="absolute inset-0" onMouseDown={onBackdropMouseDown} />
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={closeOnBackdrop ? onClose : undefined}>
+      <div
+        className={`relative w-full ${sizeClasses[size]} mx-4 p-8 rounded-2xl bg-linear-to-b from-purple-950/50 to-black/70 backdrop-blur-xl border border-cyan-500/30 shadow-lg text-cyan-100`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Title */}
+        {title && (
+          <h1 className="text-3xl font-black tracking-widest uppercase text-center mb-10 bg-linear-to-r from-cyan-400 via-pink-500 to-purple-500 bg-clip-text text-transparent drop-shadow-lg">
+            {title}
+          </h1>
+        )}
 
-      <div ref={panelRef} tabIndex={-1} role="dialog" aria-modal="true" className={panelClasses}>
-        <div className="flex items-center justify-between gap-3">
-          <div className="text-lg font-semibold">{title ?? ''}</div>
+        {/* Close X */}
+        <button onClick={onClose} className="absolute top-5 right-6 text-cyan-300 hover:text-pink-400 text-2xl font-bold transition-colors">
+          ×
+        </button>
 
-          {showCloseButton && (
-            <button type="button" onClick={onClose} className="px-3 py-1 rounded-lg bg-black/30 hover:bg-black/50">
-              ✕
-            </button>
-          )}
-        </div>
-
-        <div className="mt-4">{children}</div>
+        {/* Content */}
+        {children}
       </div>
-    </div>,
-    portalTarget,
+    </div>
   );
 }
