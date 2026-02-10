@@ -46,9 +46,6 @@ type TilesetJson = {
 
   // Legacy (still supported): direct PieceType -> frameKey
   pieces?: Record<PieceType, string>;
-
-  // Specials (frameKey OR basicId)
-  specials?: Record<string, string>;
 };
 
 type LoadedTileset = {
@@ -70,13 +67,13 @@ function readEnv(key: string): unknown {
   return env[key];
 }
 
-const tilesetMods = import.meta.glob('../../../assets/tiles/*/tileset.json', { eager: true, import: 'default' }) as Record<string, TilesetJson>;
-const atlasMods = import.meta.glob('../../../assets/tiles/*/atlas.json', { eager: true, import: 'default' }) as Record<string, AtlasJson>;
-const sheetMods = import.meta.glob('../../../assets/tiles/*/atlas*.png', { eager: true, import: 'default' }) as Record<string, string>;
+const tilesetMods = import.meta.glob('../../../assets/tiles/default/*/tileset.json', { eager: true, import: 'default' }) as Record<string, TilesetJson>;
+const atlasMods = import.meta.glob('../../../assets/tiles/default/*/atlas.json', { eager: true, import: 'default' }) as Record<string, AtlasJson>;
+const sheetMods = import.meta.glob('../../../assets/tiles/default/*/atlas*.png', { eager: true, import: 'default' }) as Record<string, string>;
 
 // ID wird aus dem PFAD geschnitten (Ordnername: 01-default)
 function extractTilesetId(path: string): string | null {
-  const key = '/assets/tiles/';
+  const key = '/assets/tiles/default/';
   const i = path.lastIndexOf(key);
   if (i < 0) return null;
 
@@ -218,12 +215,6 @@ function getFrameKeyForPieceType(cfg: TilesetJson, type: PieceType): string | nu
   return legacy ?? null;
 }
 
-function getFrameKeyForSpecial(cfg: TilesetJson, key: string): string | null {
-  const v = cfg.specials?.[key];
-  if (!v) return null;
-  return resolveFrameKeyFromPaletteValue(cfg, v);
-}
-
 export function setTilesetId(id: string | null): void {
   if (id && TILESETS_BY_ID[id]) {
     activeTilesetId = id;
@@ -276,16 +267,6 @@ export function getTileSprite(type: PieceType): TileSprite | null {
   if (!t) return null;
 
   const frameKey = getFrameKeyForPieceType(t.cfg, type);
-  if (!frameKey) return null;
-
-  return frameToSprite(t.sheetUrl, t.atlas, frameKey);
-}
-
-export function getGateSprite(open: boolean): TileSprite | null {
-  const t = getActive();
-  if (!t) return null;
-
-  const frameKey = open ? getFrameKeyForSpecial(t.cfg, 'gateOpen') : getFrameKeyForSpecial(t.cfg, 'gateClosed');
   if (!frameKey) return null;
 
   return frameToSprite(t.sheetUrl, t.atlas, frameKey);
