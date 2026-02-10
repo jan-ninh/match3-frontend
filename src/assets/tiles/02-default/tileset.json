@@ -1,0 +1,59 @@
+{
+  "id": "02-default",
+
+  "basics": {
+    "b-01": "piece_rune_purple.png",
+    "b-02": "piece_prism_rainbow.png",
+    "b-03": "piece_chip_green.png",
+    "b-04": "piece_canister_blue.png",
+    "b-05": "piece_target_red.png",
+    "b-06": "piece_shard_magenta.png",
+    "b-07": "piece_orb_purple.png",
+    "b-08": "piece_mask_teal.png",
+    "b-09": "piece_hex_cyan.png"
+  },
+
+  "palettes": {
+    "six-core": {
+      "01": "b-02",
+      "02": "b-03",
+      "03": "b-04",
+      "04": "b-05",
+      "05": "b-07",
+      "06": "b-01"
+    },
+    "eight-full": {
+      "red": "b-05",
+      "blue": "b-04",
+      "green": "b-03",
+      "purple": "b-01",
+      "orange": "b-06",
+      "cyan": "b-09",
+      "pink": "b-07",
+      "yellow": "b-02"
+    }
+  },
+
+  "defaultPalette": "six-core",
+
+  "levelPalettes": {
+    "1": "six-core"
+  },
+
+  "specials": {
+    "gateClosed": "special_gate.png",
+    "gateOpen": "special_gate.png",
+    "firewall": "piece_mask_teal.png"
+  },
+
+  "pieces": {
+    "red": "piece_target_red.png",
+    "blue": "piece_canister_blue.png",
+    "green": "piece_chip_green.png",
+    "purple": "piece_rune_purple.png",
+    "orange": "piece_shard_magenta.png",
+    "cyan": "piece_hex_cyan.png",
+    "pink": "piece_orb_purple.png",
+    "yellow": "piece_prism_rainbow.png"
+  }
+}

@@ -35,17 +35,13 @@ type AtlasJson = {
 type TilesetJson = {
   id: string;
 
-  // NEW (Fall 2): a tileset can contain MANY basics (e.g. 20).
   // basics maps "basicId" -> "frameKey" (frameKey must exist in atlas.frames)
   basics?: Record<string, string>;
 
-  // palettes map "paletteName" -> PieceType -> (basicId OR frameKey)
+  // palettes map "paletteName" -> (PieceType OR "01".."06") -> (basicId OR frameKey)
   palettes?: Record<string, Partial<Record<string, string>>>;
 
-  // optional: default palette name
   defaultPalette?: string;
-
-  // optional: per-level palette routing (keys are LevelId as string)
   levelPalettes?: Record<string, string>;
 
   // Legacy (still supported): direct PieceType -> frameKey
@@ -68,10 +64,17 @@ function envStr(v: unknown): string | null {
   return s.length ? s : null;
 }
 
+function readEnv(key: string): unknown {
+  // avoid explicit `any`, but still allow custom VITE_* keys without d.ts augmentation
+  const env = import.meta.env as unknown as Record<string, unknown>;
+  return env[key];
+}
+
 const tilesetMods = import.meta.glob('../../../assets/tiles/*/tileset.json', { eager: true, import: 'default' }) as Record<string, TilesetJson>;
 const atlasMods = import.meta.glob('../../../assets/tiles/*/atlas.json', { eager: true, import: 'default' }) as Record<string, AtlasJson>;
-const sheetMods = import.meta.glob('../../../assets/tiles/*/atlas.png', { eager: true, import: 'default' }) as Record<string, string>;
+const sheetMods = import.meta.glob('../../../assets/tiles/*/atlas*.png', { eager: true, import: 'default' }) as Record<string, string>;
 
+// ID wird aus dem PFAD geschnitten (Ordnername: 01-default)
 function extractTilesetId(path: string): string | null {
   const key = '/assets/tiles/';
   const i = path.lastIndexOf(key);
@@ -84,6 +87,24 @@ function extractTilesetId(path: string): string | null {
   return rest.slice(0, slash);
 }
 
+function pickSheetPathForTileset(tilesetPath: string, atlas: AtlasJson): string | null {
+  const desired = atlas.meta?.image?.trim();
+
+  // 1) Best case: atlas.json says exactly which png to use.
+  if (desired) {
+    const p = tilesetPath.replace('tileset.json', desired);
+    if (sheetMods[p]) return p;
+  }
+
+  // 2) Fallback: pick the first atlas*.png in the same folder (deterministic)
+  const folder = tilesetPath.slice(0, tilesetPath.lastIndexOf('/'));
+  const candidates = Object.keys(sheetMods)
+    .filter((k) => k.startsWith(folder + '/'))
+    .sort();
+
+  return candidates[0] ?? null;
+}
+
 const TILESETS_BY_ID: Record<string, LoadedTileset> = {};
 
 for (const [tilesetPath, cfg] of Object.entries(tilesetMods)) {
@@ -91,15 +112,14 @@ for (const [tilesetPath, cfg] of Object.entries(tilesetMods)) {
   if (!id) continue;
 
   const atlasPath = tilesetPath.replace('tileset.json', 'atlas.json');
-  const sheetPath = tilesetPath.replace('tileset.json', 'atlas.png');
-
   const atlas = atlasMods[atlasPath];
-  const sheetUrl = sheetMods[sheetPath];
+
+  const sheetPath = atlas ? pickSheetPathForTileset(tilesetPath, atlas) : null;
+  const sheetUrl = sheetPath ? sheetMods[sheetPath] : undefined;
 
   if (!atlas || !sheetUrl) {
-    // fail fast in dev builds (misconfigured folder)
     if (import.meta.env.DEV) {
-      throw new Error(`Tileset "${id}" missing atlas.json or atlas.png (expected: ${atlasPath}, ${sheetPath})`);
+      throw new Error(`Tileset "${id}" missing atlas.json or atlas*.png (expected: ${atlasPath}, ${tilesetPath.replace('tileset.json', 'atlas*.png')})`);
     }
     continue;
   }
@@ -111,14 +131,13 @@ function pickDefaultTilesetId(): string | null {
   const ids = Object.keys(TILESETS_BY_ID).sort();
   if (!ids.length) return null;
 
-  const envId = envStr(import.meta.env.VITE_TILESET);
-
+  const envId = envStr(readEnv('VITE_TILESET_FOLDER'));
   if (envId && TILESETS_BY_ID[envId]) return envId;
 
   return ids[0] ?? null;
 }
 
-const activeTilesetId: string | null = pickDefaultTilesetId();
+let activeTilesetId: string | null = pickDefaultTilesetId();
 let currentLevelId: number | null = null;
 
 // manual override (dev): if set, it wins over env/level/default
@@ -140,8 +159,7 @@ function getActive(): LoadedTileset | null {
 function resolvePaletteName(cfg: TilesetJson): string | null {
   if (manualPaletteName) return manualPaletteName;
 
-  const envPalette = envStr(import.meta.env.VITE_TILE_PALETTE);
-
+  const envPalette = envStr(readEnv('VITE_TILE_PALETTE'));
   if (envPalette && cfg.palettes?.[envPalette]) return envPalette;
 
   if (currentLevelId !== null) {
@@ -180,6 +198,7 @@ function frameToSprite(sheetUrl: string, atlas: AtlasJson, frameKey: string): Ti
 
 function getFrameKeyForPieceType(cfg: TilesetJson, type: PieceType): string | null {
   const paletteName = resolvePaletteName(cfg);
+
   if (paletteName) {
     const palette = cfg.palettes?.[paletteName];
 
@@ -203,6 +222,15 @@ function getFrameKeyForSpecial(cfg: TilesetJson, key: string): string | null {
   const v = cfg.specials?.[key];
   if (!v) return null;
   return resolveFrameKeyFromPaletteValue(cfg, v);
+}
+
+export function setTilesetId(id: string | null): void {
+  if (id && TILESETS_BY_ID[id]) {
+    activeTilesetId = id;
+  } else {
+    activeTilesetId = pickDefaultTilesetId();
+  }
+  manualPaletteName = null;
 }
 
 export function setTilesetLevel(levelId: number): void {
@@ -267,11 +295,6 @@ export function preloadTiles(): void {
   const t = getActive();
   if (!t) return;
 
-  const urls = new Set<string>();
-  urls.add(t.sheetUrl);
-
-  for (const u of urls) {
-    const img = new Image();
-    img.src = u;
-  }
+  const img = new Image();
+  img.src = t.sheetUrl;
 }
