@@ -1,3 +1,4 @@
+// src/gamelogic/levels/levels.ts
 import type { LevelDefinition, PieceType } from '../types';
 import { deriveSeed } from '../rng';
 
@@ -29,11 +30,13 @@ function makeFallbackLevel(levelId: number): LevelDefinition {
 }
 
 export function getLevelDefinition(levelId: number): LevelDefinition {
-  // For now: Levels 1–12 all share Level 01 rules/objective.
-  if (levelId >= 1 && levelId <= 12) {
-    // keep L1 entrypoint intact (in case other code depends on it)
-    if (levelId === 1) return makeLevel01({ baseSeed: BASE_SEED, allowedTypes: DEFAULT_TYPES });
+  // Level 1: CLEAN ROOM (Spikes HP1)
+  if (levelId === 1) {
+    return makeLevel01({ baseSeed: BASE_SEED, allowedTypes: DEFAULT_TYPES });
+  }
 
+  // For now: Levels 2–12 keep the previous “nodes” template.
+  if (levelId >= 2 && levelId <= 12) {
     return makeLevelLike01({ levelId, baseSeed: BASE_SEED, allowedTypes: DEFAULT_TYPES });
   }
 

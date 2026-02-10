@@ -43,11 +43,23 @@ export type EngineAction =
   | SwapBackAnimDoneAction
   | FallAnimDoneAction;
 
-const applyDone = (st: EngineState, kind: any, tok: number, mode: any): EngineState => {
-  if (kind === 'swap') return applySwapAnimDone(st, tok, mode);
-  if (kind === 'swapBack') return applySwapBackAnimDone(st, tok, mode);
-  if (kind === 'fall') return applyFallAnimDone(st, tok, mode);
-  return st;
+type DoneKind = 'swap' | 'swapBack' | 'fall';
+type SwapDoneMode = Parameters<typeof applySwapAnimDone>[2];
+type SwapBackDoneMode = Parameters<typeof applySwapBackAnimDone>[2];
+type FallDoneMode = Parameters<typeof applyFallAnimDone>[2];
+type DoneMode = SwapDoneMode | SwapBackDoneMode | FallDoneMode;
+
+const applyDone = (st: EngineState, kind: DoneKind, tok: number, mode: DoneMode): EngineState => {
+  switch (kind) {
+    case 'swap':
+      return applySwapAnimDone(st, tok, mode as SwapDoneMode);
+    case 'swapBack':
+      return applySwapBackAnimDone(st, tok, mode as SwapBackDoneMode);
+    case 'fall':
+      return applyFallAnimDone(st, tok, mode as FallDoneMode);
+    default:
+      throw new Error(`Unhandled done kind: ${kind}`);
+  }
 };
 
 export function engineReducer(state: EngineState, action: EngineAction): EngineState {

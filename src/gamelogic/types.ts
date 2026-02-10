@@ -39,16 +39,14 @@ export type LevelDefinition = {
   id: LevelId;
   width: number;
   height: number;
+  baseSeed: number;
 
   moves: number;
-
-  blockedIndices: number[];
   allowedTypes: PieceType[];
 
-  firewallNodes: FirewallNodeDef[];
-  gateIndices: number[];
-
-  baseSeed: number;
+  blockedIndices?: number[];
+  firewallNodes?: FirewallNodeDef[];
+  gateIndices?: number[];
 };
 
 export type PendingSwap = {

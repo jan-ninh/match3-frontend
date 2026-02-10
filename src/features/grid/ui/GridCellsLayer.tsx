@@ -1,3 +1,4 @@
+// src/features/grid/ui/GridCellsLayer.tsx
 import type { Cell } from '@/gamelogic';
 import { xyOf } from '@/gamelogic';
 import { GAP, TILE_SIZE } from '../lib/constants';
@@ -38,7 +39,12 @@ export default function GridCellsLayer({ width, height, cells, onCellPointerDown
     >
       {cells.map((cell, index) => {
         const isGate = cell.obstacle === 'gate';
+
+        // CLEAN ROOM “spikes” are implemented via firewallNodes with hp=1.
         const isFirewall = cell.obstacle === 'firewall';
+        const isSpike = isFirewall && (cell.maxHp ?? 0) <= 1;
+        const isFirewallNode = isFirewall && !isSpike;
+
         const isBlockedPlain = cell.blocked && !isGate && !isFirewall;
 
         const { x, y } = xyOf(index, width);
@@ -91,7 +97,18 @@ export default function GridCellsLayer({ width, height, cells, onCellPointerDown
                   ].join(' ')}
                 />
               </>
-            ) : isFirewall ? (
+            ) : isSpike ? (
+              <>
+                {/* CLEAN ROOM spike (sterile white/gray) */}
+                <div className="absolute inset-0 rounded-xl bg-white/3 border border-white/10 shadow-[0_0_18px_rgba(255,255,255,0.08)]" />
+                <div className="absolute inset-2 rounded-lg bg-white/2 border border-white/10" />
+
+                <div className="absolute inset-0 flex items-center justify-center">
+                  {/* small “spike” glyph: diamond */}
+                  <div className="h-6 w-6 rotate-45 rounded-[6px] bg-white/5 border border-white/15 shadow-[0_0_14px_rgba(255,255,255,0.10)]" />
+                </div>
+              </>
+            ) : isFirewallNode ? (
               <>
                 <div className="absolute inset-0 rounded-xl bg-slate-950/70" />
                 <div className="absolute inset-0 rounded-xl border border-cyan-300/20 shadow-[0_0_18px_rgba(34,211,238,0.18)]" />

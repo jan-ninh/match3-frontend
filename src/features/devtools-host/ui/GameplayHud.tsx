@@ -1,4 +1,7 @@
 // src/features/devtools-host/ui/GameplayHud.tsx
+// src/features/devtools-host/ui/GameplayHud.tsx
+type ObjectiveKind = 'nodes' | 'spikes' | 'none';
+
 type Props = {
   levelId: number;
 
@@ -11,10 +14,19 @@ type Props = {
 
   isWin: boolean;
   isLose: boolean;
+
+  objectiveKind?: ObjectiveKind;
 };
 
-export default function GameplayHud({ levelId, gateOpen, breachDone, breachTotal, movesLeft, isWin, isLose }: Props) {
-  const title = gateOpen ? 'Exit unlocked' : 'Crack the Nodes!';
+export default function GameplayHud({ levelId, gateOpen, breachDone, breachTotal, movesLeft, isWin, isLose, objectiveKind = 'nodes' }: Props) {
+  const preTitle = objectiveKind === 'spikes' ? 'Clean Room: remove spikes' : objectiveKind === 'nodes' ? 'Crack the Nodes!' : 'Objective';
+
+  const title = gateOpen ? 'Exit unlocked' : preTitle;
+
+  const hint =
+    objectiveKind === 'spikes'
+      ? 'Make matches orthogonal to a spike to remove it. Clear them all to unlock the exit.'
+      : 'Adjacent matches damage nodes. Break all to unlock the exit.';
 
   const chip = isWin
     ? { label: 'WIN', cls: 'border-emerald-300/30 bg-emerald-500/10 text-emerald-200/90' }
@@ -22,17 +34,24 @@ export default function GameplayHud({ levelId, gateOpen, breachDone, breachTotal
       ? { label: 'LOSE', cls: 'border-rose-300/30 bg-rose-500/10 text-rose-200/90' }
       : null;
 
-  const keyline = gateOpen ? 'border-emerald-300/18' : 'border-fuchsia-300/18';
+  const baseKeyline = objectiveKind === 'spikes' ? 'border-white/14' : 'border-fuchsia-300/18';
+  const keyline = gateOpen ? 'border-emerald-300/18' : baseKeyline;
 
   const glowA = gateOpen
     ? 'shadow-[0_10px_26px_rgba(0,0,0,0.55),0_0_22px_rgba(16,185,129,0.12)]'
-    : 'shadow-[0_10px_26px_rgba(0,0,0,0.55),0_0_22px_rgba(217,70,239,0.12)]';
+    : objectiveKind === 'spikes'
+      ? 'shadow-[0_10px_26px_rgba(0,0,0,0.55),0_0_22px_rgba(255,255,255,0.08)]'
+      : 'shadow-[0_10px_26px_rgba(0,0,0,0.55),0_0_22px_rgba(217,70,239,0.12)]';
 
-  const segCap = 5;
+  const segCap = 6;
   const segTotal = Math.min(Math.max(0, breachTotal), segCap);
   const segDone = Math.min(Math.max(0, breachDone), segTotal);
 
-  const segOn = gateOpen ? 'bg-emerald-400/35 border-emerald-300/35' : 'bg-fuchsia-400/35 border-fuchsia-300/35';
+  const segOn = gateOpen
+    ? 'bg-emerald-400/35 border-emerald-300/35'
+    : objectiveKind === 'spikes'
+      ? 'bg-white/20 border-white/25'
+      : 'bg-fuchsia-400/35 border-fuchsia-300/35';
 
   return (
     <div className="mb-4 flex items-start justify-between gap-4">
@@ -114,7 +133,7 @@ export default function GameplayHud({ levelId, gateOpen, breachDone, breachTotal
                 <div className="text-white/25">•</div>
               </div>
 
-              <div className="text-xs text-white/55 whitespace-nowrap">Adjacent matches damage nodes. Break all 3 to unlock the exit.</div>
+              <div className="text-xs text-white/55 whitespace-nowrap">{hint}</div>
             </div>
           </div>
         </div>

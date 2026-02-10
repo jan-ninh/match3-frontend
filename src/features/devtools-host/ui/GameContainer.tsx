@@ -1,3 +1,4 @@
+// src/features/devtools-host/ui/GameContainer.tsx
 import { useEffect, useRef } from 'react';
 import type { RefObject } from 'react';
 
@@ -78,6 +79,15 @@ export default function GameContainer(props: Props) {
   const isWin = state.phase === 'win';
   const isLose = state.phase === 'lose';
 
+  const objectiveKind: 'spikes' | 'nodes' | 'none' = (() => {
+    const hasFirewall = state.cells.some((c) => c.obstacle === 'firewall');
+    if (!hasFirewall) return 'none';
+
+    // Level 1 “spikes” are implemented via firewallNodes with hp=1.
+    const looksLikeSpikes = state.cells.some((c) => c.obstacle === 'firewall' && (c.maxHp ?? 0) <= 1);
+    return looksLikeSpikes ? 'spikes' : 'nodes';
+  })();
+
   return (
     <div className="w-full">
       <GameplayHud
@@ -88,6 +98,7 @@ export default function GameContainer(props: Props) {
         movesLeft={state.movesLeft ?? '—'}
         isWin={isWin}
         isLose={isLose}
+        objectiveKind={objectiveKind}
       />
 
       <div ref={gridRowRef} className="flex justify-center items-start pt-12">
