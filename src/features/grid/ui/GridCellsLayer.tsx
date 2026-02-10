@@ -1,8 +1,7 @@
-// src/features/grid/ui/GridCellsLayer.tsx
 import type { Cell } from '@/gamelogic';
 import { xyOf } from '@/gamelogic';
 import { GAP, TILE_SIZE } from '../lib/constants';
-import { getGateSprite, getSpecialTileSprite, specialTile_04 } from './tiles-special';
+import { getGateSprite, getSpecialTileSprite, specialSpike, specialTile_04 } from './tiles-special';
 
 type Props = {
   width: number;
@@ -13,20 +12,23 @@ type Props = {
 };
 
 export default function GridCellsLayer({ width, height, cells, onCellPointerDown, showDebugLabels = false }: Props) {
-  // blocked cells use piece_04.png (special tileset basic b-04)
-  const blockedSprite = getSpecialTileSprite(specialTile_04);
+  const spriteToBgStyle = (sprite: ReturnType<typeof getSpecialTileSprite>): React.CSSProperties | undefined => {
+    if (!sprite) return undefined;
 
-  const blockedSpriteStyleBase: React.CSSProperties | undefined = blockedSprite
-    ? (() => {
-        const scale = TILE_SIZE / blockedSprite.w;
-        return {
-          backgroundImage: `url(${blockedSprite.sheet})`,
-          backgroundRepeat: 'no-repeat',
-          backgroundSize: `${blockedSprite.sheetW * scale}px ${blockedSprite.sheetH * scale}px`,
-          backgroundPosition: `${-blockedSprite.x * scale}px ${-blockedSprite.y * scale}px`,
-        };
-      })()
-    : undefined;
+    const scale = TILE_SIZE / sprite.w;
+    return {
+      backgroundImage: `url(${sprite.sheet})`,
+      backgroundRepeat: 'no-repeat',
+      backgroundSize: `${sprite.sheetW * scale}px ${sprite.sheetH * scale}px`,
+      backgroundPosition: `${-sprite.x * scale}px ${-sprite.y * scale}px`,
+    };
+  };
+
+  // blocked cells use piece_04.png (special tileset basic b-04)
+  const blockedSpriteStyleBase = spriteToBgStyle(getSpecialTileSprite(specialTile_04));
+
+  // CLEAN ROOM spike sprite (specials.spike -> b-11 -> piece_11.png)
+  const spikeSpriteStyleBase = spriteToBgStyle(getSpecialTileSprite(specialSpike));
 
   return (
     <div
@@ -42,7 +44,7 @@ export default function GridCellsLayer({ width, height, cells, onCellPointerDown
 
         // CLEAN ROOM “spikes” are implemented via firewallNodes with hp=1.
         const isFirewall = cell.obstacle === 'firewall';
-        const isSpike = isFirewall && (cell.maxHp ?? 0) <= 1;
+        const isSpike = isFirewall && cell.maxHp === 1;
         const isFirewallNode = isFirewall && !isSpike;
 
         const isBlockedPlain = cell.blocked && !isGate && !isFirewall;
@@ -50,18 +52,7 @@ export default function GridCellsLayer({ width, height, cells, onCellPointerDown
         const { x, y } = xyOf(index, width);
 
         const gateSprite = isGate ? getGateSprite(!!cell.gateOpen) : null;
-
-        const gateSpriteStyle: React.CSSProperties | undefined = gateSprite
-          ? (() => {
-              const scale = TILE_SIZE / gateSprite.w;
-              return {
-                backgroundImage: `url(${gateSprite.sheet})`,
-                backgroundRepeat: 'no-repeat',
-                backgroundSize: `${gateSprite.sheetW * scale}px ${gateSprite.sheetH * scale}px`,
-                backgroundPosition: `${-gateSprite.x * scale}px ${-gateSprite.y * scale}px`,
-              };
-            })()
-          : undefined;
+        const gateSpriteStyle = spriteToBgStyle(gateSprite);
 
         const base = [
           'relative rounded-xl border border-slate-500/5 bg-transparent focus:outline-none',
@@ -100,13 +91,17 @@ export default function GridCellsLayer({ width, height, cells, onCellPointerDown
             ) : isSpike ? (
               <>
                 {/* CLEAN ROOM spike (sterile white/gray) */}
-                <div className="absolute inset-0 rounded-xl bg-white/3 border border-white/10 shadow-[0_0_18px_rgba(255,255,255,0.08)]" />
-                <div className="absolute inset-2 rounded-lg bg-white/2 border border-white/10" />
+                <div className="absolute inset-0 rounded-xl" />
+                <div className="absolute inset-2 rounded-lg" />
 
-                <div className="absolute inset-0 flex items-center justify-center">
-                  {/* small “spike” glyph: diamond */}
-                  <div className="h-6 w-6 rotate-45 rounded-[6px] bg-white/5 border border-white/15 shadow-[0_0_14px_rgba(255,255,255,0.10)]" />
-                </div>
+                {spikeSpriteStyleBase ? (
+                  <div className="absolute inset-0 rounded-xl opacity-95" style={spikeSpriteStyleBase} />
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    {/* fallback glyph if sprite missing */}
+                    <div className="h-6 w-6 rotate-45 rounded-[6px] bg-white/5 border border-white/15 shadow-[0_0_14px_rgba(255,255,255,0.10)]" />
+                  </div>
+                )}
               </>
             ) : isFirewallNode ? (
               <>

@@ -348,3 +348,6 @@ export const specialTile_07 = 'b-07' as const;
 export const specialTile_08 = 'b-08' as const;
 export const specialTile_09 = 'b-09' as const;
 export const specialTile_10 = 'b-10' as const;
+export const specialTile_11 = 'b-11' as const;
+
+export const specialSpike = 'spike' as const;
