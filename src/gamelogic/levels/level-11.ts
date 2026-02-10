@@ -1,4 +1,4 @@
-// src/gamelogic/levels/level-02.ts
+// src/gamelogic/levels/level-11.ts
 import type { LevelDefinition, PieceType } from '../types';
 import { makeLevelLike01 } from './level-01';
 
@@ -8,9 +8,9 @@ type Args = {
 };
 
 /**
- * Level-02 placeholder.
+ * Level-11 placeholder.
  * For now: same rules/objective as Level-01 (clean-room template).
  */
-export function makeLevel02({ baseSeed, allowedTypes }: Args): LevelDefinition {
-  return makeLevelLike01({ levelId: 2, baseSeed, allowedTypes });
+export function makeLevel11({ baseSeed, allowedTypes }: Args): LevelDefinition {
+  return makeLevelLike01({ levelId: 11, baseSeed, allowedTypes });
 }

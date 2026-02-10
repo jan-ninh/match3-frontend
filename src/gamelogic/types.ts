@@ -44,9 +44,9 @@ export type LevelDefinition = {
   moves: number;
   allowedTypes: PieceType[];
 
-  blockedIndices?: number[];
-  firewallNodes?: FirewallNodeDef[];
-  gateIndices?: number[];
+  blockedIndices: number[];
+  firewallNodes: FirewallNodeDef[];
+  gateIndices: number[];
 };
 
 export type PendingSwap = {
