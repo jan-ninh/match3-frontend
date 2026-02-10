@@ -70,9 +70,9 @@ function readEnv(key: string): unknown {
   return env[key];
 }
 
-const tilesetMods = import.meta.glob('../../../assets/tiles/*/tileset.json', { eager: true, import: 'default' }) as Record<string, TilesetJson>;
-const atlasMods = import.meta.glob('../../../assets/tiles/*/atlas.json', { eager: true, import: 'default' }) as Record<string, AtlasJson>;
-const sheetMods = import.meta.glob('../../../assets/tiles/*/atlas*.png', { eager: true, import: 'default' }) as Record<string, string>;
+const tilesetMods = import.meta.glob('../../../assets/tiles/default/*/tileset.json', { eager: true, import: 'default' }) as Record<string, TilesetJson>;
+const atlasMods = import.meta.glob('../../../assets/tiles/default/*/atlas.json', { eager: true, import: 'default' }) as Record<string, AtlasJson>;
+const sheetMods = import.meta.glob('../../../assets/tiles/default/*/atlas*.png', { eager: true, import: 'default' }) as Record<string, string>;
 
 // ID wird aus dem PFAD geschnitten (Ordnername: 01-default)
 function extractTilesetId(path: string): string | null {
