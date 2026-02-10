@@ -33,11 +33,6 @@ export default function BaseModal({ open, title, onClose, children, size = 'md',
           </h1>
         )}
 
-        {/* Close X */}
-        <button onClick={onClose} className="absolute top-5 right-6 text-cyan-300 hover:text-pink-400 text-2xl font-bold transition-colors">
-          ×
-        </button>
-
         {/* Content */}
         {children}
       </div>
