@@ -5,7 +5,6 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 export default function CyberButton({ label, className = '', type = 'button', ...props }: ButtonProps) {
-  //   const hexClip = 'polygon(% 0%, 85% 0%, 100% 50%, 85% 100%, 15% 100%, 0% 50%)';
   const hexClip = 'polygon(20% 0%, 80% 0%, 92% 50%, 80% 100%, 20% 100%, 8% 50%)';
 
   return (

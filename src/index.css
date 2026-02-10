@@ -35,3 +35,49 @@ body {
 .neon-glow:hover {
   filter: drop-shadow(0 0 25px #ec4899) drop-shadow(0 0 50px #06b6d4);
 }
+
+@layer base {
+  input,
+  textarea,
+  select {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.75rem;
+
+    background-color: rgba(10, 10, 20, 0.75);
+    color: rgb(224, 242, 254); /* cyan-100 */
+
+    border: 1px solid rgb(249 168 212); /* pink-300 */
+    outline: none;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: rgba(165, 243, 252, 0.6); /* cyan-300/60 */
+  }
+
+  input:focus,
+  textarea:focus,
+  select:focus {
+    border-color: rgba(34, 211, 238, 0.7);
+    box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.4);
+  }
+
+  input:disabled,
+  textarea:disabled,
+  select:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  /* Chrome autofill */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  textarea:-webkit-autofill,
+  select:-webkit-autofill {
+    -webkit-text-fill-color: rgb(224, 242, 254);
+    transition: background-color 9999s ease-in-out 0s;
+    box-shadow: 0 0 0px 1000px rgba(10, 10, 20, 0.75) inset !important;
+  }
+}
