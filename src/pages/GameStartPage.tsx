@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router';
-import { CyberButton } from '@/components';
+import { CyberButton, CyberTitle } from '@/components';
 
 export default function GameStartPage() {
   const navigate = useNavigate();
@@ -13,7 +13,9 @@ export default function GameStartPage() {
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
       <div className="text-center">
-        <h1 className="text-4xl font-bold mb-6">Match-3</h1>
+        <CyberTitle className="p-8" size="xl">
+          MATCH-3
+        </CyberTitle>
 
         <div className="flex flex-col max-w-xl mx-auto gap-3 items-center">
           {menuButtons.map((btn) => (
