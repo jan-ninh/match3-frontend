@@ -93,10 +93,10 @@ export default function RegisterModal({ onClose, onSwitchToLogin }: Props) {
         {/* Error message */}
         {error && <div className="text-sm text-pink-800">{error}</div>}
         <div className="flex justify-center">
-          <CyberButton type="submit" disabled={loading} className="" label={loading ? 'Creating account...' : 'Create account'} />
+          <CyberButton type="submit" disabled={loading} size="md" className="" label={loading ? 'Creating account...' : 'Create Account'} />
         </div>
         <div className="flex justify-center">
-          <CyberButton type="button" disabled={loading} onClick={onSwitchToLogin} className="text-md" label="Back to log in" />
+          <CyberButton type="button" disabled={loading} onClick={onSwitchToLogin} size="md" className="text-md" label="Back to Log In" />
         </div>
       </form>
     </Modal>

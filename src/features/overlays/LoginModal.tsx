@@ -46,10 +46,10 @@ export default function LoginModal({ onClose, onSwitchToRegister }: Props) {
         />
         {error && <div className="text-sm text-red-400">{error}</div>}
         <div className="flex justify-center">
-          <CyberButton type="submit" className="" label={`${loading ? 'Logging in...' : 'Log in'}`} />
+          <CyberButton type="submit" size="md" className="" label={`${loading ? 'Logging in...' : 'Log in'}`} />
         </div>
         <div className="flex justify-center">
-          <CyberButton type="button" onClick={onSwitchToRegister} className="" disabled={loading} label="New Account" />
+          <CyberButton type="button" onClick={onSwitchToRegister} size="md" className="" disabled={loading} label="New Account" />
         </div>
       </form>
     </Modal>
