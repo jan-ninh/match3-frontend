@@ -1,3 +1,4 @@
+import { GlassSection } from '@/components';
 import { DASHBOARD_STYLE as S } from './theme';
 
 type Stat = { label: string; value: string | number };
@@ -5,13 +6,25 @@ type Props = { stats: Stat[] };
 
 export default function StatsGrid({ stats }: Props) {
   return (
-    <div className={`grid grid-cols-2 gap-3 ${S.glass.full}`}>
-      {stats.map((stat) => (
-        <div key={stat.label} className={`${S.glass.bg} ${S.glass.blur} ${S.glass.border} ${S.glass.radius} ${S.glass.padding} text-center`}>
-          <p className={`text-md ${S.text.muted}`}>{stat.label}</p>
-          <p className={`text-lg font-semibold ${S.text.primary}`}>{stat.value}</p>
-        </div>
-      ))}
-    </div>
+    <GlassSection>
+      <div className={`grid grid-cols-2 ${S.layout.cardGap}`}>
+        {stats.map((stat) => (
+          <div
+            key={stat.label}
+            className={[
+              // mini card داخل پنل
+              'bg-slate-950/25 backdrop-blur-sm',
+              'border border-cyan-200/10 ring-1 ring-fuchsia-400/10',
+              'rounded-2xl p-3',
+              S.fx.hoverGlow,
+              'text-center',
+            ].join(' ')}
+          >
+            <p className={`text-[13px] tracking-wide ${S.text.secondary}`}>{stat.label}</p>
+            <p className={`mt-1 text-xl font-semibold ${S.text.primary}`}>{stat.value}</p>
+          </div>
+        ))}
+      </div>
+    </GlassSection>
   );
 }

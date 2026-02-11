@@ -111,7 +111,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     async (avatar: UserDTO['avatar']) => {
       if (!user) throw new Error('no user');
       try {
-        await apiUpdateAvatar(user.id, (avatar || 'default.svg') as 'default.svg' | 'avatar1.svg' | 'avatar2.svg' | 'avatar3.svg');
+        await apiUpdateAvatar(
+          user.id,
+          (avatar || 'default.png') as 'default.png' | 'avatar1.png' | 'avatar2.png' | 'avatar3.png' | 'avatar4.png' | 'avatar5.png' | 'avatar6.png',
+        );
         // api returns { avatar: '...' } — refresh local profile
         await refreshProfile();
       } catch (err) {
