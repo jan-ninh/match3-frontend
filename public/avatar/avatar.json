@@ -1,0 +1,51 @@
+{
+  "frames": {
+    "avatar1.png": {
+      "frame": { "x": 0, "y": 0, "w": 512, "h": 512 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 512, "h": 512 },
+      "sourceSize": { "w": 512, "h": 512 }
+    },
+    "avatar2.png": {
+      "frame": { "x": 512, "y": 0, "w": 512, "h": 512 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 512, "h": 512 },
+      "sourceSize": { "w": 512, "h": 512 }
+    },
+    "avatar3.png": {
+      "frame": { "x": 1024, "y": 0, "w": 512, "h": 512 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 512, "h": 512 },
+      "sourceSize": { "w": 512, "h": 512 }
+    },
+    "avatar4.png": {
+      "frame": { "x": 0, "y": 512, "w": 512, "h": 512 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 512, "h": 512 },
+      "sourceSize": { "w": 512, "h": 512 }
+    },
+    "avatar5.png": {
+      "frame": { "x": 512, "y": 512, "w": 512, "h": 512 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 512, "h": 512 },
+      "sourceSize": { "w": 512, "h": 512 }
+    },
+    "avatar6.png": {
+      "frame": { "x": 1024, "y": 512, "w": 512, "h": 512 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 512, "h": 512 },
+      "sourceSize": { "w": 512, "h": 512 }
+    }
+  },
+  "meta": {
+    "image": "avatars.png",
+    "size": { "w": 1536, "h": 1024 },
+    "scale": "1"
+  }
+}

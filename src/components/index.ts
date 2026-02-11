@@ -25,3 +25,4 @@ export { default as ProfileHeader } from './profileDashboard/ProfileHeader';
 export { default as ProgressBar } from './profileDashboard/ProgressBar';
 export { default as StatsGrid } from './profileDashboard/StatsGrid';
 export { DASHBOARD_STYLE } from './profileDashboard/theme';
+export { default as AvatarSprite } from './AvatarSprite';

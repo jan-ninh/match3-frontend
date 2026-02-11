@@ -26,8 +26,6 @@ export default function Navbar() {
 
   const isAuthenticated = !!user;
 
-  // NOTE: icons here use sprite frame names (no path): "home", "settings", "leaderboard", "heart", "profile", "login", "logout"
-  // If you ever want to use a plain image URL instead, put the URL (e.g. "/icons/custom.svg") and the component will fall back to <img>.
   const baseItems: NavItem[] = [
     { kind: 'link', label: 'Home', icon: 'home', to: '/game-map' },
     { kind: 'action', label: 'Settings', icon: 'settings', onClick: openSettings },

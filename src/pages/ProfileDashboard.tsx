@@ -1,4 +1,4 @@
-﻿// import { Avatar, BadgeGrid, ProfileHeader, ProgressBar, StatsGrid, Navbar, CyberButton } from '@/components';
+﻿// import { Avatar, BadgeGrid, ProfileHeader, ProgressBar, StatsGrid, Navbar, CyberButton, GlassSection } from '@/components';
 // import badges from '@/data/badges';
 // import { useNavigate } from 'react-router';
 // import { useAuth } from '@/context/AuthContext';
@@ -25,13 +25,11 @@
 
 //   const level = useMemo(() => {
 //     if (!profile) return 1;
-//     // Calculate level based on total score (1000 points per level)
 //     return Math.floor(profile.totalScore / 1000) + 1;
 //   }, [profile]);
 
 //   const currentStage = useMemo(() => {
 //     if (!profile) return null;
-//     // Find the highest completed stage
 //     return (
 //       Object.entries(profile.progress)
 //         .sort(([a], [b]) => {
@@ -45,8 +43,6 @@
 
 //   const progressPercent = useMemo(() => {
 //     if (!profile) return 0;
-//     // Calculate progress percentage based on stage
-//     // Assuming each stage requires 1000 points
 //     const stageNum = currentStage ? parseInt(currentStage.replace('stage', ''), 10) : 1;
 //     const expectedPoints = stageNum * 1000;
 //     return Math.min((profile.totalScore / expectedPoints) * 100, 100);
@@ -54,11 +50,7 @@
 
 //   const achievedBadges = useMemo(() => {
 //     if (!profile) return badges;
-
-//     // Create a set of unlocked badge keys from profile for O(1) lookup
 //     const unlockedKeys = new Set(profile.badges.map((b) => b.badgeKey));
-
-//     // Map all badges from data, checking if each is unlocked
 //     return badges.map((badge) => ({
 //       id: badge.id,
 //       label: badge.label,
@@ -72,7 +64,7 @@
 //       <>
 //         <Navbar />
 //         <div className="m-8 max-w-xl mx-auto flex flex-col space-y-4">
-//           <p className="text-center text-gray-500">Loading profile...</p>
+//           <p className="text-center text-cyan-100/40">Loading profile...</p>
 //         </div>
 //       </>
 //     );
@@ -81,18 +73,24 @@
 //   return (
 //     <>
 //       <Navbar />
-//       <div className="m-8 max-w-xl mx-auto  flex flex-col space-y-4">
+
+//       {/* Dashboard shell with subtle cyber overlay */}
+//       <div className="m-8 max-w-xl mx-auto flex flex-col space-y-4">
 //         <ProfileHeader username={profile.username} level={level}>
 //           <Avatar size={124} />
 //         </ProfileHeader>
 
 //         <StatsGrid stats={stats} />
-
-//         <ProgressBar percent={progressPercent} />
-
-//         <BadgeGrid badges={achievedBadges} />
+//         <GlassSection>
+//           <ProgressBar percent={progressPercent} />
+//         </GlassSection>
+//         <GlassSection>
+//           <BadgeGrid badges={achievedBadges} />
+//         </GlassSection>
 //       </div>
+
 //       <div className="m-6 flex justify-center">
+//         {/* CyberButton unchanged */}
 //         <CyberButton key={'Back'} label={'Back'} onClick={() => navigate('/game-map')} />
 //       </div>
 //     </>
@@ -103,11 +101,16 @@ import { Avatar, BadgeGrid, ProfileHeader, ProgressBar, StatsGrid, Navbar, Cyber
 import badges from '@/data/badges';
 import { useNavigate } from 'react-router';
 import { useAuth } from '@/context/AuthContext';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+
+// مسیرش را مطابق پروژه‌ات تنظیم کن
+import ChangeAvatarModal from '@/features/overlays/ChangeAvatarModal';
 
 export default function ProfileDashboard() {
   const navigate = useNavigate();
   const { user, profile, refreshProfile } = useAuth();
+
+  const [avatarModalOpen, setAvatarModalOpen] = useState(false);
 
   useEffect(() => {
     if (!user || profile) return;
@@ -171,29 +174,54 @@ export default function ProfileDashboard() {
     );
   }
 
+  // اگر فایل‌های جدا داری:
+  const avatarSrc = profile.avatar ? `/avatar/${profile.avatar}` : '/avatar/default.png';
+
   return (
     <>
       <Navbar />
 
-      {/* Dashboard shell with subtle cyber overlay */}
       <div className="m-8 max-w-xl mx-auto flex flex-col space-y-4">
-        <ProfileHeader username={profile.username} level={level}>
-          <Avatar size={124} />
-        </ProfileHeader>
+        <ProfileHeader
+          username={profile.username}
+          level={level}
+          avatar={<Avatar size={124} src={avatarSrc} />}
+          actions={
+            <button
+              type="button"
+              onClick={() => setAvatarModalOpen(true)}
+              className="px-4 h-10 rounded-xl border border-white/10 text-white/80 hover:text-white"
+            >
+              Change avatar
+            </button>
+          }
+        />
 
         <StatsGrid stats={stats} />
+
         <GlassSection>
           <ProgressBar percent={progressPercent} />
         </GlassSection>
+
         <GlassSection>
           <BadgeGrid badges={achievedBadges} />
         </GlassSection>
       </div>
 
       <div className="m-6 flex justify-center">
-        {/* CyberButton unchanged */}
         <CyberButton key={'Back'} label={'Back'} onClick={() => navigate('/game-map')} />
       </div>
+
+      {/* Modal */}
+      <ChangeAvatarModal
+        open={avatarModalOpen}
+        onClose={() => setAvatarModalOpen(false)}
+        userId={user?.id ?? ''}
+        currentAvatar={profile.avatar as any}
+        onUpdated={async () => {
+          await refreshProfile().catch(() => {});
+        }}
+      />
     </>
   );
 }
