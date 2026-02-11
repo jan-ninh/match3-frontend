@@ -1,5 +1,5 @@
 // src/gamelogic/engine/deliveryFlow.ts
-import type { Cell, EngineEvent, EngineState, PieceId } from '../types';
+import type { EngineEvent, EngineState } from '../types';
 import { getTerminalAt } from '../board';
 
 /**

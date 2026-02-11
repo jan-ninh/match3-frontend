@@ -52,9 +52,6 @@ export function buildInitialBoard(level: LevelDefinition, seed: number): BuildBo
   // Level 03+: Terminal positions (handled separately in state.ts for clean layering)
   const terminalSet = new Set(level.terminalNodes?.map((n) => n.index) ?? []);
 
-  // Level 03+: Keycard positions (handled separately in state.ts)
-  const keycardSet = new Set(level.keycardNodes?.map((n) => n.index) ?? []);
-
   const size = width * height;
 
   const cells: Cell[] = Array.from({ length: size }, (_, index) => {
