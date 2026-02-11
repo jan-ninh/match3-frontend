@@ -4,6 +4,7 @@ export { CyberTitle } from './CyberTitle';
 export { default as Modal } from './Modal';
 export { default as Navbar } from './Navbar';
 export { default as SpriteIcon } from './SpriteIcon';
+export { default as GlassSection } from './GlassSection';
 
 export { default as GameFooter } from './footer/GameFooter';
 
@@ -23,3 +24,4 @@ export { default as BadgeGrid } from './profileDashboard/BadgeGrid';
 export { default as ProfileHeader } from './profileDashboard/ProfileHeader';
 export { default as ProgressBar } from './profileDashboard/ProgressBar';
 export { default as StatsGrid } from './profileDashboard/StatsGrid';
+export { DASHBOARD_STYLE } from './profileDashboard/theme';

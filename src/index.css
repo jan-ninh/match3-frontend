@@ -27,6 +27,14 @@ body {
     transform: translateX(0);
   }
 }
+@keyframes shimmer {
+  0% {
+    transform: translateX(-40%);
+  }
+  100% {
+    transform: translateX(140%);
+  }
+}
 
 .neon-glow {
   filter: drop-shadow(0 0 15px #ec4899) drop-shadow(0 0 30px #06b6d4);
