@@ -40,6 +40,8 @@ export function makeLevelLike02({ levelId, baseSeed, allowedTypes }: MakeLevelLi
     height,
     moves,
     allowedTypes,
+    blockedIndices: [],
+    gateIndices: [],
     firewallNodes,
     baseSeed: seed,
   };
