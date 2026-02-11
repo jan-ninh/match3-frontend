@@ -207,25 +207,32 @@ export default function GameplayHud({
   const contaminationCritical = contaminationThreshold !== null && contaminationCount >= contaminationThreshold * 0.9;
 
   return (
-    <div className="mb-4 flex items-start justify-between gap-4">
+    <div
+      className={[
+        // 3-slot layout: left (auto) / center (minmax(0,1fr)) / right (auto)
+        'mb-4 w-full grid grid-cols-[auto_minmax(0,1fr)_auto] items-start',
+        // responsive spacing
+        'gap-2 sm:gap-4 px-[clamp(0rem,0.6vw,0.5rem)]',
+      ].join(' ')}
+    >
       {/* LEVEL */}
       <div
         data-ui="level-badge"
-        className="min-w-[112px] text-center rounded-2xl border border-fuchsia-400/20 bg-black/45 backdrop-blur px-4 py-2 shadow-[0_10px_30px_rgba(0,0,0,0.45),0_0_24px_rgba(217,70,239,0.16)]"
+        className="min-w-[112px] text-center rounded-2xl border border-fuchsia-400/20 bg-black/45 backdrop-blur px-4 py-2 shadow-[0_10px_30px_rgba(0,0,0,0.45),0_0_24px_rgba(217,70,239,0.16)] justify-self-start"
       >
-        <div className="text-2xl font-semibold text-white/90 tabular-nums tracking-wide">LEVEL {levelId}</div>
+        <div className="text-2xl font-semibold text-white/90 tabular-nums tracking-wide whitespace-nowrap inline-flex">LEVEL {levelId}</div>
         <div className="text-xs tracking-widest text-fuchsia-200/70 uppercase">Stage</div>
       </div>
 
       {/* Objective (two compact pills, centered) */}
-      <div className="flex-1 flex justify-center">
-        <div className="relative">
+      <div className="min-w-0 flex justify-center">
+        <div className="relative inline-block min-w-0 max-w-full">
           {/* soft scrim, so it pops from BG without "more box height" */}
           <div className="pointer-events-none absolute -inset-5 rounded-[26px] bg-black/40 blur-2xl" aria-hidden="true" />
 
-          <div className="inline-flex flex-wrap items-center justify-center gap-2">
+          <div className="inline-flex max-w-full flex-wrap items-center justify-center gap-2">
             {/* Pill A: Objective */}
-            <div className={['inline-flex items-center gap-3 rounded-2xl border bg-black/80 backdrop-blur-xl px-4 py-2', keyline, glowA].join(' ')}>
+            <div className={['inline-flex min-w-0 items-center gap-3 rounded-2xl border bg-black/80 backdrop-blur-xl px-4 py-2', keyline, glowA].join(' ')}>
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <div className="text-[10px] tracking-[0.28em] text-white/55 uppercase">Objective</div>
@@ -277,7 +284,7 @@ export default function GameplayHud({
             </div>
 
             {/* Pill B: Hint + Contamination (Level 02) + Terminals (Level 03) */}
-            <div className="inline-flex items-center gap-3 rounded-2xl border border-white/10 bg-black/65 backdrop-blur-xl px-4 py-2 shadow-[0_10px_26px_rgba(0,0,0,0.45)]">
+            <div className="inline-flex min-w-0 flex-wrap items-center justify-center gap-3 rounded-2xl border border-white/10 bg-black/65 backdrop-blur-xl px-4 py-2 shadow-[0_10px_26px_rgba(0,0,0,0.45)]">
               {/* show progress only on small screens (since pill A hides it there) */}
               <div className="sm:hidden flex items-center gap-2">
                 {isTerminalObjective ? (
@@ -324,7 +331,7 @@ export default function GameplayHud({
               {/* Terminal chips (Level 03) */}
               {isTerminalObjective && terminalStates.length > 0 ? (
                 <>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center justify-center gap-2">
                     {terminalStates.map((t) => (
                       <div
                         key={t.id}
@@ -349,14 +356,15 @@ export default function GameplayHud({
                 </>
               ) : null}
 
-              <div className="text-xs text-white/55 whitespace-nowrap">{hint}</div>
+              {/* Hint: allow wrapping so it never pushes MOVES out of the stage viewport */}
+              <div className="text-xs text-white/55 text-center leading-snug max-w-[60ch]">{hint}</div>
             </div>
           </div>
         </div>
       </div>
 
       {/* MOVES */}
-      <div className="min-w-[88px] text-center rounded-2xl border border-white/10 bg-black/45 backdrop-blur px-4 py-2 shadow-[0_10px_30px_rgba(0,0,0,0.45)]">
+      <div className="min-w-[88px] text-center rounded-2xl border border-white/10 bg-black/45 backdrop-blur px-4 py-2 shadow-[0_10px_30px_rgba(0,0,0,0.45)] justify-self-end">
         <div className="text-2xl font-semibold text-white/90 tabular-nums">{movesLeft}</div>
         <div className="text-xs tracking-widest text-white/60 uppercase">Moves</div>
       </div>
