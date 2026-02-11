@@ -1,3 +1,4 @@
+// src/gamelogic/types.ts
 import type { EnginePhase } from './phases';
 import type { RngState } from './rng';
 
@@ -7,32 +8,63 @@ export type PieceType = 'red' | 'blue' | 'green' | 'purple' | 'orange' | 'cyan' 
 
 export type PieceId = number;
 
-export type CellObstacle = 'firewall' | 'gate';
+export type CellObstacle =
+  | { kind: 'firewall'; hp: number; maxHp: number }
+  | { kind: 'gate'; open: boolean }
+  | { kind: 'leak'; id: number; progress: number; required: number }
+  | { kind: 'contamination' }
+  | { kind: 'sealKit' };
 
 export type Cell = {
   blocked: boolean;
   pieceId: PieceId | null;
-
-  // optional obstacles
   obstacle?: CellObstacle;
-  hp?: number;
-  maxHp?: number;
-
-  // gate visuals (stays blocked)
-  gateOpen?: boolean;
 };
+
+// ─────────────────────────────────────────────
+// Cell Helper Functions
+// ─────────────────────────────────────────────
+
+export function isOccupied(cell: Cell): boolean {
+  return cell.blocked || cell.obstacle != null;
+}
+
+export function canHoldPiece(cell: Cell): boolean {
+  return !cell.blocked && cell.obstacle == null;
+}
+
+export function isLeakSealed(cell: Cell): boolean {
+  const obs = cell.obstacle;
+  return obs?.kind === 'leak' && obs.progress >= obs.required;
+}
+
+export function getLeakObstacle(cell: Cell): Extract<CellObstacle, { kind: 'leak' }> | null {
+  const obs = cell.obstacle;
+  return obs?.kind === 'leak' ? obs : null;
+}
+
+// ─────────────────────────────────────────────
+// Piece
+// ─────────────────────────────────────────────
 
 export type Piece = {
   id: PieceId;
   type: PieceType;
-
-  // where this piece currently sits (so UI can animate by moving entities)
   cellIndex: number;
 };
+
+// ─────────────────────────────────────────────
+// Level Definition
+// ─────────────────────────────────────────────
 
 export type FirewallNodeDef = {
   index: number;
   hp: number;
+};
+
+export type LeakNodeDef = {
+  index: number;
+  patchStepsRequired: number;
 };
 
 export type LevelDefinition = {
@@ -47,7 +79,20 @@ export type LevelDefinition = {
   blockedIndices: number[];
   firewallNodes: FirewallNodeDef[];
   gateIndices: number[];
+
+  // Level 02+: Leak mechanics
+  leakNodes: LeakNodeDef[];
+
+  // Balancing knobs (optional)
+  maxSealKitsOnBoard?: number;
+  contaminationLoseThreshold?: number;
+  spreadPerTurn?: number;
+  spreadEveryNTurns?: number;
 };
+
+// ─────────────────────────────────────────────
+// Pending Swap (for animation rollback)
+// ─────────────────────────────────────────────
 
 export type PendingSwap = {
   from: number;
@@ -56,13 +101,33 @@ export type PendingSwap = {
   snapPieces: Record<PieceId, Piece>;
 };
 
+// ─────────────────────────────────────────────
+// Swap Rejection
+// ─────────────────────────────────────────────
+
 export type SwapRejectReason = 'locked' | 'notAdjacent' | 'blocked' | 'empty';
+
+// ─────────────────────────────────────────────
+// Animation
+// ─────────────────────────────────────────────
 
 export type EngineAnimKind = 'swap' | 'swapBack' | 'fall';
 
 export type AnimDoneMode = 'early' | 'auto';
 
 export type AnimDoneIgnoreReason = 'missingAnim' | 'wrongPhase' | 'wrongKind' | 'wrongToken' | 'missingPendingSwap';
+
+export type EngineAnim = {
+  kind: EngineAnimKind;
+  enteredAtMs: number;
+  durationMs: number;
+  deadlineAtMs: number;
+  token: number;
+};
+
+// ─────────────────────────────────────────────
+// Engine Events
+// ─────────────────────────────────────────────
 
 export type EngineEvent =
   | { type: 'seededInit'; levelId: LevelId; width: number; height: number; seed: number }
@@ -86,15 +151,21 @@ export type EngineEvent =
   | { type: 'firewallDestroyed'; index: number }
   | { type: 'gateOpened' }
   | { type: 'win' }
-  | { type: 'lose' };
+  | { type: 'lose' }
+  // Level 02+: Leak/Contamination events
+  | { type: 'turnEnd'; turnIndex: number }
+  | { type: 'spreadTick'; leakId: number; targetIndex: number | null }
+  | { type: 'contaminationSpawned'; index: number; leakId: number }
+  | { type: 'contaminationCleared'; indices: number[] }
+  | { type: 'sealKitSpawned'; index: number; leakId: number }
+  | { type: 'sealKitTriggered'; index: number; targetLeakId: number }
+  | { type: 'leakPatched'; leakId: number; progress: number; required: number }
+  | { type: 'leakSealed'; leakId: number }
+  | { type: 'contaminationLose'; count: number };
 
-export type EngineAnim = {
-  kind: EngineAnimKind;
-  enteredAtMs: number;
-  durationMs: number;
-  deadlineAtMs: number;
-  token: number;
-};
+// ─────────────────────────────────────────────
+// Engine State
+// ─────────────────────────────────────────────
 
 export type EngineState = {
   levelId: LevelId;
@@ -113,12 +184,26 @@ export type EngineState = {
   movesTotal: number;
   movesLeft: number;
 
+  // turn counter (0-based, increments after each complete player turn)
+  turnIndex: number;
+
+  // Level 01: Firewall/Gate mechanics
   breachesTotal: number;
   breachesRemaining: number;
 
   gateOpen: boolean;
   gateIndices: number[];
 
+  // Level 02+: Leak mechanics
+  leaksTotal: number;
+  leaksSealed: number;
+
+  // Level 02+: Balancing knobs (copied from LevelDefinition)
+  maxSealKitsOnBoard: number;
+  contaminationLoseThreshold: number | null;
+  spreadEveryNTurns: number;
+
+  // Board state
   cells: Cell[];
   pieces: Record<PieceId, Piece>;
   nextPieceId: number;

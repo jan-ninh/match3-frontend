@@ -1,3 +1,4 @@
+// src/gamelogic/engine/reducer.ts
 import type { EngineEvent, EngineState, LevelId } from '../types';
 import { getLevelDefinition } from '../levels';
 import { canSwap } from '../board';
@@ -11,6 +12,7 @@ import { isSelectableCell, selectionClearedIfNeeded } from './guards';
 import { createState } from './state';
 import { applySwapAnimDone, applySwapBackAnimDone, beginSwapAnimating } from './swapFlow';
 import { applyFallAnimDone } from './fallFlow';
+import { applyTurnEndEffects } from './turnEnd';
 
 type InitAction = { type: 'initLevel'; levelId: LevelId; nowMs?: number };
 type ClickAction = { type: 'clickCell'; index: number; nowMs?: number };
@@ -26,7 +28,7 @@ type WakeAction = { type: 'wake'; nowMs: number };
 // engine-owned time
 type TickAction = { type: 'tick'; nowMs: number };
 
-// optional UI “done” signals (never the only escape hatch)
+// optional UI "done" signals (never the only escape hatch)
 type SwapAnimDoneAction = { type: 'swapAnimDone'; token: number; nowMs?: number };
 type SwapBackAnimDoneAction = { type: 'swapBackAnimDone'; token: number; nowMs?: number };
 type FallAnimDoneAction = { type: 'fallAnimDone'; token: number; nowMs?: number };
@@ -62,6 +64,84 @@ const applyDone = (st: EngineState, kind: DoneKind, tok: number, mode: DoneMode)
   }
 };
 
+// ─────────────────────────────────────────────
+// Win/Lose Condition Checks
+// ─────────────────────────────────────────────
+
+function checkWinConditions(state: EngineState): 'gate' | 'leaks' | null {
+  // Level 01: Gate win (all firewalls breached)
+  if (state.breachesRemaining <= 0 && state.gateOpen && state.breachesTotal > 0) {
+    return 'gate';
+  }
+
+  // Level 02+: Leak win (all leaks sealed)
+  if (state.leaksTotal > 0 && state.leaksSealed >= state.leaksTotal) {
+    return 'leaks';
+  }
+
+  return null;
+}
+
+function checkLoseConditions(state: EngineState): 'moves' | 'contamination' | null {
+  // Out of moves
+  if (state.movesLeft <= 0) {
+    return 'moves';
+  }
+
+  // Contamination threshold (Level 02+)
+  if (state.contaminationLoseThreshold !== null) {
+    let contaminationCount = 0;
+    for (const cell of state.cells) {
+      if (cell.obstacle?.kind === 'contamination') {
+        contaminationCount++;
+      }
+    }
+    if (contaminationCount >= state.contaminationLoseThreshold) {
+      return 'contamination';
+    }
+  }
+
+  return null;
+}
+
+// ─────────────────────────────────────────────
+// Apply Turn End (called when reaching idle after a successful swap)
+// ─────────────────────────────────────────────
+
+function maybeApplyTurnEnd(state: EngineState, wasSuccessfulSwap: boolean): EngineState {
+  // Only apply turn end effects after a successful swap that created matches
+  if (!wasSuccessfulSwap) return state;
+
+  // Only if we have leak mechanics active
+  if (state.leaksTotal === 0) return state;
+
+  // Apply turn end effects (spread contamination, etc.)
+  const result = applyTurnEndEffects(state);
+  let s = pushEvents(result.state, result.events);
+
+  // Check for leak win
+  if (result.leakWin) {
+    const evs: EngineEvent[] = [];
+    s = setPhase(s, 'win', evs);
+    evs.push({ type: 'win' });
+    return pushEvents(s, evs);
+  }
+
+  // Check for contamination lose
+  if (result.contaminationLose) {
+    const evs: EngineEvent[] = [];
+    s = setPhase(s, 'lose', evs);
+    evs.push({ type: 'lose' });
+    return pushEvents(s, evs);
+  }
+
+  return s;
+}
+
+// ─────────────────────────────────────────────
+// Main Reducer
+// ─────────────────────────────────────────────
+
 export function engineReducer(state: EngineState, action: EngineAction): EngineState {
   const withNow = (() => {
     const t = action.nowMs;
@@ -72,6 +152,9 @@ export function engineReducer(state: EngineState, action: EngineAction): EngineS
 
   // Auto-finish first: if deadline passed, unlock phase before processing the incoming action.
   const pre = autoFinishAll(withNow, applyDone);
+
+  // Track if we were in a state that could lead to turn end
+  const wasAnimating = pre.phase === 'fallAnimating' || pre.phase === 'swapAnimating';
 
   const next = (() => {
     const s = pre;
@@ -182,19 +265,34 @@ export function engineReducer(state: EngineState, action: EngineAction): EngineS
 
   let final = next;
 
-  // If gate opened, win (after the current chain finished).
-  if (final.phase === 'idle' && final.breachesRemaining <= 0 && final.gateOpen) {
-    const evs: EngineEvent[] = [];
-    const s = setPhase(final, 'win', evs);
-    evs.push({ type: 'win' });
-    final = pushEvents(s, evs);
+  // Apply turn end effects if we just transitioned to idle after animations
+  const justReachedIdle = final.phase === 'idle' && wasAnimating;
+  if (justReachedIdle) {
+    // Check if this was a successful swap (moves were spent)
+    const movesWereSpent = final.movesLeft < state.movesLeft;
+    final = maybeApplyTurnEnd(final, movesWereSpent);
   }
-  // If we reached idle with 0 moves, end the game (after the current chain finished).
-  if (final.phase === 'idle' && final.movesLeft <= 0) {
-    const evs: EngineEvent[] = [];
-    const s = setPhase(final, 'lose', evs);
-    evs.push({ type: 'lose' });
-    final = pushEvents(s, evs);
+
+  // Check win conditions (Level 01: gate)
+  if (final.phase === 'idle') {
+    const winReason = checkWinConditions(final);
+    if (winReason) {
+      const evs: EngineEvent[] = [];
+      const s = setPhase(final, 'win', evs);
+      evs.push({ type: 'win' });
+      final = pushEvents(s, evs);
+    }
+  }
+
+  // Check lose conditions
+  if (final.phase === 'idle') {
+    const loseReason = checkLoseConditions(final);
+    if (loseReason) {
+      const evs: EngineEvent[] = [];
+      const s = setPhase(final, 'lose', evs);
+      evs.push({ type: 'lose' });
+      final = pushEvents(s, evs);
+    }
   }
 
   if (import.meta.env.DEV) assertPhaseInvariants(final, `engineReducer:${action.type}`);

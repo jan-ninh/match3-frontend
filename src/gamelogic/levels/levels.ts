@@ -32,6 +32,7 @@ function makeFallbackLevel(levelId: number): LevelDefinition {
     blockedIndices: [],
     firewallNodes: [],
     gateIndices: [],
+    leakNodes: [],
     baseSeed: seed,
   };
 }
@@ -41,6 +42,7 @@ export function getLevelDefinition(levelId: number): LevelDefinition {
     // Level 1: CLEAN ROOM (Spikes HP1)
     case 1:
       return makeLevel01({ baseSeed: BASE_SEED, allowedTypes: DEFAULT_TYPES });
+    // Level 2: PATCH THE HOLE (Leaks + Contamination)
     case 2:
       return makeLevel02({ baseSeed: BASE_SEED, allowedTypes: DEFAULT_TYPES });
     case 3:

@@ -1,3 +1,4 @@
+// src/features/grid/ui/GridCellsLayer.tsx
 import type { Cell } from '@/gamelogic';
 import { xyOf } from '@/gamelogic';
 import { GAP, TILE_SIZE } from '../lib/constants';
@@ -30,6 +31,16 @@ export default function GridCellsLayer({ width, height, cells, onCellPointerDown
   // CLEAN ROOM spike sprite (specials.spike -> b-11 -> piece_11.png)
   const spikeSpriteStyleBase = spriteToBgStyle(getSpecialTileSprite(specialSpike));
 
+  // Level 02: Leak sprites
+  const leakOpenSpriteStyle = spriteToBgStyle(getSpecialTileSprite('leakOpen'));
+  const leakSealedSpriteStyle = spriteToBgStyle(getSpecialTileSprite('leakSealed'));
+
+  // Level 02: Contamination sprite
+  const contaminationSpriteStyle = spriteToBgStyle(getSpecialTileSprite('contamination'));
+
+  // Level 02: SealKit sprite
+  const sealKitSpriteStyle = spriteToBgStyle(getSpecialTileSprite('sealKit'));
+
   return (
     <div
       className="grid"
@@ -40,19 +51,27 @@ export default function GridCellsLayer({ width, height, cells, onCellPointerDown
       }}
     >
       {cells.map((cell, index) => {
-        const isGate = cell.obstacle === 'gate';
+        const obs = cell.obstacle;
 
-        // CLEAN ROOM “spikes” are implemented via firewallNodes with hp=1.
-        const isFirewall = cell.obstacle === 'firewall';
-        const isSpike = isFirewall && cell.maxHp === 1;
+        const isGate = obs?.kind === 'gate';
+        const isFirewall = obs?.kind === 'firewall';
+        const isLeak = obs?.kind === 'leak';
+        const isContamination = obs?.kind === 'contamination';
+        const isSealKit = obs?.kind === 'sealKit';
+
+        // CLEAN ROOM "spikes" are implemented via firewallNodes with hp=1
+        const isSpike = isFirewall && obs.maxHp === 1;
         const isFirewallNode = isFirewall && !isSpike;
 
-        const isBlockedPlain = cell.blocked && !isGate && !isFirewall;
+        const isBlockedPlain = cell.blocked && !isGate && !isFirewall && !isLeak && !isContamination && !isSealKit;
 
         const { x, y } = xyOf(index, width);
 
-        const gateSprite = isGate ? getGateSprite(!!cell.gateOpen) : null;
+        const gateSprite = isGate ? getGateSprite(obs.open) : null;
         const gateSpriteStyle = spriteToBgStyle(gateSprite);
+
+        // Leak sealed state
+        const leakSealed = isLeak && obs.progress >= obs.required;
 
         const base = [
           'relative rounded-xl border border-slate-500/5 bg-transparent focus:outline-none',
@@ -78,19 +97,22 @@ export default function GridCellsLayer({ width, height, cells, onCellPointerDown
               </div>
             ) : null}
 
+            {/* Gate */}
             {isGate ? (
               <>
                 <div className="absolute inset-0 rounded-xl opacity-90" style={gateSpriteStyle} />
                 <div
                   className={[
                     'absolute inset-2 rounded-lg border border-white/10',
-                    cell.gateOpen ? 'bg-emerald-500/10 shadow-[0_0_18px_rgba(16,185,129,0.18)]' : 'bg-fuchsia-500/10 shadow-[0_0_18px_rgba(217,70,239,0.18)]',
+                    obs.open ? 'bg-emerald-500/10 shadow-[0_0_18px_rgba(16,185,129,0.18)]' : 'bg-fuchsia-500/10 shadow-[0_0_18px_rgba(217,70,239,0.18)]',
                   ].join(' ')}
                 />
               </>
-            ) : isSpike ? (
+            ) : null}
+
+            {/* Spike (Level 01) */}
+            {isSpike ? (
               <>
-                {/* CLEAN ROOM spike (sterile white/gray) */}
                 <div className="absolute inset-0 rounded-xl" />
                 <div className="absolute inset-2 rounded-lg" />
 
@@ -98,12 +120,14 @@ export default function GridCellsLayer({ width, height, cells, onCellPointerDown
                   <div className="absolute inset-0 rounded-xl opacity-95" style={spikeSpriteStyleBase} />
                 ) : (
                   <div className="absolute inset-0 flex items-center justify-center">
-                    {/* fallback glyph if sprite missing */}
                     <div className="h-6 w-6 rotate-45 rounded-[6px] bg-white/5 border border-white/15 shadow-[0_0_14px_rgba(255,255,255,0.10)]" />
                   </div>
                 )}
               </>
-            ) : isFirewallNode ? (
+            ) : null}
+
+            {/* Firewall Node (Level 01, HP > 1) */}
+            {isFirewallNode ? (
               <>
                 <div className="absolute inset-0 rounded-xl bg-slate-950/70" />
                 <div className="absolute inset-0 rounded-xl border border-cyan-300/20 shadow-[0_0_18px_rgba(34,211,238,0.18)]" />
@@ -113,26 +137,114 @@ export default function GridCellsLayer({ width, height, cells, onCellPointerDown
                   <div className="h-5 w-5 rounded-full bg-cyan-300/20 border border-cyan-200/20 shadow-[0_0_14px_rgba(34,211,238,0.25)]" />
                 </div>
 
-                {typeof cell.hp === 'number' && typeof cell.maxHp === 'number' ? (
-                  <div className="absolute bottom-1 left-1 right-1 flex justify-center gap-1">
-                    {Array.from({ length: Math.min(3, cell.maxHp) }, (_, i) => {
-                      const on = i < (cell.hp ?? 0);
-                      return (
-                        <div
-                          key={i}
-                          className={[
-                            'h-1.5 w-4 rounded-full border',
-                            on ? 'bg-cyan-400/55 border-cyan-200/35 shadow-[0_0_10px_rgba(34,211,238,0.18)]' : 'bg-white/5 border-white/15',
-                          ].join(' ')}
-                        />
-                      );
-                    })}
-                  </div>
-                ) : null}
+                <div className="absolute bottom-1 left-1 right-1 flex justify-center gap-1">
+                  {Array.from({ length: Math.min(3, obs.maxHp) }, (_, i) => {
+                    const on = i < obs.hp;
+                    return (
+                      <div
+                        key={i}
+                        className={[
+                          'h-1.5 w-4 rounded-full border',
+                          on ? 'bg-cyan-400/55 border-cyan-200/35 shadow-[0_0_10px_rgba(34,211,238,0.18)]' : 'bg-white/5 border-white/15',
+                        ].join(' ')}
+                      />
+                    );
+                  })}
+                </div>
               </>
-            ) : isBlockedPlain && blockedSpriteStyleBase ? (
-              <div className="absolute inset-0 rounded-xl opacity-95" style={blockedSpriteStyleBase} />
             ) : null}
+
+            {/* Leak (Level 02) */}
+            {isLeak ? (
+              <>
+                <div className="absolute inset-0 rounded-xl bg-slate-950/70" />
+                <div
+                  className={[
+                    'absolute inset-0 rounded-xl border',
+                    leakSealed
+                      ? 'border-emerald-300/25 shadow-[0_0_18px_rgba(16,185,129,0.20)]'
+                      : 'border-amber-400/30 shadow-[0_0_18px_rgba(251,191,36,0.25)] animate-pulse',
+                  ].join(' ')}
+                />
+
+                {/* Sprite or fallback */}
+                {leakSealed && leakSealedSpriteStyle ? (
+                  <div className="absolute inset-0 rounded-xl opacity-95" style={leakSealedSpriteStyle} />
+                ) : !leakSealed && leakOpenSpriteStyle ? (
+                  <div className="absolute inset-0 rounded-xl opacity-95" style={leakOpenSpriteStyle} />
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div
+                      className={[
+                        'h-6 w-6 rounded-full border-2',
+                        leakSealed ? 'bg-emerald-500/30 border-emerald-300/40' : 'bg-amber-500/30 border-amber-300/50',
+                      ].join(' ')}
+                    >
+                      {leakSealed ? (
+                        <div className="w-full h-full flex items-center justify-center text-emerald-200 text-xs">✓</div>
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-amber-200 text-xs">!</div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Patch progress indicator */}
+                <div className="absolute bottom-1 left-1 right-1 flex justify-center gap-1">
+                  {Array.from({ length: obs.required }, (_, i) => {
+                    const filled = i < obs.progress;
+                    return (
+                      <div
+                        key={i}
+                        className={[
+                          'h-1.5 w-4 rounded-full border',
+                          filled ? 'bg-emerald-400/55 border-emerald-200/35 shadow-[0_0_10px_rgba(16,185,129,0.20)]' : 'bg-white/5 border-white/15',
+                        ].join(' ')}
+                      />
+                    );
+                  })}
+                </div>
+              </>
+            ) : null}
+
+            {/* Contamination (Level 02) */}
+            {isContamination ? (
+              <>
+                <div className="absolute inset-0 rounded-xl bg-slate-950/60" />
+                <div className="absolute inset-0 rounded-xl border border-rose-400/30 shadow-[0_0_16px_rgba(251,113,133,0.22)]" />
+
+                {contaminationSpriteStyle ? (
+                  <div className="absolute inset-0 rounded-xl opacity-90" style={contaminationSpriteStyle} />
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="h-5 w-5 rounded-full bg-rose-500/40 border border-rose-300/40 shadow-[0_0_12px_rgba(251,113,133,0.30)]">
+                      <div className="w-full h-full flex items-center justify-center text-rose-200 text-[10px]">☣</div>
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : null}
+
+            {/* SealKit (Level 02) */}
+            {isSealKit ? (
+              <>
+                <div className="absolute inset-0 rounded-xl bg-slate-950/50" />
+                <div className="absolute inset-0 rounded-xl border border-sky-400/35 shadow-[0_0_18px_rgba(56,189,248,0.25)]" />
+
+                {sealKitSpriteStyle ? (
+                  <div className="absolute inset-0 rounded-xl opacity-95" style={sealKitSpriteStyle} />
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="h-6 w-6 rounded-lg bg-sky-500/30 border border-sky-300/40 shadow-[0_0_14px_rgba(56,189,248,0.28)]">
+                      <div className="w-full h-full flex items-center justify-center text-sky-200 text-xs">🔧</div>
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : null}
+
+            {/* Plain blocked cell */}
+            {isBlockedPlain && blockedSpriteStyleBase ? <div className="absolute inset-0 rounded-xl opacity-95" style={blockedSpriteStyleBase} /> : null}
           </button>
         );
       })}

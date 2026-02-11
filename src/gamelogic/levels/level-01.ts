@@ -33,6 +33,7 @@ export function makeLevelLike01({ levelId, baseSeed, allowedTypes }: MakeLevelLi
     blockedIndices: [],
     firewallNodes: [],
     gateIndices: [],
+    leakNodes: [],
     baseSeed: seed,
   };
 }
@@ -78,6 +79,7 @@ export function makeLevel01({ baseSeed, allowedTypes }: Args): LevelDefinition {
     allowedTypes,
     firewallNodes,
     gateIndices,
+    leakNodes: [],
     baseSeed: seed,
   };
 }

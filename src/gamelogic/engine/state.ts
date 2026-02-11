@@ -1,3 +1,4 @@
+// src/gamelogic/engine/state.ts
 import type { EngineEvent, EngineState, LevelId } from '../types';
 import { getLevelDefinition } from '../levels';
 import { buildInitialBoard } from '../board';
@@ -8,13 +9,7 @@ import { SWAP_MS } from '../animTimings';
 import { sanitizeSwapMs } from './anim';
 import { mkSeededInit, pushEvents } from './events';
 
-export function createState(
-  levelId: LevelId,
-  seed: number,
-  extraEvents: EngineEvent[] = [],
-  animTokenBase = 0,
-  swapMs = SWAP_MS,
-): EngineState {
+export function createState(levelId: LevelId, seed: number, extraEvents: EngineEvent[] = [], animTokenBase = 0, swapMs = SWAP_MS): EngineState {
   const level = getLevelDefinition(levelId);
   const built = buildInitialBoard(level, seed);
 
@@ -29,11 +24,24 @@ export function createState(
     movesTotal: level.moves,
     movesLeft: level.moves,
 
+    // Turn counter (0-based)
+    turnIndex: 0,
+
+    // Level 01: Firewall/Gate mechanics
     breachesTotal: level.firewallNodes.length,
     breachesRemaining: level.firewallNodes.length,
 
     gateOpen: false,
     gateIndices: level.gateIndices,
+
+    // Level 02+: Leak mechanics
+    leaksTotal: level.leakNodes.length,
+    leaksSealed: 0,
+
+    // Level 02+: Balancing knobs
+    maxSealKitsOnBoard: level.maxSealKitsOnBoard ?? 0, // 0 = unlimited
+    contaminationLoseThreshold: level.contaminationLoseThreshold ?? null,
+    spreadEveryNTurns: level.spreadEveryNTurns ?? 1,
 
     cells: built.cells,
     pieces: built.pieces,

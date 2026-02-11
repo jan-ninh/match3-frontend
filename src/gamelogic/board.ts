@@ -1,3 +1,4 @@
+// src/gamelogic/board.ts
 import type { Cell, LevelDefinition, Piece, PieceId, PieceType, SwapRejectReason } from './types';
 import { initRngState, rngNextInt, type RngState } from './rng';
 import { areAdjacent, xyOf } from './coords';
@@ -44,20 +45,43 @@ export function buildInitialBoard(level: LevelDefinition, seed: number): BuildBo
 
   const blocked = new Set(level.blockedIndices);
 
-  const firewallHp = new Map<number, number>(level.firewallNodes.map((n) => [n.index, n.hp]));
-  const gate = new Set(level.gateIndices);
+  const firewallMap = new Map<number, { hp: number }>(level.firewallNodes.map((n) => [n.index, { hp: n.hp }]));
+  const gateSet = new Set(level.gateIndices);
+  const leakMap = new Map<number, { id: number; required: number }>(level.leakNodes.map((n, i) => [n.index, { id: i, required: n.patchStepsRequired }]));
+
   const size = width * height;
 
   const cells: Cell[] = Array.from({ length: size }, (_, index) => {
-    const hp = firewallHp.get(index) ?? null;
-    if (hp !== null) {
-      return { blocked: true, pieceId: null, obstacle: 'firewall', hp, maxHp: hp };
+    // Firewall
+    const fw = firewallMap.get(index);
+    if (fw) {
+      return {
+        blocked: true,
+        pieceId: null,
+        obstacle: { kind: 'firewall', hp: fw.hp, maxHp: fw.hp },
+      };
     }
 
-    if (gate.has(index)) {
-      return { blocked: true, pieceId: null, obstacle: 'gate', gateOpen: false };
+    // Gate
+    if (gateSet.has(index)) {
+      return {
+        blocked: true,
+        pieceId: null,
+        obstacle: { kind: 'gate', open: false },
+      };
     }
 
+    // Leak
+    const leak = leakMap.get(index);
+    if (leak) {
+      return {
+        blocked: true,
+        pieceId: null,
+        obstacle: { kind: 'leak', id: leak.id, progress: 0, required: leak.required },
+      };
+    }
+
+    // Normal cell
     return {
       blocked: isBlockedIndex(blocked, index),
       pieceId: null,
@@ -69,6 +93,7 @@ export function buildInitialBoard(level: LevelDefinition, seed: number): BuildBo
 
   for (let index = 0; index < size; index++) {
     if (cells[index].blocked) continue;
+    if (cells[index].obstacle) continue;
 
     let chosen: PieceType | null = null;
 
@@ -107,6 +132,7 @@ export function canSwap(from: number, to: number, width: number, cells: Cell[]):
   if (!a || !b) return { ok: false, reason: 'empty' };
 
   if (a.blocked || b.blocked) return { ok: false, reason: 'blocked' };
+  if (a.obstacle || b.obstacle) return { ok: false, reason: 'blocked' };
   if (a.pieceId === null || b.pieceId === null) return { ok: false, reason: 'empty' };
 
   return { ok: true };
@@ -138,3 +164,92 @@ export function swapPiecesPositionsImmutable(
   };
 }
 
+// ─────────────────────────────────────────────
+// Utility: Orthogonal neighbors
+// ─────────────────────────────────────────────
+
+export function getOrthogonalNeighbors(index: number, width: number, height: number): number[] {
+  const x = index % width;
+  const y = Math.floor(index / width);
+  const neighbors: number[] = [];
+
+  if (x > 0) neighbors.push(index - 1);
+  if (x < width - 1) neighbors.push(index + 1);
+  if (y > 0) neighbors.push(index - width);
+  if (y < height - 1) neighbors.push(index + width);
+
+  return neighbors;
+}
+
+// ─────────────────────────────────────────────
+// Utility: Manhattan distance
+// ─────────────────────────────────────────────
+
+export function manhattanDist(a: number, b: number, width: number): number {
+  const ax = a % width;
+  const ay = Math.floor(a / width);
+  const bx = b % width;
+  const by = Math.floor(b / width);
+  return Math.abs(ax - bx) + Math.abs(ay - by);
+}
+
+// ─────────────────────────────────────────────
+// Utility: Find nearest open leak
+// ─────────────────────────────────────────────
+
+export function getNearestOpenLeakId(fromIndex: number, width: number, cells: Cell[]): number | null {
+  let best: { id: number; dist: number } | null = null;
+
+  for (let i = 0; i < cells.length; i++) {
+    const obs = cells[i]?.obstacle;
+    if (obs?.kind !== 'leak') continue;
+    if (obs.progress >= obs.required) continue;
+
+    const dist = manhattanDist(fromIndex, i, width);
+    if (!best || dist < best.dist || (dist === best.dist && obs.id < best.id)) {
+      best = { id: obs.id, dist };
+    }
+  }
+
+  return best?.id ?? null;
+}
+
+// ─────────────────────────────────────────────
+// Utility: Get spread candidates for a leak
+// ─────────────────────────────────────────────
+
+export function getSpreadCandidates(leakIndex: number, width: number, height: number, cells: Cell[]): number[] {
+  const neighbors = getOrthogonalNeighbors(leakIndex, width, height);
+
+  return neighbors.filter((i) => {
+    const cell = cells[i];
+    if (!cell) return false;
+    if (cell.blocked) return false;
+    if (cell.obstacle) return false;
+    return true;
+  });
+}
+
+// ─────────────────────────────────────────────
+// Utility: Count contamination cells
+// ─────────────────────────────────────────────
+
+export function countContamination(cells: Cell[]): number {
+  let count = 0;
+  for (const cell of cells) {
+    if (cell.obstacle?.kind === 'contamination') count++;
+  }
+  return count;
+}
+
+// ─────────────────────────────────────────────
+// Utility: Count seal kits on board
+// ─────────────────────────────────────────────
+
+export function countSealKits(cells: Cell[]): number {
+  let count = 0;
+  for (const cell of cells) {
+    if (cell.obstacle?.kind === 'sealKit') count++;
+  }
+  return count;
+}

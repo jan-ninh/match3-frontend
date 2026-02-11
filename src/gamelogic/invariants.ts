@@ -1,3 +1,4 @@
+// src/gamelogic/invariants.ts
 import type { EngineState, PieceId } from './types';
 import { animKindForPhase, isAnimatingPhase, isInputLocked } from './phases';
 
@@ -13,8 +14,10 @@ export function assertBoardIntegrity(board: Pick<EngineState, 'width' | 'height'
 
   for (let i = 0; i < cells.length; i++) {
     const c = cells[i]!;
-    if (c.blocked && c.pieceId !== null) {
-      throw new Error(`[integrity] ${ctx} blocked cell has pieceId at index=${i}`);
+
+    // Blocked cells or cells with obstacles should not have pieces
+    if ((c.blocked || c.obstacle) && c.pieceId !== null) {
+      throw new Error(`[integrity] ${ctx} blocked/obstacle cell has pieceId at index=${i}`);
     }
 
     if (c.pieceId !== null) {
@@ -43,14 +46,12 @@ export function assertBoardIntegrity(board: Pick<EngineState, 'width' | 'height'
     const c = cells[p.cellIndex];
     if (!c) throw new Error(`[integrity] ${ctx} piece id=${pid} points to missing cellIndex=${p.cellIndex}`);
     if (c.blocked) throw new Error(`[integrity] ${ctx} piece id=${pid} points to blocked cellIndex=${p.cellIndex}`);
+    if (c.obstacle) throw new Error(`[integrity] ${ctx} piece id=${pid} points to obstacle cellIndex=${p.cellIndex}`);
     if (c.pieceId !== pid) throw new Error(`[integrity] ${ctx} piece id=${pid} not present in its cellIndex=${p.cellIndex}`);
   }
 }
 
-export function assertPhaseInvariants(
-  state: Pick<EngineState, 'phase' | 'inputLocked' | 'anim' | 'animToken' | 'pendingSwap'>,
-  ctx = '',
-): void {
+export function assertPhaseInvariants(state: Pick<EngineState, 'phase' | 'inputLocked' | 'anim' | 'animToken' | 'pendingSwap'>, ctx = ''): void {
   const tag = ctx ? ` ${ctx}` : '';
   const { phase, inputLocked, anim, animToken, pendingSwap } = state;
 
