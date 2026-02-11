@@ -8,7 +8,10 @@ export async function apiProfile(id: string): Promise<UserProfile> {
   });
 }
 
-export async function apiUpdateAvatar(id: string, avatar: 'default.svg' | 'avatar1.svg' | 'avatar2.svg' | 'avatar3.svg') {
+export async function apiUpdateAvatar(
+  id: string,
+  avatar: 'default.png' | 'avatar1.png' | 'avatar2.png' | 'avatar3.png' | 'avatar4.png' | 'avatar5.png' | 'avatar6.png',
+) {
   return request(`/api/user/avatar/${id}`, {
     method: 'PATCH',
     body: JSON.stringify({ avatar }),

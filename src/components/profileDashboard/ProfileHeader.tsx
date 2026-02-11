@@ -1,24 +1,30 @@
-import { DASHBOARD_STYLE as S } from './theme';
 import type { ReactNode } from 'react';
+import { GlassSection } from '@/components';
+import { DASHBOARD_STYLE as S } from './theme';
 
 type Props = {
   username: string;
   level: number;
-  children: ReactNode;
+  avatar: ReactNode; // right side (big)
+  actions?: ReactNode; // left side (under username)
 };
 
-export default function ProfileHeader({ username, level, children }: Props) {
+export default function ProfileHeader({ username, level, avatar, actions }: Props) {
   const capitalize = (str: string) => str.charAt(0).toUpperCase() + str.slice(1);
+
   return (
-    <div className={`flex items-center gap-4 ${S.glass.full} ${S.glass.bg} ${S.glass.blur} ${S.glass.border} ${S.glass.radius} ${S.glass.padding}`}>
-      {children}
-      <div>
-        <p className={`text-2xl font-semibold ${S.text.primary}`}> {capitalize(username)}</p>
-        <p className={`text-xl ${S.text.secondary}`}>Level {level}</p>
-        <button type="button" className={`text-sm ${S.text.secondary}`}>
-          Change avatar
-        </button>
+    <GlassSection className="flex items-center justify-between gap-6">
+      {/* Left: name + actions */}
+      <div className="min-w-0 flex-1">
+        <p className={`${S.text.primary} text-3xl font-semibold leading-tight truncate`}>{capitalize(username)}</p>
+
+        <p className={`${S.text.secondary} text-sm mt-0.5`}>Level {level}</p>
+
+        {actions ? <div className="mt-3">{actions}</div> : null}
       </div>
-    </div>
+
+      {/* Right: big avatar */}
+      <div className="shrink-0">{avatar}</div>
+    </GlassSection>
   );
 }

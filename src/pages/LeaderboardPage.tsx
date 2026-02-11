@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { CyberButton, Navbar, PodiumCard, RankRow, YourPositionCard } from '@/components';
+import { CyberButton, GlassSection, Navbar, PodiumCard, RankRow, YourPositionCard } from '@/components';
 import type { User } from '@/types';
 import { apiLeaderboardTop10 } from '@/api/leaderboard';
 import { useAuth } from '@/context/AuthContext';
@@ -46,7 +46,7 @@ export default function LeaderboardPage() {
   return (
     <>
       <Navbar />
-      <div className="max-w-xl mx-auto backdrop-blur-sm bg-white/10 text-gray-900 p-6 rounded-xl">
+      <GlassSection className="text-center max-w-xl mx-auto">
         {loading && <div className="text-center text-gray-500 py-8">Loading leaderboard...</div>}
         {!loading && error && <div className="text-center text-red-600 py-8">{error}</div>}
 
@@ -81,7 +81,8 @@ export default function LeaderboardPage() {
             {!sorted.length && <div className="text-center text-gray-500 py-8">No leaderboard data yet.</div>}
           </>
         )}
-      </div>
+      </GlassSection>
+
       <div className="m-6 flex justify-center">
         <CyberButton key={'Back'} label={'Back'} onClick={() => navigate('/game-map')} />
       </div>
