@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Modal, AvatarSprite } from '@/components';
+import { Modal, AvatarSprite, CyberButton } from '@/components';
 import { PICKABLE_AVATARS, type AvatarKey } from '@/assets/avatarsFrames';
 import { apiUpdateAvatar } from '@/api/user';
 
@@ -35,8 +35,8 @@ export default function ChangeAvatarModal({ open, onClose, userId, currentAvatar
   };
 
   return (
-    <Modal open={open} onClose={onClose}>
-      <div className="">
+    <Modal open={open} onClose={onClose} title="Change Avatar">
+      <div className="text-center">
         <div className="flex items-center justify-between gap-3"></div>
 
         <p className="mt-2 text-sm text-white/70"> Select an Avatar then press Save </p>
@@ -62,23 +62,9 @@ export default function ChangeAvatarModal({ open, onClose, userId, currentAvatar
 
         {error ? <div className="mt-3 text-sm text-red-400">{error}</div> : null}
 
-        <div className="mt-5 flex items-center justify-end gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={saving}
-            className="px-4 h-10 rounded-xl border border-white/10 text-white/80 hover:text-white disabled:opacity-50"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={!canSave}
-            className="px-4 h-10 rounded-xl bg-cyan-500/80 text-slate-950 font-semibold disabled:opacity-50"
-          >
-            {saving ? 'Saving…' : 'Save'}
-          </button>
+        <div className="mt-5 flex items-center justify-center ">
+          <CyberButton type="button" onClick={onClose} disabled={saving} label="Cancel" size="sm" />
+          <CyberButton type="button" onClick={handleSave} size="sm" disabled={!canSave} label={saving ? 'Saving…' : 'Save'} />
         </div>
       </div>
     </Modal>
