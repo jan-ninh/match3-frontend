@@ -16,7 +16,7 @@ export default function ProfileHeader({ username, level, avatar, actions }: Prop
     <GlassSection className="flex items-center justify-between gap-6">
       {/* Left: name + actions */}
       <div className="min-w-0 flex-1">
-        <p className={`${S.text.primary} text-lg font-semibold leading-tight truncate`}>{capitalize(username)}</p>
+        <p className={`${S.text.primary} text-3xl font-semibold leading-tight truncate`}>{capitalize(username)}</p>
 
         <p className={`${S.text.secondary} text-sm mt-0.5`}>Level {level}</p>
 
