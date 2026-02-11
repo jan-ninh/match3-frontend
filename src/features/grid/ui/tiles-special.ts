@@ -363,7 +363,6 @@ export const specialTile_08 = 'b-08' as const;
 export const specialTile_09 = 'b-09' as const;
 export const specialTile_10 = 'b-10' as const;
 export const specialTile_11 = 'b-11' as const;
-
 export const specialSpike = 'spike' as const;
 
 // ─────────────────────────────────────────────
@@ -374,3 +373,9 @@ export const specialLeakOpen = 'leakOpen' as const;
 export const specialLeakSealed = 'leakSealed' as const;
 export const specialContamination = 'contamination' as const;
 export const specialSealKit = 'sealKit' as const;
+
+// Level 03 special tile keys
+export const specialTerminalLocked = 'terminalLocked' as const;
+export const specialTerminalOpen = 'terminalOpen' as const;
+export const specialTerminalVerified = 'terminalVerified' as const;
+export const specialKeycard = 'keycard' as const;

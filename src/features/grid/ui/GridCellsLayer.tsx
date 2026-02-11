@@ -59,11 +59,18 @@ export default function GridCellsLayer({ width, height, cells, onCellPointerDown
         const isContamination = obs?.kind === 'contamination';
         const isSealKit = obs?.kind === 'sealKit';
 
+        // Level 03: Terminal
+        const isTerminal = obs?.kind === 'terminal';
+        const terminalState = isTerminal ? obs.state : null;
+        const terminalCharge = isTerminal ? obs.charge : 0;
+        const terminalRequired = isTerminal ? obs.requiredCharge : 0;
+        const terminalColor = isTerminal ? obs.chargeColor : null;
+
         // CLEAN ROOM "spikes" are implemented via firewallNodes with hp=1
         const isSpike = isFirewall && obs.maxHp === 1;
         const isFirewallNode = isFirewall && !isSpike;
 
-        const isBlockedPlain = cell.blocked && !isGate && !isFirewall && !isLeak && !isContamination && !isSealKit;
+        const isBlockedPlain = cell.blocked && !isGate && !isFirewall && !isLeak && !isContamination && !isSealKit && !isTerminal;
 
         const { x, y } = xyOf(index, width);
 
@@ -240,6 +247,85 @@ export default function GridCellsLayer({ width, height, cells, onCellPointerDown
                     </div>
                   </div>
                 )}
+              </>
+            ) : null}
+
+            {/* Terminal (Level 03) */}
+            {isTerminal ? (
+              <>
+                <div className="absolute inset-0 rounded-xl bg-slate-950/70" />
+                <div
+                  className={[
+                    'absolute inset-0 rounded-xl border-2',
+                    terminalState === 'verified'
+                      ? 'border-emerald-400/50 shadow-[0_0_20px_rgba(16,185,129,0.35)]'
+                      : terminalState === 'open'
+                        ? 'border-sky-400/50 shadow-[0_0_20px_rgba(56,189,248,0.30)] animate-pulse'
+                        : 'border-slate-500/40 shadow-[0_0_12px_rgba(100,116,139,0.20)]',
+                  ].join(' ')}
+                />
+
+                {/* Terminal icon/indicator */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div
+                    className={[
+                      'h-8 w-8 rounded-lg border-2 flex items-center justify-center',
+                      terminalState === 'verified'
+                        ? 'bg-emerald-500/30 border-emerald-300/50'
+                        : terminalState === 'open'
+                          ? 'bg-sky-500/30 border-sky-300/50'
+                          : 'bg-slate-600/30 border-slate-400/40',
+                    ].join(' ')}
+                  >
+                    {terminalState === 'verified' ? (
+                      <span className="text-emerald-200 text-sm">✓</span>
+                    ) : terminalState === 'open' ? (
+                      <span className="text-sky-200 text-xs">⎆</span>
+                    ) : (
+                      <span className="text-slate-300 text-xs">🔒</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Charge indicator */}
+                {terminalState !== 'verified' && terminalRequired > 0 ? (
+                  <div className="absolute bottom-1 left-1 right-1 flex justify-center gap-1">
+                    {Array.from({ length: terminalRequired }, (_, i) => {
+                      const filled = i < terminalCharge;
+                      const colorClass =
+                        terminalColor === 'blue'
+                          ? filled
+                            ? 'bg-blue-400/60 border-blue-300/50'
+                            : 'bg-white/5 border-white/15'
+                          : terminalColor === 'green'
+                            ? filled
+                              ? 'bg-green-400/60 border-green-300/50'
+                              : 'bg-white/5 border-white/15'
+                            : filled
+                              ? 'bg-purple-400/60 border-purple-300/50'
+                              : 'bg-white/5 border-white/15';
+                      return <div key={i} className={['h-1.5 w-4 rounded-full border', colorClass].join(' ')} />;
+                    })}
+                  </div>
+                ) : null}
+
+                {/* ChargeColor indicator label */}
+                {terminalState === 'locked' && terminalColor ? (
+                  <div className="absolute top-1 left-1 right-1 flex justify-center">
+                    <span
+                      className={[
+                        'text-[8px] uppercase tracking-wider px-1 rounded',
+                        terminalColor === 'blue'
+                          ? 'text-blue-300/80 bg-blue-500/10'
+                          : terminalColor === 'green'
+                            ? 'text-green-300/80 bg-green-500/10'
+                            : 'text-purple-300/80 bg-purple-500/10',
+                      ].join(' ')}
+                    >
+                      {terminalColor}
+                    </span>
+                  </div>
+                ) : null}
               </>
             ) : null}
 

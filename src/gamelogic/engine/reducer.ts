@@ -13,6 +13,7 @@ import { createState } from './state';
 import { applySwapAnimDone, applySwapBackAnimDone, beginSwapAnimating } from './swapFlow';
 import { applyFallAnimDone } from './fallFlow';
 import { applyTurnEndEffects } from './turnEnd';
+import { processKeycardDeliveries } from './deliveryFlow';
 
 type InitAction = { type: 'initLevel'; levelId: LevelId; nowMs?: number };
 type ClickAction = { type: 'clickCell'; index: number; nowMs?: number };
@@ -68,7 +69,7 @@ const applyDone = (st: EngineState, kind: DoneKind, tok: number, mode: DoneMode)
 // Win/Lose Condition Checks
 // ─────────────────────────────────────────────
 
-function checkWinConditions(state: EngineState): 'gate' | 'leaks' | null {
+function checkWinConditions(state: EngineState): 'gate' | 'leaks' | 'terminals' | null {
   // Level 01: Gate win (all firewalls breached)
   if (state.breachesRemaining <= 0 && state.gateOpen && state.breachesTotal > 0) {
     return 'gate';
@@ -77,6 +78,11 @@ function checkWinConditions(state: EngineState): 'gate' | 'leaks' | null {
   // Level 02+: Leak win (all leaks sealed)
   if (state.leaksTotal > 0 && state.leaksSealed >= state.leaksTotal) {
     return 'leaks';
+  }
+
+  // Level 03+: Terminal win (all terminals verified)
+  if (state.terminalsTotal > 0 && state.terminalsVerified >= state.terminalsTotal) {
+    return 'terminals';
   }
 
   return null;
@@ -112,27 +118,34 @@ function maybeApplyTurnEnd(state: EngineState, wasSuccessfulSwap: boolean): Engi
   // Only apply turn end effects after a successful swap that created matches
   if (!wasSuccessfulSwap) return state;
 
-  // Only if we have leak mechanics active
-  if (state.leaksTotal === 0) return state;
+  let s = state;
 
-  // Apply turn end effects (spread contamination, etc.)
-  const result = applyTurnEndEffects(state);
-  let s = pushEvents(result.state, result.events);
+  // Level 02: Leak mechanics
+  if (s.leaksTotal > 0) {
+    const result = applyTurnEndEffects(s);
+    s = pushEvents(result.state, result.events);
 
-  // Check for leak win
-  if (result.leakWin) {
-    const evs: EngineEvent[] = [];
-    s = setPhase(s, 'win', evs);
-    evs.push({ type: 'win' });
-    return pushEvents(s, evs);
+    // Check for leak win
+    if (result.leakWin) {
+      const evs: EngineEvent[] = [];
+      s = setPhase(s, 'win', evs);
+      evs.push({ type: 'win' });
+      return pushEvents(s, evs);
+    }
+
+    // Check for contamination lose
+    if (result.contaminationLose) {
+      const evs: EngineEvent[] = [];
+      s = setPhase(s, 'lose', evs);
+      evs.push({ type: 'lose' });
+      return pushEvents(s, evs);
+    }
   }
 
-  // Check for contamination lose
-  if (result.contaminationLose) {
-    const evs: EngineEvent[] = [];
-    s = setPhase(s, 'lose', evs);
-    evs.push({ type: 'lose' });
-    return pushEvents(s, evs);
+  // Level 03+: Process keycard deliveries
+  if (s.terminalsTotal > 0) {
+    const deliveryResult = processKeycardDeliveries(s);
+    s = pushEvents(deliveryResult.state, deliveryResult.events);
   }
 
   return s;
@@ -273,7 +286,7 @@ export function engineReducer(state: EngineState, action: EngineAction): EngineS
     final = maybeApplyTurnEnd(final, movesWereSpent);
   }
 
-  // Check win conditions (Level 01: gate)
+  // Check win conditions
   if (final.phase === 'idle') {
     const winReason = checkWinConditions(final);
     if (winReason) {

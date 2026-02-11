@@ -1,11 +1,11 @@
 // src/gamelogic/cascade.ts
 import type { EngineEvent, EngineState, Piece, PieceId, PieceType } from './types';
 import type { EnginePhase } from './phases';
-import { detectMatches, hasAnyMoves, wouldCreateMatchAt } from './match';
+import { detectMatches, hasAnyMoves, isMatchableType, wouldCreateMatchAt } from './match';
 import { rngNextInt, rngShuffleInPlace } from './rng';
 import { setPhase } from './phaseState';
 import { assertPhaseInvariants } from './invariants';
-import { countSealKits, getNearestOpenLeakId, getOrthogonalNeighbors } from './board';
+import { blocksGravity, canReceiveFallingPiece, countSealKits, getNearestOpenLeakId, getOrthogonalNeighbors, getTerminalAt } from './board';
 
 type BoardView = Pick<EngineState, 'width' | 'height' | 'cells' | 'pieces'>;
 
@@ -314,6 +314,96 @@ function spawnSealKitsNearLeaks(state: EngineState, clearIndices: number[], even
 }
 
 // ─────────────────────────────────────────────
+// Terminal Charging (Level 03 mechanic)
+// ─────────────────────────────────────────────
+
+/**
+ * Charge terminals adjacent to matched pieces.
+ * Each terminal can only be charged once per move (tracked via chargedIds Set).
+ * Terminal charges if: adjacent to match AND match contains terminal's chargeColor.
+ */
+function chargeAdjacentTerminals(
+  state: EngineState,
+  clearIndices: number[],
+  alreadyChargedIds: Set<number>,
+  events: EngineEvent[],
+): { state: EngineState; chargedIds: Set<number> } {
+  if (clearIndices.length === 0) {
+    return { state, chargedIds: alreadyChargedIds };
+  }
+
+  const { width, height, cells, pieces } = state;
+  const clearSet = new Set(clearIndices);
+
+  // Collect piece types in the match (before they're cleared)
+  const matchedTypes = new Set<PieceType>();
+  for (const idx of clearIndices) {
+    const pid = cells[idx]?.pieceId;
+    if (pid !== null && pid !== undefined) {
+      const p = pieces[pid];
+      if (p && isMatchableType(p.type)) {
+        matchedTypes.add(p.type);
+      }
+    }
+  }
+
+  let nextCells = cells;
+  let changed = false;
+  const newChargedIds = new Set(alreadyChargedIds);
+
+  // Find terminals adjacent to any cleared cell
+  const terminalCandidates = new Map<number, number>(); // terminalId -> cellIndex
+
+  for (const clearIdx of clearIndices) {
+    const neighbors = getOrthogonalNeighbors(clearIdx, width, height);
+    for (const n of neighbors) {
+      if (clearSet.has(n)) continue;
+      const terminal = getTerminalAt(cells, n);
+      if (terminal && terminal.state === 'locked' && !alreadyChargedIds.has(terminal.id)) {
+        terminalCandidates.set(terminal.id, n);
+      }
+    }
+  }
+
+  // Process each terminal candidate
+  for (const [terminalId, terminalIndex] of terminalCandidates) {
+    const terminal = getTerminalAt(nextCells, terminalIndex);
+    if (!terminal || terminal.state !== 'locked') continue;
+    if (newChargedIds.has(terminalId)) continue;
+
+    // Check if match contains the terminal's chargeColor
+    if (!matchedTypes.has(terminal.chargeColor)) continue;
+
+    // Charge the terminal
+    if (!changed) {
+      nextCells = cells.slice();
+      changed = true;
+    }
+
+    const newCharge = terminal.charge + 1;
+    const newState: 'locked' | 'open' = newCharge >= terminal.requiredCharge ? 'open' : 'locked';
+
+    nextCells[terminalIndex] = {
+      ...nextCells[terminalIndex]!,
+      obstacle: { ...terminal, charge: newCharge, state: newState },
+    };
+
+    newChargedIds.add(terminalId);
+
+    events.push({ type: 'terminalCharged', terminalId, charge: newCharge, requiredCharge: terminal.requiredCharge });
+
+    if (newState === 'open') {
+      events.push({ type: 'terminalOpened', terminalId });
+    }
+  }
+
+  return {
+    state: changed ? { ...state, cells: nextCells } : state,
+    chargedIds: newChargedIds,
+  };
+}
+
+// ─────────────────────────────────────────────
 // Combined adjacency effects (Pre-Clear)
 // ─────────────────────────────────────────────
 
@@ -359,7 +449,7 @@ function clearCellsAndPieces(state: EngineState, indices: number[]): EngineState
 // ─────────────────────────────────────────────
 
 function applyGravity(state: EngineState): EngineState {
-  const { width, height } = state;
+  const { width, height, cells } = state;
 
   const nextCells = state.cells.map((c) => ({ ...c, pieceId: null as PieceId | null }));
   const nextPieces: Record<PieceId, Piece> = { ...state.pieces };
@@ -371,21 +461,27 @@ function applyGravity(state: EngineState): EngineState {
 
     for (let y = height - 1; y >= 0; y--) {
       const idx = y * width + x;
-      const c = state.cells[idx]!;
+      const c = cells[idx]!;
 
-      // Blocked cells or cells with obstacles block gravity
-      if (c.blocked || c.obstacle) {
+      // Check if this cell blocks gravity
+      if (blocksGravity(c)) {
         writeY = y - 1;
         continue;
       }
+
       if (c.pieceId === null) continue;
 
+      // Find write position
       while (writeY >= 0) {
         const wIdx = writeY * width + x;
-        const wc = state.cells[wIdx]!;
-        if (!wc.blocked && !wc.obstacle) break;
+        const wc = cells[wIdx]!;
+
+        // Check if target can receive a piece
+        if (canReceiveFallingPiece(wc)) break;
+
         writeY--;
       }
+
       if (writeY < 0) break;
 
       const targetIdx = writeY * width + x;
@@ -398,10 +494,18 @@ function applyGravity(state: EngineState): EngineState {
     }
   }
 
-  // keep blocked/obstacle cells empty
+  // Ensure blocked/obstacle cells remain without pieces (except open terminals)
   for (let i = 0; i < size; i++) {
-    if (nextCells[i]!.blocked || nextCells[i]!.obstacle) {
-      nextCells[i]!.pieceId = null;
+    const c = nextCells[i]!;
+    if (c.blocked) {
+      c.pieceId = null;
+    } else if (c.obstacle) {
+      // Terminal: open terminals can hold pieces temporarily (for delivery)
+      if (c.obstacle.kind === 'terminal' && c.obstacle.state === 'open') {
+        // Keep pieceId if set
+      } else {
+        c.pieceId = null;
+      }
     }
   }
 
@@ -427,7 +531,15 @@ function applyRefill(state: EngineState): { state: EngineState; spawned: number 
   // spawn in all empty, non-blocked, non-obstacle cells
   for (let idx = 0; idx < nextCells.length; idx++) {
     const c = nextCells[idx]!;
-    if (c.blocked || c.obstacle || c.pieceId !== null) continue;
+
+    // Skip blocked cells
+    if (c.blocked) continue;
+
+    // Skip obstacle cells (including terminals - don't spawn random pieces there)
+    if (c.obstacle) continue;
+
+    // Skip cells that already have pieces
+    if (c.pieceId !== null) continue;
 
     let chosen: PieceType | null = null;
 
@@ -469,16 +581,17 @@ export type ResolveOnceResult = {
   state: EngineState;
   events: EngineEvent[];
   didResolve: boolean;
+  chargedIds: Set<number>;
 };
 
-export function resolveOnce(state: EngineState): ResolveOnceResult {
+export function resolveOnce(state: EngineState, chargedIds: Set<number> = new Set()): ResolveOnceResult {
   let s = state;
   const events: EngineEvent[] = [];
 
   events.push({ type: 'phase', phase: 'detect' });
   const m = detectMatches(s);
   if (m.clearIndices.length === 0) {
-    return { state: s, events, didResolve: false };
+    return { state: s, events, didResolve: false, chargedIds };
   }
 
   events.push({ type: 'matchesFound', clears: m.clearIndices.length, groups: m.groups });
@@ -487,8 +600,12 @@ export function resolveOnce(state: EngineState): ResolveOnceResult {
   s = applyFirewallDamage(s, m.clearIndices, events);
 
   // Apply adjacency effects BEFORE clearing (Level 02)
-  // Uses pre-clear snapshot for adjacency checks
   s = applyAdjacencyEffects(s, m.clearIndices, events);
+
+  // Charge terminals (Level 03) - BEFORE clearing, uses match info
+  const chargeResult = chargeAdjacentTerminals(s, m.clearIndices, chargedIds, events);
+  s = chargeResult.state;
+  const updatedChargedIds = chargeResult.chargedIds;
 
   events.push({ type: 'phase', phase: 'clear' });
   s = clearCellsAndPieces(s, m.clearIndices);
@@ -505,7 +622,7 @@ export function resolveOnce(state: EngineState): ResolveOnceResult {
 
   events.push({ type: 'phase', phase: 'settle' });
 
-  return { state: s, events, didResolve: true };
+  return { state: s, events, didResolve: true, chargedIds: updatedChargedIds };
 }
 
 // ─────────────────────────────────────────────
@@ -521,6 +638,11 @@ export function shuffleUntilValid(state: EngineState, maxAttempts: number): { st
     if (c.blocked) continue;
     if (c.obstacle) continue;
     if (c.pieceId === null) continue;
+
+    // Don't shuffle keycards - they should stay in place
+    const piece = state.pieces[c.pieceId];
+    if (piece && piece.type === 'keycard') continue;
+
     indices.push(i);
     pieceIds.push(c.pieceId as PieceId);
   }
@@ -532,7 +654,15 @@ export function shuffleUntilValid(state: EngineState, maxAttempts: number): { st
     const sh = rngShuffleInPlace(rngState, perm);
     rngState = sh.state;
 
-    const nextCells = state.cells.map((c) => ({ ...c, pieceId: null as PieceId | null }));
+    const nextCells = state.cells.map((c) => {
+      // Keep keycards in their cells
+      const piece = c.pieceId !== null ? state.pieces[c.pieceId] : null;
+      if (piece && piece.type === 'keycard') {
+        return { ...c };
+      }
+      return { ...c, pieceId: null as PieceId | null };
+    });
+
     const nextPieces: Record<PieceId, Piece> = { ...state.pieces };
 
     for (let k = 0; k < indices.length; k++) {
@@ -563,7 +693,14 @@ export function shuffleUntilValid(state: EngineState, maxAttempts: number): { st
   const sh = rngShuffleInPlace(rngState, perm);
   rngState = sh.state;
 
-  const nextCells = state.cells.map((c) => ({ ...c, pieceId: null as PieceId | null }));
+  const nextCells = state.cells.map((c) => {
+    const piece = c.pieceId !== null ? state.pieces[c.pieceId] : null;
+    if (piece && piece.type === 'keycard') {
+      return { ...c };
+    }
+    return { ...c, pieceId: null as PieceId | null };
+  });
+
   const nextPieces: Record<PieceId, Piece> = { ...state.pieces };
 
   for (let k = 0; k < indices.length; k++) {
@@ -594,6 +731,9 @@ export function stabilizeBoard(
   let s: EngineState = state;
   const events: EngineEvent[] = [];
 
+  // Track charged terminals for this stabilization pass
+  let chargedIds = new Set<number>();
+
   const dev = import.meta.env.DEV;
   const devAssert = (ctx: string) => {
     if (dev) assertPhaseInvariants(s, ctx);
@@ -621,6 +761,11 @@ export function stabilizeBoard(
     events.push({ type: 'matchesFound', clears: m.clearIndices.length, groups: m.groups });
     s = applyFirewallDamage(s, m.clearIndices, events);
     s = applyAdjacencyEffects(s, m.clearIndices, events);
+
+    // Charge terminals
+    const chargeResult = chargeAdjacentTerminals(s, m.clearIndices, chargedIds, events);
+    s = chargeResult.state;
+    chargedIds = chargeResult.chargedIds;
 
     toPhase('mark');
     // (future) spawnPlan/specials go here
@@ -661,6 +806,9 @@ export function stabilizeBoard(
     devAssert('stabilize:shuffleUntilValid');
     events.push({ type: 'shuffled', attempts: sh.attempts });
 
+    // Reset chargedIds for post-shuffle resolve (new "move" context)
+    chargedIds = new Set<number>();
+
     // post-shuffle safety resolve (to guarantee match-free)
     for (let loop = 0; loop < maxResolveLoops; loop++) {
       toPhase('detect');
@@ -670,6 +818,10 @@ export function stabilizeBoard(
       events.push({ type: 'matchesFound', clears: m.clearIndices.length, groups: m.groups });
       s = applyFirewallDamage(s, m.clearIndices, events);
       s = applyAdjacencyEffects(s, m.clearIndices, events);
+
+      const chargeResult = chargeAdjacentTerminals(s, m.clearIndices, chargedIds, events);
+      s = chargeResult.state;
+      chargedIds = chargeResult.chargedIds;
 
       toPhase('mark');
       // (future) spawnPlan/specials go here

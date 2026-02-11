@@ -1,5 +1,5 @@
 // src/gamelogic/board.ts
-import type { Cell, LevelDefinition, Piece, PieceId, PieceType, SwapRejectReason } from './types';
+import type { Cell, CellObstacle, LevelDefinition, Piece, PieceId, PieceType, SwapRejectReason } from './types';
 import { initRngState, rngNextInt, type RngState } from './rng';
 import { areAdjacent, xyOf } from './coords';
 
@@ -49,6 +49,12 @@ export function buildInitialBoard(level: LevelDefinition, seed: number): BuildBo
   const gateSet = new Set(level.gateIndices);
   const leakMap = new Map<number, { id: number; required: number }>(level.leakNodes.map((n, i) => [n.index, { id: i, required: n.patchStepsRequired }]));
 
+  // Level 03+: Terminal positions (handled separately in state.ts for clean layering)
+  const terminalSet = new Set(level.terminalNodes?.map((n) => n.index) ?? []);
+
+  // Level 03+: Keycard positions (handled separately in state.ts)
+  const keycardSet = new Set(level.keycardNodes?.map((n) => n.index) ?? []);
+
   const size = width * height;
 
   const cells: Cell[] = Array.from({ length: size }, (_, index) => {
@@ -80,6 +86,18 @@ export function buildInitialBoard(level: LevelDefinition, seed: number): BuildBo
         obstacle: { kind: 'leak', id: leak.id, progress: 0, required: leak.required },
       };
     }
+
+    // Terminal placeholder (actual obstacle set in state.ts)
+    // Mark as blocked for initial piece spawn, but don't set obstacle yet
+    if (terminalSet.has(index)) {
+      return {
+        blocked: true,
+        pieceId: null,
+      };
+    }
+
+    // Keycard position: normal cell, piece placed in state.ts
+    // Don't block, but we'll replace the random piece with keycard later
 
     // Normal cell
     return {
@@ -124,6 +142,39 @@ export function buildInitialBoard(level: LevelDefinition, seed: number): BuildBo
   return { cells, pieces, nextPieceId, rngState };
 }
 
+// ─────────────────────────────────────────────
+// Terminal Helpers
+// ─────────────────────────────────────────────
+
+export function getTerminalAt(cells: Cell[], index: number): Extract<CellObstacle, { kind: 'terminal' }> | null {
+  const obs = cells[index]?.obstacle;
+  return obs?.kind === 'terminal' ? obs : null;
+}
+
+export function isTerminalCell(cells: Cell[], index: number): boolean {
+  return getTerminalAt(cells, index) !== null;
+}
+
+export function canEnterTerminal(cells: Cell[], index: number): boolean {
+  const terminal = getTerminalAt(cells, index);
+  if (!terminal) return true; // kein Terminal = passierbar (normale Logik)
+  return terminal.state === 'open';
+}
+
+export function getTerminalIndices(cells: Cell[]): number[] {
+  const indices: number[] = [];
+  for (let i = 0; i < cells.length; i++) {
+    if (cells[i]?.obstacle?.kind === 'terminal') {
+      indices.push(i);
+    }
+  }
+  return indices;
+}
+
+// ─────────────────────────────────────────────
+// Swap Validation
+// ─────────────────────────────────────────────
+
 export function canSwap(from: number, to: number, width: number, cells: Cell[]): { ok: true } | { ok: false; reason: SwapRejectReason } {
   if (!areAdjacent(from, to, width)) return { ok: false, reason: 'notAdjacent' };
 
@@ -132,7 +183,22 @@ export function canSwap(from: number, to: number, width: number, cells: Cell[]):
   if (!a || !b) return { ok: false, reason: 'empty' };
 
   if (a.blocked || b.blocked) return { ok: false, reason: 'blocked' };
-  if (a.obstacle || b.obstacle) return { ok: false, reason: 'blocked' };
+
+  // Obstacle check with terminal exception
+  if (a.obstacle) {
+    // Terminal cells: can swap FROM if open (keycard leaving)
+    if (a.obstacle.kind !== 'terminal' || a.obstacle.state !== 'open') {
+      return { ok: false, reason: 'blocked' };
+    }
+  }
+
+  if (b.obstacle) {
+    // Terminal cells: can swap INTO if open (keycard entering)
+    if (b.obstacle.kind !== 'terminal' || b.obstacle.state !== 'open') {
+      return { ok: false, reason: 'blocked' };
+    }
+  }
+
   if (a.pieceId === null || b.pieceId === null) return { ok: false, reason: 'empty' };
 
   return { ok: true };
@@ -252,4 +318,42 @@ export function countSealKits(cells: Cell[]): number {
     if (cell.obstacle?.kind === 'sealKit') count++;
   }
   return count;
+}
+
+// ─────────────────────────────────────────────
+// Utility: Check if cell can receive falling piece
+// ─────────────────────────────────────────────
+
+export function canReceiveFallingPiece(cell: Cell): boolean {
+  if (cell.blocked) return false;
+
+  const obs = cell.obstacle;
+  if (!obs) return true;
+
+  // Terminal: only open terminals can receive pieces
+  if (obs.kind === 'terminal') {
+    return obs.state === 'open';
+  }
+
+  // Other obstacles block falling pieces
+  return false;
+}
+
+// ─────────────────────────────────────────────
+// Utility: Check if cell blocks gravity pass-through
+// ─────────────────────────────────────────────
+
+export function blocksGravity(cell: Cell): boolean {
+  if (cell.blocked) return true;
+
+  const obs = cell.obstacle;
+  if (!obs) return false;
+
+  // Terminal: locked/verified block, open allows pass
+  if (obs.kind === 'terminal') {
+    return obs.state !== 'open';
+  }
+
+  // All other obstacles block gravity
+  return true;
 }

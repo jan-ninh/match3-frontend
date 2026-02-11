@@ -4,16 +4,27 @@ import type { RngState } from './rng';
 
 export type LevelId = number;
 
-export type PieceType = 'red' | 'blue' | 'green' | 'purple' | 'orange' | 'cyan' | 'pink' | 'yellow';
+export type PieceType = 'red' | 'blue' | 'green' | 'purple' | 'orange' | 'cyan' | 'pink' | 'yellow' | 'keycard';
 
 export type PieceId = number;
+
+// ─────────────────────────────────────────────
+// Terminal State (Level 03+)
+// ─────────────────────────────────────────────
+
+export type TerminalState = 'locked' | 'open' | 'verified';
+
+// ─────────────────────────────────────────────
+// Cell Obstacles
+// ─────────────────────────────────────────────
 
 export type CellObstacle =
   | { kind: 'firewall'; hp: number; maxHp: number }
   | { kind: 'gate'; open: boolean }
   | { kind: 'leak'; id: number; progress: number; required: number }
   | { kind: 'contamination' }
-  | { kind: 'sealKit' };
+  | { kind: 'sealKit' }
+  | { kind: 'terminal'; id: number; state: TerminalState; charge: number; requiredCharge: number; chargeColor: PieceType };
 
 export type Cell = {
   blocked: boolean;
@@ -43,6 +54,16 @@ export function getLeakObstacle(cell: Cell): Extract<CellObstacle, { kind: 'leak
   return obs?.kind === 'leak' ? obs : null;
 }
 
+export function getTerminalObstacle(cell: Cell): Extract<CellObstacle, { kind: 'terminal' }> | null {
+  const obs = cell.obstacle;
+  return obs?.kind === 'terminal' ? obs : null;
+}
+
+export function isTerminalOpen(cell: Cell): boolean {
+  const obs = cell.obstacle;
+  return obs?.kind === 'terminal' && obs.state === 'open';
+}
+
 // ─────────────────────────────────────────────
 // Piece
 // ─────────────────────────────────────────────
@@ -67,6 +88,17 @@ export type LeakNodeDef = {
   patchStepsRequired: number;
 };
 
+export type TerminalNodeDef = {
+  index: number;
+  id: number;
+  requiredCharge: number;
+  chargeColor: PieceType;
+};
+
+export type KeycardNodeDef = {
+  index: number;
+};
+
 export type LevelDefinition = {
   id: LevelId;
   width: number;
@@ -82,6 +114,10 @@ export type LevelDefinition = {
 
   // Level 02+: Leak mechanics
   leakNodes: LeakNodeDef[];
+
+  // Level 03+: Terminal/Keycard mechanics
+  terminalNodes: TerminalNodeDef[];
+  keycardNodes: KeycardNodeDef[];
 
   // Balancing knobs (optional)
   maxSealKitsOnBoard?: number;
@@ -161,7 +197,12 @@ export type EngineEvent =
   | { type: 'sealKitTriggered'; index: number; targetLeakId: number }
   | { type: 'leakPatched'; leakId: number; progress: number; required: number }
   | { type: 'leakSealed'; leakId: number }
-  | { type: 'contaminationLose'; count: number };
+  | { type: 'contaminationLose'; count: number }
+  // Level 03+: Terminal/Keycard events
+  | { type: 'terminalCharged'; terminalId: number; charge: number; requiredCharge: number }
+  | { type: 'terminalOpened'; terminalId: number }
+  | { type: 'keycardDelivered'; terminalId: number; keycardIndex: number }
+  | { type: 'terminalVerified'; terminalId: number };
 
 // ─────────────────────────────────────────────
 // Engine State
@@ -202,6 +243,12 @@ export type EngineState = {
   maxSealKitsOnBoard: number;
   contaminationLoseThreshold: number | null;
   spreadEveryNTurns: number;
+
+  // Level 03+: Terminal/Keycard mechanics
+  terminalsTotal: number;
+  terminalsVerified: number;
+  keycardsTotal: number;
+  keycardsDelivered: number;
 
   // Board state
   cells: Cell[];

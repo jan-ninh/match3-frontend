@@ -1,5 +1,5 @@
 // src/features/devtools-host/ui/GameContainer.tsx
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import type { RefObject } from 'react';
 
 import type { EngineState } from '@/gamelogic';
@@ -76,17 +76,58 @@ export default function GameContainer(props: Props) {
   const breachLeft = state.breachesRemaining ?? 0;
   const breachDone = Math.max(0, breachTotal - breachLeft);
 
+  const leaksTotal = state.leaksTotal ?? 0;
+  const leaksSealed = state.leaksSealed ?? 0;
+
+  const contaminationThreshold = state.contaminationLoseThreshold ?? null;
+  const contaminationCount = useMemo(() => {
+    let n = 0;
+    for (const c of state.cells) {
+      if (c.obstacle?.kind === 'contamination') n++;
+    }
+    return n;
+  }, [state.cells]);
+
   const isWin = state.phase === 'win';
   const isLose = state.phase === 'lose';
 
-  const objectiveKind: 'spikes' | 'nodes' | 'none' = (() => {
-    const hasFirewall = state.cells.some((c) => c.obstacle === 'firewall');
+  const objectiveKind: 'spikes' | 'nodes' | 'leaks' | 'terminals' | 'none' = (() => {
+    if ((state.terminalsTotal ?? 0) > 0) return 'terminals';
+    if (leaksTotal > 0) return 'leaks';
+
+    const hasFirewall = state.cells.some((c) => c.obstacle?.kind === 'firewall');
     if (!hasFirewall) return 'none';
 
-    // Level 1 “spikes” are implemented via firewallNodes with hp=1.
-    const looksLikeSpikes = state.cells.some((c) => c.obstacle === 'firewall' && (c.maxHp ?? 0) <= 1);
+    // Level 1 “spikes” are implemented via firewall nodes with maxHp=1.
+    const looksLikeSpikes = state.cells.some((c) => c.obstacle?.kind === 'firewall' && c.obstacle.maxHp <= 1);
     return looksLikeSpikes ? 'spikes' : 'nodes';
   })();
+
+  // Level 03: Terminal states for HUD
+  const terminalStates = useMemo(() => {
+    const terminals: Array<{
+      id: number;
+      state: 'locked' | 'open' | 'verified';
+      charge: number;
+      required: number;
+      color: string;
+    }> = [];
+
+    for (const cell of state.cells) {
+      const obs = cell.obstacle;
+      if (obs?.kind === 'terminal') {
+        terminals.push({
+          id: obs.id,
+          state: obs.state,
+          charge: obs.charge,
+          required: obs.requiredCharge,
+          color: obs.chargeColor,
+        });
+      }
+    }
+
+    return terminals.sort((a, b) => a.id - b.id);
+  }, [state.cells]);
 
   return (
     <div className="w-full">
@@ -95,6 +136,13 @@ export default function GameContainer(props: Props) {
         gateOpen={state.gateOpen}
         breachDone={breachDone}
         breachTotal={breachTotal}
+        leaksSealed={leaksSealed}
+        leaksTotal={leaksTotal}
+        contaminationCount={contaminationCount}
+        contaminationThreshold={contaminationThreshold}
+        terminalsVerified={state.terminalsVerified ?? 0}
+        terminalsTotal={state.terminalsTotal ?? 0}
+        terminalStates={terminalStates}
         movesLeft={state.movesLeft ?? '—'}
         isWin={isWin}
         isLose={isLose}

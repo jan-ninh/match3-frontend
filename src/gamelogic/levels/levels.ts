@@ -33,6 +33,8 @@ function makeFallbackLevel(levelId: number): LevelDefinition {
     firewallNodes: [],
     gateIndices: [],
     leakNodes: [],
+    terminalNodes: [],
+    keycardNodes: [],
     baseSeed: seed,
   };
 }
@@ -45,6 +47,7 @@ export function getLevelDefinition(levelId: number): LevelDefinition {
     // Level 2: PATCH THE HOLE (Leaks + Contamination)
     case 2:
       return makeLevel02({ baseSeed: BASE_SEED, allowedTypes: DEFAULT_TYPES });
+    // Level 3: FALSE IDENTITY (Terminals + Keycards)
     case 3:
       return makeLevel03({ baseSeed: BASE_SEED, allowedTypes: DEFAULT_TYPES });
     case 4:

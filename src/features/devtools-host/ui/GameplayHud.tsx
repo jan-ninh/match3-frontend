@@ -1,5 +1,13 @@
 // src/features/devtools-host/ui/GameplayHud.tsx
-type ObjectiveKind = 'nodes' | 'spikes' | 'leaks' | 'none';
+type ObjectiveKind = 'nodes' | 'spikes' | 'leaks' | 'terminals' | 'none';
+
+type TerminalHudState = {
+  id: number;
+  state: 'locked' | 'open' | 'verified';
+  charge: number;
+  required: number;
+  color: string;
+};
 
 type Props = {
   levelId: number;
@@ -13,6 +21,11 @@ type Props = {
   // Level 02: Leaks
   leaksSealed: number;
   leaksTotal: number;
+
+  // Level 03: Terminals
+  terminalsVerified?: number;
+  terminalsTotal?: number;
+  terminalStates?: TerminalHudState[];
 
   // Level 02: Contamination
   contaminationCount: number;
@@ -33,6 +46,9 @@ export default function GameplayHud({
   breachTotal,
   leaksSealed,
   leaksTotal,
+  terminalsVerified = 0,
+  terminalsTotal = 0,
+  terminalStates = [],
   contaminationCount,
   contaminationThreshold,
   movesLeft,
@@ -40,9 +56,18 @@ export default function GameplayHud({
   isLose,
   objectiveKind = 'nodes',
 }: Props) {
+  // Determine objective kind (Level 03 overrides)
+  const resolvedObjectiveKind: ObjectiveKind = (() => {
+    if (terminalsTotal > 0) return 'terminals';
+    if (leaksTotal > 0) return 'leaks';
+    return objectiveKind;
+  })();
+
   // Determine title based on objective
   const preTitle = (() => {
-    switch (objectiveKind) {
+    switch (resolvedObjectiveKind) {
+      case 'terminals':
+        return 'Deliver ID Cards';
       case 'spikes':
         return 'Clean Room: remove spikes';
       case 'nodes':
@@ -55,7 +80,10 @@ export default function GameplayHud({
   })();
 
   const title = (() => {
-    if (objectiveKind === 'leaks' && leaksSealed >= leaksTotal && leaksTotal > 0) {
+    if (resolvedObjectiveKind === 'terminals' && terminalsVerified >= terminalsTotal && terminalsTotal > 0) {
+      return 'All IDs verified!';
+    }
+    if (resolvedObjectiveKind === 'leaks' && leaksSealed >= leaksTotal && leaksTotal > 0) {
       return 'All leaks sealed!';
     }
     if (gateOpen) {
@@ -66,7 +94,9 @@ export default function GameplayHud({
 
   // Determine hint based on objective
   const hint = (() => {
-    switch (objectiveKind) {
+    switch (resolvedObjectiveKind) {
+      case 'terminals':
+        return 'Match adjacent to terminals with the right color to charge them. Deliver keycards to open terminals.';
       case 'spikes':
         return 'Make matches orthogonal to a spike to remove it. Clear them all to unlock the exit.';
       case 'nodes':
@@ -84,20 +114,28 @@ export default function GameplayHud({
       ? { label: 'LOSE', cls: 'border-rose-300/30 bg-rose-500/10 text-rose-200/90' }
       : null;
 
+  const isTerminalObjective = resolvedObjectiveKind === 'terminals';
+  const isLeakObjective = resolvedObjectiveKind === 'leaks';
+
   // Keyline color based on objective and state
   const baseKeyline = (() => {
-    switch (objectiveKind) {
+    switch (resolvedObjectiveKind) {
       case 'spikes':
         return 'border-white/14';
       case 'leaks':
         return 'border-amber-300/18';
+      case 'terminals':
+        return 'border-sky-300/18';
       default:
         return 'border-fuchsia-300/18';
     }
   })();
 
   const keyline = (() => {
-    if (objectiveKind === 'leaks' && leaksSealed >= leaksTotal && leaksTotal > 0) {
+    if (isTerminalObjective && terminalsVerified >= terminalsTotal && terminalsTotal > 0) {
+      return 'border-emerald-300/18';
+    }
+    if (isLeakObjective && leaksSealed >= leaksTotal && leaksTotal > 0) {
       return 'border-emerald-300/18';
     }
     if (gateOpen) {
@@ -108,39 +146,57 @@ export default function GameplayHud({
 
   // Glow based on objective and state
   const glowA = (() => {
-    if (objectiveKind === 'leaks' && leaksSealed >= leaksTotal && leaksTotal > 0) {
+    if (isTerminalObjective && terminalsVerified >= terminalsTotal && terminalsTotal > 0) {
+      return 'shadow-[0_10px_26px_rgba(0,0,0,0.55),0_0_22px_rgba(16,185,129,0.12)]';
+    }
+    if (isLeakObjective && leaksSealed >= leaksTotal && leaksTotal > 0) {
       return 'shadow-[0_10px_26px_rgba(0,0,0,0.55),0_0_22px_rgba(16,185,129,0.12)]';
     }
     if (gateOpen) {
       return 'shadow-[0_10px_26px_rgba(0,0,0,0.55),0_0_22px_rgba(16,185,129,0.12)]';
     }
-    switch (objectiveKind) {
+    switch (resolvedObjectiveKind) {
       case 'spikes':
         return 'shadow-[0_10px_26px_rgba(0,0,0,0.55),0_0_22px_rgba(255,255,255,0.08)]';
       case 'leaks':
         return 'shadow-[0_10px_26px_rgba(0,0,0,0.55),0_0_22px_rgba(251,191,36,0.12)]';
+      case 'terminals':
+        return 'shadow-[0_10px_26px_rgba(0,0,0,0.55),0_0_22px_rgba(56,189,248,0.12)]';
       default:
         return 'shadow-[0_10px_26px_rgba(0,0,0,0.55),0_0_22px_rgba(217,70,239,0.12)]';
     }
   })();
 
-  // Progress segments (for Level 01 breaches or Level 02 leaks)
-  const isLeakObjective = objectiveKind === 'leaks';
-  const segTotal = isLeakObjective ? Math.min(Math.max(0, leaksTotal), 6) : Math.min(Math.max(0, breachTotal), 6);
-  const segDone = isLeakObjective ? Math.min(Math.max(0, leaksSealed), segTotal) : Math.min(Math.max(0, breachDone), segTotal);
+  // Progress segments
+  const segTotal = isTerminalObjective
+    ? Math.min(Math.max(0, terminalsTotal), 6)
+    : isLeakObjective
+      ? Math.min(Math.max(0, leaksTotal), 6)
+      : Math.min(Math.max(0, breachTotal), 6);
+
+  const segDone = isTerminalObjective
+    ? Math.min(Math.max(0, terminalsVerified), segTotal)
+    : isLeakObjective
+      ? Math.min(Math.max(0, leaksSealed), segTotal)
+      : Math.min(Math.max(0, breachDone), segTotal);
 
   const segOn = (() => {
+    if (isTerminalObjective && terminalsVerified >= terminalsTotal && terminalsTotal > 0) {
+      return 'bg-emerald-400/35 border-emerald-300/35';
+    }
     if (isLeakObjective && leaksSealed >= leaksTotal && leaksTotal > 0) {
       return 'bg-emerald-400/35 border-emerald-300/35';
     }
     if (gateOpen) {
       return 'bg-emerald-400/35 border-emerald-300/35';
     }
-    switch (objectiveKind) {
+    switch (resolvedObjectiveKind) {
       case 'spikes':
         return 'bg-white/20 border-white/25';
       case 'leaks':
         return 'bg-amber-400/35 border-amber-300/35';
+      case 'terminals':
+        return 'bg-sky-400/35 border-sky-300/35';
       default:
         return 'bg-fuchsia-400/35 border-fuchsia-300/35';
     }
@@ -186,8 +242,11 @@ export default function GameplayHud({
 
               {/* compact meta on the right (keeps pill small) */}
               <div className="hidden sm:flex items-center gap-2">
-                {/* Level 02: Leaks progress */}
-                {isLeakObjective ? (
+                {isTerminalObjective ? (
+                  <div className="font-mono text-xs text-white/80 tabular-nums">
+                    VERIFIED {terminalsVerified}/{terminalsTotal}
+                  </div>
+                ) : isLeakObjective ? (
                   <div className="font-mono text-xs text-white/80 tabular-nums">
                     SEALED {leaksSealed}/{leaksTotal}
                   </div>
@@ -217,11 +276,15 @@ export default function GameplayHud({
               </div>
             </div>
 
-            {/* Pill B: Hint + Contamination (Level 02) */}
+            {/* Pill B: Hint + Contamination (Level 02) + Terminals (Level 03) */}
             <div className="inline-flex items-center gap-3 rounded-2xl border border-white/10 bg-black/65 backdrop-blur-xl px-4 py-2 shadow-[0_10px_26px_rgba(0,0,0,0.45)]">
               {/* show progress only on small screens (since pill A hides it there) */}
               <div className="sm:hidden flex items-center gap-2">
-                {isLeakObjective ? (
+                {isTerminalObjective ? (
+                  <div className="font-mono text-xs text-white/80 tabular-nums">
+                    VERIFIED {terminalsVerified}/{terminalsTotal}
+                  </div>
+                ) : isLeakObjective ? (
                   <div className="font-mono text-xs text-white/80 tabular-nums">
                     SEALED {leaksSealed}/{leaksTotal}
                   </div>
@@ -253,6 +316,34 @@ export default function GameplayHud({
                     ].join(' ')}
                   >
                     ☣ {contaminationCount}/{contaminationThreshold}
+                  </div>
+                  <div className="text-white/25">•</div>
+                </>
+              ) : null}
+
+              {/* Terminal chips (Level 03) */}
+              {isTerminalObjective && terminalStates.length > 0 ? (
+                <>
+                  <div className="flex items-center gap-2">
+                    {terminalStates.map((t) => (
+                      <div
+                        key={t.id}
+                        className={[
+                          'flex items-center gap-1 px-2 py-0.5 rounded text-[10px]',
+                          t.state === 'verified'
+                            ? 'bg-emerald-500/20 text-emerald-200'
+                            : t.state === 'open'
+                              ? 'bg-sky-500/20 text-sky-200'
+                              : 'bg-slate-500/20 text-slate-300',
+                        ].join(' ')}
+                      >
+                        <span className="uppercase">{(t.color?.[0] ?? '?') as string}</span>
+                        <span>
+                          {t.charge}/{t.required}
+                        </span>
+                        <span>{t.state === 'verified' ? '✓' : t.state === 'open' ? '⎆' : '🔒'}</span>
+                      </div>
+                    ))}
                   </div>
                   <div className="text-white/25">•</div>
                 </>
