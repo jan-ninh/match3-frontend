@@ -1,5 +1,5 @@
 import type { User } from '@/types';
-import { Avatar, GlassSection } from '@/components';
+import { AvatarSprite, GlassSection } from '@/components';
 
 type Props = {
   user: User;
@@ -11,7 +11,7 @@ export default function RankRow({ user, rank }: Props) {
     <GlassSection className="flex justify-between items-center  p-4 mb-2">
       <div className="flex items-center gap-2">
         <span className="font-bold w-6">{rank}</span>
-        <Avatar size={32} />
+        <AvatarSprite name={(user.avatar as any) || 'default.png'} size={32} />
         <span>{user.name}</span>
       </div>
       <span>{user.score}</span>

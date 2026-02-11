@@ -6,6 +6,7 @@ type LeaderboardEntryDTO = {
   userId?: string;
   username: string;
   totalScore: number;
+  avatar?: string;
 };
 type Top10Response = {
   top10: LeaderboardEntryDTO[];
@@ -19,5 +20,6 @@ export async function apiLeaderboardTop10(): Promise<User[]> {
     id: entry.userId as string,
     name: entry.username,
     score: entry.totalScore,
+    avatar: entry.avatar || 'default.png',
   }));
 }
