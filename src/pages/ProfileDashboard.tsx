@@ -167,14 +167,12 @@ export default function ProfileDashboard() {
     return (
       <>
         <Navbar />
-        <div className="m-8 max-w-xl mx-auto flex flex-col space-y-4">
+        <div className="m-8 max-w-xl mx-auto flex flex-col space space-y-4">
           <p className="text-center text-cyan-100/40">Loading profile...</p>
         </div>
       </>
     );
   }
-
-  const avatarSrc = profile.avatar ? `/avatar/${profile.avatar}` : '/avatar/default.png';
 
   return (
     <>
