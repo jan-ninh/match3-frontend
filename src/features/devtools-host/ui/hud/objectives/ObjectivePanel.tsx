@@ -2,8 +2,8 @@
 import type { HudObjective } from '../../../lib/hud/types';
 import { ObjectiveNodes } from './Objective-01-Nodes';
 import { ObjectiveLeaks } from './Objective-02-Leaks';
-import { ObjectiveTerminals } from './ObjectiveTerminals';
-import { ObjectiveActivatedTerminals } from './ObjectiveActivatedTerminals';
+import { ObjectiveTerminals } from './Objective-03-Terminals';
+import { ObjectiveActivateTerminals } from './Objective-04-ActivateTerminals';
 import { ObjectiveSignal } from './ObjectiveSignal';
 
 type Props = {
@@ -26,7 +26,7 @@ export function ObjectivePanel({ objective }: Props) {
       return <ObjectiveTerminals objective={objective} />;
 
     case 'objectiveTerminals':
-      return <ObjectiveActivatedTerminals objective={objective} />;
+      return <ObjectiveActivateTerminals objective={objective} />;
 
     case 'signal':
       return <ObjectiveSignal objective={objective} />;

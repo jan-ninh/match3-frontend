@@ -1,46 +1,57 @@
-// src\features\devtools-host\ui\hud\objectives\Objective-02-Leaks.tsx
-import type { HudObjective } from '../../../lib/hud/types';
+// src/features/devtools-host/ui/hud/objectives/ObjectiveActivatedTerminals.tsx
+import type { HudObjective, HudObjectiveTerminalState } from '../../../lib/hud/types';
 
-type ObjectiveLeaksLike = Extract<HudObjective, { kind: 'leaks' }>;
+type ObjectiveActivatedTerminalsLike = Extract<HudObjective, { kind: 'objectiveTerminals' }>;
 
 type Props = {
-  objective: ObjectiveLeaksLike;
+  objective: ObjectiveActivatedTerminalsLike;
 };
 
-export function ObjectiveLeaks({ objective }: Props) {
-  const sealed = (objective.leaksSealed ?? 0) | 0;
-  const total = (objective.leaksTotal ?? 0) | 0;
+function stateChipClass(state: HudObjectiveTerminalState['state']): string {
+  switch (state) {
+    case 'active':
+      return 'bg-emerald-500/20 text-emerald-200';
+    case 'inactive':
+      return 'bg-white/5 text-white/70';
+    default: {
+      const _exhaustive: never = state;
+      return _exhaustive;
+    }
+  }
+}
 
-  const contaminationCount = (objective.contaminationCount ?? 0) | 0;
-  const contaminationThreshold = objective.contaminationThreshold ?? null;
+export function ObjectiveActivateTerminals({ objective }: Props) {
+  const active = objective.activated | 0;
+  const total = objective.total | 0;
+  const states = objective.states;
 
-  const isDone = total > 0 && sealed >= total;
+  const isDone = total > 0 && active >= total;
 
-  const title = isDone ? 'All leaks sealed!' : 'Patch the Leaks!';
-  const hint = 'Make matches beside leaks to get Seal Kits. Trigger a Seal Kit to seal leaks.';
+  const preTitle = 'Activate Terminals';
+  const title = isDone ? 'All terminals activated!' : preTitle;
 
-  // Level-1 style: keyline + glow (leaks = amber, done = emerald)
-  const keyline = isDone ? 'border-emerald-300/18' : 'border-amber-300/18';
+  const hint = 'Make matches adjacent to terminals to charge them. Watch the laser warning!';
 
-  const glowA = isDone
-    ? 'shadow-[0_10px_26px_rgba(0,0,0,0.55),0_0_22px_rgba(16,185,129,0.12)]'
-    : 'shadow-[0_10px_26px_rgba(0,0,0,0.55),0_0_22px_rgba(251,191,36,0.12)]';
+  // Keyline / Glow (match Level 01 HUD structure)
+  const baseKeyline = 'border-rose-300/18';
+  const keyline = isDone ? 'border-emerald-300/18' : baseKeyline;
 
-  // Progress segments (Level-1 style)
+  const baseGlow = 'shadow-[0_10px_26px_rgba(0,0,0,0.55),0_0_22px_rgba(244,63,94,0.12)]';
+  const glowA = isDone ? 'shadow-[0_10px_26px_rgba(0,0,0,0.55),0_0_22px_rgba(16,185,129,0.12)]' : baseGlow;
+
+  // Progress segments (old style)
   const segTotal = Math.min(Math.max(0, total), 6);
-  const segDone = Math.min(Math.max(0, sealed), segTotal);
+  const segDone = Math.min(Math.max(0, active), segTotal);
 
-  const segOn = isDone ? 'bg-emerald-400/35 border-emerald-300/35' : 'bg-amber-400/35 border-amber-300/35';
+  const baseSegOn = 'bg-rose-400/35 border-rose-300/35';
+  const segOn = isDone ? 'bg-emerald-400/35 border-emerald-300/35' : baseSegOn;
 
-  // Contamination chip (optional)
-  const showContamination = contaminationThreshold !== null;
-  const contaminationDanger = contaminationThreshold !== null && contaminationCount >= contaminationThreshold * 0.7;
-  const contaminationCritical = contaminationThreshold !== null && contaminationCount >= contaminationThreshold * 0.9;
+  const showStateChips = states.length > 0;
 
   return (
     <>
       {/* ------------------------------------------------------------------- */}
-      {/* 1) CONTAINER: OBJECTIVE (Level-1 look) */}
+      {/* 1) CONTAINER: OBJECTIVE */}
       {/* ------------------------------------------------------------------- */}
       <div
         className={['inline-flex min-w-0 max-w-full items-center gap-3 rounded-2xl border bg-black/80 backdrop-blur-xl px-4 py-2 mt-4', keyline, glowA].join(
@@ -59,7 +70,7 @@ export function ObjectiveLeaks({ objective }: Props) {
 
         <div className="hidden sm:flex items-center gap-2 shrink-0">
           <div className="font-mono text-xs text-white/80 tabular-nums whitespace-nowrap">
-            SEALED {sealed}/{total}
+            ACTIVE {active}/{total}
           </div>
 
           {segTotal > 0 ? (
@@ -83,13 +94,13 @@ export function ObjectiveLeaks({ objective }: Props) {
       </div>
 
       {/* ------------------------------------------------------------------- */}
-      {/* 2) CONTAINER: HINT (Level-1 look) */}
+      {/* 2) CONTAINER: OBJECTIVE DESCRIPTION (HINT) */}
       {/* ------------------------------------------------------------------- */}
       <div className="inline-flex min-w-0 items-center gap-3 rounded-2xl border border-white/10 bg-black/65 backdrop-blur-xl px-4 py-2 shadow-[0_10px_26px_rgba(0,0,0,0.45)] overflow-hidden">
         {/* small-screen progress */}
         <div className="sm:hidden flex items-center gap-2 shrink-0">
           <div className="font-mono text-xs text-white/80 tabular-nums whitespace-nowrap">
-            SEALED {sealed}/{total}
+            ACTIVE {active}/{total}
           </div>
 
           {segTotal > 0 ? (
@@ -104,15 +115,23 @@ export function ObjectiveLeaks({ objective }: Props) {
           <div className="text-white/25 shrink-0">•</div>
         </div>
 
-        {showContamination ? (
+        {/* Terminal state chips (like Level 01 HUD "inline chips") */}
+        {showStateChips ? (
           <>
-            <div
-              className={[
-                'font-mono text-xs tabular-nums whitespace-nowrap shrink-0',
-                contaminationCritical ? 'text-rose-300 animate-pulse' : contaminationDanger ? 'text-amber-300' : 'text-white/70',
-              ].join(' ')}
-            >
-              ☣ {contaminationCount}/{contaminationThreshold}
+            <div className="flex items-center gap-2 overflow-hidden shrink-0 max-w-[clamp(10ch,18vw,28ch)]">
+              {states.map((t) => (
+                <div
+                  key={t.id}
+                  className={['flex items-center gap-1 px-2 py-0.5 rounded text-[10px] shrink-0', stateChipClass(t.state)].join(' ')}
+                  title={`T${t.id}: ${t.charge}/${t.required} (${t.state})`}
+                >
+                  <span className="uppercase">{`T${t.id}`}</span>
+                  <span>
+                    {t.charge}/{t.required}
+                  </span>
+                  <span>{t.state === 'active' ? '✓' : '⎆'}</span>
+                </div>
+              ))}
             </div>
             <div className="text-white/25 shrink-0">•</div>
           </>

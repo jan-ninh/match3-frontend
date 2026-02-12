@@ -1,6 +1,6 @@
-// src/features/devtools-host/ui/hud/sections/HudCenter.tsx
 import type { HudModel } from '../../../lib/hud/types';
 import { ObjectivePanel } from '../objectives/ObjectivePanel';
+import { LaserWarningBadge } from '../widgets/LaserWarningBadge';
 
 type Props = {
   model: HudModel;
@@ -15,6 +15,9 @@ export function HudCenter({ model }: Props) {
 
         <div className="min-w-0 max-w-full flex flex-col items-center justify-center gap-2">
           <ObjectivePanel objective={model.objective} />
+
+          {/* Laser warning: directly UNDER the hint (more important/urgent) */}
+          <LaserWarningBadge warning={model.laserWarning ?? null} />
         </div>
       </div>
     </div>
