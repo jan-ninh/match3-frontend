@@ -8,7 +8,7 @@ type Props = {
   onClose: () => void;
   userId: string;
   currentAvatar?: AvatarKey;
-  onUpdated?: (next: AvatarKey) => void; // برای آپدیت state در parent
+  onUpdated?: (next: AvatarKey) => void; //
 };
 
 export default function ChangeAvatarModal({ open, onClose, userId, currentAvatar = 'default.png', onUpdated }: Props) {
@@ -25,7 +25,8 @@ export default function ChangeAvatarModal({ open, onClose, userId, currentAvatar
     setError(null);
     try {
       await apiUpdateAvatar(userId, selected as Exclude<AvatarKey, 'default.png'>);
-      onUpdated?.(selected);
+      // Await the onUpdated callback to ensure profile is refreshed before closing
+      await onUpdated?.(selected);
       onClose();
     } catch (e) {
       setError('Failed to update avatar. Please try again.');
@@ -52,7 +53,7 @@ export default function ChangeAvatarModal({ open, onClose, userId, currentAvatar
                 className={['rounded-2xl p-3 border transition', isActive ? 'border-cyan-400 bg-white/5' : 'border-white/10 hover:border-white/25'].join(' ')}
               >
                 <div className="flex items-center justify-center">
-                  <AvatarSprite name={name} size={84} className={isActive ? 'ring-2 ring-cyan-400/70' : ''} />
+                  <AvatarSprite name={name} size={96} />
                 </div>
                 <div className="mt-2 text-xs text-white/70">{name.replace('.png', '')}</div>
               </button>

@@ -97,13 +97,13 @@
 //   );
 // }
 
-import { Avatar, BadgeGrid, ProfileHeader, ProgressBar, StatsGrid, Navbar, CyberButton, GlassSection } from '@/components';
+import { AvatarSprite, BadgeGrid, ProfileHeader, ProgressBar, StatsGrid, Navbar, CyberButton, GlassSection } from '@/components';
 import badges from '@/data/badges';
 import { useNavigate } from 'react-router';
 import { useAuth } from '@/context/AuthContext';
 import { useEffect, useMemo, useState } from 'react';
 
-// مسیرش را مطابق پروژه‌ات تنظیم کن
+//
 import ChangeAvatarModal from '@/features/overlays/ChangeAvatarModal';
 
 export default function ProfileDashboard() {
@@ -167,15 +167,12 @@ export default function ProfileDashboard() {
     return (
       <>
         <Navbar />
-        <div className="m-8 max-w-xl mx-auto flex flex-col space-y-4">
+        <div className="m-8 max-w-xl mx-auto flex flex-col space space-y-4">
           <p className="text-center text-cyan-100/40">Loading profile...</p>
         </div>
       </>
     );
   }
-
-  // اگر فایل‌های جدا داری:
-  const avatarSrc = profile.avatar ? `/avatar/${profile.avatar}` : '/avatar/default.png';
 
   return (
     <>
@@ -185,7 +182,7 @@ export default function ProfileDashboard() {
         <ProfileHeader
           username={profile.username}
           level={level}
-          avatar={<Avatar size={124} src={avatarSrc} />}
+          avatar={<AvatarSprite name={profile.avatar as any} size={124} />}
           actions={
             <button
               type="button"
@@ -218,7 +215,12 @@ export default function ProfileDashboard() {
         onClose={() => setAvatarModalOpen(false)}
         userId={user?.id ?? ''}
         currentAvatar={profile.avatar as any}
-        onUpdated={async () => {
+        onUpdated={async (newAvatar) => {
+          // Update profile immediately for instant UI feedback
+          if (profile) {
+            profile.avatar = newAvatar;
+          }
+          // Then refresh from backend to ensure sync
           await refreshProfile().catch(() => {});
         }}
       />
