@@ -1,4 +1,4 @@
-import Avatar from '../Avatar';
+import { AvatarSprite } from '@/components';
 import type { User } from '@/types';
 
 type Props = {
@@ -58,7 +58,7 @@ export default function PodiumCard({ user, position }: Props) {
       </div>
 
       <div className="relative flex-1 flex flex-col justify-end items-center p-2 text-white/85">
-        <Avatar size={48} />
+        <AvatarSprite name={(user.avatar as any) || 'default.png'} size={48} />
         <span className="mt-1 font-semibold text-[13px] truncate max-w-22">{user.name}</span>
         <span className="text-xs text-white/70">{user.score} pts</span>
       </div>
