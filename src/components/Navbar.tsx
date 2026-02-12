@@ -61,7 +61,7 @@ export default function Navbar() {
         },
       ];
 
-  // helper: detect if icon is a URL (we'll fallback to regular <img>)
+  // helper: detect if icon is a URL
   const isUrl = (s: string) => {
     return s.startsWith('/') || s.startsWith('http') || s.endsWith('.svg') || s.endsWith('.png') || s.endsWith('.jpg');
   };
