@@ -103,7 +103,7 @@ import { useNavigate } from 'react-router';
 import { useAuth } from '@/context/AuthContext';
 import { useEffect, useMemo, useState } from 'react';
 
-// مسیرش را مطابق پروژه‌ات تنظیم کن
+//
 import ChangeAvatarModal from '@/features/overlays/ChangeAvatarModal';
 
 export default function ProfileDashboard() {
@@ -174,7 +174,6 @@ export default function ProfileDashboard() {
     );
   }
 
-  // اگر فایل‌های جدا داری:
   const avatarSrc = profile.avatar ? `/avatar/${profile.avatar}` : '/avatar/default.png';
 
   return (

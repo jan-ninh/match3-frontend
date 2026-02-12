@@ -8,7 +8,7 @@ type Props = {
   onClose: () => void;
   userId: string;
   currentAvatar?: AvatarKey;
-  onUpdated?: (next: AvatarKey) => void; // برای آپدیت state در parent
+  onUpdated?: (next: AvatarKey) => void; //
 };
 
 export default function ChangeAvatarModal({ open, onClose, userId, currentAvatar = 'default.png', onUpdated }: Props) {
