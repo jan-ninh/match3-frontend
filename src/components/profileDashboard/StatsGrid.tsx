@@ -12,7 +12,6 @@ export default function StatsGrid({ stats }: Props) {
           <div
             key={stat.label}
             className={[
-              // mini card داخل پنل
               'bg-slate-950/25 backdrop-blur-sm',
               'border border-cyan-200/10 ring-1 ring-fuchsia-400/10',
               'rounded-2xl p-3',
