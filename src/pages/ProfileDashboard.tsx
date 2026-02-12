@@ -97,7 +97,7 @@
 //   );
 // }
 
-import { Avatar, BadgeGrid, ProfileHeader, ProgressBar, StatsGrid, Navbar, CyberButton, GlassSection } from '@/components';
+import { AvatarSprite, BadgeGrid, ProfileHeader, ProgressBar, StatsGrid, Navbar, CyberButton, GlassSection } from '@/components';
 import badges from '@/data/badges';
 import { useNavigate } from 'react-router';
 import { useAuth } from '@/context/AuthContext';
@@ -184,7 +184,7 @@ export default function ProfileDashboard() {
         <ProfileHeader
           username={profile.username}
           level={level}
-          avatar={<Avatar size={124} src={avatarSrc} />}
+          avatar={<AvatarSprite name={profile.avatar as any} size={124} />}
           actions={
             <button
               type="button"
@@ -217,7 +217,12 @@ export default function ProfileDashboard() {
         onClose={() => setAvatarModalOpen(false)}
         userId={user?.id ?? ''}
         currentAvatar={profile.avatar as any}
-        onUpdated={async () => {
+        onUpdated={async (newAvatar) => {
+          // Update profile immediately for instant UI feedback
+          if (profile) {
+            profile.avatar = newAvatar;
+          }
+          // Then refresh from backend to ensure sync
           await refreshProfile().catch(() => {});
         }}
       />
