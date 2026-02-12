@@ -117,6 +117,9 @@ export default function GameplayHud({
   const isTerminalObjective = resolvedObjectiveKind === 'terminals';
   const isLeakObjective = resolvedObjectiveKind === 'leaks';
 
+  const showContamination = isLeakObjective && contaminationThreshold !== null;
+  const showTerminalChips = isTerminalObjective && terminalStates.length > 0;
+
   // Keyline color based on objective and state
   const baseKeyline = (() => {
     switch (resolvedObjectiveKind) {
@@ -224,47 +227,59 @@ export default function GameplayHud({
         <div className="text-xs tracking-widest text-fuchsia-200/70 uppercase">Stage</div>
       </div>
 
-      {/* Objective (two compact pills, centered) */}
+      {/* Objective (must never grow vertically and push the grid) */}
       <div className="min-w-0 flex justify-center">
-        <div className="relative inline-block min-w-0 max-w-full">
+        <div className="min-w-0 max-w-full relative inline-block ">
           {/* soft scrim, so it pops from BG without "more box height" */}
           <div className="pointer-events-none absolute -inset-5 rounded-[26px] bg-black/40 blur-2xl" aria-hidden="true" />
 
-          <div className="inline-flex max-w-full flex-wrap items-center justify-center gap-2">
-            {/* Pill A: Objective */}
-            <div className={['inline-flex min-w-0 items-center gap-3 rounded-2xl border bg-black/80 backdrop-blur-xl px-4 py-2', keyline, glowA].join(' ')}>
+          {/* IMPORTANT: no wrapping -> HUD height stays stable; content adapts via truncate/overflow */}
+          <div className="min-w-0 max-w-full flex flex-col items-center justify-center gap-2">
+            {/* ------------------------------------------------------------------- */}
+            {/* 1) CONTAINER: OBJECTIVE */}
+            {/* ------------------------------------------------------------------- */}
+            <div
+              className={[
+                'inline-flex min-w-0 max-w-full items-center gap-3 rounded-2xl border bg-black/80 backdrop-blur-xl px-4 py-2 mt-4',
+                keyline,
+                glowA,
+              ].join(' ')}
+            >
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <div className="text-[10px] tracking-[0.28em] text-white/55 uppercase">Objective</div>
+                  <div className="text-[10px] tracking-[0.28em] text-white/55 uppercase whitespace-nowrap">Objective</div>
                   {chip ? (
-                    <div className={['ml-1 px-2 py-1 rounded-full border text-[10px] tracking-[0.22em] uppercase', chip.cls].join(' ')}>{chip.label}</div>
+                    <div className={['ml-1 px-2 py-1 rounded-full border text-[10px] tracking-[0.22em] uppercase whitespace-nowrap', chip.cls].join(' ')}>
+                      {chip.label}
+                    </div>
                   ) : null}
                 </div>
 
-                <div className="mt-0.5 text-[15px] font-semibold text-white/90 leading-snug">{title}</div>
+                {/* Title must never wrap (otherwise HUD height grows) */}
+                <div className="mt-0.5 text-[15px] font-semibold text-white/90 leading-snug truncate">{title}</div>
               </div>
 
               {/* tiny vertical separator */}
-              <div className="hidden sm:block h-7 w-px bg-white/10" aria-hidden="true" />
+              <div className="hidden sm:block h-7 w-px bg-white/10 shrink-0" aria-hidden="true" />
 
               {/* compact meta on the right (keeps pill small) */}
-              <div className="hidden sm:flex items-center gap-2">
+              <div className="hidden sm:flex items-center gap-2 shrink-0">
                 {isTerminalObjective ? (
-                  <div className="font-mono text-xs text-white/80 tabular-nums">
+                  <div className="font-mono text-xs text-white/80 tabular-nums whitespace-nowrap">
                     VERIFIED {terminalsVerified}/{terminalsTotal}
                   </div>
                 ) : isLeakObjective ? (
-                  <div className="font-mono text-xs text-white/80 tabular-nums">
+                  <div className="font-mono text-xs text-white/80 tabular-nums whitespace-nowrap">
                     SEALED {leaksSealed}/{leaksTotal}
                   </div>
                 ) : (
-                  <div className="font-mono text-xs text-white/80 tabular-nums">
+                  <div className="font-mono text-xs text-white/80 tabular-nums whitespace-nowrap">
                     BREACH {breachDone}/{breachTotal}
                   </div>
                 )}
 
                 {segTotal > 0 ? (
-                  <div className="flex items-center gap-1.5" aria-hidden="true">
+                  <div className="flex items-center gap-1.5 shrink-0" aria-hidden="true">
                     {Array.from({ length: segTotal }, (_, i) => {
                       const done = i < segDone;
                       return (
@@ -282,27 +297,28 @@ export default function GameplayHud({
                 ) : null}
               </div>
             </div>
-
-            {/* Pill B: Hint + Contamination (Level 02) + Terminals (Level 03) */}
-            <div className="inline-flex min-w-0 flex-wrap items-center justify-center gap-3 rounded-2xl border border-white/10 bg-black/65 backdrop-blur-xl px-4 py-2 shadow-[0_10px_26px_rgba(0,0,0,0.45)]">
-              {/* show progress only on small screens (since pill A hides it there) */}
-              <div className="sm:hidden flex items-center gap-2">
+            {/* ------------------------------------------------------------------- */}
+            {/* 2) CONTAINER: OBJECTIVE DESCRIPTION */}
+            {/* ------------------------------------------------------------------- */}
+            <div className="inline-flex min-w-0 items-center gap-3 rounded-2xl border border-white/10 bg-black/65 backdrop-blur-xl px-4 py-2 shadow-[0_10px_26px_rgba(0,0,0,0.45)] overflow-hidden">
+              {/* small-screen progress (no wrapping) */}
+              <div className="sm:hidden flex items-center gap-2 shrink-0">
                 {isTerminalObjective ? (
-                  <div className="font-mono text-xs text-white/80 tabular-nums">
+                  <div className="font-mono text-xs text-white/80 tabular-nums whitespace-nowrap">
                     VERIFIED {terminalsVerified}/{terminalsTotal}
                   </div>
                 ) : isLeakObjective ? (
-                  <div className="font-mono text-xs text-white/80 tabular-nums">
+                  <div className="font-mono text-xs text-white/80 tabular-nums whitespace-nowrap">
                     SEALED {leaksSealed}/{leaksTotal}
                   </div>
                 ) : (
-                  <div className="font-mono text-xs text-white/80 tabular-nums">
+                  <div className="font-mono text-xs text-white/80 tabular-nums whitespace-nowrap">
                     BREACH {breachDone}/{breachTotal}
                   </div>
                 )}
 
                 {segTotal > 0 ? (
-                  <div className="flex items-center gap-1.5" aria-hidden="true">
+                  <div className="flex items-center gap-1.5 shrink-0" aria-hidden="true">
                     {Array.from({ length: segTotal }, (_, i) => {
                       const done = i < segDone;
                       return <div key={i} className={['h-2.5 w-4 rounded-full border', done ? segOn : 'bg-white/5 border-white/15'].join(' ')} />;
@@ -310,33 +326,33 @@ export default function GameplayHud({
                   </div>
                 ) : null}
 
-                <div className="text-white/25">•</div>
+                <div className="text-white/25 shrink-0">•</div>
               </div>
 
               {/* Contamination counter (Level 02 only) */}
-              {isLeakObjective && contaminationThreshold !== null ? (
+              {showContamination ? (
                 <>
                   <div
                     className={[
-                      'font-mono text-xs tabular-nums',
+                      'font-mono text-xs tabular-nums whitespace-nowrap shrink-0',
                       contaminationCritical ? 'text-rose-300 animate-pulse' : contaminationDanger ? 'text-amber-300' : 'text-white/70',
                     ].join(' ')}
                   >
                     ☣ {contaminationCount}/{contaminationThreshold}
                   </div>
-                  <div className="text-white/25">•</div>
+                  <div className="text-white/25 shrink-0">•</div>
                 </>
               ) : null}
 
-              {/* Terminal chips (Level 03) */}
-              {isTerminalObjective && terminalStates.length > 0 ? (
+              {/* Terminal chips (Level 03) - no wrap */}
+              {showTerminalChips ? (
                 <>
-                  <div className="flex flex-wrap items-center justify-center gap-2">
+                  <div className="flex items-center gap-2 overflow-hidden shrink-0 max-w-[clamp(10ch,18vw,28ch)]">
                     {terminalStates.map((t) => (
                       <div
                         key={t.id}
                         className={[
-                          'flex items-center gap-1 px-2 py-0.5 rounded text-[10px]',
+                          'flex items-center gap-1 px-2 py-0.5 rounded text-[10px] shrink-0',
                           t.state === 'verified'
                             ? 'bg-emerald-500/20 text-emerald-200'
                             : t.state === 'open'
@@ -352,12 +368,12 @@ export default function GameplayHud({
                       </div>
                     ))}
                   </div>
-                  <div className="text-white/25">•</div>
+                  <div className="text-white/25 shrink-0">•</div>
                 </>
               ) : null}
 
-              {/* Hint: allow wrapping so it never pushes MOVES out of the stage viewport */}
-              <div className="text-xs text-white/55 text-center leading-snug max-w-[60ch]">{hint}</div>
+              {/* Hint MUST NOT wrap: it should adapt by truncating, never by increasing height */}
+              <div className="text-xs text-white/55 whitespace-normal break-words max-w-[clamp(18ch,34vw,60ch)]">{hint}</div>
             </div>
           </div>
         </div>

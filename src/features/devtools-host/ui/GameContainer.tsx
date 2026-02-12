@@ -1,5 +1,5 @@
 // src/features/devtools-host/ui/GameContainer.tsx
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { RefObject } from 'react';
 
 import type { EngineState } from '@/gamelogic';
@@ -67,10 +67,61 @@ export default function GameContainer(props: Props) {
   const internalGridRowRef = useRef<HTMLDivElement | null>(null);
   const gridRowRef = externalGridRowRef ?? internalGridRowRef;
 
+  // "game-stage-viewport" container (absolute children refer to this)
+  const stageRef = useRef<HTMLDivElement | null>(null);
+
+  // HUD darf nie in den Grid-Bereich wachsen -> maxHeight bis Grid-Oberkante
+  const [hudMaxPx, setHudMaxPx] = useState<number | null>(null);
+
   useEffect(() => {
     setTilesetLevel(state.levelId);
     preloadTiles();
   }, [state.levelId]);
+
+  // Recompute HUD max height when stage/grid geometry changes
+  useLayoutEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const stageEl = stageRef.current;
+    const gridEl = gridRowRef.current;
+    if (!stageEl || !gridEl) return;
+
+    const GAP_PX = 12; // Abstand zwischen HUD-Unterkante und Grid-Oberkante
+
+    let raf = 0;
+
+    const recalc = () => {
+      if (raf) cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const s = stageEl.getBoundingClientRect();
+        const g = gridEl.getBoundingClientRect();
+
+        // max HUD = bis zur Grid-Oberkante (relativ zum Stage-Top)
+        const next = Math.max(0, Math.round(g.top - s.top - GAP_PX));
+
+        setHudMaxPx((prev) => (prev === next ? prev : next));
+      });
+    };
+
+    recalc();
+
+    const onResize = () => recalc();
+    window.addEventListener('resize', onResize);
+
+    // Observe geometry changes (grid size may change with level/scale/etc.)
+    let ro: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(() => recalc());
+      ro.observe(stageEl);
+      ro.observe(gridEl);
+    }
+
+    return () => {
+      if (raf) cancelAnimationFrame(raf);
+      window.removeEventListener('resize', onResize);
+      ro?.disconnect();
+    };
+  }, [gridRowRef]);
 
   const breachTotal = state.breachesTotal ?? 0;
   const breachLeft = state.breachesRemaining ?? 0;
@@ -130,26 +181,22 @@ export default function GameContainer(props: Props) {
   }, [state.cells]);
 
   return (
-    <div className="w-full">
-      <GameplayHud
-        levelId={state.levelId}
-        gateOpen={state.gateOpen}
-        breachDone={breachDone}
-        breachTotal={breachTotal}
-        leaksSealed={leaksSealed}
-        leaksTotal={leaksTotal}
-        contaminationCount={contaminationCount}
-        contaminationThreshold={contaminationThreshold}
-        terminalsVerified={state.terminalsVerified ?? 0}
-        terminalsTotal={state.terminalsTotal ?? 0}
-        terminalStates={terminalStates}
-        movesLeft={state.movesLeft ?? '—'}
-        isWin={isWin}
-        isLose={isLose}
-        objectiveKind={objectiveKind}
-      />
-
-      <div ref={gridRowRef} className="flex justify-center items-start pt-12">
+    <div
+      ref={stageRef}
+      className={[
+        // "game-stage-viewport" height: viewport-relative, but never tiny
+        'relative w-full min-h-[max(520px,calc(100svh-12rem))]',
+      ].join(' ')}
+    >
+      {/* GRID: fixed position relative to stage viewport (independent of HUD) */}
+      <div
+        ref={gridRowRef}
+        className={[
+          'absolute left-1/2 -translate-x-1/2 -translate-y-1/2 z-10',
+          // 🔧 ADJUST GRID POSITION: 50%  = center (60% = center + 10% nach unten)
+          'top-[62%]',
+        ].join(' ')}
+      >
         <Grid
           state={state}
           inputLocked={inputLocked}
@@ -163,6 +210,27 @@ export default function GameContainer(props: Props) {
           onDevNextLevel={onDevNextLevel}
           onDevNextTilesPalette={onDevNextTilesPalette}
           swapMs={state.swapMs}
+        />
+      </div>
+
+      {/* HUD: absolute, and clipped to the space above the grid */}
+      <div className="absolute inset-x-0 top-0 z-20 overflow-y-hidden overflow-x-visible" style={{ maxHeight: hudMaxPx !== null ? `${hudMaxPx}px` : '45%' }}>
+        <GameplayHud
+          levelId={state.levelId}
+          gateOpen={state.gateOpen}
+          breachDone={breachDone}
+          breachTotal={breachTotal}
+          leaksSealed={leaksSealed}
+          leaksTotal={leaksTotal}
+          contaminationCount={contaminationCount}
+          contaminationThreshold={contaminationThreshold}
+          terminalsVerified={state.terminalsVerified ?? 0}
+          terminalsTotal={state.terminalsTotal ?? 0}
+          terminalStates={terminalStates}
+          movesLeft={state.movesLeft ?? '—'}
+          isWin={isWin}
+          isLose={isLose}
+          objectiveKind={objectiveKind}
         />
       </div>
 
