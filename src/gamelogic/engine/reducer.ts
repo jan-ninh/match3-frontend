@@ -69,7 +69,7 @@ const applyDone = (st: EngineState, kind: DoneKind, tok: number, mode: DoneMode)
 // Win/Lose Condition Checks
 // ─────────────────────────────────────────────
 
-function checkWinConditions(state: EngineState): 'gate' | 'leaks' | 'terminals' | null {
+function checkWinConditions(state: EngineState): 'gate' | 'leaks' | 'terminals' | 'objectiveTerminals' | null {
   // Level 01: Gate win (all firewalls breached)
   if (state.breachesRemaining <= 0 && state.gateOpen && state.breachesTotal > 0) {
     return 'gate';
@@ -83,6 +83,11 @@ function checkWinConditions(state: EngineState): 'gate' | 'leaks' | 'terminals' 
   // Level 03+: Terminal win (all terminals verified)
   if (state.terminalsTotal > 0 && state.terminalsVerified >= state.terminalsTotal) {
     return 'terminals';
+  }
+
+  // Level 04+: Objective Terminal win (all terminals activated)
+  if (state.objectiveTerminalsTotal > 0 && state.objectiveTerminalsActivated >= state.objectiveTerminalsTotal) {
+    return 'objectiveTerminals';
   }
 
   return null;
@@ -120,6 +125,15 @@ function maybeApplyTurnEnd(state: EngineState, wasSuccessfulSwap: boolean): Engi
 
   let s = state;
 
+  // Check for objective terminal win BEFORE turn end effects (Level 04+)
+  // This ensures win happens before the sweep damages the board
+  if (s.objectiveTerminalsTotal > 0 && s.objectiveTerminalsActivated >= s.objectiveTerminalsTotal) {
+    const evs: EngineEvent[] = [];
+    s = setPhase(s, 'win', evs);
+    evs.push({ type: 'win' });
+    return pushEvents(s, evs);
+  }
+
   // Level 02: Leak mechanics
   if (s.leaksTotal > 0) {
     const result = applyTurnEndEffects(s);
@@ -134,6 +148,20 @@ function maybeApplyTurnEnd(state: EngineState, wasSuccessfulSwap: boolean): Engi
     }
 
     // Check for contamination lose
+    if (result.contaminationLose) {
+      const evs: EngineEvent[] = [];
+      s = setPhase(s, 'lose', evs);
+      evs.push({ type: 'lose' });
+      return pushEvents(s, evs);
+    }
+  }
+
+  // Level 04: Sweep mechanics (if no leak mechanics)
+  if (s.sweepEnabled && s.leaksTotal === 0) {
+    const result = applyTurnEndEffects(s);
+    s = pushEvents(result.state, result.events);
+
+    // Check for contamination lose (sweep can also trigger this)
     if (result.contaminationLose) {
       const evs: EngineEvent[] = [];
       s = setPhase(s, 'lose', evs);

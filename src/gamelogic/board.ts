@@ -52,6 +52,9 @@ export function buildInitialBoard(level: LevelDefinition, seed: number): BuildBo
   // Level 03+: Terminal positions (handled separately in state.ts for clean layering)
   const terminalSet = new Set(level.terminalNodes?.map((n) => n.index) ?? []);
 
+  // Level 04+: Objective Terminal positions
+  const objectiveTerminalSet = new Set(level.objectiveTerminalNodes?.map((n) => n.index) ?? []);
+
   const size = width * height;
 
   const cells: Cell[] = Array.from({ length: size }, (_, index) => {
@@ -87,6 +90,14 @@ export function buildInitialBoard(level: LevelDefinition, seed: number): BuildBo
     // Terminal placeholder (actual obstacle set in state.ts)
     // Mark as blocked for initial piece spawn, but don't set obstacle yet
     if (terminalSet.has(index)) {
+      return {
+        blocked: true,
+        pieceId: null,
+      };
+    }
+
+    // Objective Terminal placeholder (actual obstacle set in state.ts)
+    if (objectiveTerminalSet.has(index)) {
       return {
         blocked: true,
         pieceId: null,
@@ -146,6 +157,34 @@ export function buildInitialBoard(level: LevelDefinition, seed: number): BuildBo
 export function getTerminalAt(cells: Cell[], index: number): Extract<CellObstacle, { kind: 'terminal' }> | null {
   const obs = cells[index]?.obstacle;
   return obs?.kind === 'terminal' ? obs : null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Objective Terminal Helpers (Level 04)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export function getObjectiveTerminalAt(cells: Cell[], index: number): Extract<CellObstacle, { kind: 'objectiveTerminal' }> | null {
+  const obs = cells[index]?.obstacle;
+  return obs?.kind === 'objectiveTerminal' ? obs : null;
+}
+
+export function isObjectiveTerminalCell(cells: Cell[], index: number): boolean {
+  return getObjectiveTerminalAt(cells, index) !== null;
+}
+
+export function isObjectiveTerminalActive(cells: Cell[], index: number): boolean {
+  const terminal = getObjectiveTerminalAt(cells, index);
+  return terminal !== null && terminal.state === 'active';
+}
+
+export function getObjectiveTerminalIndices(cells: Cell[]): number[] {
+  const indices: number[] = [];
+  for (let i = 0; i < cells.length; i++) {
+    if (cells[i]?.obstacle?.kind === 'objectiveTerminal') {
+      indices.push(i);
+    }
+  }
+  return indices;
 }
 
 export function isTerminalCell(cells: Cell[], index: number): boolean {

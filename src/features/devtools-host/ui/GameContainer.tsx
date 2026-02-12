@@ -142,7 +142,8 @@ export default function GameContainer(props: Props) {
   const isWin = state.phase === 'win';
   const isLose = state.phase === 'lose';
 
-  const objectiveKind: 'spikes' | 'nodes' | 'leaks' | 'terminals' | 'none' = (() => {
+  const objectiveKind: 'spikes' | 'nodes' | 'leaks' | 'terminals' | 'objectiveTerminals' | 'none' = (() => {
+    if ((state.objectiveTerminalsTotal ?? 0) > 0) return 'objectiveTerminals';
     if ((state.terminalsTotal ?? 0) > 0) return 'terminals';
     if (leaksTotal > 0) return 'leaks';
 
@@ -173,6 +174,30 @@ export default function GameContainer(props: Props) {
           charge: obs.charge,
           required: obs.requiredCharge,
           color: obs.chargeColor,
+        });
+      }
+    }
+
+    return terminals.sort((a, b) => a.id - b.id);
+  }, [state.cells]);
+
+  // Level 04: Objective Terminal states for HUD
+  const objectiveTerminalStates = useMemo(() => {
+    const terminals: Array<{
+      id: number;
+      state: 'inactive' | 'active';
+      charge: number;
+      required: number;
+    }> = [];
+
+    for (const cell of state.cells) {
+      const obs = cell.obstacle;
+      if (obs?.kind === 'objectiveTerminal') {
+        terminals.push({
+          id: obs.id,
+          state: obs.state,
+          charge: obs.charge,
+          required: obs.requiredCharge,
         });
       }
     }
@@ -227,6 +252,10 @@ export default function GameContainer(props: Props) {
           terminalsVerified={state.terminalsVerified ?? 0}
           terminalsTotal={state.terminalsTotal ?? 0}
           terminalStates={terminalStates}
+          objectiveTerminalsActivated={state.objectiveTerminalsActivated ?? 0}
+          objectiveTerminalsTotal={state.objectiveTerminalsTotal ?? 0}
+          objectiveTerminalStates={objectiveTerminalStates}
+          laserWarning={state.laserWarning}
           movesLeft={state.movesLeft ?? '—'}
           isWin={isWin}
           isLose={isLose}

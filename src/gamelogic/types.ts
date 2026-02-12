@@ -15,6 +15,23 @@ export type PieceId = number;
 export type TerminalState = 'locked' | 'open' | 'verified';
 
 // ─────────────────────────────────────────────
+// Objective Terminal State (Level 04 Boss)
+// ─────────────────────────────────────────────
+
+export type ObjectiveTerminalState = 'inactive' | 'active';
+
+// ─────────────────────────────────────────────
+// Laser Warning Line (Level 04)
+// ─────────────────────────────────────────────
+
+export type LaserLineKind = 'row' | 'col';
+
+export type LaserWarning = {
+  kind: LaserLineKind;
+  index: number; // row or column index (0-7)
+};
+
+// ─────────────────────────────────────────────
 // Cell Obstacles
 // ─────────────────────────────────────────────
 
@@ -24,7 +41,8 @@ export type CellObstacle =
   | { kind: 'leak'; id: number; progress: number; required: number }
   | { kind: 'contamination' }
   | { kind: 'sealKit' }
-  | { kind: 'terminal'; id: number; state: TerminalState; charge: number; requiredCharge: number; chargeColor: PieceType };
+  | { kind: 'terminal'; id: number; state: TerminalState; charge: number; requiredCharge: number; chargeColor: PieceType }
+  | { kind: 'objectiveTerminal'; id: number; state: ObjectiveTerminalState; charge: number; requiredCharge: number };
 
 export type Cell = {
   blocked: boolean;
@@ -64,6 +82,16 @@ export function isTerminalOpen(cell: Cell): boolean {
   return obs?.kind === 'terminal' && obs.state === 'open';
 }
 
+export function getObjectiveTerminalObstacle(cell: Cell): Extract<CellObstacle, { kind: 'objectiveTerminal' }> | null {
+  const obs = cell.obstacle;
+  return obs?.kind === 'objectiveTerminal' ? obs : null;
+}
+
+export function isObjectiveTerminalActive(cell: Cell): boolean {
+  const obs = cell.obstacle;
+  return obs?.kind === 'objectiveTerminal' && obs.state === 'active';
+}
+
 // ─────────────────────────────────────────────
 // Piece
 // ─────────────────────────────────────────────
@@ -99,6 +127,13 @@ export type KeycardNodeDef = {
   index: number;
 };
 
+// Level 04: Objective Terminal (Boss variant - no color requirement)
+export type ObjectiveTerminalNodeDef = {
+  index: number;
+  id: number;
+  requiredCharge: number;
+};
+
 export type LevelDefinition = {
   id: LevelId;
   width: number;
@@ -118,6 +153,15 @@ export type LevelDefinition = {
   // Level 03+: Terminal/Keycard mechanics
   terminalNodes: TerminalNodeDef[];
   keycardNodes: KeycardNodeDef[];
+
+  // Level 04+: Objective Terminal mechanics (Boss variant)
+  objectiveTerminalNodes?: ObjectiveTerminalNodeDef[];
+
+  // Level 04+: Sweep mechanics
+  sweepEnabled?: boolean;
+  sweepContaminationCount?: number;
+  sweepFirewallCount?: number;
+  sweepEveryNTurns?: number;
 
   // Balancing knobs (optional)
   maxSealKitsOnBoard?: number;
@@ -202,7 +246,15 @@ export type EngineEvent =
   | { type: 'terminalCharged'; terminalId: number; charge: number; requiredCharge: number }
   | { type: 'terminalOpened'; terminalId: number }
   | { type: 'keycardDelivered'; terminalId: number; keycardIndex: number }
-  | { type: 'terminalVerified'; terminalId: number };
+  | { type: 'terminalVerified'; terminalId: number }
+  // Level 04+: Objective Terminal events
+  | { type: 'objectiveTerminalCharged'; terminalId: number; charge: number; requiredCharge: number }
+  | { type: 'objectiveTerminalActivated'; terminalId: number }
+  // Level 04+: Laser Sweep events
+  | { type: 'laserWarningSet'; kind: LaserLineKind; index: number }
+  | { type: 'laserSweepStart'; kind: LaserLineKind; index: number }
+  | { type: 'laserSweepCleared'; indices: number[] }
+  | { type: 'laserSweepHazards'; contaminationIndices: number[]; firewallIndices: number[] };
 
 // ─────────────────────────────────────────────
 // Engine State
@@ -249,6 +301,18 @@ export type EngineState = {
   terminalsVerified: number;
   keycardsTotal: number;
   keycardsDelivered: number;
+
+  // Level 04+: Objective Terminal mechanics
+  objectiveTerminalsTotal: number;
+  objectiveTerminalsActivated: number;
+
+  // Level 04+: Laser Sweep mechanics
+  sweepEnabled: boolean;
+  sweepContaminationCount: number;
+  sweepFirewallCount: number;
+  sweepEveryNTurns: number;
+  laserWarning: LaserWarning | null; // current warning (null = none yet)
+  lastSweptLines: LaserWarning[]; // last 2 swept lines for no-repeat rule
 
   // Board state
   cells: Cell[];

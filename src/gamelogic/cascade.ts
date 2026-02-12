@@ -5,7 +5,15 @@ import { detectMatches, hasAnyMoves, isMatchableType, wouldCreateMatchAt } from 
 import { rngNextInt, rngShuffleInPlace } from './rng';
 import { setPhase } from './phaseState';
 import { assertPhaseInvariants } from './invariants';
-import { blocksGravity, canReceiveFallingPiece, countSealKits, getNearestOpenLeakId, getOrthogonalNeighbors, getTerminalAt } from './board';
+import {
+  blocksGravity,
+  canReceiveFallingPiece,
+  countSealKits,
+  getNearestOpenLeakId,
+  getObjectiveTerminalAt,
+  getOrthogonalNeighbors,
+  getTerminalAt,
+} from './board';
 
 type BoardView = Pick<EngineState, 'width' | 'height' | 'cells' | 'pieces'>;
 
@@ -404,6 +412,93 @@ function chargeAdjacentTerminals(
 }
 
 // ─────────────────────────────────────────────
+// Objective Terminal Charging (Level 04 Boss mechanic)
+// ─────────────────────────────────────────────
+
+/**
+ * Charge objective terminals adjacent to matched pieces.
+ * Unlike Level 03 terminals, these charge from ANY adjacent match (no color requirement).
+ * Each terminal can only be charged once per move (tracked via chargedIds Set).
+ */
+function chargeAdjacentObjectiveTerminals(
+  state: EngineState,
+  clearIndices: number[],
+  alreadyChargedIds: Set<number>,
+  events: EngineEvent[],
+): { state: EngineState; chargedIds: Set<number> } {
+  if (clearIndices.length === 0) {
+    return { state, chargedIds: alreadyChargedIds };
+  }
+
+  // Skip if no objective terminals
+  if (state.objectiveTerminalsTotal === 0) {
+    return { state, chargedIds: alreadyChargedIds };
+  }
+
+  const { width, height, cells } = state;
+  const clearSet = new Set(clearIndices);
+
+  let nextCells = cells;
+  let changed = false;
+  const newChargedIds = new Set(alreadyChargedIds);
+  let terminalsActivated = state.objectiveTerminalsActivated;
+
+  // Find objective terminals adjacent to any cleared cell
+  const terminalCandidates = new Map<number, number>(); // terminalId -> cellIndex
+
+  for (const clearIdx of clearIndices) {
+    const neighbors = getOrthogonalNeighbors(clearIdx, width, height);
+    for (const n of neighbors) {
+      if (clearSet.has(n)) continue;
+      const terminal = getObjectiveTerminalAt(cells, n);
+      if (terminal && terminal.state === 'inactive' && !alreadyChargedIds.has(terminal.id)) {
+        terminalCandidates.set(terminal.id, n);
+      }
+    }
+  }
+
+  // Process each terminal candidate
+  for (const [terminalId, terminalIndex] of terminalCandidates) {
+    const terminal = getObjectiveTerminalAt(nextCells, terminalIndex);
+    if (!terminal || terminal.state !== 'inactive') continue;
+    if (newChargedIds.has(terminalId)) continue;
+
+    // Charge the terminal (any match works, no color check)
+    if (!changed) {
+      nextCells = cells.slice();
+      changed = true;
+    }
+
+    const newCharge = terminal.charge + 1;
+    const newState: 'inactive' | 'active' = newCharge >= terminal.requiredCharge ? 'active' : 'inactive';
+
+    nextCells[terminalIndex] = {
+      ...nextCells[terminalIndex]!,
+      obstacle: { ...terminal, charge: newCharge, state: newState },
+    };
+
+    newChargedIds.add(terminalId);
+
+    events.push({
+      type: 'objectiveTerminalCharged',
+      terminalId,
+      charge: newCharge,
+      requiredCharge: terminal.requiredCharge,
+    });
+
+    if (newState === 'active') {
+      events.push({ type: 'objectiveTerminalActivated', terminalId });
+      terminalsActivated++;
+    }
+  }
+
+  return {
+    state: changed ? { ...state, cells: nextCells, objectiveTerminalsActivated: terminalsActivated } : state,
+    chargedIds: newChargedIds,
+  };
+}
+
+// ─────────────────────────────────────────────
 // Combined adjacency effects (Pre-Clear)
 // ─────────────────────────────────────────────
 
@@ -605,7 +700,12 @@ export function resolveOnce(state: EngineState, chargedIds: Set<number> = new Se
   // Charge terminals (Level 03) - BEFORE clearing, uses match info
   const chargeResult = chargeAdjacentTerminals(s, m.clearIndices, chargedIds, events);
   s = chargeResult.state;
-  const updatedChargedIds = chargeResult.chargedIds;
+  let updatedChargedIds = chargeResult.chargedIds;
+
+  // Charge objective terminals (Level 04) - BEFORE clearing
+  const objChargeResult = chargeAdjacentObjectiveTerminals(s, m.clearIndices, updatedChargedIds, events);
+  s = objChargeResult.state;
+  updatedChargedIds = objChargeResult.chargedIds;
 
   events.push({ type: 'phase', phase: 'clear' });
   s = clearCellsAndPieces(s, m.clearIndices);
@@ -767,6 +867,11 @@ export function stabilizeBoard(
     s = chargeResult.state;
     chargedIds = chargeResult.chargedIds;
 
+    // Level 04: Objective terminal charging
+    const objChargeResult = chargeAdjacentObjectiveTerminals(s, m.clearIndices, chargedIds, events);
+    s = objChargeResult.state;
+    chargedIds = objChargeResult.chargedIds;
+
     toPhase('mark');
     // (future) spawnPlan/specials go here
 
@@ -822,6 +927,11 @@ export function stabilizeBoard(
       const chargeResult = chargeAdjacentTerminals(s, m.clearIndices, chargedIds, events);
       s = chargeResult.state;
       chargedIds = chargeResult.chargedIds;
+
+      // Level 04: Objective terminal charging
+      const objChargeResult = chargeAdjacentObjectiveTerminals(s, m.clearIndices, chargedIds, events);
+      s = objChargeResult.state;
+      chargedIds = objChargeResult.chargedIds;
 
       toPhase('mark');
       // (future) spawnPlan/specials go here

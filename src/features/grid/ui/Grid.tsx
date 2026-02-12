@@ -11,7 +11,7 @@ import GridPiecesLayer from './GridPiecesLayer';
 import GridOverlaysLayer from './GridOverlaysLayer';
 import GridLockoutOverlay from './GridLockoutOverlay';
 
-import { BOARD_PADDING, DEBUG_OVERLAY_HZ } from '../lib/constants';
+import { BOARD_PADDING, DEBUG_OVERLAY_HZ, GAP, TILE_SIZE } from '../lib/constants';
 import { boardInnerSizePx, cellPixelXY } from '../lib/math';
 
 import { useGridInput } from '../input/useGridInput';
@@ -160,14 +160,10 @@ export default function Grid({
         onPress: onDevResetBoard,
         disabled: inputLocked,
       },
-
       {
         kind: 'action' as const,
-
         label: 'tiles: Next palette',
-
         onPress: onDevNextTilesPalette,
-
         disabled: inputLocked,
       },
     ];
@@ -202,6 +198,34 @@ export default function Grid({
         )
       : null;
 
+  // ─────────────────────────────────────────────
+  // Level 04: Laser warning overlay (row/col highlight)
+  // ─────────────────────────────────────────────
+  const laserOverlay = useMemo(() => {
+    const w = state.laserWarning;
+    if (!w) return null;
+
+    const step = TILE_SIZE + GAP;
+
+    if (w.kind === 'row') {
+      const top = w.index * step;
+      return {
+        left: 0,
+        top,
+        width: innerW,
+        height: TILE_SIZE,
+      } as const;
+    }
+
+    const left = w.index * step;
+    return {
+      left,
+      top: 0,
+      width: TILE_SIZE,
+      height: innerH,
+    } as const;
+  }, [state.laserWarning, innerW, innerH]);
+
   return (
     <>
       {devPanels}
@@ -225,6 +249,47 @@ export default function Grid({
               boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08), inset 0 -18px 40px rgba(0,0,0,0.55)',
             }}
           />
+
+          {/* Laser Warning highlight (under cells/pieces, above bg) */}
+          {laserOverlay ? (
+            <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
+              {/* soft fill */}
+              <div
+                className="absolute rounded-xl animate-pulse"
+                style={{
+                  ...laserOverlay,
+                  background:
+                    state.laserWarning?.kind === 'row'
+                      ? 'linear-gradient(90deg, rgba(244,63,94,0.00) 0%, rgba(244,63,94,0.16) 18%, rgba(244,63,94,0.20) 50%, rgba(244,63,94,0.16) 82%, rgba(244,63,94,0.00) 100%)'
+                      : 'linear-gradient(180deg, rgba(244,63,94,0.00) 0%, rgba(244,63,94,0.16) 18%, rgba(244,63,94,0.20) 50%, rgba(244,63,94,0.16) 82%, rgba(244,63,94,0.00) 100%)',
+                  boxShadow: '0 0 26px rgba(244,63,94,0.18), 0 0 52px rgba(244,63,94,0.10)',
+                }}
+              />
+
+              {/* crisp outline */}
+              <div
+                className="absolute rounded-xl"
+                style={{
+                  ...laserOverlay,
+                  outline: '1px solid rgba(248,113,113,0.32)',
+                  boxShadow: 'inset 0 0 0 1px rgba(244,63,94,0.14)',
+                }}
+              />
+
+              {/* subtle scanlines */}
+              <div
+                className="absolute rounded-xl opacity-70"
+                style={{
+                  ...laserOverlay,
+                  background:
+                    state.laserWarning?.kind === 'row'
+                      ? 'repeating-linear-gradient(90deg, rgba(255,255,255,0.00) 0px, rgba(255,255,255,0.00) 10px, rgba(255,255,255,0.06) 11px)'
+                      : 'repeating-linear-gradient(0deg, rgba(255,255,255,0.00) 0px, rgba(255,255,255,0.00) 10px, rgba(255,255,255,0.06) 11px)',
+                  mixBlendMode: 'screen',
+                }}
+              />
+            </div>
+          ) : null}
 
           <GridCellsLayer width={width} height={height} cells={cells} onCellPointerDown={onCellPointerDown} showDebugLabels={showDebugLabels} />
 

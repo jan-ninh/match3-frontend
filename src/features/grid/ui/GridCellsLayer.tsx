@@ -66,11 +66,17 @@ export default function GridCellsLayer({ width, height, cells, onCellPointerDown
         const terminalRequired = isTerminal ? obs.requiredCharge : 0;
         const terminalColor = isTerminal ? obs.chargeColor : null;
 
+        // Level 04: Objective Terminal
+        const isObjectiveTerminal = obs?.kind === 'objectiveTerminal';
+        const objTerminalState = isObjectiveTerminal ? obs.state : null;
+        const objTerminalCharge = isObjectiveTerminal ? obs.charge : 0;
+        const objTerminalRequired = isObjectiveTerminal ? obs.requiredCharge : 0;
+
         // CLEAN ROOM "spikes" are implemented via firewallNodes with hp=1
         const isSpike = isFirewall && obs.maxHp === 1;
         const isFirewallNode = isFirewall && !isSpike;
 
-        const isBlockedPlain = cell.blocked && !isGate && !isFirewall && !isLeak && !isContamination && !isSealKit && !isTerminal;
+        const isBlockedPlain = cell.blocked && !isGate && !isFirewall && !isLeak && !isContamination && !isSealKit && !isTerminal && !isObjectiveTerminal;
 
         const { x, y } = xyOf(index, width);
 
@@ -326,6 +332,73 @@ export default function GridCellsLayer({ width, height, cells, onCellPointerDown
                     </span>
                   </div>
                 ) : null}
+              </>
+            ) : null}
+
+            {/* Objective Terminal (Level 04 Boss) */}
+            {isObjectiveTerminal ? (
+              <>
+                <div className="absolute inset-0 rounded-xl bg-slate-950/80" />
+                <div
+                  className={[
+                    'absolute inset-0 rounded-xl border-2',
+                    objTerminalState === 'active'
+                      ? 'border-emerald-400/60 shadow-[0_0_24px_rgba(16,185,129,0.45)]'
+                      : 'border-amber-500/50 shadow-[0_0_18px_rgba(245,158,11,0.30)]',
+                  ].join(' ')}
+                />
+
+                {/* Pulsing glow for inactive */}
+                {objTerminalState === 'inactive' && (
+                  <div
+                    className="absolute inset-0 rounded-xl animate-pulse"
+                    style={{
+                      background: 'radial-gradient(circle at center, rgba(245,158,11,0.15) 0%, transparent 70%)',
+                    }}
+                  />
+                )}
+
+                {/* Terminal icon */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div
+                    className={[
+                      'h-10 w-10 rounded-lg border-2 flex items-center justify-center',
+                      objTerminalState === 'active' ? 'bg-emerald-500/40 border-emerald-300/60' : 'bg-amber-500/25 border-amber-400/50',
+                    ].join(' ')}
+                  >
+                    {objTerminalState === 'active' ? <span className="text-emerald-200 text-lg">✓</span> : <span className="text-amber-200 text-sm">⎆</span>}
+                  </div>
+                </div>
+
+                {/* Charge progress bar */}
+                {objTerminalState === 'inactive' && objTerminalRequired > 0 ? (
+                  <div className="absolute bottom-1.5 left-1.5 right-1.5 flex justify-center gap-1">
+                    {Array.from({ length: objTerminalRequired }, (_, i) => {
+                      const filled = i < objTerminalCharge;
+                      return (
+                        <div
+                          key={i}
+                          className={[
+                            'h-2 flex-1 rounded-full border',
+                            filled ? 'bg-amber-400/70 border-amber-300/60 shadow-[0_0_8px_rgba(245,158,11,0.35)]' : 'bg-white/10 border-white/20',
+                          ].join(' ')}
+                        />
+                      );
+                    })}
+                  </div>
+                ) : null}
+
+                {/* "TERMINAL" label */}
+                <div className="absolute top-1 left-1 right-1 flex justify-center">
+                  <span
+                    className={[
+                      'text-[7px] uppercase tracking-widest px-1.5 py-0.5 rounded font-bold',
+                      objTerminalState === 'active' ? 'text-emerald-200/90 bg-emerald-500/20' : 'text-amber-200/80 bg-amber-500/15',
+                    ].join(' ')}
+                  >
+                    {objTerminalState === 'active' ? 'ACTIVE' : 'TERMINAL'}
+                  </span>
+                </div>
               </>
             ) : null}
 

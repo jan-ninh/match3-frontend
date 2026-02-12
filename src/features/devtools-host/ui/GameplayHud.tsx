@@ -1,5 +1,5 @@
 // src/features/devtools-host/ui/GameplayHud.tsx
-type ObjectiveKind = 'nodes' | 'spikes' | 'leaks' | 'terminals' | 'none';
+type ObjectiveKind = 'nodes' | 'spikes' | 'leaks' | 'terminals' | 'objectiveTerminals' | 'none';
 
 type TerminalHudState = {
   id: number;
@@ -7,6 +7,13 @@ type TerminalHudState = {
   charge: number;
   required: number;
   color: string;
+};
+
+type ObjectiveTerminalHudState = {
+  id: number;
+  state: 'inactive' | 'active';
+  charge: number;
+  required: number;
 };
 
 type Props = {
@@ -26,6 +33,14 @@ type Props = {
   terminalsVerified?: number;
   terminalsTotal?: number;
   terminalStates?: TerminalHudState[];
+
+  // Level 04: Objective Terminals
+  objectiveTerminalsActivated?: number;
+  objectiveTerminalsTotal?: number;
+  objectiveTerminalStates?: ObjectiveTerminalHudState[];
+
+  // Level 04: Laser Warning
+  laserWarning?: { kind: 'row' | 'col'; index: number } | null;
 
   // Level 02: Contamination
   contaminationCount: number;
@@ -49,6 +64,10 @@ export default function GameplayHud({
   terminalsVerified = 0,
   terminalsTotal = 0,
   terminalStates = [],
+  objectiveTerminalsActivated = 0,
+  objectiveTerminalsTotal = 0,
+  objectiveTerminalStates = [],
+  laserWarning = null,
   contaminationCount,
   contaminationThreshold,
   movesLeft,
@@ -56,8 +75,9 @@ export default function GameplayHud({
   isLose,
   objectiveKind = 'nodes',
 }: Props) {
-  // Determine objective kind (Level 03 overrides)
+  // Determine objective kind (Level 04 overrides Level 03, which overrides Level 02)
   const resolvedObjectiveKind: ObjectiveKind = (() => {
+    if (objectiveTerminalsTotal > 0) return 'objectiveTerminals';
     if (terminalsTotal > 0) return 'terminals';
     if (leaksTotal > 0) return 'leaks';
     return objectiveKind;
@@ -66,6 +86,8 @@ export default function GameplayHud({
   // Determine title based on objective
   const preTitle = (() => {
     switch (resolvedObjectiveKind) {
+      case 'objectiveTerminals':
+        return 'Activate Terminals';
       case 'terminals':
         return 'Deliver ID Cards';
       case 'spikes':
@@ -80,10 +102,13 @@ export default function GameplayHud({
   })();
 
   const title = (() => {
-    if (resolvedObjectiveKind === 'terminals' && terminalsVerified >= terminalsTotal && terminalsTotal > 0) {
+    if (resolvedObjectiveKind === 'objectiveTerminals' && objectiveTerminalsTotal > 0 && objectiveTerminalsActivated >= objectiveTerminalsTotal) {
+      return 'All terminals activated!';
+    }
+    if (resolvedObjectiveKind === 'terminals' && terminalsTotal > 0 && terminalsVerified >= terminalsTotal) {
       return 'All IDs verified!';
     }
-    if (resolvedObjectiveKind === 'leaks' && leaksSealed >= leaksTotal && leaksTotal > 0) {
+    if (resolvedObjectiveKind === 'leaks' && leaksTotal > 0 && leaksSealed >= leaksTotal) {
       return 'All leaks sealed!';
     }
     if (gateOpen) {
@@ -95,6 +120,8 @@ export default function GameplayHud({
   // Determine hint based on objective
   const hint = (() => {
     switch (resolvedObjectiveKind) {
+      case 'objectiveTerminals':
+        return 'Make matches adjacent to terminals to charge them. Watch the laser warning!';
       case 'terminals':
         return 'Match adjacent to terminals with the right color to charge them. Deliver keycards to open terminals.';
       case 'spikes':
@@ -114,11 +141,13 @@ export default function GameplayHud({
       ? { label: 'LOSE', cls: 'border-rose-300/30 bg-rose-500/10 text-rose-200/90' }
       : null;
 
+  const isObjectiveTerminalObjective = resolvedObjectiveKind === 'objectiveTerminals';
   const isTerminalObjective = resolvedObjectiveKind === 'terminals';
   const isLeakObjective = resolvedObjectiveKind === 'leaks';
 
   const showContamination = isLeakObjective && contaminationThreshold !== null;
   const showTerminalChips = isTerminalObjective && terminalStates.length > 0;
+  const showObjectiveTerminalStates = isObjectiveTerminalObjective && objectiveTerminalStates.length > 0;
 
   // Keyline color based on objective and state
   const baseKeyline = (() => {
@@ -129,16 +158,21 @@ export default function GameplayHud({
         return 'border-amber-300/18';
       case 'terminals':
         return 'border-sky-300/18';
+      case 'objectiveTerminals':
+        return 'border-rose-300/18';
       default:
         return 'border-fuchsia-300/18';
     }
   })();
 
   const keyline = (() => {
-    if (isTerminalObjective && terminalsVerified >= terminalsTotal && terminalsTotal > 0) {
+    if (isObjectiveTerminalObjective && objectiveTerminalsTotal > 0 && objectiveTerminalsActivated >= objectiveTerminalsTotal) {
       return 'border-emerald-300/18';
     }
-    if (isLeakObjective && leaksSealed >= leaksTotal && leaksTotal > 0) {
+    if (isTerminalObjective && terminalsTotal > 0 && terminalsVerified >= terminalsTotal) {
+      return 'border-emerald-300/18';
+    }
+    if (isLeakObjective && leaksTotal > 0 && leaksSealed >= leaksTotal) {
       return 'border-emerald-300/18';
     }
     if (gateOpen) {
@@ -149,10 +183,13 @@ export default function GameplayHud({
 
   // Glow based on objective and state
   const glowA = (() => {
-    if (isTerminalObjective && terminalsVerified >= terminalsTotal && terminalsTotal > 0) {
+    if (isObjectiveTerminalObjective && objectiveTerminalsTotal > 0 && objectiveTerminalsActivated >= objectiveTerminalsTotal) {
       return 'shadow-[0_10px_26px_rgba(0,0,0,0.55),0_0_22px_rgba(16,185,129,0.12)]';
     }
-    if (isLeakObjective && leaksSealed >= leaksTotal && leaksTotal > 0) {
+    if (isTerminalObjective && terminalsTotal > 0 && terminalsVerified >= terminalsTotal) {
+      return 'shadow-[0_10px_26px_rgba(0,0,0,0.55),0_0_22px_rgba(16,185,129,0.12)]';
+    }
+    if (isLeakObjective && leaksTotal > 0 && leaksSealed >= leaksTotal) {
       return 'shadow-[0_10px_26px_rgba(0,0,0,0.55),0_0_22px_rgba(16,185,129,0.12)]';
     }
     if (gateOpen) {
@@ -165,29 +202,38 @@ export default function GameplayHud({
         return 'shadow-[0_10px_26px_rgba(0,0,0,0.55),0_0_22px_rgba(251,191,36,0.12)]';
       case 'terminals':
         return 'shadow-[0_10px_26px_rgba(0,0,0,0.55),0_0_22px_rgba(56,189,248,0.12)]';
+      case 'objectiveTerminals':
+        return 'shadow-[0_10px_26px_rgba(0,0,0,0.55),0_0_22px_rgba(244,63,94,0.12)]';
       default:
         return 'shadow-[0_10px_26px_rgba(0,0,0,0.55),0_0_22px_rgba(217,70,239,0.12)]';
     }
   })();
 
   // Progress segments
-  const segTotal = isTerminalObjective
-    ? Math.min(Math.max(0, terminalsTotal), 6)
-    : isLeakObjective
-      ? Math.min(Math.max(0, leaksTotal), 6)
-      : Math.min(Math.max(0, breachTotal), 6);
+  const segTotal = isObjectiveTerminalObjective
+    ? Math.min(Math.max(0, objectiveTerminalsTotal), 6)
+    : isTerminalObjective
+      ? Math.min(Math.max(0, terminalsTotal), 6)
+      : isLeakObjective
+        ? Math.min(Math.max(0, leaksTotal), 6)
+        : Math.min(Math.max(0, breachTotal), 6);
 
-  const segDone = isTerminalObjective
-    ? Math.min(Math.max(0, terminalsVerified), segTotal)
-    : isLeakObjective
-      ? Math.min(Math.max(0, leaksSealed), segTotal)
-      : Math.min(Math.max(0, breachDone), segTotal);
+  const segDone = isObjectiveTerminalObjective
+    ? Math.min(Math.max(0, objectiveTerminalsActivated), segTotal)
+    : isTerminalObjective
+      ? Math.min(Math.max(0, terminalsVerified), segTotal)
+      : isLeakObjective
+        ? Math.min(Math.max(0, leaksSealed), segTotal)
+        : Math.min(Math.max(0, breachDone), segTotal);
 
   const segOn = (() => {
-    if (isTerminalObjective && terminalsVerified >= terminalsTotal && terminalsTotal > 0) {
+    if (isObjectiveTerminalObjective && objectiveTerminalsTotal > 0 && objectiveTerminalsActivated >= objectiveTerminalsTotal) {
       return 'bg-emerald-400/35 border-emerald-300/35';
     }
-    if (isLeakObjective && leaksSealed >= leaksTotal && leaksTotal > 0) {
+    if (isTerminalObjective && terminalsTotal > 0 && terminalsVerified >= terminalsTotal) {
+      return 'bg-emerald-400/35 border-emerald-300/35';
+    }
+    if (isLeakObjective && leaksTotal > 0 && leaksSealed >= leaksTotal) {
       return 'bg-emerald-400/35 border-emerald-300/35';
     }
     if (gateOpen) {
@@ -200,6 +246,8 @@ export default function GameplayHud({
         return 'bg-amber-400/35 border-amber-300/35';
       case 'terminals':
         return 'bg-sky-400/35 border-sky-300/35';
+      case 'objectiveTerminals':
+        return 'bg-rose-400/35 border-rose-300/35';
       default:
         return 'bg-fuchsia-400/35 border-fuchsia-300/35';
     }
@@ -227,13 +275,12 @@ export default function GameplayHud({
         <div className="text-xs tracking-widest text-fuchsia-200/70 uppercase">Stage</div>
       </div>
 
-      {/* Objective (must never grow vertically and push the grid) */}
+      {/* Objective (center) */}
       <div className="min-w-0 flex justify-center">
         <div className="min-w-0 max-w-full relative inline-block ">
           {/* soft scrim, so it pops from BG without "more box height" */}
           <div className="pointer-events-none absolute -inset-5 rounded-[26px] bg-black/40 blur-2xl" aria-hidden="true" />
 
-          {/* IMPORTANT: no wrapping -> HUD height stays stable; content adapts via truncate/overflow */}
           <div className="min-w-0 max-w-full flex flex-col items-center justify-center gap-2">
             {/* ------------------------------------------------------------------- */}
             {/* 1) CONTAINER: OBJECTIVE */}
@@ -255,16 +302,17 @@ export default function GameplayHud({
                   ) : null}
                 </div>
 
-                {/* Title must never wrap (otherwise HUD height grows) */}
                 <div className="mt-0.5 text-[15px] font-semibold text-white/90 leading-snug truncate">{title}</div>
               </div>
 
-              {/* tiny vertical separator */}
               <div className="hidden sm:block h-7 w-px bg-white/10 shrink-0" aria-hidden="true" />
 
-              {/* compact meta on the right (keeps pill small) */}
               <div className="hidden sm:flex items-center gap-2 shrink-0">
-                {isTerminalObjective ? (
+                {isObjectiveTerminalObjective ? (
+                  <div className="font-mono text-xs text-white/80 tabular-nums whitespace-nowrap">
+                    ACTIVE {objectiveTerminalsActivated}/{objectiveTerminalsTotal}
+                  </div>
+                ) : isTerminalObjective ? (
                   <div className="font-mono text-xs text-white/80 tabular-nums whitespace-nowrap">
                     VERIFIED {terminalsVerified}/{terminalsTotal}
                   </div>
@@ -297,13 +345,18 @@ export default function GameplayHud({
                 ) : null}
               </div>
             </div>
+
             {/* ------------------------------------------------------------------- */}
             {/* 2) CONTAINER: OBJECTIVE DESCRIPTION */}
             {/* ------------------------------------------------------------------- */}
             <div className="inline-flex min-w-0 items-center gap-3 rounded-2xl border border-white/10 bg-black/65 backdrop-blur-xl px-4 py-2 shadow-[0_10px_26px_rgba(0,0,0,0.45)] overflow-hidden">
-              {/* small-screen progress (no wrapping) */}
+              {/* small-screen progress */}
               <div className="sm:hidden flex items-center gap-2 shrink-0">
-                {isTerminalObjective ? (
+                {isObjectiveTerminalObjective ? (
+                  <div className="font-mono text-xs text-white/80 tabular-nums whitespace-nowrap">
+                    ACTIVE {objectiveTerminalsActivated}/{objectiveTerminalsTotal}
+                  </div>
+                ) : isTerminalObjective ? (
                   <div className="font-mono text-xs text-white/80 tabular-nums whitespace-nowrap">
                     VERIFIED {terminalsVerified}/{terminalsTotal}
                   </div>
@@ -344,7 +397,7 @@ export default function GameplayHud({
                 </>
               ) : null}
 
-              {/* Terminal chips (Level 03) - no wrap */}
+              {/* Terminal chips (Level 03) */}
               {showTerminalChips ? (
                 <>
                   <div className="flex items-center gap-2 overflow-hidden shrink-0 max-w-[clamp(10ch,18vw,28ch)]">
@@ -372,9 +425,38 @@ export default function GameplayHud({
                 </>
               ) : null}
 
-              {/* Hint MUST NOT wrap: it should adapt by truncating, never by increasing height */}
               <div className="text-xs text-white/55 whitespace-normal break-words max-w-[clamp(18ch,34vw,60ch)]">{hint}</div>
             </div>
+
+            {/* Laser Warning (Level 04) */}
+            {laserWarning ? (
+              <div className="mt-1 px-3 py-1.5 rounded-md bg-red-500/20 border border-red-400/30 text-red-200 text-sm font-mono animate-pulse">
+                ⚡ NEXT SWEEP: {laserWarning.kind === 'row' ? `Row ${laserWarning.index + 1}` : `Col ${laserWarning.index + 1}`}
+              </div>
+            ) : null}
+
+            {/* Objective Terminal Charge Display (Level 04) */}
+            {showObjectiveTerminalStates ? (
+              <div className="mt-1 space-y-1">
+                <div className="text-xs text-white/50 uppercase tracking-wide">Terminal Charge</div>
+                <div className="flex gap-2">
+                  {objectiveTerminalStates.map((t) => (
+                    <div
+                      key={t.id}
+                      className={[
+                        'px-2 py-1 rounded text-xs font-mono',
+                        t.state === 'active'
+                          ? 'bg-emerald-500/30 border border-emerald-400/40 text-emerald-200'
+                          : 'bg-sky-500/20 border border-sky-400/30 text-sky-200',
+                      ].join(' ')}
+                    >
+                      {String.fromCharCode(65 + t.id)}: {t.charge}/{t.required}
+                      {t.state === 'active' ? ' ✓' : ''}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
       </div>
