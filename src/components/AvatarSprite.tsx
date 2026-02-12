@@ -1,15 +1,30 @@
 import type { CSSProperties } from 'react';
 import { AVATAR_FRAMES, AVATAR_SPRITE_IMAGE, AVATAR_SPRITE_SIZE } from '@/assets/avatarsFrames';
-
+import { Avatar } from '@/components';
 type Props = {
-  name: keyof typeof AVATAR_FRAMES; // avatar1..6
-  size?: number; // اندازه خروجی (مثلا 72)
+  name?: string; // avatar1.png, avatar2.png, default.png etc
+  size?: number;
   className?: string;
 };
 
-export default function AvatarSprite({ name, size = 72, className = '' }: Props) {
-  const f = AVATAR_FRAMES[name];
-  const scale = size / f.w; // چون فریم‌ها 512x512 هستند
+export default function AvatarSprite({ name = 'default.png', size = 72, className = '' }: Props) {
+  //if avatar is default.png or invalid, we will show a gray circle with default.png in the center as fallback
+  const frameData = AVATAR_FRAMES[name as keyof typeof AVATAR_FRAMES];
+
+  if (!frameData) {
+    // fallback for default or invalid avatar
+    return (
+      <div style={{ width: size, height: size }} className={`rounded-full bg-gray-400 flex items-center justify-center ${className}`}>
+        <img src="/avatar/default.png" alt="default avatar" style={{ width: size, height: size, objectFit: 'cover', borderRadius: '50%' }} />
+      </div>
+    );
+  }
+
+  const f = frameData;
+  if (!frameData) {
+    return <Avatar size={size} />;
+  }
+  const scale = size / f.w;
 
   const style: CSSProperties = {
     width: size,

@@ -61,7 +61,7 @@ export default function Navbar() {
         },
       ];
 
-  // helper: detect if icon is a URL (we'll fallback to regular <img>)
+  // helper: detect if icon is a URL
   const isUrl = (s: string) => {
     return s.startsWith('/') || s.startsWith('http') || s.endsWith('.svg') || s.endsWith('.png') || s.endsWith('.jpg');
   };
@@ -75,28 +75,28 @@ export default function Navbar() {
             {item.kind === 'link' ? (
               <Link
                 to={item.to}
-                className="flex items-center justify-center p-1 hover:bg-white/20 transition-colors rounded"
+                className="flex items-center justify-center p-1  hover:scale-110 active:scale-95  transition-transform duration-300 ease-out  rounded"
                 aria-label={item.label}
                 title={item.label}
               >
                 {isUrl(item.icon) ? (
                   <img src={item.icon} alt={item.label} className=" object-contain" />
                 ) : (
-                  <SpriteIcon name={item.icon} width={48} height={48} className="" alt={item.label} flipX={item.label === 'Logout'} />
+                  <SpriteIcon name={item.icon} width={64} height={64} className="" alt={item.label} />
                 )}
               </Link>
             ) : (
               <button
                 type="button"
                 onClick={item.onClick}
-                className="flex items-center justify-center p-1 hover:bg-white/20 transition-colors rounded"
+                className="flex items-center justify-center p-1  hover:scale-110 active:scale-95  transition-transform duration-300 ease-out  rounded"
                 aria-label={item.label}
                 title={item.label}
               >
                 {isUrl(item.icon) ? (
                   <img src={item.icon} alt={item.label} className=" object-contain" />
                 ) : (
-                  <SpriteIcon name={item.icon} width={48} height={48} className="" alt={item.label} flipX={item.label === 'Logout'} />
+                  <SpriteIcon name={item.icon} width={64} height={64} className="" alt={item.label} />
                 )}
               </button>
             )}

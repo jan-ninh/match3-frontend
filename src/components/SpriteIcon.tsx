@@ -1,7 +1,7 @@
 // src/components/SpriteIcon.tsx
 import { useEffect, useRef, useState } from 'react';
 
-type SpriteIconProps = {
+type Props = {
   name: string;
   spriteJsonUrl?: string;
   spriteImageUrl?: string;
@@ -9,11 +9,16 @@ type SpriteIconProps = {
   height?: number;
   className?: string;
   alt?: string;
-  flipX?: boolean; // ⬅️ NEW
 };
 
 let cachedJson: any = null;
 let jsonPromise: Promise<any> | null = null;
+
+const findFrame = (frames: Record<string, any>, name: string) =>
+  frames[name] ||
+  frames[`${name}.png`] ||
+  frames[`${name}.jpg`] ||
+  frames[Object.keys(frames).find((k) => k.endsWith(name) || k.endsWith(`${name}.png`)) || ''];
 
 export default function SpriteIcon({
   name,
@@ -23,45 +28,42 @@ export default function SpriteIcon({
   height = 64,
   className = '',
   alt = '',
-  flipX = false, // ⬅️ NEW
-}: SpriteIconProps) {
+}: Props) {
   const [src, setSrc] = useState<string | null>(null);
-  const mounted = useRef(true);
+  const alive = useRef(true);
 
   useEffect(() => {
-    mounted.current = true;
+    alive.current = true;
     return () => {
-      mounted.current = false;
+      alive.current = false;
     };
   }, []);
 
   useEffect(() => {
-    async function load() {
+    (async () => {
       try {
-        // ---- load sprite json (cached)
+        // JSON (cached)
         if (!cachedJson) {
           if (!jsonPromise) {
             jsonPromise = fetch(spriteJsonUrl)
               .then((r) => r.json())
-              .then((j) => {
-                cachedJson = j;
-                return j;
-              });
+              .then((j) => (cachedJson = j));
           }
           await jsonPromise;
         }
 
-        const frames = cachedJson.frames || cachedJson;
-        const frameKey = Object.keys(frames).find((k) => k === name || k === `${name}.png` || k === `${name}.jpg` || k.endsWith(name));
+        const frames = cachedJson.frames ?? cachedJson;
+        const item = findFrame(frames, name);
 
-        if (!frameKey) {
+        if (!item?.frame) {
           console.warn('Sprite frame not found for', name);
+          if (alive.current) setSrc(null);
           return;
         }
 
-        const frame = frames[frameKey].frame;
+        const { x, y, w, h } = item.frame;
 
-        // ---- load sprite image
+        // Load spritesheet
         const img = new Image();
         img.crossOrigin = 'anonymous';
         img.src = spriteImageUrl;
@@ -70,7 +72,7 @@ export default function SpriteIcon({
           img.onerror = rej;
         });
 
-        // ---- output canvas (DPR aware)
+        // Render
         const dpr = window.devicePixelRatio || 1;
         const canvas = document.createElement('canvas');
         canvas.width = Math.round(width * dpr);
@@ -79,86 +81,25 @@ export default function SpriteIcon({
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
-        ctx.scale(dpr, dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         ctx.clearRect(0, 0, width, height);
 
-        // ---- detect non-transparent bounds
-        const tmp = document.createElement('canvas');
-        tmp.width = frame.w;
-        tmp.height = frame.h;
-
-        const tctx = tmp.getContext('2d');
-        if (!tctx) return;
-
-        tctx.drawImage(img, frame.x, frame.y, frame.w, frame.h, 0, 0, frame.w, frame.h);
-
-        const data = tctx.getImageData(0, 0, frame.w, frame.h).data;
-
-        let minX = frame.w,
-          minY = frame.h,
-          maxX = 0,
-          maxY = 0;
-
-        const alphaThreshold = 10;
-
-        for (let y = 0; y < frame.h; y++) {
-          for (let x = 0; x < frame.w; x++) {
-            const a = data[(y * frame.w + x) * 4 + 3];
-            if (a > alphaThreshold) {
-              minX = Math.min(minX, x);
-              minY = Math.min(minY, y);
-              maxX = Math.max(maxX, x);
-              maxY = Math.max(maxY, y);
-            }
-          }
-        }
-
-        let srcX = frame.x;
-        let srcY = frame.y;
-        let srcW = frame.w;
-        let srcH = frame.h;
-
-        if (minX <= maxX && minY <= maxY) {
-          const pad = Math.min(8, Math.floor(Math.min(maxX - minX, maxY - minY) * 0.06));
-          srcX += Math.max(0, minX - pad);
-          srcY += Math.max(0, minY - pad);
-          srcW = Math.min(frame.w, maxX - minX + 1 + pad * 2);
-          srcH = Math.min(frame.h, maxY - minY + 1 + pad * 2);
-        }
-
-        // ---- scale & center
-        const scale = Math.min(width / srcW, height / srcH);
-        const drawW = srcW * scale;
-        const drawH = srcH * scale;
+        const scale = Math.min(width / w, height / h);
+        const drawW = w * scale;
+        const drawH = h * scale;
         const offsetX = (width - drawW) / 2;
         const offsetY = (height - drawH) / 2;
 
-        // ---- draw (with optional horizontal flip)
-        ctx.save();
+        ctx.drawImage(img, x, y, w, h, offsetX, offsetY, drawW, drawH);
 
-        if (flipX) {
-          ctx.translate(width, 0);
-          ctx.scale(-1, 1);
-        }
-
-        ctx.drawImage(img, srcX, srcY, srcW, srcH, offsetX, offsetY, drawW, drawH);
-
-        ctx.restore();
-
-        if (mounted.current) {
-          setSrc(canvas.toDataURL('image/png'));
-        }
-      } catch (err) {
-        console.error(err);
+        if (alive.current) setSrc(canvas.toDataURL('image/png'));
+      } catch (e) {
+        console.error(e);
+        if (alive.current) setSrc(null);
       }
-    }
+    })();
+  }, [name, spriteJsonUrl, spriteImageUrl, width, height]);
 
-    load();
-  }, [name, spriteJsonUrl, spriteImageUrl, width, height, flipX]);
-
-  if (!src) {
-    return <div style={{ width, height }} className={className} aria-hidden />;
-  }
-
+  if (!src) return <div style={{ width, height }} className={className} aria-hidden />;
   return <img src={src} width={width} height={height} className={`${className} object-contain`} alt={alt} />;
 }
