@@ -17,7 +17,6 @@ export function applyGravity(state: EngineState): EngineState {
       const idx = y * width + x;
       const c = cells[idx]!;
 
-      // blockers reset the write head
       if (blocksGravity(c)) {
         writeY = y - 1;
         continue;
@@ -25,7 +24,6 @@ export function applyGravity(state: EngineState): EngineState {
 
       if (c.pieceId === null) continue;
 
-      // find next write position in this column
       while (writeY >= 0) {
         const wIdx = writeY * width + x;
         const wc = cells[wIdx]!;
@@ -45,9 +43,8 @@ export function applyGravity(state: EngineState): EngineState {
     }
   }
 
-  // enforce “no pieces in blocked/obstacle cells” (terminal exception: open terminal may hold a piece)
-  // IMPORTANT: if we null pieceId, we MUST also delete the corresponding piece entry
-  // otherwise we create dangling pieces -> invariant crash.
+  // Enforce “no pieces in blocked/obstacle cells”
+  // Exceptions: chargedCell is passable, open terminals may hold a piece.
   for (let i = 0; i < size; i++) {
     const c = nextCells[i]!;
 
@@ -58,10 +55,16 @@ export function applyGravity(state: EngineState): EngineState {
       continue;
     }
 
-    if (!c.obstacle) continue;
+    const obs = c.obstacle;
+    if (!obs) continue;
 
-    if (c.obstacle.kind === 'terminal' && c.obstacle.state === 'open') {
-      // keep pieceId if present
+    if (obs.kind === 'chargedCell') {
+      // passable floor overlay: allow pieces
+      continue;
+    }
+
+    if (obs.kind === 'terminal' && obs.state === 'open') {
+      // special exception
       continue;
     }
 

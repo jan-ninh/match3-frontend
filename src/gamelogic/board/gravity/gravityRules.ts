@@ -7,6 +7,9 @@ export function canReceiveFallingPiece(cell: Cell): boolean {
   const obs = cell.obstacle;
   if (!obs) return true;
 
+  // chargedCell is passable (floor overlay)
+  if (obs.kind === 'chargedCell') return true;
+
   // Terminal: only open terminals can receive pieces
   if (obs.kind === 'terminal') {
     return obs.state === 'open';
@@ -21,6 +24,9 @@ export function blocksGravity(cell: Cell): boolean {
 
   const obs = cell.obstacle;
   if (!obs) return false;
+
+  // chargedCell is passable (does not block gravity flow)
+  if (obs.kind === 'chargedCell') return false;
 
   // Terminal: locked/verified block, open allows pass
   if (obs.kind === 'terminal') {

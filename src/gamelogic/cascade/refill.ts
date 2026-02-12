@@ -19,7 +19,11 @@ export function applyRefill(state: EngineState): { state: EngineState; spawned: 
     const c = nextCells[idx]!;
 
     if (c.blocked) continue;
-    if (c.obstacle) continue; // incl terminals: never spawn random pieces there
+
+    // Most obstacles never get random spawns.
+    // chargedCell is passable -> allow spawns there.
+    if (c.obstacle && c.obstacle.kind !== 'chargedCell') continue;
+
     if (c.pieceId !== null) continue;
 
     const pick = pickRefillType(board, idx, allowedTypes as readonly PieceType[], rngState);

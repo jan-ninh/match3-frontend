@@ -8,7 +8,11 @@ export function clearCellsAndPieces(state: EngineState, indices: number[]): Engi
   for (const idx of indices) {
     const c = nextCells[idx];
     if (!c || c.blocked) continue;
-    if (c.obstacle) continue; // obstacles are cleared by their own mechanics
+
+    // Obstacles are cleared by their own mechanics
+    // BUT: chargedCell is passable and can hold pieces -> must be cleared normally.
+    if (c.obstacle && c.obstacle.kind !== 'chargedCell') continue;
+
     const pid = c.pieceId;
     if (pid !== null) {
       delete nextPieces[pid];

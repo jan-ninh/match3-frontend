@@ -1,6 +1,13 @@
 // src/gamelogic/invariants.ts
-import type { EngineState, PieceId } from './types';
+import type { CellObstacle, EngineState, PieceId } from './types';
 import { animKindForPhase, isAnimatingPhase, isInputLocked } from './phases';
+
+function allowsPieceOnObstacle(obs: CellObstacle | undefined): boolean {
+  if (!obs) return true;
+  if (obs.kind === 'chargedCell') return true;
+  if (obs.kind === 'terminal' && obs.state === 'open') return true;
+  return false;
+}
 
 export function assertBoardIntegrity(board: Pick<EngineState, 'width' | 'height' | 'cells' | 'pieces'>, ctx = ''): void {
   const { width, height, cells, pieces } = board;
@@ -15,12 +22,14 @@ export function assertBoardIntegrity(board: Pick<EngineState, 'width' | 'height'
   for (let i = 0; i < cells.length; i++) {
     const c = cells[i]!;
 
-    // Blocked cells or cells with obstacles should not have pieces
-    if ((c.blocked || c.obstacle) && c.pieceId !== null) {
-      throw new Error(`[integrity] ${ctx} blocked/obstacle cell has pieceId at index=${i}`);
-    }
-
     if (c.pieceId !== null) {
+      if (c.blocked) {
+        throw new Error(`[integrity] ${ctx} blocked cell has pieceId at index=${i}`);
+      }
+      if (!allowsPieceOnObstacle(c.obstacle)) {
+        throw new Error(`[integrity] ${ctx} obstacle cell has pieceId at index=${i} obstacle=${c.obstacle!.kind}`);
+      }
+
       const pid = c.pieceId;
       counts.set(pid, (counts.get(pid) ?? 0) + 1);
 
@@ -46,7 +55,9 @@ export function assertBoardIntegrity(board: Pick<EngineState, 'width' | 'height'
     const c = cells[p.cellIndex];
     if (!c) throw new Error(`[integrity] ${ctx} piece id=${pid} points to missing cellIndex=${p.cellIndex}`);
     if (c.blocked) throw new Error(`[integrity] ${ctx} piece id=${pid} points to blocked cellIndex=${p.cellIndex}`);
-    if (c.obstacle) throw new Error(`[integrity] ${ctx} piece id=${pid} points to obstacle cellIndex=${p.cellIndex}`);
+    if (!allowsPieceOnObstacle(c.obstacle)) {
+      throw new Error(`[integrity] ${ctx} piece id=${pid} points to obstacle cellIndex=${p.cellIndex}`);
+    }
     if (c.pieceId !== pid) throw new Error(`[integrity] ${ctx} piece id=${pid} not present in its cellIndex=${p.cellIndex}`);
   }
 }
@@ -80,7 +91,6 @@ export function assertPhaseInvariants(state: Pick<EngineState, 'phase' | 'inputL
     }
   }
 
-  // pendingSwap is allowed only while swapAnimating
   if (phase === 'swapAnimating') {
     if (pendingSwap === null) {
       throw new Error(`[phase]${tag} pendingSwap missing in swapAnimating`);
