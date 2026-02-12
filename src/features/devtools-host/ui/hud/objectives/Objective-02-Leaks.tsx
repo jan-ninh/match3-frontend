@@ -1,44 +1,46 @@
-// src/features/devtools-host/ui/hud/objectives/Objective-01-Spikes.tsx
+// src/features/devtools-host/ui/hud/objectives/ObjectiveLeaks.tsx
 import type { HudObjective } from '../../../lib/hud/types';
 
-type ObjectiveNodesLike = Extract<HudObjective, { kind: 'spikes' | 'nodes' }>;
+type ObjectiveLeaksLike = Extract<HudObjective, { kind: 'leaks' }>;
 
 type Props = {
-  objective: ObjectiveNodesLike;
+  objective: ObjectiveLeaksLike;
 };
 
-export function ObjectiveNodes({ objective }: Props) {
-  const isSpikes = objective.kind === 'spikes';
+export function ObjectiveLeaks({ objective }: Props) {
+  const sealed = (objective.leaksSealed ?? 0) | 0;
+  const total = (objective.leaksTotal ?? 0) | 0;
 
-  const title = isSpikes ? 'Clean Room' : 'Crack the Nodes!';
-  const hint = isSpikes ? 'Match next to a spike to remove it. Clear all spikes.' : 'Match next to a node to damage it. Break all nodes.';
+  const contaminationCount = (objective.contaminationCount ?? 0) | 0;
+  const contaminationThreshold = objective.contaminationThreshold ?? null;
 
-  const done = objective.breachDone | 0;
-  const total = objective.breachTotal | 0;
+  const isDone = total > 0 && sealed >= total;
 
-  const isDone = total > 0 && done >= total;
+  const title = isDone ? 'All leaks sealed!' : 'Patch the Leaks!';
+  const hint = 'Make matches beside leaks to get Seal Kits. Trigger a Seal Kit to seal leaks.';
 
-  // Keyline / Glow
-  const baseKeyline = isSpikes ? 'border-white/14' : 'border-fuchsia-300/18';
-  const keyline = isDone ? 'border-emerald-300/18' : baseKeyline;
+  // Level-1 style: keyline + glow (leaks = amber, done = emerald)
+  const keyline = isDone ? 'border-emerald-300/18' : 'border-amber-300/18';
 
-  const baseGlow = isSpikes
-    ? 'shadow-[0_10px_26px_rgba(0,0,0,0.55),0_0_22px_rgba(255,255,255,0.08)]'
-    : 'shadow-[0_10px_26px_rgba(0,0,0,0.55),0_0_22px_rgba(217,70,239,0.12)]';
+  const glowA = isDone
+    ? 'shadow-[0_10px_26px_rgba(0,0,0,0.55),0_0_22px_rgba(16,185,129,0.12)]'
+    : 'shadow-[0_10px_26px_rgba(0,0,0,0.55),0_0_22px_rgba(251,191,36,0.12)]';
 
-  const glowA = isDone ? 'shadow-[0_10px_26px_rgba(0,0,0,0.55),0_0_22px_rgba(16,185,129,0.12)]' : baseGlow;
-
-  // Progress segments
+  // Progress segments (Level-1 style)
   const segTotal = Math.min(Math.max(0, total), 6);
-  const segDone = Math.min(Math.max(0, done), segTotal);
+  const segDone = Math.min(Math.max(0, sealed), segTotal);
 
-  const baseSegOn = isSpikes ? 'bg-white/20 border-white/25' : 'bg-fuchsia-400/35 border-fuchsia-300/35';
-  const segOn = isDone ? 'bg-emerald-400/35 border-emerald-300/35' : baseSegOn;
+  const segOn = isDone ? 'bg-emerald-400/35 border-emerald-300/35' : 'bg-amber-400/35 border-amber-300/35';
+
+  // Contamination chip (optional)
+  const showContamination = contaminationThreshold !== null;
+  const contaminationDanger = contaminationThreshold !== null && contaminationCount >= contaminationThreshold * 0.7;
+  const contaminationCritical = contaminationThreshold !== null && contaminationCount >= contaminationThreshold * 0.9;
 
   return (
     <>
       {/* ------------------------------------------------------------------- */}
-      {/* 1) CONTAINER: OBJECTIVE */}
+      {/* 1) CONTAINER: OBJECTIVE (Level-1 look) */}
       {/* ------------------------------------------------------------------- */}
       <div
         className={['inline-flex min-w-0 max-w-full items-center gap-3 rounded-2xl border bg-black/80 backdrop-blur-xl px-4 py-2 mt-4', keyline, glowA].join(
@@ -57,7 +59,7 @@ export function ObjectiveNodes({ objective }: Props) {
 
         <div className="hidden sm:flex items-center gap-2 shrink-0">
           <div className="font-mono text-xs text-white/80 tabular-nums whitespace-nowrap">
-            BREACH {done}/{total}
+            SEALED {sealed}/{total}
           </div>
 
           {segTotal > 0 ? (
@@ -81,13 +83,13 @@ export function ObjectiveNodes({ objective }: Props) {
       </div>
 
       {/* ------------------------------------------------------------------- */}
-      {/* 2) CONTAINER: OBJECTIVE DESCRIPTION (HINT) */}
+      {/* 2) CONTAINER: HINT (Level-1 look) */}
       {/* ------------------------------------------------------------------- */}
       <div className="inline-flex min-w-0 items-center gap-3 rounded-2xl border border-white/10 bg-black/65 backdrop-blur-xl px-4 py-2 shadow-[0_10px_26px_rgba(0,0,0,0.45)] overflow-hidden">
         {/* small-screen progress */}
         <div className="sm:hidden flex items-center gap-2 shrink-0">
           <div className="font-mono text-xs text-white/80 tabular-nums whitespace-nowrap">
-            BREACH {done}/{total}
+            SEALED {sealed}/{total}
           </div>
 
           {segTotal > 0 ? (
@@ -101,6 +103,20 @@ export function ObjectiveNodes({ objective }: Props) {
 
           <div className="text-white/25 shrink-0">•</div>
         </div>
+
+        {showContamination ? (
+          <>
+            <div
+              className={[
+                'font-mono text-xs tabular-nums whitespace-nowrap shrink-0',
+                contaminationCritical ? 'text-rose-300 animate-pulse' : contaminationDanger ? 'text-amber-300' : 'text-white/70',
+              ].join(' ')}
+            >
+              ☣ {contaminationCount}/{contaminationThreshold}
+            </div>
+            <div className="text-white/25 shrink-0">•</div>
+          </>
+        ) : null}
 
         <div className="text-xs text-white/55 whitespace-normal break-words max-w-[clamp(18ch,34vw,60ch)]">{hint}</div>
       </div>
