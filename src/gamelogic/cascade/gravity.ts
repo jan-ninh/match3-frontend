@@ -46,12 +46,18 @@ export function applyGravity(state: EngineState): EngineState {
   }
 
   // enforce “no pieces in blocked/obstacle cells” (terminal exception: open terminal may hold a piece)
+  // IMPORTANT: if we null pieceId, we MUST also delete the corresponding piece entry
+  // otherwise we create dangling pieces -> invariant crash.
   for (let i = 0; i < size; i++) {
     const c = nextCells[i]!;
+
     if (c.blocked) {
+      const pid = c.pieceId;
+      if (pid !== null) delete nextPieces[pid];
       c.pieceId = null;
       continue;
     }
+
     if (!c.obstacle) continue;
 
     if (c.obstacle.kind === 'terminal' && c.obstacle.state === 'open') {
@@ -59,6 +65,8 @@ export function applyGravity(state: EngineState): EngineState {
       continue;
     }
 
+    const pid = c.pieceId;
+    if (pid !== null) delete nextPieces[pid];
     c.pieceId = null;
   }
 

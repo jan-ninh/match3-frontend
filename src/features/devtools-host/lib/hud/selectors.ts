@@ -41,6 +41,13 @@ function buildObjective(input: GameplayHudInput): HudObjective {
         states: input.objectiveTerminalStates,
       };
 
+    case 'signal':
+      return {
+        kind: 'signal',
+        linked: input.signalLinked,
+        chargedCount: input.chargedCellCount,
+      };
+
     case 'none':
       return { kind: 'none' };
 

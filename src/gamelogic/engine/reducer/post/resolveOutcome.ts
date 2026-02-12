@@ -3,8 +3,9 @@ import type { EngineEvent, EngineState } from '../../../types';
 
 import { setPhase } from '../../../phaseState';
 import { pushEvents } from '../../events';
+import { isSignalLinked } from '../../../board/signal/signalPathCheck';
 
-type WinReason = 'gate' | 'leaks' | 'terminals' | 'objectiveTerminals';
+type WinReason = 'gate' | 'leaks' | 'terminals' | 'objectiveTerminals' | 'signal';
 type LoseReason = 'moves' | 'contamination';
 
 function checkWinConditions(state: EngineState): WinReason | null {
@@ -26,6 +27,13 @@ function checkWinConditions(state: EngineState): WinReason | null {
   // Level 04+: Objective Terminal win (all terminals activated)
   if (state.objectiveTerminalsTotal > 0 && state.objectiveTerminalsActivated >= state.objectiveTerminalsTotal) {
     return 'objectiveTerminals';
+  }
+
+  // Level 05+: Signal Network win (source connected to target via charged cells)
+  if (state.signalSourcesTotal > 0 && state.signalTargetsTotal > 0) {
+    if (isSignalLinked(state)) {
+      return 'signal';
+    }
   }
 
   return null;
@@ -57,6 +65,12 @@ export function resolveOutcomeIfIdle(state: EngineState): EngineState {
   const winReason = checkWinConditions(state);
   if (winReason) {
     const evs: EngineEvent[] = [];
+
+    // Emit signal-specific event before generic win
+    if (winReason === 'signal') {
+      evs.push({ type: 'signalLinked' });
+    }
+
     const s = setPhase(state, 'win', evs);
     evs.push({ type: 'win' });
     return pushEvents(s, evs);

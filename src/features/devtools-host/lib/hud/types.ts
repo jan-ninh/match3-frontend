@@ -1,6 +1,6 @@
 // src/features/devtools-host/lib/hud/types.ts
 
-export type HudObjectiveKind = 'spikes' | 'nodes' | 'leaks' | 'terminals' | 'objectiveTerminals' | 'none';
+export type HudObjectiveKind = 'spikes' | 'nodes' | 'leaks' | 'terminals' | 'objectiveTerminals' | 'signal' | 'none';
 
 export type HudLaserWarning = {
   kind: 'row' | 'col';
@@ -43,6 +43,11 @@ export type HudObjective =
       activated: number;
       total: number;
       states: readonly HudObjectiveTerminalState[];
+    }
+  | {
+      kind: 'signal';
+      linked: boolean;
+      chargedCount: number;
     };
 
 export type HudModel = {
@@ -75,6 +80,12 @@ export type GameplayHudInput = {
   objectiveTerminalsActivated: number;
   objectiveTerminalsTotal: number;
   objectiveTerminalStates: readonly HudObjectiveTerminalState[];
+
+  // Level 05: Signal Network
+  signalLinked: boolean;
+  chargedCellCount: number;
+  signalSourcesTotal: number;
+  signalTargetsTotal: number;
 
   laserWarning: HudLaserWarning | null;
 

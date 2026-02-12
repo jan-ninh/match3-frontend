@@ -21,6 +21,12 @@ export type TerminalState = 'locked' | 'open' | 'verified';
 export type ObjectiveTerminalState = 'inactive' | 'active';
 
 // ─────────────────────────────────────────────
+// Signal Network State (Level 05)
+// ─────────────────────────────────────────────
+
+export type SignalNodeKind = 'source' | 'target';
+
+// ─────────────────────────────────────────────
 // Laser Warning Line (Level 04)
 // ─────────────────────────────────────────────
 
@@ -42,7 +48,10 @@ export type CellObstacle =
   | { kind: 'contamination' }
   | { kind: 'sealKit' }
   | { kind: 'terminal'; id: number; state: TerminalState; charge: number; requiredCharge: number; chargeColor: PieceType }
-  | { kind: 'objectiveTerminal'; id: number; state: ObjectiveTerminalState; charge: number; requiredCharge: number };
+  | { kind: 'objectiveTerminal'; id: number; state: ObjectiveTerminalState; charge: number; requiredCharge: number }
+  | { kind: 'signalSource'; id: number }
+  | { kind: 'signalTarget'; id: number }
+  | { kind: 'chargedCell' };
 
 export type Cell = {
   blocked: boolean;
@@ -59,7 +68,12 @@ export function isOccupied(cell: Cell): boolean {
 }
 
 export function canHoldPiece(cell: Cell): boolean {
-  return !cell.blocked && cell.obstacle == null;
+  if (cell.blocked) return false;
+  const obs = cell.obstacle;
+  if (!obs) return true;
+  // chargedCell is passable (pieces can fall through)
+  if (obs.kind === 'chargedCell') return true;
+  return false;
 }
 
 export function isLeakSealed(cell: Cell): boolean {
@@ -90,6 +104,18 @@ export function getObjectiveTerminalObstacle(cell: Cell): Extract<CellObstacle, 
 export function isObjectiveTerminalActive(cell: Cell): boolean {
   const obs = cell.obstacle;
   return obs?.kind === 'objectiveTerminal' && obs.state === 'active';
+}
+
+export function isChargedCell(cell: Cell): boolean {
+  return cell.obstacle?.kind === 'chargedCell';
+}
+
+export function isSignalSource(cell: Cell): boolean {
+  return cell.obstacle?.kind === 'signalSource';
+}
+
+export function isSignalTarget(cell: Cell): boolean {
+  return cell.obstacle?.kind === 'signalTarget';
 }
 
 // ─────────────────────────────────────────────
@@ -134,6 +160,17 @@ export type ObjectiveTerminalNodeDef = {
   requiredCharge: number;
 };
 
+// Level 05: Signal Network nodes
+export type SignalSourceNodeDef = {
+  index: number;
+  id: number;
+};
+
+export type SignalTargetNodeDef = {
+  index: number;
+  id: number;
+};
+
 export type LevelDefinition = {
   id: LevelId;
   width: number;
@@ -162,6 +199,10 @@ export type LevelDefinition = {
   sweepContaminationCount?: number;
   sweepFirewallCount?: number;
   sweepEveryNTurns?: number;
+
+  // Level 05+: Signal Network mechanics
+  signalSourceNodes?: SignalSourceNodeDef[];
+  signalTargetNodes?: SignalTargetNodeDef[];
 
   // Balancing knobs (optional)
   maxSealKitsOnBoard?: number;
@@ -254,7 +295,10 @@ export type EngineEvent =
   | { type: 'laserWarningSet'; kind: LaserLineKind; index: number }
   | { type: 'laserSweepStart'; kind: LaserLineKind; index: number }
   | { type: 'laserSweepCleared'; indices: number[] }
-  | { type: 'laserSweepHazards'; contaminationIndices: number[]; firewallIndices: number[] };
+  | { type: 'laserSweepHazards'; contaminationIndices: number[]; firewallIndices: number[] }
+  // Level 05+: Signal Network events
+  | { type: 'cellCharged'; index: number }
+  | { type: 'signalLinked' };
 
 // ─────────────────────────────────────────────
 // Engine State
@@ -313,6 +357,12 @@ export type EngineState = {
   sweepEveryNTurns: number;
   laserWarning: LaserWarning | null; // current warning (null = none yet)
   lastSweptLines: LaserWarning[]; // last 2 swept lines for no-repeat rule
+
+  // Level 05+: Signal Network mechanics
+  signalSourcesTotal: number;
+  signalTargetsTotal: number;
+  signalLinked: boolean; // true when Source connected to Target via charged cells
+  chargedCellCount: number; // for HUD display
 
   // Board state
   cells: Cell[];

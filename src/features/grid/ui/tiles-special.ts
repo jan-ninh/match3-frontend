@@ -312,11 +312,11 @@ export function getSpecialTileSprite(key: string): TileSprite | null {
 
   if (!frameKey) {
     // DEV hard-fail only when we are *not* in fallback mode (i.e. you created /special on purpose)
-    // For Level 02 keys, we allow graceful fallback to null (UI will render CSS fallback)
+    // For Level 02/05 keys, we allow graceful fallback to null (UI will render CSS fallback)
     if (import.meta.env.DEV && !usingFallback()) {
-      // Don't throw for Level 02 keys that may not have sprites yet
-      const level02Keys = ['leakOpen', 'leakSealed', 'contamination', 'sealKit'];
-      if (!level02Keys.includes(key)) {
+      // Don't throw for keys that may not have sprites yet
+      const gracefulKeys = ['leakOpen', 'leakSealed', 'contamination', 'sealKit', 'signalSource', 'signalTarget', 'chargedCell'];
+      if (!gracefulKeys.includes(key)) {
         throw new Error(`Special tileset "${t.id}" missing mapping for key "${key}"`);
       }
     }
@@ -326,9 +326,9 @@ export function getSpecialTileSprite(key: string): TileSprite | null {
   const sprite = frameToSprite(t.sheetUrl, t.atlas, frameKey);
 
   if (!sprite && import.meta.env.DEV && !usingFallback()) {
-    // Same graceful handling for Level 02 keys
-    const level02Keys = ['leakOpen', 'leakSealed', 'contamination', 'sealKit'];
-    if (!level02Keys.includes(key)) {
+    // Same graceful handling
+    const gracefulKeys = ['leakOpen', 'leakSealed', 'contamination', 'sealKit', 'signalSource', 'signalTarget', 'chargedCell'];
+    if (!gracefulKeys.includes(key)) {
       throw new Error(`Special tileset "${t.id}" missing atlas frame "${frameKey}" for key "${key}"`);
     }
   }
@@ -374,8 +374,19 @@ export const specialLeakSealed = 'leakSealed' as const;
 export const specialContamination = 'contamination' as const;
 export const specialSealKit = 'sealKit' as const;
 
-// Level 03 special tile keys
+// ─────────────────────────────────────────────
+// Special tile keys (Level 03)
+// ─────────────────────────────────────────────
+
 export const specialTerminalLocked = 'terminalLocked' as const;
 export const specialTerminalOpen = 'terminalOpen' as const;
 export const specialTerminalVerified = 'terminalVerified' as const;
 export const specialKeycard = 'keycard' as const;
+
+// ─────────────────────────────────────────────
+// Special tile keys (Level 05 - Signal Network)
+// ─────────────────────────────────────────────
+
+export const specialSignalSource = 'signalSource' as const;
+export const specialSignalTarget = 'signalTarget' as const;
+export const specialChargedCell = 'chargedCell' as const;

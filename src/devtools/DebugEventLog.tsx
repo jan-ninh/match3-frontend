@@ -63,6 +63,14 @@ function formatEvent(e: EngineEvent): string {
       return 'lose()';
 
     // ─────────────────────────────
+    // Misc / newer events
+    // ─────────────────────────────
+    case 'cellCharged':
+      return `cellCharged(index=${e.index})`;
+    case 'signalLinked':
+      return 'signalLinked()';
+
+    // ─────────────────────────────
     // Level 02+: Leak/Contamination
     // ─────────────────────────────
     case 'turnEnd':

@@ -1,8 +1,8 @@
-// src/features/devtools-host/ui/GameStage.tsx
+// src\features\devtools-host\ui\GameStage.tsx
 import type { ReactNode, RefObject } from 'react';
 import { useRef } from 'react';
 
-import { useHudMaxHeight } from '../../grid/lib/useHudMaxHeight';
+import { useHudMaxHeight } from '../../devtools-host/lib/useHudMaxHeight';
 
 type Props = {
   /** Injected ref for grid positioning (devtools panel sync) */

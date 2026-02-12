@@ -5,8 +5,8 @@ import type { EngineState } from '@/gamelogic';
 
 import { Grid } from '@/features/grid';
 
-import { useHudInputFromState } from '@/features/grid/lib/useHudInputFromState';
-import { useTilesetSync } from '@/features/grid/lib/useTilesetSync';
+import { useHudInputFromState } from '@/features/devtools-host/lib/useHudInputFromState';
+import { useTilesetSync } from '@/features/devtools-host/lib/useTilesetSync';
 
 import { GameStage } from './GameStage';
 import GameplayHud from './GameplayHud';

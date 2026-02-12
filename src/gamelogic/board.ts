@@ -22,3 +22,6 @@ export { getNearestOpenLeakId, getSpreadCandidates } from './board/leaks/leakUti
 export { countContamination, countSealKits } from './board/obstacles/counters';
 
 export { canReceiveFallingPiece, blocksGravity } from './board/gravity/gravityRules';
+
+// Level 05: Signal Network
+export { isSignalLinked, countChargedCells, getSignalSourceIndices, getSignalTargetIndices } from './board/signal/signalPathCheck';

@@ -50,8 +50,10 @@ export function getLevelDefinition(levelId: number): LevelDefinition {
     // Level 3: FALSE IDENTITY (Terminals + Keycards)
     case 3:
       return makeLevel03({ baseSeed: BASE_SEED, allowedTypes: DEFAULT_TYPES });
+    // Level 4: FIREWALL SWEEP (Boss - Laser + Objective Terminals)
     case 4:
       return makeLevel04({ baseSeed: BASE_SEED, allowedTypes: DEFAULT_TYPES });
+    // Level 5: SIGNAL HIJACK (Build conductive path from Source to Target)
     case 5:
       return makeLevel05({ baseSeed: BASE_SEED, allowedTypes: DEFAULT_TYPES });
     case 6:

@@ -1,4 +1,4 @@
-// src/features/grid/lib/useHudInputFromState.ts
+// src/features/devtools-host/lib/useHudInputFromState.ts
 import { useMemo } from 'react';
 import type { EngineState } from '@/gamelogic';
 import type { GameplayHudInput } from '@/features/devtools-host/lib/hud/types';
@@ -18,7 +18,7 @@ type ObjectiveTerminalHudState = {
   required: number;
 };
 
-type ObjectiveKind = 'spikes' | 'nodes' | 'leaks' | 'terminals' | 'objectiveTerminals' | 'none';
+type ObjectiveKind = 'spikes' | 'nodes' | 'leaks' | 'terminals' | 'objectiveTerminals' | 'signal' | 'none';
 
 function countContamination(cells: EngineState['cells']): number {
   let n = 0;
@@ -28,13 +28,26 @@ function countContamination(cells: EngineState['cells']): number {
   return n;
 }
 
+function countChargedCells(cells: EngineState['cells']): number {
+  let n = 0;
+  for (const c of cells) {
+    if (c.obstacle?.kind === 'chargedCell') n++;
+  }
+  return n;
+}
+
 function deriveObjectiveKind(args: {
+  signalSourcesTotal: number;
+  signalTargetsTotal: number;
   objectiveTerminalsTotal: number;
   terminalsTotal: number;
   leaksTotal: number;
   cells: EngineState['cells'];
 }): ObjectiveKind {
-  const { objectiveTerminalsTotal, terminalsTotal, leaksTotal, cells } = args;
+  const { signalSourcesTotal, signalTargetsTotal, objectiveTerminalsTotal, terminalsTotal, leaksTotal, cells } = args;
+
+  // Level 05: Signal Network takes priority
+  if (signalSourcesTotal > 0 && signalTargetsTotal > 0) return 'signal';
 
   if (objectiveTerminalsTotal > 0) return 'objectiveTerminals';
   if (terminalsTotal > 0) return 'terminals';
@@ -102,6 +115,10 @@ export function useHudInputFromState(state: EngineState): GameplayHudInput {
     terminalsTotal,
     objectiveTerminalsActivated,
     objectiveTerminalsTotal,
+    signalSourcesTotal,
+    signalTargetsTotal,
+    signalLinked,
+    chargedCellCount,
     laserWarning,
     movesLeft,
     phase,
@@ -118,7 +135,12 @@ export function useHudInputFromState(state: EngineState): GameplayHudInput {
     const contaminationThreshold = contaminationLoseThreshold ?? null;
     const contaminationCount = countContamination(cells);
 
+    // Count charged cells from cells (in case chargedCellCount is stale)
+    const actualChargedCount = countChargedCells(cells);
+
     const objectiveKind = deriveObjectiveKind({
+      signalSourcesTotal: signalSourcesTotal ?? 0,
+      signalTargetsTotal: signalTargetsTotal ?? 0,
       objectiveTerminalsTotal: objectiveTerminalsTotal ?? 0,
       terminalsTotal: terminalsTotal ?? 0,
       leaksTotal: leaksT,
@@ -146,6 +168,10 @@ export function useHudInputFromState(state: EngineState): GameplayHudInput {
       objectiveTerminalsActivated: objectiveTerminalsActivated ?? 0,
       objectiveTerminalsTotal: objectiveTerminalsTotal ?? 0,
       objectiveTerminalStates,
+      signalLinked: signalLinked ?? false,
+      chargedCellCount: chargedCellCount ?? actualChargedCount,
+      signalSourcesTotal: signalSourcesTotal ?? 0,
+      signalTargetsTotal: signalTargetsTotal ?? 0,
       laserWarning,
       movesLeft: movesLeft ?? '—',
       isWin,
@@ -165,6 +191,10 @@ export function useHudInputFromState(state: EngineState): GameplayHudInput {
     terminalsTotal,
     objectiveTerminalsActivated,
     objectiveTerminalsTotal,
+    signalSourcesTotal,
+    signalTargetsTotal,
+    signalLinked,
+    chargedCellCount,
     laserWarning,
     movesLeft,
     phase,

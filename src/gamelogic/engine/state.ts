@@ -123,6 +123,56 @@ export function createState(levelId: LevelId, seed: number, extraEvents: EngineE
   }
 
   // ─────────────────────────────────────────────
+  // Level 05+: Place signal source nodes as obstacles
+  // ─────────────────────────────────────────────
+  if (level.signalSourceNodes && level.signalSourceNodes.length > 0) {
+    if (cells === built.cells) cells = cells.slice();
+    if (pieces === built.pieces) pieces = { ...pieces };
+
+    for (const node of level.signalSourceNodes) {
+      // Remove any piece that was randomly placed at source position
+      const existingPid = cells[node.index]?.pieceId;
+      if (existingPid !== null && existingPid !== undefined) {
+        delete pieces[existingPid];
+      }
+
+      cells[node.index] = {
+        blocked: true, // Signal source is immovable, blocks pieces
+        pieceId: null,
+        obstacle: {
+          kind: 'signalSource',
+          id: node.id,
+        },
+      };
+    }
+  }
+
+  // ─────────────────────────────────────────────
+  // Level 05+: Place signal target nodes as obstacles
+  // ─────────────────────────────────────────────
+  if (level.signalTargetNodes && level.signalTargetNodes.length > 0) {
+    if (cells === built.cells) cells = cells.slice();
+    if (pieces === built.pieces) pieces = { ...pieces };
+
+    for (const node of level.signalTargetNodes) {
+      // Remove any piece that was randomly placed at target position
+      const existingPid = cells[node.index]?.pieceId;
+      if (existingPid !== null && existingPid !== undefined) {
+        delete pieces[existingPid];
+      }
+
+      cells[node.index] = {
+        blocked: true, // Signal target is immovable, blocks pieces
+        pieceId: null,
+        obstacle: {
+          kind: 'signalTarget',
+          id: node.id,
+        },
+      };
+    }
+  }
+
+  // ─────────────────────────────────────────────
   // Level 04+: Initialize laser warning (fair: shown before turn 0)
   // ─────────────────────────────────────────────
   const sweepEnabled = level.sweepEnabled ?? false;
@@ -184,6 +234,12 @@ export function createState(levelId: LevelId, seed: number, extraEvents: EngineE
     sweepEveryNTurns: level.sweepEveryNTurns ?? 1,
     laserWarning,
     lastSweptLines: [],
+
+    // Level 05+: Signal Network mechanics
+    signalSourcesTotal: level.signalSourceNodes?.length ?? 0,
+    signalTargetsTotal: level.signalTargetNodes?.length ?? 0,
+    signalLinked: false,
+    chargedCellCount: 0,
 
     cells,
     pieces,

@@ -1,9 +1,10 @@
+// src/features/devtools-host/ui/hud/objectives/ObjectivePanel.tsx
 import type { HudObjective } from '../../../lib/hud/types';
-import { assertNever } from '../../../lib/hud/types';
-import { ObjectiveNodes } from './ObjectiveNodes';
+import { ObjectiveNodes } from './Objective-01-Spikes';
 import { ObjectiveLeaks } from './ObjectiveLeaks';
 import { ObjectiveTerminals } from './ObjectiveTerminals';
 import { ObjectiveActivatedTerminals } from './ObjectiveActivatedTerminals';
+import { ObjectiveSignal } from './ObjectiveSignal';
 
 type Props = {
   objective: HudObjective;
@@ -27,7 +28,24 @@ export function ObjectivePanel({ objective }: Props) {
     case 'objectiveTerminals':
       return <ObjectiveActivatedTerminals objective={objective} />;
 
-    default:
-      return assertNever(objective, 'Unhandled objective kind in ObjectivePanel');
+    case 'signal':
+      return <ObjectiveSignal objective={objective} />;
+
+    default: {
+      // Runtime safety: never hard-crash the whole game because of a HUD mismatch.
+      // In DEV we show a small debug panel so you can see what kind came through.
+      const kind = (objective as unknown as { kind?: unknown }).kind;
+      if (import.meta.env.DEV) {
+        return (
+          <div className="rounded-md border border-red-500/40 bg-red-500/10 p-2 text-xs">
+            <div className="font-semibold">HUD error: unknown objective kind</div>
+            <div>
+              kind: <span className="font-mono">{String(kind)}</span>
+            </div>
+          </div>
+        );
+      }
+      return null;
+    }
   }
 }
