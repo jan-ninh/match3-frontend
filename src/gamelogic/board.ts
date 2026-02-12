@@ -1,5 +1,14 @@
 // src/gamelogic/board.ts
-import type { Cell, CellObstacle, LevelDefinition, Piece, PieceId, PieceType, SwapRejectReason } from './types';
+import {
+  isObjectiveTerminalActive as isObjectiveTerminalActiveCell,
+  type Cell,
+  type CellObstacle,
+  type LevelDefinition,
+  type Piece,
+  type PieceId,
+  type PieceType,
+  type SwapRejectReason,
+} from './types';
 import { initRngState, rngNextInt, type RngState } from './rng';
 import { areAdjacent, xyOf } from './coords';
 
@@ -88,7 +97,6 @@ export function buildInitialBoard(level: LevelDefinition, seed: number): BuildBo
     }
 
     // Terminal placeholder (actual obstacle set in state.ts)
-    // Mark as blocked for initial piece spawn, but don't set obstacle yet
     if (terminalSet.has(index)) {
       return {
         blocked: true,
@@ -103,9 +111,6 @@ export function buildInitialBoard(level: LevelDefinition, seed: number): BuildBo
         pieceId: null,
       };
     }
-
-    // Keycard position: normal cell, piece placed in state.ts
-    // Don't block, but we'll replace the random piece with keycard later
 
     // Normal cell
     return {
@@ -172,9 +177,11 @@ export function isObjectiveTerminalCell(cells: Cell[], index: number): boolean {
   return getObjectiveTerminalAt(cells, index) !== null;
 }
 
-export function isObjectiveTerminalActive(cells: Cell[], index: number): boolean {
-  const terminal = getObjectiveTerminalAt(cells, index);
-  return terminal !== null && terminal.state === 'active';
+// ✅ RENAMED (prevents barrel export collision with types.ts)
+export function isObjectiveTerminalActiveAt(cells: Cell[], index: number): boolean {
+  const cell = cells[index];
+  if (!cell) return false;
+  return isObjectiveTerminalActiveCell(cell);
 }
 
 export function getObjectiveTerminalIndices(cells: Cell[]): number[] {
@@ -193,7 +200,7 @@ export function isTerminalCell(cells: Cell[], index: number): boolean {
 
 export function canEnterTerminal(cells: Cell[], index: number): boolean {
   const terminal = getTerminalAt(cells, index);
-  if (!terminal) return true; // kein Terminal = passierbar (normale Logik)
+  if (!terminal) return true;
   return terminal.state === 'open';
 }
 

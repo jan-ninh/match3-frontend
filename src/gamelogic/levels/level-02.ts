@@ -56,7 +56,9 @@ export function makeLevel02({ baseSeed, allowedTypes }: Args): LevelDefinition {
     blockedIndices,
     firewallNodes: [],
     gateIndices: [],
-    leakNodes,
+    leakNodes: [],
+    terminalNodes: [],
+    keycardNodes: [],
     baseSeed: seed,
 
     // Balancing knobs

@@ -9,4 +9,7 @@ export const TYPE_COLORS: Record<PieceType, string> = {
   cyan: '#06b6d4',
   pink: '#ec4899',
   yellow: '#eab308',
+
+  // special-ish piece type
+  keycard: '#f59e0b', // amber/gold
 };

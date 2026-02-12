@@ -34,6 +34,8 @@ export function makeLevelLike01({ levelId, baseSeed, allowedTypes }: MakeLevelLi
     firewallNodes: [],
     gateIndices: [],
     leakNodes: [],
+    terminalNodes: [],
+    keycardNodes: [],
     baseSeed: seed,
   };
 }
@@ -80,6 +82,8 @@ export function makeLevel01({ baseSeed, allowedTypes }: Args): LevelDefinition {
     firewallNodes,
     gateIndices,
     leakNodes: [],
+    terminalNodes: [],
+    keycardNodes: [],
     baseSeed: seed,
   };
 }
