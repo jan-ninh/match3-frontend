@@ -6,6 +6,7 @@ import { firewallDamageEffect } from './level01/firewallDamage';
 import { contaminationEffect } from './level02/contamination';
 import { sealKitsEffect } from './level02/sealKits';
 import { terminalsChargeEffect } from './level03_04/terminals';
+import { sweepFirewallClearEffect } from './level04/sweepFirewallClear';
 import { signalChargeEffect } from './level05/signalCharge';
 
 export function getCascadeEffectsForState(state: EngineState): readonly CascadeEffect[] {
@@ -24,6 +25,11 @@ export function getCascadeEffectsForState(state: EngineState): readonly CascadeE
 
   if (state.terminalsTotal > 0 || state.objectiveTerminalsTotal > 0) {
     effects.push(terminalsChargeEffect);
+  }
+
+  // Level 04: Sweep-spawned firewall clear (static toggle via sweepEnabled)
+  if (state.sweepEnabled) {
+    effects.push(sweepFirewallClearEffect);
   }
 
   // Level 05: Signal Network charge effect

@@ -2,6 +2,7 @@
 import type { EngineEvent, EngineState } from '../../../types';
 
 import { setPhase } from '../../../phaseState';
+import { stabilizeBoard } from '../../../cascade';
 import { pushEvents } from '../../events';
 import { processKeycardDeliveries } from '../../deliveryFlow';
 import { applyTurnEndEffects } from '../../turnEnd';
@@ -53,6 +54,18 @@ export function applyTurnEndPipeline(state: EngineState, wasSuccessfulSwap: bool
       const evs: EngineEvent[] = [];
       s = setPhase(s, 'lose', evs);
       evs.push({ type: 'lose' });
+      return pushEvents(s, evs);
+    }
+
+    // Sweep can create holes -> MUST re-stabilize (gravity/refill/cascades) between turns.
+    const stabilized = stabilizeBoard(s);
+    s = pushEvents(stabilized.state, stabilized.events);
+
+    // If post-sweep stabilization activates objective terminals, win immediately (still same turn).
+    if (s.objectiveTerminalsTotal > 0 && s.objectiveTerminalsActivated >= s.objectiveTerminalsTotal) {
+      const evs: EngineEvent[] = [];
+      s = setPhase(s, 'win', evs);
+      evs.push({ type: 'win' });
       return pushEvents(s, evs);
     }
   }

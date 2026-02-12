@@ -1,3 +1,4 @@
+// src/features/grid/ui/cells/cellViewModel.ts
 import type { Cell, PieceType } from '@/gamelogic';
 import { xyOf } from '@/gamelogic';
 
@@ -18,6 +19,13 @@ export type GateCellVM = {
 
 export type SpikeCellVM = {
   kind: 'spike';
+  index: number;
+  x: number;
+  y: number;
+};
+
+export type SweepFirewallCellVM = {
+  kind: 'sweepFirewall';
   index: number;
   x: number;
   y: number;
@@ -88,6 +96,7 @@ export type CellVM =
   | NoneCellVM
   | GateCellVM
   | SpikeCellVM
+  | SweepFirewallCellVM
   | FirewallNodeCellVM
   | LeakCellVM
   | ContaminationCellVM
@@ -103,8 +112,15 @@ export function buildCellViewModel(cell: Cell, index: number, width: number): Ce
   if (obs?.kind === 'gate') return { kind: 'gate', index, x, y, open: obs.open };
 
   if (obs?.kind === 'firewall') {
+    // IMPORTANT:
+    // - Level 01 spikes are represented as firewall(maxHp=1) and rendered as "spike".
+    // - Level 04 sweep spawns firewall(..., origin:'sweep') and must NEVER be rendered as spike.
+    const isSweep = obs.origin === 'sweep';
+    if (isSweep) return { kind: 'sweepFirewall', index, x, y };
+
     const isSpike = obs.maxHp === 1;
     if (isSpike) return { kind: 'spike', index, x, y };
+
     return { kind: 'firewallNode', index, x, y, hp: obs.hp, maxHp: obs.maxHp };
   }
 

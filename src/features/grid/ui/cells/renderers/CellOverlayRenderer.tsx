@@ -1,8 +1,10 @@
+// src/features/grid/ui/cells/renderers/CellOverlayRenderer.tsx
 import type { CellVM } from '../cellViewModel';
 import type { ObstacleSpriteStyles } from '../sprites/getObstacleSpriteStyles';
 
 import { GateOverlay } from './GateOverlay';
 import { SpikeOverlay } from './SpikeOverlay';
+import { SweepFirewallOverlay } from './SweepFirewallOverlay';
 import { FirewallNodeOverlay } from './FirewallNodeOverlay';
 import { LeakOverlay } from './LeakOverlay';
 import { ContaminationOverlay } from './ContaminationOverlay';
@@ -23,6 +25,9 @@ export function CellOverlayRenderer({ vm, sprites }: Props) {
 
     case 'spike':
       return <SpikeOverlay spikeSpriteStyle={sprites.spike} />;
+
+    case 'sweepFirewall':
+      return <SweepFirewallOverlay />;
 
     case 'firewallNode':
       return <FirewallNodeOverlay hp={vm.hp} maxHp={vm.maxHp} />;

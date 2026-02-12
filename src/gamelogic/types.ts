@@ -42,7 +42,7 @@ export type LaserWarning = {
 // ─────────────────────────────────────────────
 
 export type CellObstacle =
-  | { kind: 'firewall'; hp: number; maxHp: number }
+  | { kind: 'firewall'; hp: number; maxHp: number; origin?: 'breach' | 'sweep' }
   | { kind: 'gate'; open: boolean }
   | { kind: 'leak'; id: number; progress: number; required: number }
   | { kind: 'contamination' }

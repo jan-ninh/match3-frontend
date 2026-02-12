@@ -165,11 +165,14 @@ function executeLaserSweep(state: EngineState, events: EngineEvent[]): EngineSta
     events.push({ type: 'laserSweepCleared', indices: clearedIndices });
   }
 
-  // Step B: Eligible cells for hazard placement (excluding immune cells)
+  // Step B: Eligible cells for hazard placement
+  // IMPORTANT: only place hazards on "normal" cells, otherwise it can look like "nothing happened".
   const eligibleForHazard = lineIndices.filter((idx) => {
     const cell = nextCells[idx];
     if (!cell) return false;
     if (isSweepImmuneCell(cell)) return false;
+    if (cell.blocked) return false;
+    if (cell.obstacle) return false;
     return true;
   });
 
@@ -208,10 +211,11 @@ function executeLaserSweep(state: EngineState, events: EngineEvent[]): EngineSta
       };
       contaminationIndices.push(idx);
     } else {
+      // NOTE: firewall spawned by sweep must not be interpreted as Level-01 spike.
       nextCells[idx] = {
         blocked: true,
         pieceId: null,
-        obstacle: { kind: 'firewall', hp: 1, maxHp: 1 },
+        obstacle: { kind: 'firewall', hp: 1, maxHp: 1, origin: 'sweep' },
       };
       firewallIndices.push(idx);
     }
