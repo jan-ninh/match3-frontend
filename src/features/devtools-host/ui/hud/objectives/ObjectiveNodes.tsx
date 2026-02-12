@@ -1,6 +1,4 @@
-// src/features/devtools-host/ui/hud/objectives/ObjectiveNodes.tsx
 import type { HudObjective } from '../../../lib/hud/types';
-import { formatFraction } from '../../../lib/hud/format';
 
 type ObjectiveNodesLike = Extract<HudObjective, { kind: 'spikes' | 'nodes' }>;
 
@@ -10,27 +8,27 @@ type Props = {
 
 export function ObjectiveNodes({ objective }: Props) {
   const title = objective.kind === 'spikes' ? 'Clear Spikes' : 'Breach Firewall';
-  const progress = formatFraction(objective.breachDone, objective.breachTotal);
+  const done = objective.breachDone | 0;
+  const total = objective.breachTotal | 0;
 
   return (
-    <div className="w-full">
-      <div className="flex items-center justify-between gap-4">
-        <div className="min-w-0">
-          <div className="text-sm font-semibold text-white/90">{title}</div>
-          <div className="text-xs text-white/55">Progress & gate status</div>
-        </div>
+    <div
+      className={[
+        'pointer-events-auto',
+        'flex items-center justify-between gap-4',
+        'rounded-2xl border border-white/10 bg-black/30 px-4 py-3',
+        'backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.35)]',
+      ].join(' ')}
+    >
+      <div className="min-w-0">
+        <div className="text-[11px] uppercase tracking-wide text-white/55">Objective</div>
+        <div className="truncate text-sm font-semibold text-white/90">{title}</div>
+      </div>
 
-        <div className="flex items-center gap-3">
-          <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/85">{progress}</div>
-
-          <div
-            className={[
-              'rounded-xl border px-3 py-2 text-xs font-semibold',
-              objective.gateOpen ? 'border-emerald-400/25 bg-emerald-500/10 text-emerald-200' : 'border-amber-400/25 bg-amber-500/10 text-amber-200',
-            ].join(' ')}
-          >
-            {objective.gateOpen ? 'GATE OPEN' : 'GATE CLOSED'}
-          </div>
+      <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-right">
+        <div className="text-[10px] uppercase tracking-wide text-white/55">Breach</div>
+        <div className="text-sm font-semibold text-white/90">
+          {done}/{total}
         </div>
       </div>
     </div>
