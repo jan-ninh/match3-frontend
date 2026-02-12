@@ -75,7 +75,7 @@ export default function Navbar() {
             {item.kind === 'link' ? (
               <Link
                 to={item.to}
-                className="flex items-center justify-center p-1 hover:bg-white/20 transition-colors rounded"
+                className="flex items-center justify-center p-1  hover:scale-110 active:scale-95  transition-transform duration-300 ease-out  rounded"
                 aria-label={item.label}
                 title={item.label}
               >
@@ -89,7 +89,7 @@ export default function Navbar() {
               <button
                 type="button"
                 onClick={item.onClick}
-                className="flex items-center justify-center p-1 hover:bg-white/20 transition-colors rounded"
+                className="flex items-center justify-center p-1  hover:scale-110 active:scale-95  transition-transform duration-300 ease-out  rounded"
                 aria-label={item.label}
                 title={item.label}
               >
