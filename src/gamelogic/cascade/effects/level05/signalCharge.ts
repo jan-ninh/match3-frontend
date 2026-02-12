@@ -1,4 +1,3 @@
-// src/gamelogic/cascade/effects/level05/signalCharge.ts
 /**
  * Level 05: Signal Network - Charge cells where matches occur
  *
@@ -7,10 +6,10 @@
  * otherwise clear() would skip those cells (because they are "obstacles").
  *
  * Approach:
- * - preClear: collect indices to charge into ctx.chargedIds
+ * - preClear: collect indices to charge into ctx.signalChargedIds
  * - postClear: actually mark cells as chargedCell obstacles (floor overlay)
  */
-import type { CascadeEffect, PreClearArgs, StageResult } from '../effectTypes';
+import type { CascadeEffect, PreClearArgs, PostStageArgs, StageResult } from '../effectTypes';
 import type { Cell } from '../../../types';
 
 /**
@@ -40,10 +39,6 @@ function canChargeCell(cell: Cell): boolean {
   }
 }
 
-type Ctx = {
-  chargedIds: Set<number>;
-};
-
 export const signalChargeEffect: CascadeEffect = {
   id: 'signalCharge',
 
@@ -55,7 +50,7 @@ export const signalChargeEffect: CascadeEffect = {
 
     if (match.clearIndices.length === 0) return { state, ctx };
 
-    const base = (ctx as Ctx).chargedIds ?? new Set<number>();
+    const base = ctx.signalChargedIds ?? new Set<number>();
     const nextChargedIds = new Set<number>(base);
 
     for (const idx of match.clearIndices) {
@@ -68,17 +63,16 @@ export const signalChargeEffect: CascadeEffect = {
     // no change
     if (nextChargedIds.size === base.size) return { state, ctx };
 
-    return { state, ctx: { ...(ctx as object), chargedIds: nextChargedIds } as Ctx };
+    return { state, ctx: { ...ctx, signalChargedIds: nextChargedIds } };
   },
 
-  postClear(args): StageResult {
-    const { state, ctx, events } = args as { state: typeof args.state; ctx: unknown; events: typeof args.events };
-
-    const chargedIds = (ctx as Ctx).chargedIds;
+  postClear({ state, ctx, events }: PostStageArgs): StageResult {
+    const chargedIds = ctx.signalChargedIds;
     if (!chargedIds || chargedIds.size === 0) return { state, ctx };
 
     const nextCells = state.cells.slice();
     let chargedCount = state.chargedCellCount ?? 0;
+    let didChargeAny = false;
 
     for (const idx of chargedIds) {
       const cell = nextCells[idx];
@@ -94,10 +88,17 @@ export const signalChargeEffect: CascadeEffect = {
         obstacle: { kind: 'chargedCell' },
       };
 
+      didChargeAny = true;
       chargedCount++;
       events.push({ type: 'cellCharged', index: idx });
     }
 
-    return { state: { ...state, cells: nextCells, chargedCellCount: chargedCount }, ctx };
+    // consume the collected ids (avoid re-processing next stages/loops)
+    const nextCtx = { ...ctx };
+    delete nextCtx.signalChargedIds;
+
+    if (!didChargeAny) return { state, ctx: nextCtx };
+
+    return { state: { ...state, cells: nextCells, chargedCellCount: chargedCount }, ctx: nextCtx };
   },
 };
