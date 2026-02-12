@@ -12,12 +12,17 @@ export function HudBar({ model, actions }: Props) {
   void actions;
 
   return (
-    <div className="pointer-events-none w-full px-6 pt-4">
-      <div className="mx-auto flex w-full max-w-5xl items-start justify-between gap-4">
-        <HudLeft model={model} />
-        <HudCenter model={model} />
-        <HudRight model={model} />
-      </div>
+    <div
+      className={[
+        // 3-slot layout: left (auto) / center (minmax(0,1fr)) / right (auto)
+        'mb-4 w-full grid grid-cols-[auto_minmax(0,1fr)_auto] items-start',
+        // responsive spacing
+        'gap-2 sm:gap-4 px-[clamp(0rem,0.6vw,0.5rem)]',
+      ].join(' ')}
+    >
+      <HudLeft model={model} />
+      <HudCenter model={model} />
+      <HudRight model={model} />
     </div>
   );
 }
