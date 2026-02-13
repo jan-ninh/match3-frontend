@@ -1,5 +1,5 @@
 // src/features/devtools-host/ui/hud/objectives/ObjectiveTerminals.tsx
-import type { HudObjective } from '../../../lib/hud/types-hud';
+import type { HudObjective } from '../../../lib/hud/typesHud';
 
 type ObjectiveTerminalsLike = Extract<HudObjective, { kind: 'terminals' }>;
 

@@ -1,7 +1,7 @@
 // src/gamelogic/cascade/effects/effectTypes.ts
 import type { EngineEvent, EngineState } from '../../types';
 import type { MatchDetection } from '../../match';
-import type { CascadeContext } from '../types-cascade';
+import type { CascadeContext } from '../typesCascade';
 
 export type PreClearArgs = {
   state: EngineState;

@@ -1,6 +1,6 @@
 // src/gamelogic/cascade/effects/level02/sealKits.ts
 import type { EngineEvent, EngineState, Piece, PieceId } from '../../../types';
-import type { CascadeEffect } from '../effectTypes';
+import type { CascadeEffect } from '../typesEffects';
 import { countSealKits, getNearestOpenLeakId, getOrthogonalNeighbors } from '../../../board';
 import { rngForCascadeEffect, pickDeterministic } from '../deterministicRng';
 import { uniqSorted } from '../selection';

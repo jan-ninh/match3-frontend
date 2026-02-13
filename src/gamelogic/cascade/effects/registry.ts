@@ -1,6 +1,6 @@
 // src/gamelogic/cascade/effects/registry.ts
 import type { EngineState } from '../../types';
-import type { CascadeEffect } from './effectTypes';
+import type { CascadeEffect } from './typesEffects';
 
 import { firewallDamageEffect } from './level01/firewallDamage';
 import { contaminationEffect } from './level02/contamination';

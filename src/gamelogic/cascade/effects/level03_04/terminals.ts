@@ -1,6 +1,6 @@
 // src/gamelogic/cascade/effects/level03_04/terminals.ts
 import type { EngineEvent, EngineState, PieceType } from '../../../types';
-import type { CascadeEffect } from '../effectTypes';
+import type { CascadeEffect } from '../typesEffects';
 import { getObjectiveTerminalAt, getOrthogonalNeighbors, getTerminalAt } from '../../../board';
 import { isMatchableType } from '../../../match';
 

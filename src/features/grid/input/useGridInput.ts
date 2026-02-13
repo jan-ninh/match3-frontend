@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { EngineState, Piece, PieceId } from '@/gamelogic';
 
-import type { InputIntent, PressState } from './types-input';
+import type { InputIntent, PressState } from './typesInput';
 import type { DebugSnapshot } from '@/devtools';
 import { useDevSnapshot } from '../lib/useDevSnapshot';
 import { useRafDragTransform } from '../lib/useRafDragTransform';

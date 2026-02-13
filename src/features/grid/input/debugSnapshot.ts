@@ -1,5 +1,5 @@
 import type { DebugSnapshot } from '@/devtools';
-import type { PressState } from './types-input';
+import type { PressState } from './typesInput';
 
 export const INITIAL_DEBUG_SNAPSHOT: DebugSnapshot = {
   active: false,

@@ -1,5 +1,5 @@
 import type { Cell, PieceId } from '@/gamelogic';
-import type { Axis, PressState } from './types-input';
+import type { Axis, PressState } from './typesInput';
 
 export type PreviewUiSetters = {
   setPreviewActive: (v: boolean) => void;

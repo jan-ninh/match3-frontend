@@ -1,5 +1,5 @@
 import type { PieceId } from '@/gamelogic';
-import type { Axis, InputIntent, PressState } from './types-input';
+import type { Axis, InputIntent, PressState } from './typesInput';
 
 import { DRAG_THRESHOLD, PREVIEW_LOCK_RATIO, PREVIEW_RELEASE_RATIO, SMOOTHING, tileDist } from '../lib/constants';
 import { clamp, sign } from '../lib/math';

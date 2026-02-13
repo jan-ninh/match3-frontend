@@ -1,8 +1,8 @@
 // src/gamelogic/cascade/effects/runEffects.ts
 import type { EngineEvent, EngineState } from '../../types';
 import type { MatchDetection } from '../../match';
-import type { CascadeContext } from '../types-cascade';
-import type { CascadeEffect, StageResult } from './effectTypes';
+import type { CascadeContext } from '../typesCascade';
+import type { CascadeEffect, StageResult } from './typesEffects';
 
 function runStage(
   effects: readonly CascadeEffect[],

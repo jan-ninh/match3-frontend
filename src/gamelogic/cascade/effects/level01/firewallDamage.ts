@@ -1,6 +1,6 @@
 // src/gamelogic/cascade/effects/level01/firewallDamage.ts
 import type { EngineEvent, EngineState } from '../../../types';
-import type { CascadeEffect } from '../effectTypes';
+import type { CascadeEffect } from '../typesEffects';
 import { setGateOpen } from './gate';
 
 function applyFirewallDamage(state: EngineState, clearIndices: number[], events: EngineEvent[]): EngineState {

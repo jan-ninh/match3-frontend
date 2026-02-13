@@ -1,7 +1,7 @@
 import { xyOf } from '@/gamelogic';
 import { LOCK_DOMINANCE, LOCK_THRESHOLD, RELOCK_DOMINANCE } from '../lib/constants';
 import { sign } from '../lib/math';
-import type { Axis, PressState } from './types-input';
+import type { Axis, PressState } from './typesInput';
 
 export function decideAxisIfNeeded(p: PressState): void {
   const ax = Math.abs(p.rawDx);
