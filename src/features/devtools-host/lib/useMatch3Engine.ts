@@ -8,7 +8,7 @@ type Args = {
   initialLevelId?: number;
 };
 
-type PowerArmDetail = { key: 'bomb'; armed: boolean };
+export type PowerArmDetail = { key: 'bomb'; armed: boolean };
 type PowerUseAtDetail = { key: 'bomb'; index: number };
 
 export function useMatch3Engine({ initialLevelId = 1 }: Args) {
@@ -105,10 +105,17 @@ export function useMatch3Engine({ initialLevelId = 1 }: Args) {
     return () => window.removeEventListener('match3:powerUseAt', onUseAt as EventListener);
   }, []);
 
+  // derive primitives so effects don't depend on `state.anim` object reference
+  const animKind = state.anim?.kind;
+  const animToken = state.anim?.token;
+  const animDurationMs = state.anim?.durationMs;
+  const animDeadlineAtMs = state.anim?.deadlineAtMs;
+
   // 1) UI → Engine "done" bridge (NO rAF loop)
   useEffect(() => {
-    const a = state.anim;
-    if (!a) return;
+    if (!animKind) return;
+    if (animToken == null) return;
+    if (animDurationMs == null) return;
 
     const id = window.setTimeout(() => {
       const now = performance.now();
@@ -116,37 +123,37 @@ export function useMatch3Engine({ initialLevelId = 1 }: Args) {
       // keep engine clock fresh so follow-up beginAnim uses correct nowMs
       dispatch({ type: 'wake', nowMs: now } as EngineAction);
 
-      if (a.kind === 'swap') {
-        dispatch({ type: 'swapAnimDone', token: a.token, nowMs: now } as EngineAction);
+      if (animKind === 'swap') {
+        dispatch({ type: 'swapAnimDone', token: animToken, nowMs: now } as EngineAction);
         return;
       }
 
-      if (a.kind === 'swapBack') {
-        dispatch({ type: 'swapBackAnimDone', token: a.token, nowMs: now } as EngineAction);
+      if (animKind === 'swapBack') {
+        dispatch({ type: 'swapBackAnimDone', token: animToken, nowMs: now } as EngineAction);
         return;
       }
 
-      if (a.kind === 'fall') {
-        dispatch({ type: 'fallAnimDone', token: a.token, nowMs: now } as EngineAction);
+      if (animKind === 'fall') {
+        dispatch({ type: 'fallAnimDone', token: animToken, nowMs: now } as EngineAction);
         return;
       }
-    }, a.durationMs);
+    }, animDurationMs);
 
     return () => window.clearTimeout(id);
-  }, [state.anim?.token, state.anim?.kind, state.anim?.durationMs]);
+  }, [animToken, animKind, animDurationMs]);
 
   // 2) Deadline fallback (single timer, no per-frame ticking)
   useEffect(() => {
-    const a = state.anim;
-    if (!a) return;
+    if (animToken == null) return;
+    if (animDeadlineAtMs == null) return;
 
-    const delay = Math.max(0, a.deadlineAtMs - performance.now());
+    const delay = Math.max(0, animDeadlineAtMs - performance.now());
     const id = window.setTimeout(() => {
       dispatch({ type: 'wake', nowMs: performance.now() } as EngineAction);
     }, delay + 5);
 
     return () => window.clearTimeout(id);
-  }, [state.anim?.token, state.anim?.deadlineAtMs]);
+  }, [animToken, animDeadlineAtMs]);
 
   const canSwapAt = useCallback(
     (from: number, to: number) => {

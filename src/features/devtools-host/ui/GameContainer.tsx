@@ -15,12 +15,14 @@ import { preloadSpecialTiles, setSpecialTilesetLevel } from '@/features/grid/ui/
 import { GameStage } from './GameStage';
 import GameplayHud from './GameplayHud';
 
+type GridIntent = { type: 'click'; index: number } | { type: 'swap'; from: number; to: number } | { type: 'useBombAt'; index: number };
+
 type Props = {
   state: EngineState;
   inputLocked: boolean;
 
   canSwapAt: (from: number, to: number) => boolean;
-  onIntent: (intent: { type: 'click'; index: number } | { type: 'swap'; from: number; to: number }) => void;
+  onIntent: (intent: GridIntent) => void;
 
   // Runtime / environment
   isDev?: boolean;

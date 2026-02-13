@@ -150,7 +150,7 @@ const FALLBACK_TILESETS_BY_ID = buildTilesetsById({
   tilesetMods: fallbackTilesetMods,
   atlasMods: fallbackAtlasMods,
   sheetMods: fallbackSheetMods,
-  rootKey: '/assets/tiles/',
+  rootKey: '/assets/tiles/default/',
   label: 'Fallback special',
 });
 

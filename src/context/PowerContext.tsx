@@ -1,55 +1,46 @@
-import { createContext, useContext, useMemo, useState } from 'react';
-import type { ReactNode } from 'react';
+// src\context\PowerContext.tsx
+import { createContext, useContext } from 'react';
 import type { PowerKey, Powers } from '@/types';
 
-type PowerContextValue = {
+export type PowerContextValue = {
   powers: Powers;
   setFromBackendAndSelect: (backendPowers: Powers, selected: PowerKey) => void;
   setPowers: (next: Powers) => void;
 };
 
-const defaultPowers: Powers = { bomb: 3, rocket: 0, extraTime: 0 };
+//----------------------------------------------------
+// SET INITIAL POWERITEMS
+//----------------------------------------------------
+const INITIAL_BOMBS = 3;
+const INITIAL_ROCKETS = 0;
+const INITIAL_EXTRA_TIME = 0;
 
-const PowerContext = createContext<PowerContextValue | null>(null);
+export const defaultPowers = Object.freeze({
+  bomb: INITIAL_BOMBS,
+  rocket: INITIAL_ROCKETS,
+  extraTime: INITIAL_EXTRA_TIME,
+} satisfies Powers);
 
-function getChoiceBonus(selected: PowerKey): number {
-  return selected === 'bomb' ? 2 : 1;
-}
+export const PowerContext = createContext<PowerContextValue | null>(null);
 
-export function PowerProvider({ children }: { children: ReactNode }) {
-  const [powers, setPowersState] = useState<Powers>(() => defaultPowers);
+const CHOICE_BONUS_BY_KEY: Readonly<Partial<Record<string, number>>> = Object.freeze({
+  // current
+  bomb: 2,
+  // planned (safe even if PowerKey union doesn't contain these yet)
+  rocket: 2,
+  reshuffle: 2, // = 2 rerolls (future)
+});
 
-  const setPowers = (next: Powers) => {
-    setPowersState(next);
-  };
-
-  // NOTE:
-  // This function may be called AFTER the UI already granted the bonus (e.g. Modal adds +2 immediately).
-  // To prevent double-counting, we keep the higher of:
-  // - prev[selected] (current UI state)
-  // - backend[selected] + bonus (expected post-choice value if backend is "base")
-  const setFromBackendAndSelect = (backendPowers: Powers, selected: PowerKey) => {
-    const bonus = getChoiceBonus(selected);
-
-    setPowersState((prev) => {
-      const next: Powers = {
-        bomb: backendPowers.bomb ?? 0,
-        rocket: backendPowers.rocket ?? 0,
-        extraTime: backendPowers.extraTime ?? 0,
-      };
-
-      const prevCount = (prev[selected] ?? 0) | 0;
-      const candidate = ((next[selected] ?? 0) | 0) + bonus;
-
-      next[selected] = Math.max(prevCount, candidate);
-
-      return next;
-    });
-  };
-
-  const value = useMemo(() => ({ powers, setFromBackendAndSelect, setPowers }), [powers]);
-
-  return <PowerContext.Provider value={value}>{children}</PowerContext.Provider>;
+export function getChoiceBonus(selected: PowerKey): number {
+  /**
+   * Future-proof choice bonuses:
+   * - bomb      -> +2 bombs
+   * - rocket    -> +2 rockets
+   * - reshuffle -> +2 rerolls (future)
+   *
+   * Any other selection defaults to +1.
+   */
+  return CHOICE_BONUS_BY_KEY[String(selected)] ?? 1;
 }
 
 export function usePowers() {

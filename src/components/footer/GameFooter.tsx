@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+// src/components/footer/GameFooter.tsx
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { footerActions } from './footerAction';
 import { usePowers } from '@/context/PowerContext';
@@ -19,39 +20,21 @@ export default function GameFooter({ openSettings }: Props) {
 
   const [armedBomb, setArmedBomb] = useState(false);
 
-  // keep latest powers for event listeners (no re-bind storms)
+  // Keep latest powers for window event listeners (OK: effects only)
   const powersRef = useRef<Powers>(powers);
   useEffect(() => {
     powersRef.current = powers;
   }, [powers]);
 
-  // DEV: test start loadout => 5 bombs
-  const didDevLoadoutRef = useRef(false);
-  useEffect(() => {
-    if (!import.meta.env.DEV) return;
-    if (didDevLoadoutRef.current) return;
-    didDevLoadoutRef.current = true;
-
-    const cur = (powersRef.current.bomb ?? 0) | 0;
-    if (cur >= 5) return;
-
-    const next: Powers = { ...powersRef.current, bomb: 5 };
-    setPowers(next);
-
-    if (!user) return;
-    updatePowers({ bomb: next.bomb }, 'set').catch(() => {
-      // rollback if backend failed
-      setPowers(powersRef.current);
-    });
-  }, [setPowers, user, updatePowers]);
-
-  const emitArmBomb = (armed: boolean) => {
+  const emitArmBomb = useCallback((armed: boolean) => {
     if (typeof window === 'undefined') return;
     window.dispatchEvent(new CustomEvent<PowerArmDetail>('match3:powerArm', { detail: { key: 'bomb', armed } }));
-  };
+  }, []);
 
-  const consumeBomb = async () => {
+  // Spend 1 bomb after Grid confirmed a target (OK: uses ref, but only in effects/handlers)
+  const consumeBomb = useCallback(async () => {
     const current = (powersRef.current.bomb ?? 0) | 0;
+
     if (current <= 0) {
       setArmedBomb(false);
       emitArmBomb(false);
@@ -61,7 +44,7 @@ export default function GameFooter({ openSettings }: Props) {
     const next: Powers = { ...powersRef.current, bomb: current - 1 };
     setPowers(next);
 
-    // if bombs reached 0, auto-disarm
+    // auto-disarm at 0
     if ((next.bomb ?? 0) <= 0) {
       setArmedBomb(false);
       emitArmBomb(false);
@@ -72,10 +55,10 @@ export default function GameFooter({ openSettings }: Props) {
     try {
       await updatePowers({ bomb: next.bomb }, 'set');
     } catch {
-      // rollback if backend failed
+      // rollback best-effort to last known ref snapshot
       setPowers(powersRef.current);
     }
-  };
+  }, [emitArmBomb, setPowers, updatePowers, user]);
 
   // Sync with global arm/disarm (Grid can disarm after confirm)
   useEffect(() => {
@@ -106,9 +89,9 @@ export default function GameFooter({ openSettings }: Props) {
 
     window.addEventListener('match3:powerUseAt', onUseAt as EventListener);
     return () => window.removeEventListener('match3:powerUseAt', onUseAt as EventListener);
-  }, [user, updatePowers, setPowers]);
+  }, [consumeBomb]);
 
-  // Optional hook: later your PowerChoiceModal can dispatch this to grant +2 bombs
+  // Optional: PowerChoice can grant bombs via event (+2 etc.)
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -132,33 +115,38 @@ export default function GameFooter({ openSettings }: Props) {
     return () => window.removeEventListener('match3:powerGrant', onGrant as EventListener);
   }, [setPowers, user, updatePowers]);
 
-  const onUsePower = async (key: PowerKey) => {
-    const current = (powersRef.current[key] ?? 0) | 0;
-    if (current <= 0) return;
+  // IMPORTANT (eslint react-hooks/refs):
+  // This handler MUST NOT read powersRef.current, because it is passed during render into footerActions().
+  const onUsePower = useCallback(
+    async (key: PowerKey) => {
+      const current = (powers[key] ?? 0) | 0;
+      if (current <= 0) return;
 
-    // Bomb = targeting mode (no immediate spend)
-    if (key === 'bomb') {
-      const nextArmed = !armedBomb;
-      setArmedBomb(nextArmed);
-      emitArmBomb(nextArmed);
-      return;
-    }
+      // Bomb = targeting mode (no immediate spend)
+      if (key === 'bomb') {
+        const nextArmed = !armedBomb;
+        setArmedBomb(nextArmed);
+        emitArmBomb(nextArmed);
+        return;
+      }
 
-    // others: immediate spend (existing behavior)
-    const next: Powers = { ...powersRef.current, [key]: current - 1 };
-    setPowers(next);
+      const prev = powers;
+      const next: Powers = { ...powers, [key]: current - 1 };
+      setPowers(next);
 
-    if (!user) return;
+      if (!user) return;
 
-    try {
-      await updatePowers({ [key]: next[key] }, 'set');
-    } catch {
-      // rollback if backend failed
-      setPowers(powersRef.current);
-    }
-  };
+      try {
+        await updatePowers({ [key]: next[key] }, 'set');
+      } catch {
+        // rollback to render-state snapshot
+        setPowers(prev);
+      }
+    },
+    [armedBomb, emitArmBomb, powers, setPowers, updatePowers, user],
+  );
 
-  const actions = useMemo(() => footerActions(openSettings, powers, onUsePower), [openSettings, powers]);
+  const actions = useMemo(() => footerActions(openSettings, powers, onUsePower), [openSettings, powers, onUsePower]);
 
   return (
     <div className="flex flex-wrap justify-center gap-4 p-4 rounded-xl">
