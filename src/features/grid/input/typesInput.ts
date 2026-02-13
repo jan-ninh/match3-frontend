@@ -1,10 +1,12 @@
-import type { PieceId } from "@/gamelogic";
+import type { PieceId } from '@/gamelogic';
 
-export type Axis = "x" | "y";
+export type Axis = 'x' | 'y';
 
 export type InputIntent =
-  | { type: "click"; index: number }
-  | { type: "swap"; from: number; to: number };
+  | { type: 'click'; index: number }
+  | { type: 'swap'; from: number; to: number }
+  // Power: Bomb (3x3 clear) — optional direct route
+  | { type: 'useBombAt'; index: number };
 
 export type PressState = {
   active: boolean;

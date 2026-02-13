@@ -1,4 +1,3 @@
-// src/gamelogic/engine/reducer/index.ts
 import type { EngineState } from '../../types';
 import { assertPhaseInvariants } from '../../invariants';
 
@@ -14,6 +13,7 @@ import { handleResetBoard } from './handlers/handleResetBoard';
 import { handleSetSwapMs } from './handlers/handleSetSwapMs';
 import { handleSwapAttempt } from './handlers/handleSwapAttempt';
 import { handleTickWake } from './handlers/handleTickWake';
+import { handleUseBombAt } from './handlers/handleUseBombAt';
 
 import { applyTurnEndPipeline } from './post/applyTurnEndPipeline';
 import { resolveOutcomeIfIdle } from './post/resolveOutcome';
@@ -57,6 +57,10 @@ export function engineReducer(state: EngineState, action: EngineAction): EngineS
 
       case 'clickCell': {
         return handleClickCell(s, action);
+      }
+
+      case 'useBombAt': {
+        return handleUseBombAt(s, action);
       }
 
       default: {

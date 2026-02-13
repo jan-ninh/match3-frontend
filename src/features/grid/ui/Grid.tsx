@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 
@@ -16,6 +16,8 @@ import { boardInnerSizePx, cellPixelXY } from '../lib/math';
 
 import { useGridInput } from '../input/useGridInput';
 
+type PowerArmDetail = { key: 'bomb'; armed: boolean };
+
 type Props = {
   state: EngineState;
 
@@ -30,7 +32,7 @@ type Props = {
   canSwapAt: (from: number, to: number) => boolean;
 
   // Grid emits only intents. Parent decides what to do with them.
-  onIntent: (intent: { type: 'click'; index: number } | { type: 'swap'; from: number; to: number }) => void;
+  onIntent: (intent: { type: 'click'; index: number } | { type: 'swap'; from: number; to: number } | { type: 'useBombAt'; index: number }) => void;
   swapMs: number;
 
   // runtime debug toggle (press D)
@@ -62,7 +64,34 @@ export default function Grid({
 }: Props) {
   const { width, height, cells, selectedIndex } = state;
 
-  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [bombArmed, setBombArmed] = useState(false);
+  const [bombHoverIndex, setBombHoverIndex] = useState<number | null>(null);
+
+  const boardRef = useRef<HTMLDivElement | null>(null);
+  const lastHoverRef = useRef<number | null>(null);
+
+  // Listen to global power arm/disarm (GameFooter drives this)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const onArm = (e: Event) => {
+      const ce = e as CustomEvent<PowerArmDetail>;
+      const d = ce.detail;
+      if (!d || d.key !== 'bomb') return;
+
+      const armed = !!d.armed;
+      setBombArmed(armed);
+      if (!armed) {
+        lastHoverRef.current = null;
+        setBombHoverIndex(null);
+      }
+    };
+
+    window.addEventListener('match3:powerArm', onArm as EventListener);
+    return () => window.removeEventListener('match3:powerArm', onArm as EventListener);
+  }, []);
+
+  const effectiveInputLocked = inputLocked || bombArmed;
 
   const {
     isDev,
@@ -85,7 +114,7 @@ export default function Grid({
     onPointerCancel,
 
     setDraggedEl,
-  } = useGridInput({ state, inputLocked, canSwapAt, onIntent, debugEnabled, swapMs });
+  } = useGridInput({ state, inputLocked: effectiveInputLocked, canSwapAt, onIntent, debugEnabled, swapMs });
 
   const { w: innerW, h: innerH } = useMemo(() => boardInnerSizePx(width, height), [width, height]);
 
@@ -226,21 +255,139 @@ export default function Grid({
     } as const;
   }, [state.laserWarning, innerW, innerH]);
 
+  // ─────────────────────────────────────────────
+  // Bomb targeting (3×3): hover → overlay indices
+  // ─────────────────────────────────────────────
+  const bombOverlayIndices = useMemo(() => {
+    if (!bombArmed) return [];
+    if (bombHoverIndex === null) return [];
+
+    const cx = bombHoverIndex % width;
+    const cy = Math.floor(bombHoverIndex / width);
+
+    const out: number[] = [];
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const x = cx + dx;
+        const y = cy + dy;
+        if (x < 0 || x >= width) continue;
+        if (y < 0 || y >= height) continue;
+        out.push(y * width + x);
+      }
+    }
+    return out;
+  }, [bombArmed, bombHoverIndex, width, height]);
+
+  const updateBombHoverFromClient = useCallback(
+    (clientX: number, clientY: number) => {
+      const el = boardRef.current;
+      if (!el) return;
+
+      const rect = el.getBoundingClientRect();
+      const x = clientX - rect.left;
+      const y = clientY - rect.top;
+
+      if (x < 0 || y < 0 || x >= rect.width || y >= rect.height) {
+        if (lastHoverRef.current !== null) {
+          lastHoverRef.current = null;
+          setBombHoverIndex(null);
+        }
+        return;
+      }
+
+      const step = TILE_SIZE + GAP;
+
+      const col = Math.floor(x / step);
+      const row = Math.floor(y / step);
+
+      if (col < 0 || col >= width || row < 0 || row >= height) {
+        if (lastHoverRef.current !== null) {
+          lastHoverRef.current = null;
+          setBombHoverIndex(null);
+        }
+        return;
+      }
+
+      // ignore pointer when it sits in the GAP area
+      const inCellX = x - col * step;
+      const inCellY = y - row * step;
+      if (inCellX > TILE_SIZE || inCellY > TILE_SIZE) {
+        if (lastHoverRef.current !== null) {
+          lastHoverRef.current = null;
+          setBombHoverIndex(null);
+        }
+        return;
+      }
+
+      const idx = row * width + col;
+      if (lastHoverRef.current !== idx) {
+        lastHoverRef.current = idx;
+        setBombHoverIndex(idx);
+      }
+    },
+    [width, height],
+  );
+
+  const onPointerMoveShell = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (bombArmed) {
+      updateBombHoverFromClient(e.clientX, e.clientY);
+      return;
+    }
+    onPointerMove(e);
+  };
+
+  const onPointerUpShell = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (bombArmed) return;
+    onPointerUp(e);
+  };
+
+  const onPointerCancelShell = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (bombArmed) return;
+    onPointerCancel(e);
+  };
+
+  const onPointerLeaveShell = () => {
+    if (!bombArmed) return;
+    lastHoverRef.current = null;
+    setBombHoverIndex(null);
+  };
+
+  const onCellPointerDownShell = (index: number, e: React.PointerEvent<HTMLButtonElement>) => {
+    if (bombArmed) {
+      if (e.button !== 0) return;
+      if (inputLocked) return;
+
+      // confirm -> trigger global power use, then disarm immediately (UI feedback)
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('match3:powerUseAt', { detail: { key: 'bomb', index } }));
+        window.dispatchEvent(new CustomEvent<PowerArmDetail>('match3:powerArm', { detail: { key: 'bomb', armed: false } }));
+      }
+
+      lastHoverRef.current = null;
+      setBombHoverIndex(null);
+      return;
+    }
+
+    onCellPointerDown(index, e);
+  };
+
+  const cursorClass = bombArmed ? 'cursor-crosshair' : lockoutCursor;
+
   return (
     <>
       {devPanels}
 
       <div
-        ref={containerRef}
-        className={`relative rounded-2xl p-3 border border-white/10 shadow-[0_18px_60px_rgba(0,0,0,0.55)] select-none ${lockoutCursor}`}
+        className={`relative rounded-2xl p-3 border border-white/10 shadow-[0_18px_60px_rgba(0,0,0,0.55)] select-none ${cursorClass}`}
         style={shellStyle}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerCancel}
+        onPointerMove={onPointerMoveShell}
+        onPointerUp={onPointerUpShell}
+        onPointerCancel={onPointerCancelShell}
+        onPointerLeave={onPointerLeaveShell}
       >
         <GridLockoutOverlay active={inputLocked} show={showLockoutHints} />
 
-        <div className="relative" style={{ width: innerW, height: innerH }}>
+        <div ref={boardRef} className="relative" style={{ width: innerW, height: innerH }}>
           <div className="absolute inset-0 rounded-2xl pointer-events-none" style={{ backgroundColor: 'rgb(0 0 0 / var(--boardDim))' }} />
           <div
             className="absolute inset-0 rounded-2xl pointer-events-none"
@@ -291,7 +438,30 @@ export default function Grid({
             </div>
           ) : null}
 
-          <GridCellsLayer width={width} height={height} cells={cells} onCellPointerDown={onCellPointerDown} showDebugLabels={showDebugLabels} />
+          {/* Bomb Targeting 3×3 (square corners, red glow) */}
+          {bombArmed && bombOverlayIndices.length ? (
+            <div className="absolute inset-0 pointer-events-none" aria-hidden="true" style={{ zIndex: 44 }}>
+              {bombOverlayIndices.map((idx) => {
+                const p = cellPixelXY(idx, width);
+                return (
+                  <div
+                    key={idx}
+                    className="absolute"
+                    style={{
+                      width: TILE_SIZE,
+                      height: TILE_SIZE,
+                      transform: `translate(${p.x}px, ${p.y}px)`,
+                      background: 'rgba(244,63,94,0.18)',
+                      outline: '1px solid rgba(248,113,113,0.38)',
+                      boxShadow: '0 0 18px rgba(244,63,94,0.16)',
+                    }}
+                  />
+                );
+              })}
+            </div>
+          ) : null}
+
+          <GridCellsLayer width={width} height={height} cells={cells} onCellPointerDown={onCellPointerDownShell} showDebugLabels={showDebugLabels} />
 
           <GridOverlaysLayer selectionPos={selectionPos} targetPos={targetPos} />
 

@@ -8,6 +8,9 @@ type Args = {
   initialLevelId?: number;
 };
 
+type PowerArmDetail = { key: 'bomb'; armed: boolean };
+type PowerUseAtDetail = { key: 'bomb'; index: number };
+
 export function useMatch3Engine({ initialLevelId = 1 }: Args) {
   const isDev = import.meta.env.DEV;
 
@@ -85,6 +88,23 @@ export function useMatch3Engine({ initialLevelId = 1 }: Args) {
     };
   }, []);
 
+  // NEW) Power → Engine bridge (Bomb targeting confirm)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const onUseAt = (e: Event) => {
+      const ce = e as CustomEvent<PowerUseAtDetail>;
+      const d = ce.detail;
+      if (!d || d.key !== 'bomb') return;
+      if (typeof d.index !== 'number') return;
+
+      dispatch({ type: 'useBombAt', index: d.index, nowMs: performance.now() } as EngineAction);
+    };
+
+    window.addEventListener('match3:powerUseAt', onUseAt as EventListener);
+    return () => window.removeEventListener('match3:powerUseAt', onUseAt as EventListener);
+  }, []);
+
   // 1) UI → Engine "done" bridge (NO rAF loop)
   useEffect(() => {
     const a = state.anim;
@@ -146,6 +166,12 @@ export function useMatch3Engine({ initialLevelId = 1 }: Args) {
 
       if (i?.type === 'swap' && typeof i.from === 'number' && typeof i.to === 'number') {
         dispatch({ type: 'swapAttempt', from: i.from, to: i.to, nowMs: performance.now() } as EngineAction);
+        return;
+      }
+
+      // optional direct route (in case you later emit it via onIntent)
+      if (i?.type === 'useBombAt' && typeof i.index === 'number') {
+        dispatch({ type: 'useBombAt', index: i.index, nowMs: performance.now() } as EngineAction);
         return;
       }
 

@@ -1,3 +1,4 @@
+// src/features/devtools-host/ui/DevtoolsHost.tsx
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { cycleTilesetPalette, preloadTiles } from '@/features/grid/ui/tiles';
@@ -62,19 +63,21 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
       openPowerChoice({
         title: 'Choose your Power!',
         onChoose: async (powerId) => {
+          const add = powerId === 'bomb' ? 2 : 1;
+
           // 1) Optimistic local powers update (immediate feedback)
           const nextPowers =
             powerId === 'bomb'
-              ? { ...powers, bomb: powers.bomb + 1 }
+              ? { ...powers, bomb: powers.bomb + add }
               : powerId === 'rocket'
-                ? { ...powers, rocket: powers.rocket + 1 }
-                : { ...powers, extraTime: powers.extraTime + 1 };
+                ? { ...powers, rocket: powers.rocket + add }
+                : { ...powers, extraTime: powers.extraTime + add };
 
           setPowers(nextPowers);
 
           // 2) Persist reward for logged-in users (best-effort)
           if (user?.id) {
-            const delta = powerId === 'bomb' ? { bomb: 1 } : powerId === 'rocket' ? { rocket: 1 } : { extraTime: 1 };
+            const delta = powerId === 'bomb' ? { bomb: add } : powerId === 'rocket' ? { rocket: add } : { extraTime: add };
 
             try {
               await updatePowers(delta, 'add');
