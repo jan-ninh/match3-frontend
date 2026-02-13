@@ -97,9 +97,10 @@ export type GameplayHudInput = {
 
 export type HudActions = {
   // currently informational HUD. Keep this as an extension point for later:
-  // openSettings?: () => void;
-  // restartRun?: () => void;
-  // toggleDevtools?: () => void;
+  // Trick: Use optional Signature for now:
+  openSettings?: () => void;
+  restartRun?: () => void;
+  toggleDevtools?: () => void;
 };
 
 export function assertNever(x: never, msg?: string): never {
