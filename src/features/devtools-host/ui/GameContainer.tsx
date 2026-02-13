@@ -10,7 +10,7 @@ import { useHudInputFromState } from '@/features/devtools-host/lib/useHudInputFr
 
 // 🔥 tiles are module-level state -> must force rerender when they change
 import { preloadTiles, setTilesetLevel } from '@/features/grid/ui/tiles';
-import { preloadSpecialTiles, setSpecialTilesetLevel } from '@/features/grid/ui/tiles-special';
+import { preloadSpecialTiles, setSpecialTilesetLevel } from '@/features/grid/ui/tilesSpecial';
 
 import { GameStage } from './GameStage';
 import GameplayHud from './GameplayHud';

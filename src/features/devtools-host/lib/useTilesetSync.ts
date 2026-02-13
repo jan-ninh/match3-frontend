@@ -2,7 +2,7 @@
 import { useLayoutEffect, useReducer } from 'react';
 
 import { preloadTiles, setTilesetLevel } from '@/features/grid/ui/tiles';
-import { preloadSpecialTiles, setSpecialTilesetLevel } from '@/features/grid/ui/tiles-special';
+import { preloadSpecialTiles, setSpecialTilesetLevel } from '@/features/grid/ui/tilesSpecial';
 
 /**
  * Syncs tilesets to current level and preloads assets.

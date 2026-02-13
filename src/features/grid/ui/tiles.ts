@@ -167,7 +167,7 @@ let currentLevelId: number | null = null;
 let manualTilesetId: string | null = null;
 let manualPaletteName: string | null = null;
 
-const SIX_CORE_TYPE_ORDER: PieceType[] = ['red', 'blue', 'green', 'purple', 'cyan', 'yellow'];
+const SIX_CORE_TYPE_ORDER: PieceType[] = ['blue', 'green', 'purple', 'orange', 'cyan', 'yellow'];
 const SIX_CORE_SLOT_KEYS = ['01', '02', '03', '04', '05', '06'] as const;
 
 function slotKeyForSixCoreType(type: PieceType): (typeof SIX_CORE_SLOT_KEYS)[number] | null {

@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { cycleTilesetPalette, preloadTiles } from '@/features/grid/ui/tiles';
-import { cycleSpecialTilesetPalette, preloadSpecialTiles } from '@/features/grid/ui/tiles-special';
+import { cycleSpecialTilesetPalette, preloadSpecialTiles } from '@/features/grid/ui/tilesSpecial';
 import { useOverlays } from '@/features/overlays';
 import { completeLevel, resetProgress } from '@/services/progress/progressActions';
 import { useAuth } from '@/context/AuthContext';

@@ -1,4 +1,4 @@
-// src/features/grid/ui/tiles-special.ts
+// src\features\grid\ui\tilesSpecial.ts
 export type TileSprite = {
   sheet: string;
 
