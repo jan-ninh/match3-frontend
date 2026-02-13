@@ -1,9 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { cycleTilesetPalette, preloadTiles } from '@/features/grid/ui/tiles';
 import { cycleSpecialTilesetPalette, preloadSpecialTiles } from '@/features/grid/ui/tiles-special';
 import { useOverlays } from '@/features/overlays';
 import { completeLevel, resetProgress } from '@/services/progress/progressActions';
+import { useAuth } from '@/context/AuthContext';
+import { usePowers } from '@/context/PowerContext';
 
 import { useDevHotkeys } from '../lib/useDevHotkeys';
 import { useDevPanelsTopSync } from '../lib/useDevPanelsTopSync';
@@ -20,7 +22,9 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
   const [showLockoutHints, setShowLockoutHints] = useState<boolean>(false);
   const [debugEnabled, setDebugEnabled] = useState<boolean>(false);
 
-  const { openWin, openLose } = useOverlays();
+  const { openWin, openLose, openPowerChoice } = useOverlays();
+  const { user, updatePowers } = useAuth();
+  const { powers, setPowers } = usePowers();
 
   const { isDev, state, inputLocked, canSwapAt, onIntent, onDevResetBoard, onDevNextLevel, onDevPrevLevel, onDevSetLevel, events } = useMatch3Engine({
     initialLevelId,
@@ -50,10 +54,58 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
     setTilesVersion((v) => (v + 1) | 0);
   };
 
+  const handledWinLevelRef = useRef<number | null>(null);
+  const handledLoseLevelRef = useRef<number | null>(null);
+
+  const beginWinRewardFlow = useCallback(
+    (lvl: number) => {
+      openPowerChoice({
+        title: 'Choose your Power!',
+        onChoose: async (powerId) => {
+          // 1) Optimistic local powers update (immediate feedback)
+          const nextPowers =
+            powerId === 'bomb'
+              ? { ...powers, bomb: powers.bomb + 1 }
+              : powerId === 'rocket'
+                ? { ...powers, rocket: powers.rocket + 1 }
+                : { ...powers, extraTime: powers.extraTime + 1 };
+
+          setPowers(nextPowers);
+
+          // 2) Persist reward for logged-in users (best-effort)
+          if (user?.id) {
+            const delta = powerId === 'bomb' ? { bomb: 1 } : powerId === 'rocket' ? { rocket: 1 } : { extraTime: 1 };
+
+            try {
+              await updatePowers(delta, 'add');
+            } catch {
+              // ignore (offline / backend issues)
+            }
+          }
+
+          // 3) Mark level completed locally (unlocks next level in local map)
+          try {
+            await completeLevel(lvl);
+          } catch {
+            // ignore (localStorage)
+          }
+
+          // 4) Show Win overlay (PowerChoice overlay auto-closes right after click)
+          openWin(lvl);
+        },
+      });
+    },
+    [openPowerChoice, powers, setPowers, user?.id, updatePowers, openWin],
+  );
+
   const onDevWin = async () => {
     const lvl = state.levelId;
-    await completeLevel(lvl);
-    openWin(lvl);
+
+    // prevent double-trigger if the engine is already in win phase for this lvl
+    handledWinLevelRef.current = lvl;
+
+    // IMPORTANT: do NOT openWin directly; go through PowerChoice flow
+    beginWinRewardFlow(lvl);
   };
 
   const onDevLose = async () => {
@@ -66,6 +118,34 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
   const onDevResetProgress = async () => {
     await resetProgress();
   };
+
+  useEffect(() => {
+    const lvl = state.levelId;
+
+    if (state.phase === 'win') {
+      if (handledWinLevelRef.current === lvl) return;
+      handledWinLevelRef.current = lvl;
+
+      beginWinRewardFlow(lvl);
+      return;
+    }
+
+    if (state.phase === 'lose') {
+      if (handledLoseLevelRef.current === lvl) return;
+      handledLoseLevelRef.current = lvl;
+
+      void (async () => {
+        try {
+          await resetProgress();
+        } catch {
+          // ignore (localStorage)
+        }
+        openLose(lvl);
+      })();
+
+      return;
+    }
+  }, [state.phase, state.levelId, beginWinRewardFlow, openLose]);
 
   // defensive: when leaving dev mode, reset the top-offset CSS var
   useEffect(() => {

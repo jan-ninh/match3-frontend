@@ -2,19 +2,31 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Navbar, LevelGrid, CyberTitle } from '@/components';
 import { getProgress } from '@/services/progress/progressActions';
-import { useOverlays } from '@/features/overlays';
 import type { LevelId, Progress } from '@/services/progress/ProgressStore';
 import { apiProfile } from '@/api/user';
 import { useAuth } from '@/context/AuthContext';
-import type { Powers, UserProfile } from '@/types';
-import { usePowers } from '@/context/PowerContext';
+import type { UserProfile } from '@/types';
+
+function uniqSorted(levels: number[]): number[] {
+  return Array.from(new Set(levels)).sort((a, b) => a - b);
+}
+
+function mergeProgress(a: Progress, b: Progress): Progress {
+  const lastA = a.lastPlayedLevel ?? 1;
+  const lastB = b.lastPlayedLevel ?? 1;
+
+  return {
+    unlockedLevels: uniqSorted([...(a.unlockedLevels ?? []), ...(b.unlockedLevels ?? [])]),
+    completedLevels: uniqSorted([...(a.completedLevels ?? []), ...(b.completedLevels ?? [])]),
+    lastPlayedLevel: Math.max(lastA, lastB),
+  };
+}
 
 export default function LevelMapPage() {
   const navigate = useNavigate();
   const [progress, setProgress] = useState<Progress | null>(null);
-  const { openPowerChoice } = useOverlays();
+
   const { user } = useAuth();
-  const { setFromBackendAndSelect } = usePowers();
 
   const highestCompletedRef = useRef(0);
 
@@ -38,9 +50,28 @@ export default function LevelMapPage() {
 
   useEffect(() => {
     void (async () => {
+      const local = await getProgress().catch(() => null);
+
       if (user?.id) {
-        const profile = await apiProfile(user.id);
-        setProgress(profileToProgress(profile));
+        try {
+          const profile = await apiProfile(user.id);
+          const fromProfile = profileToProgress(profile);
+
+          setProgress(local ? mergeProgress(fromProfile, local) : fromProfile);
+        } catch {
+          // backend unavailable => fall back to local progress
+          if (local) {
+            setProgress(local);
+          } else {
+            setProgress({ unlockedLevels: [1], completedLevels: [], lastPlayedLevel: 1 });
+          }
+        }
+        return;
+      }
+
+      // guest => local progress only
+      if (local) {
+        setProgress(local);
       } else {
         const p = await getProgress();
         setProgress(p);
@@ -49,23 +80,7 @@ export default function LevelMapPage() {
   }, [user?.id]);
 
   const onSelect = (level: LevelId) => {
-    openPowerChoice({
-      title: 'Choose your Power!',
-      onChoose: async (powerId) => {
-        const fallback: Powers = { bomb: 0, rocket: 0, extraTime: 0 };
-        try {
-          if (user?.id) {
-            const profile = await apiProfile(user.id);
-            setFromBackendAndSelect(profile.powers ?? fallback, powerId);
-          } else {
-            setFromBackendAndSelect(fallback, powerId);
-          }
-        } catch {
-          setFromBackendAndSelect(fallback, powerId);
-        }
-        navigate(`/game-map/play-game?level=${level}`);
-      },
-    });
+    navigate(`/game-map/play-game?level=${level}`);
   };
 
   if (!progress) return <div className="p-6">Loading levels…</div>;

@@ -11,7 +11,8 @@
     "b-07": "piece_07.png",
     "b-08": "piece_08.png",
     "b-09": "piece_09.png",
-    "b-10": "piece_10.png"
+    "b-10": "piece_10.png",
+    "b-11": "piece_11.png"
   },
 
   "palettes": {
@@ -39,6 +40,10 @@
 
   "levelPalettes": {
     "1": "six-core"
+  },
+
+  "specials": {
+    "spike": "b-11"
   },
 
   "pieces": {

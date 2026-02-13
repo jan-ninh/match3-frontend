@@ -1,5 +1,13 @@
-import type { EngineState, PieceId } from './types';
+// src/gamelogic/invariants.ts
+import type { CellObstacle, EngineState, PieceId } from './types';
 import { animKindForPhase, isAnimatingPhase, isInputLocked } from './phases';
+
+function allowsPieceOnObstacle(obs: CellObstacle | undefined): boolean {
+  if (!obs) return true;
+  if (obs.kind === 'chargedCell') return true;
+  if (obs.kind === 'terminal' && obs.state === 'open') return true;
+  return false;
+}
 
 export function assertBoardIntegrity(board: Pick<EngineState, 'width' | 'height' | 'cells' | 'pieces'>, ctx = ''): void {
   const { width, height, cells, pieces } = board;
@@ -13,11 +21,15 @@ export function assertBoardIntegrity(board: Pick<EngineState, 'width' | 'height'
 
   for (let i = 0; i < cells.length; i++) {
     const c = cells[i]!;
-    if (c.blocked && c.pieceId !== null) {
-      throw new Error(`[integrity] ${ctx} blocked cell has pieceId at index=${i}`);
-    }
 
     if (c.pieceId !== null) {
+      if (c.blocked) {
+        throw new Error(`[integrity] ${ctx} blocked cell has pieceId at index=${i}`);
+      }
+      if (!allowsPieceOnObstacle(c.obstacle)) {
+        throw new Error(`[integrity] ${ctx} obstacle cell has pieceId at index=${i} obstacle=${c.obstacle!.kind}`);
+      }
+
       const pid = c.pieceId;
       counts.set(pid, (counts.get(pid) ?? 0) + 1);
 
@@ -43,14 +55,14 @@ export function assertBoardIntegrity(board: Pick<EngineState, 'width' | 'height'
     const c = cells[p.cellIndex];
     if (!c) throw new Error(`[integrity] ${ctx} piece id=${pid} points to missing cellIndex=${p.cellIndex}`);
     if (c.blocked) throw new Error(`[integrity] ${ctx} piece id=${pid} points to blocked cellIndex=${p.cellIndex}`);
+    if (!allowsPieceOnObstacle(c.obstacle)) {
+      throw new Error(`[integrity] ${ctx} piece id=${pid} points to obstacle cellIndex=${p.cellIndex}`);
+    }
     if (c.pieceId !== pid) throw new Error(`[integrity] ${ctx} piece id=${pid} not present in its cellIndex=${p.cellIndex}`);
   }
 }
 
-export function assertPhaseInvariants(
-  state: Pick<EngineState, 'phase' | 'inputLocked' | 'anim' | 'animToken' | 'pendingSwap'>,
-  ctx = '',
-): void {
+export function assertPhaseInvariants(state: Pick<EngineState, 'phase' | 'inputLocked' | 'anim' | 'animToken' | 'pendingSwap'>, ctx = ''): void {
   const tag = ctx ? ` ${ctx}` : '';
   const { phase, inputLocked, anim, animToken, pendingSwap } = state;
 
@@ -79,7 +91,6 @@ export function assertPhaseInvariants(
     }
   }
 
-  // pendingSwap is allowed only while swapAnimating
   if (phase === 'swapAnimating') {
     if (pendingSwap === null) {
       throw new Error(`[phase]${tag} pendingSwap missing in swapAnimating`);

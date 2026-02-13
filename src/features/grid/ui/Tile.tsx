@@ -1,3 +1,4 @@
+// src/features/grid/ui/Tile.tsx
 import type { CSSProperties } from 'react';
 
 import type { PieceType } from '@/gamelogic';
@@ -20,6 +21,9 @@ type Props = {
 export default function Tile({ type, dragging, preview, locked, shaking, className }: Props) {
   const sprite = getTileSprite(type);
 
+  // Keycard special rendering (Level 03)
+  const isKeycard = type === 'keycard';
+
   const outerCls = [
     'w-full h-full rounded-xl',
     locked ? 'opacity-70' : '',
@@ -31,6 +35,24 @@ export default function Tile({ type, dragging, preview, locked, shaking, classNa
   ]
     .filter(Boolean)
     .join(' ');
+
+  // Keycard fallback (wenn kein Sprite/Atlas definiert ist)
+  if (isKeycard && !sprite) {
+    return (
+      <div
+        className={outerCls}
+        style={{
+          background: 'linear-gradient(135deg, rgba(251,191,36,0.4) 0%, rgba(245,158,11,0.5) 100%)',
+          boxShadow: '0 6px 16px rgba(0,0,0,0.35), 0 0 12px rgba(251,191,36,0.25)',
+          border: '2px solid rgba(251,191,36,0.5)',
+        }}
+      >
+        <div className="w-full h-full flex items-center justify-center">
+          <span className="text-amber-100 text-lg">🔑</span>
+        </div>
+      </div>
+    );
+  }
 
   // Fallback (falls Sprite/Atlas fehlt)
   if (!sprite) {

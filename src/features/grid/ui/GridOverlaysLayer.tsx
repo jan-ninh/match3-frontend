@@ -5,6 +5,11 @@ type PxPos = { x: number; y: number };
 type Props = {
   selectionPos: PxPos | null;
   targetPos: PxPos | null;
+
+  // Level 04: Laser warning line
+  laserWarning?: { kind: 'row' | 'col'; index: number } | null;
+  gridWidth?: number;
+  gridHeight?: number;
 };
 
 function Marker({ strength }: { strength: number }) {
@@ -55,9 +60,86 @@ function Marker({ strength }: { strength: number }) {
   );
 }
 
-export default function GridOverlaysLayer({ selectionPos, targetPos }: Props) {
+function LaserWarningLine({ kind, index, gridWidth, gridHeight }: { kind: 'row' | 'col'; index: number; gridWidth: number; gridHeight: number }) {
+  const isRow = kind === 'row';
+
+  // Calculate position and size
+  const x = isRow ? 0 : index * TILE_SIZE;
+  const y = isRow ? index * TILE_SIZE : 0;
+  const width = isRow ? gridWidth * TILE_SIZE : TILE_SIZE;
+  const height = isRow ? TILE_SIZE : gridHeight * TILE_SIZE;
+
+  return (
+    <div
+      className="absolute pointer-events-none animate-pulse"
+      style={{
+        top: y,
+        left: x,
+        width,
+        height,
+        zIndex: 45, // Below pieces but above cells
+      }}
+    >
+      {/* Warning glow */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background: isRow
+            ? 'linear-gradient(180deg, rgba(239,68,68,0.0) 0%, rgba(239,68,68,0.15) 30%, rgba(239,68,68,0.15) 70%, rgba(239,68,68,0.0) 100%)'
+            : 'linear-gradient(90deg, rgba(239,68,68,0.0) 0%, rgba(239,68,68,0.15) 30%, rgba(239,68,68,0.15) 70%, rgba(239,68,68,0.0) 100%)',
+          boxShadow: '0 0 20px rgba(239,68,68,0.3)',
+        }}
+      />
+
+      {/* Scan line effect */}
+      <div
+        className="absolute"
+        style={{
+          top: isRow ? '50%' : 0,
+          left: isRow ? 0 : '50%',
+          width: isRow ? '100%' : 2,
+          height: isRow ? 2 : '100%',
+          background: 'rgba(239,68,68,0.6)',
+          boxShadow: '0 0 8px rgba(239,68,68,0.8), 0 0 16px rgba(239,68,68,0.4)',
+          transform: isRow ? 'translateY(-50%)' : 'translateX(-50%)',
+        }}
+      />
+
+      {/* Edge markers */}
+      <div
+        className="absolute"
+        style={{
+          top: isRow ? 0 : -8,
+          left: isRow ? -8 : 0,
+          width: isRow ? 6 : '100%',
+          height: isRow ? '100%' : 6,
+          background: 'rgba(239,68,68,0.4)',
+          borderRadius: 2,
+        }}
+      />
+      <div
+        className="absolute"
+        style={{
+          top: isRow ? 0 : undefined,
+          bottom: isRow ? undefined : -8,
+          right: isRow ? -8 : undefined,
+          left: isRow ? undefined : 0,
+          width: isRow ? 6 : '100%',
+          height: isRow ? '100%' : 6,
+          background: 'rgba(239,68,68,0.4)',
+          borderRadius: 2,
+        }}
+      />
+    </div>
+  );
+}
+
+export default function GridOverlaysLayer({ selectionPos, targetPos, laserWarning, gridWidth = 8, gridHeight = 8 }: Props) {
   return (
     <>
+      {/* Laser Warning Line (Level 04) - render first so it's below other overlays */}
+      {laserWarning ? <LaserWarningLine kind={laserWarning.kind} index={laserWarning.index} gridWidth={gridWidth} gridHeight={gridHeight} /> : null}
+
       {/* DnD target slot (preview) */}
       {targetPos ? (
         <div

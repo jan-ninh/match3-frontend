@@ -1,6 +1,5 @@
 import { useNavigate } from 'react-router';
 import Modal from '@/components/Modal';
-import { completeLevel } from '@/services/progress/progressActions';
 import { CyberButton } from '@/components';
 import { motion } from 'framer-motion';
 
@@ -13,17 +12,8 @@ type Props = {
 export default function WinOverlay({ open, onClose, level }: Props) {
   const navigate = useNavigate();
 
-  const returnToMap = async () => {
+  const returnToMap = () => {
     onClose();
-
-    if (typeof level === 'number') {
-      try {
-        await completeLevel(level);
-      } catch {
-        // ignore (localStorage)
-      }
-    }
-
     navigate('/game-map');
   };
 

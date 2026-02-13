@@ -1,3 +1,4 @@
+// src/features/grid/ui/tiles.ts
 import type { PieceType } from '@/gamelogic';
 
 export type TileSprite = {
@@ -43,6 +44,9 @@ type TilesetJson = {
 
   defaultPalette?: string;
   levelPalettes?: Record<string, string>;
+
+  // Optional special mappings (e.g. keycard, bombs, etc.)
+  specials?: Record<string, string>;
 
   // Legacy (still supported): direct PieceType -> frameKey
   pieces?: Record<PieceType, string>;
@@ -194,6 +198,16 @@ function frameToSprite(sheetUrl: string, atlas: AtlasJson, frameKey: string): Ti
 }
 
 function getFrameKeyForPieceType(cfg: TilesetJson, type: PieceType): string | null {
+  // Keycard special handling (Level 03)
+  if (type === 'keycard') {
+    // Try specials mapping first
+    const specialKey = cfg.specials?.['keycard'];
+    if (specialKey) return resolveFrameKeyFromPaletteValue(cfg, specialKey);
+
+    // No sprite configured => Tile.tsx should render its own fallback
+    return null;
+  }
+
   const paletteName = resolvePaletteName(cfg);
 
   if (paletteName) {

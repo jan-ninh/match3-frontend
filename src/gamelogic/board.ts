@@ -1,140 +1,27 @@
-import type { Cell, LevelDefinition, Piece, PieceId, PieceType, SwapRejectReason } from './types';
-import { initRngState, rngNextInt, type RngState } from './rng';
-import { areAdjacent, xyOf } from './coords';
+// src/gamelogic/board.ts
 
-type BuildBoardResult = {
-  cells: Cell[];
-  pieces: Record<PieceId, Piece>;
-  nextPieceId: number;
-  rngState: RngState;
-};
+export { buildInitialBoard } from './board/build/buildInitialBoard';
 
-function isBlockedIndex(blocked: Set<number>, index: number): boolean {
-  return blocked.has(index);
-}
+export { getTerminalAt, isTerminalCell, canEnterTerminal, getTerminalIndices } from './board/terminals/terminals';
 
-function getPieceTypeAt(index: number, cells: Cell[], pieces: Record<PieceId, Piece>): PieceType | null {
-  const pid = cells[index]?.pieceId ?? null;
-  if (pid === null) return null;
-  return pieces[pid]?.type ?? null;
-}
+export {
+  getObjectiveTerminalAt,
+  isObjectiveTerminalCell,
+  isObjectiveTerminalActiveAt,
+  getObjectiveTerminalIndices,
+} from './board/terminals/objectiveTerminals';
 
-function wouldCreateSpawnTriple(candidate: PieceType, index: number, width: number, cells: Cell[], pieces: Record<PieceId, Piece>): boolean {
-  const { x, y } = xyOf(index, width);
+export { canSwap } from './board/swap/canSwap';
+export { swapCellsImmutable, swapPiecesPositionsImmutable } from './board/swap/swapImmutable';
 
-  if (x >= 2) {
-    const t1 = getPieceTypeAt(index - 1, cells, pieces);
-    const t2 = getPieceTypeAt(index - 2, cells, pieces);
-    if (t1 !== null && t2 !== null && t1 === candidate && t2 === candidate) return true;
-  }
+export { getOrthogonalNeighbors } from './board/math/neighbors';
+export { manhattanDist } from './board/math/distance';
 
-  if (y >= 2) {
-    const t1 = getPieceTypeAt(index - width, cells, pieces);
-    const t2 = getPieceTypeAt(index - 2 * width, cells, pieces);
-    if (t1 !== null && t2 !== null && t1 === candidate && t2 === candidate) return true;
-  }
+export { getNearestOpenLeakId, getSpreadCandidates } from './board/leaks/leakUtils';
 
-  return false;
-}
+export { countContamination, countSealKits } from './board/obstacles/counters';
 
-export function buildInitialBoard(level: LevelDefinition, seed: number): BuildBoardResult {
-  const { width, height, allowedTypes } = level;
+export { canReceiveFallingPiece, blocksGravity } from './board/gravity/gravityRules';
 
-  let rngState = initRngState(seed);
-
-  const blocked = new Set(level.blockedIndices);
-
-  const firewallHp = new Map<number, number>(level.firewallNodes.map((n) => [n.index, n.hp]));
-  const gate = new Set(level.gateIndices);
-  const size = width * height;
-
-  const cells: Cell[] = Array.from({ length: size }, (_, index) => {
-    const hp = firewallHp.get(index) ?? null;
-    if (hp !== null) {
-      return { blocked: true, pieceId: null, obstacle: 'firewall', hp, maxHp: hp };
-    }
-
-    if (gate.has(index)) {
-      return { blocked: true, pieceId: null, obstacle: 'gate', gateOpen: false };
-    }
-
-    return {
-      blocked: isBlockedIndex(blocked, index),
-      pieceId: null,
-    };
-  });
-
-  const pieces: Record<PieceId, Piece> = {};
-  let nextPieceId = 0;
-
-  for (let index = 0; index < size; index++) {
-    if (cells[index].blocked) continue;
-
-    let chosen: PieceType | null = null;
-
-    for (let attempt = 0; attempt < 24; attempt++) {
-      const r = rngNextInt(rngState, allowedTypes.length);
-      rngState = r.state;
-
-      const t = allowedTypes[r.value]!;
-      if (!wouldCreateSpawnTriple(t, index, width, cells, pieces)) {
-        chosen = t;
-        break;
-      }
-    }
-
-    if (!chosen) {
-      const r = rngNextInt(rngState, allowedTypes.length);
-      rngState = r.state;
-      chosen = allowedTypes[r.value]!;
-    }
-
-    const id = nextPieceId as PieceId;
-    nextPieceId++;
-
-    pieces[id] = { id, type: chosen, cellIndex: index };
-    cells[index].pieceId = id;
-  }
-
-  return { cells, pieces, nextPieceId, rngState };
-}
-
-export function canSwap(from: number, to: number, width: number, cells: Cell[]): { ok: true } | { ok: false; reason: SwapRejectReason } {
-  if (!areAdjacent(from, to, width)) return { ok: false, reason: 'notAdjacent' };
-
-  const a = cells[from];
-  const b = cells[to];
-  if (!a || !b) return { ok: false, reason: 'empty' };
-
-  if (a.blocked || b.blocked) return { ok: false, reason: 'blocked' };
-  if (a.pieceId === null || b.pieceId === null) return { ok: false, reason: 'empty' };
-
-  return { ok: true };
-}
-
-export function swapCellsImmutable(cells: Cell[], from: number, to: number): Cell[] {
-  const next = cells.slice();
-
-  const a = next[from]!;
-  const b = next[to]!;
-
-  next[from] = { ...a, pieceId: b.pieceId };
-  next[to] = { ...b, pieceId: a.pieceId };
-
-  return next;
-}
-
-export function swapPiecesPositionsImmutable(
-  pieces: Record<PieceId, Piece>,
-  from: number,
-  to: number,
-  fromPid: PieceId,
-  toPid: PieceId,
-): Record<PieceId, Piece> {
-  return {
-    ...pieces,
-    [fromPid]: { ...pieces[fromPid]!, cellIndex: to },
-    [toPid]: { ...pieces[toPid]!, cellIndex: from },
-  };
-}
-
+// Level 05: Signal Network
+export { isSignalLinked, countChargedCells, getSignalSourceIndices, getSignalTargetIndices } from './board/signal/signalPathCheck';

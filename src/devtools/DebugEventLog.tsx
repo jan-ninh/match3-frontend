@@ -1,3 +1,4 @@
+// src/devtools/DebugEventLog.tsx
 import { Fragment, useEffect, useMemo, useRef } from 'react';
 import type { EngineEvent } from '@/gamelogic';
 
@@ -8,6 +9,10 @@ function fmtNum(n: number): string {
 function fmtSigned(n: number): string {
   const sign = n >= 0 ? '+' : '';
   return `${sign}${fmtNum(n)}`;
+}
+
+function fmtList(nums: number[]): string {
+  return nums.length ? nums.join(',') : '-';
 }
 
 function formatEvent(e: EngineEvent): string {
@@ -56,6 +61,68 @@ function formatEvent(e: EngineEvent): string {
       return 'win()';
     case 'lose':
       return 'lose()';
+
+    // ─────────────────────────────
+    // Misc / newer events
+    // ─────────────────────────────
+    case 'cellCharged':
+      return `cellCharged(index=${e.index})`;
+    case 'signalLinked':
+      return 'signalLinked()';
+
+    // ─────────────────────────────
+    // Level 02+: Leak/Contamination
+    // ─────────────────────────────
+    case 'turnEnd':
+      return `turnEnd(turnIndex=${e.turnIndex})`;
+    case 'spreadTick':
+      return `spreadTick(leakId=${e.leakId}, targetIndex=${e.targetIndex ?? 'null'})`;
+    case 'contaminationSpawned':
+      return `contaminationSpawned(index=${e.index}, leakId=${e.leakId})`;
+    case 'contaminationCleared':
+      return `contaminationCleared(indices=[${fmtList(e.indices)}])`;
+    case 'sealKitSpawned':
+      return `sealKitSpawned(index=${e.index}, leakId=${e.leakId})`;
+    case 'sealKitTriggered':
+      return `sealKitTriggered(index=${e.index}, targetLeakId=${e.targetLeakId})`;
+    case 'leakPatched':
+      return `leakPatched(leakId=${e.leakId}, progress=${e.progress}/${e.required})`;
+    case 'leakSealed':
+      return `leakSealed(leakId=${e.leakId})`;
+    case 'contaminationLose':
+      return `contaminationLose(count=${e.count})`;
+
+    // ─────────────────────────────
+    // Level 03+: Terminal/Keycard
+    // ─────────────────────────────
+    case 'terminalCharged':
+      return `terminalCharged(id=${e.terminalId}, charge=${e.charge}/${e.requiredCharge})`;
+    case 'terminalOpened':
+      return `terminalOpened(id=${e.terminalId})`;
+    case 'keycardDelivered':
+      return `keycardDelivered(terminalId=${e.terminalId}, keycardIndex=${e.keycardIndex})`;
+    case 'terminalVerified':
+      return `terminalVerified(id=${e.terminalId})`;
+
+    // ─────────────────────────────
+    // Level 04+: Objective Terminal
+    // ─────────────────────────────
+    case 'objectiveTerminalCharged':
+      return `objectiveTerminalCharged(id=${e.terminalId}, charge=${e.charge}/${e.requiredCharge})`;
+    case 'objectiveTerminalActivated':
+      return `objectiveTerminalActivated(id=${e.terminalId})`;
+
+    // ─────────────────────────────
+    // Level 04+: Laser Sweep
+    // ─────────────────────────────
+    case 'laserWarningSet':
+      return `laserWarningSet(${e.kind}, index=${e.index})`;
+    case 'laserSweepStart':
+      return `laserSweepStart(${e.kind}, index=${e.index})`;
+    case 'laserSweepCleared':
+      return `laserSweepCleared(indices=[${fmtList(e.indices)}])`;
+    case 'laserSweepHazards':
+      return `laserSweepHazards(contamination=[${fmtList(e.contaminationIndices)}], firewall=[${fmtList(e.firewallIndices)}])`;
 
     default: {
       const _exhaustive: never = e;

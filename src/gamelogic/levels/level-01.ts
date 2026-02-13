@@ -1,3 +1,4 @@
+// src/gamelogic/levels/level-01.ts
 import type { LevelDefinition, PieceType } from '../types';
 import { deriveSeed } from '../rng';
 
@@ -17,31 +18,57 @@ type MakeLevelLike01Args = {
  * Use this for early levels so they all share the same structure/objective (for now).
  */
 export function makeLevelLike01({ levelId, baseSeed, allowedTypes }: MakeLevelLike01Args): LevelDefinition {
-  // Smaller board for clarity / faster pacing
+  const width = 8;
+  const height = 8;
+  const moves = 14;
+
+  const seed = deriveSeed(baseSeed, levelId);
+
+  return {
+    id: levelId,
+    width,
+    height,
+    moves,
+    allowedTypes,
+    blockedIndices: [],
+    firewallNodes: [],
+    gateIndices: [],
+    leakNodes: [],
+    terminalNodes: [],
+    keycardNodes: [],
+    baseSeed: seed,
+  };
+}
+
+export function makeLevel01({ baseSeed, allowedTypes }: Args): LevelDefinition {
+  // Level 1 — CLEAN ROOM (gesetzt)
+  // Objective: 4–6 “Spikes” (HP1) entfernen.
+  // Regel: Match orthogonal daneben => Spike weg.
+  // TECH: wir nutzen die bestehende "firewallNodes"-Mechanik, aber hp=1 + HUD/UI nennen es "spike".
+
+  const levelId = 1;
+
   const width = 8;
   const height = 8;
 
-  // Blocked corner cells (2x2) in bottom-right:
-  // (6,6) (7,6) (6,7) (7,7)
-  const cornerBlocks = [6 + 6 * width, 7 + 6 * width, 6 + 7 * width, 7 + 7 * width];
+  const hp = 1;
 
-  // “Nodes” (firewall) must be damaged by making matches adjacent to them.
-  // Each node has hp=3 => needs 3 adjacent match-resolves (can be across turns/cascades).
-  const hp = 3;
+  // 5 Spikes (in Range 4–6). Positionen: gut verteilt, nicht nur Rand.
   const firewallNodes = [
     { index: 2 + 2 * width, hp }, // (2,2)
-    { index: 5 + 3 * width, hp }, // (5,3)
-    { index: 3 + 5 * width, hp }, // (3,5)
+    { index: 5 + 2 * width, hp }, // (5,2)
+    { index: 3 + 3 * width, hp }, // (3,3)
+    { index: 2 + 5 * width, hp }, // (2,5)
+    { index: 5 + 5 * width, hp }, // (5,5)
   ];
 
-  // Gate system exists in engine, but template doesn't use gate tiles yet.
   const gateIndices: number[] = [];
 
-  // Block the objective tiles themselves (nodes + corner blocks).
-  const blockedIndices = [...cornerBlocks, ...firewallNodes.map((n) => n.index)];
+  // Spikes sind “blocked” bis sie entfernt werden.
+  const blockedIndices = firewallNodes.map((n) => n.index);
 
-  // Tighter than 20 so it has a little bite.
-  const moves = 14;
+  // Druck: 10–12 Moves (empf. 11)
+  const moves = 11;
 
   const seed = deriveSeed(baseSeed, levelId);
 
@@ -54,10 +81,9 @@ export function makeLevelLike01({ levelId, baseSeed, allowedTypes }: MakeLevelLi
     allowedTypes,
     firewallNodes,
     gateIndices,
+    leakNodes: [],
+    terminalNodes: [],
+    keycardNodes: [],
     baseSeed: seed,
   };
-}
-
-export function makeLevel01({ baseSeed, allowedTypes }: Args): LevelDefinition {
-  return makeLevelLike01({ levelId: 1, baseSeed, allowedTypes });
 }

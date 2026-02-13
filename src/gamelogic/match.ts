@@ -1,16 +1,49 @@
+// src/gamelogic/match.ts
 import type { EngineState, PieceType } from './types';
 import { inBounds, xyOf } from './coords';
 
 type BoardView = Pick<EngineState, 'width' | 'height' | 'cells' | 'pieces'>;
 
+// ─────────────────────────────────────────────
+// Matchable Type Filter
+// ─────────────────────────────────────────────
+
+const NON_MATCHABLE_TYPES: Set<PieceType> = new Set(['keycard']);
+
+/**
+ * Check if a piece type can participate in matches.
+ * Keycards are swappable and fall, but never match.
+ */
+export function isMatchableType(type: PieceType): boolean {
+  return !NON_MATCHABLE_TYPES.has(type);
+}
+
+// ─────────────────────────────────────────────
+// Type At Helper
+// ─────────────────────────────────────────────
+
 function typeAt(board: BoardView, index: number): PieceType | null {
   const cell = board.cells[index];
   if (!cell || cell.blocked || cell.pieceId === null) return null;
   const p = board.pieces[cell.pieceId];
-  return p?.type ?? null;
+  if (!p) return null;
+  // Non-matchable types (e.g., keycard) are invisible to match detection
+  if (!isMatchableType(p.type)) return null;
+  return p.type;
 }
 
-function countDir(board: BoardView, start: { x: number; y: number }, dx: number, dy: number, t: PieceType, getTypeAt: (x: number, y: number) => PieceType | null): number {
+// ─────────────────────────────────────────────
+// Direction Count Helper
+// ─────────────────────────────────────────────
+
+function countDir(
+  board: BoardView,
+  start: { x: number; y: number },
+  dx: number,
+  dy: number,
+  t: PieceType,
+  getTypeAt: (x: number, y: number) => PieceType | null,
+): number {
   let n = 0;
   let x = start.x + dx;
   let y = start.y + dy;
@@ -23,6 +56,10 @@ function countDir(board: BoardView, start: { x: number; y: number }, dx: number,
   }
   return n;
 }
+
+// ─────────────────────────────────────────────
+// Match Detection
+// ─────────────────────────────────────────────
 
 export type MatchDetection = {
   clearIndices: number[];
@@ -94,7 +131,14 @@ export function detectMatches(board: BoardView): MatchDetection {
   return { clearIndices, groups };
 }
 
+// ─────────────────────────────────────────────
+// Would Create Match At
+// ─────────────────────────────────────────────
+
 export function wouldCreateMatchAt(board: BoardView, index: number, candidate: PieceType): boolean {
+  // Non-matchable types never create matches
+  if (!isMatchableType(candidate)) return false;
+
   const { x, y } = xyOf(index, board.width);
 
   const getTypeAt = (xx: number, yy: number): PieceType | null => {
@@ -110,10 +154,27 @@ export function wouldCreateMatchAt(board: BoardView, index: number, candidate: P
   return v >= 3;
 }
 
+// ─────────────────────────────────────────────
+// Would Swap Create Match
+// ─────────────────────────────────────────────
+
 export function wouldSwapCreateMatch(board: BoardView, from: number, to: number): boolean {
   const tf = typeAt(board, from);
   const tt = typeAt(board, to);
-  if (tf === null || tt === null) return false;
+
+  // If either piece is non-matchable, check only the matchable one
+  // (Keycards can be swapped but won't create matches themselves)
+  const fromPiece = board.cells[from]?.pieceId !== null ? board.pieces[board.cells[from]!.pieceId!] : null;
+  const toPiece = board.cells[to]?.pieceId !== null ? board.pieces[board.cells[to]!.pieceId!] : null;
+
+  const fromMatchable = fromPiece && isMatchableType(fromPiece.type);
+  const toMatchable = toPiece && isMatchableType(toPiece.type);
+
+  // If neither is matchable, no match possible
+  if (!fromMatchable && !toMatchable) return false;
+
+  // If only one is matchable, we still need to check if THAT piece creates a match at its new position
+  if (tf === null && tt === null) return false;
 
   const getTypeAfterSwap = (idx: number): PieceType | null => {
     if (idx === from) return tt;
@@ -124,6 +185,9 @@ export function wouldSwapCreateMatch(board: BoardView, from: number, to: number)
   const checkAt = (idx: number): boolean => {
     const t = getTypeAfterSwap(idx);
     if (t === null) return false;
+    // Non-matchable types don't form matches
+    if (!isMatchableType(t)) return false;
+
     const { x, y } = xyOf(idx, board.width);
 
     const getTypeAt = (xx: number, yy: number): PieceType | null => {
@@ -140,6 +204,10 @@ export function wouldSwapCreateMatch(board: BoardView, from: number, to: number)
 
   return checkAt(from) || checkAt(to);
 }
+
+// ─────────────────────────────────────────────
+// Has Any Moves
+// ─────────────────────────────────────────────
 
 export function hasAnyMoves(board: BoardView): boolean {
   const { width, height, cells } = board;

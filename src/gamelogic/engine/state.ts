@@ -1,4 +1,5 @@
-import type { EngineEvent, EngineState, LevelId } from '../types';
+// src/gamelogic/engine/state.ts
+import type { EngineEvent, EngineState, LaserWarning, LevelId, PieceId } from '../types';
 import { getLevelDefinition } from '../levels';
 import { buildInitialBoard } from '../board';
 import { stabilizeBoard } from '../cascade';
@@ -8,39 +9,243 @@ import { SWAP_MS } from '../animTimings';
 import { sanitizeSwapMs } from './anim';
 import { mkSeededInit, pushEvents } from './events';
 
-export function createState(
-  levelId: LevelId,
-  seed: number,
-  extraEvents: EngineEvent[] = [],
-  animTokenBase = 0,
-  swapMs = SWAP_MS,
-): EngineState {
+/**
+ * Select initial laser warning line (before turn 0).
+ * Deterministic based on seed.
+ */
+function selectInitialLaserWarning(seed: number, width: number, height: number): LaserWarning {
+  // candidates: rows + cols
+  const totalLines = width + height;
+  const pick = seed % totalLines;
+
+  if (pick < height) {
+    return { kind: 'row', index: pick };
+  }
+  return { kind: 'col', index: pick - height };
+}
+
+export function createState(levelId: LevelId, seed: number, extraEvents: EngineEvent[] = [], animTokenBase = 0, swapMs = SWAP_MS): EngineState {
   const level = getLevelDefinition(levelId);
   const built = buildInitialBoard(level, seed);
 
+  // Start with built cells and pieces
+  let cells = built.cells;
+  let pieces = built.pieces;
+  let nextPieceId = built.nextPieceId;
+  const rngState = built.rngState;
+
+  // ─────────────────────────────────────────────
+  // Level 03+: Place terminals as obstacles
+  // ─────────────────────────────────────────────
+  if (level.terminalNodes && level.terminalNodes.length > 0) {
+    cells = cells.slice();
+    for (const node of level.terminalNodes) {
+      // Remove any piece that was randomly placed at terminal position
+      const existingPid = cells[node.index]?.pieceId;
+      if (existingPid !== null && existingPid !== undefined) {
+        pieces = { ...pieces };
+        delete pieces[existingPid];
+      }
+
+      cells[node.index] = {
+        blocked: false, // Terminal manages its own passability via obstacle state
+        pieceId: null,
+        obstacle: {
+          kind: 'terminal',
+          id: node.id,
+          state: 'locked',
+          charge: 0,
+          requiredCharge: node.requiredCharge,
+          chargeColor: node.chargeColor,
+        },
+      };
+    }
+  }
+
+  // ─────────────────────────────────────────────
+  // Level 03+: Place keycards as special pieces
+  // ─────────────────────────────────────────────
+  if (level.keycardNodes && level.keycardNodes.length > 0) {
+    // Ensure we have mutable copies
+    if (cells === built.cells) cells = cells.slice();
+    if (pieces === built.pieces) pieces = { ...pieces };
+
+    for (const node of level.keycardNodes) {
+      // Remove any existing piece at keycard position
+      const existingPid = cells[node.index]?.pieceId;
+      if (existingPid !== null && existingPid !== undefined) {
+        delete pieces[existingPid];
+      }
+
+      // Place keycard as a special piece
+      const keycardId = nextPieceId as PieceId;
+      nextPieceId++;
+
+      pieces[keycardId] = {
+        id: keycardId,
+        type: 'keycard',
+        cellIndex: node.index,
+      };
+
+      cells[node.index] = {
+        ...cells[node.index]!,
+        pieceId: keycardId,
+      };
+    }
+  }
+
+  // ─────────────────────────────────────────────
+  // Level 04+: Place objective terminals as obstacles
+  // ─────────────────────────────────────────────
+  if (level.objectiveTerminalNodes && level.objectiveTerminalNodes.length > 0) {
+    if (cells === built.cells) cells = cells.slice();
+    if (pieces === built.pieces) pieces = { ...pieces };
+
+    for (const node of level.objectiveTerminalNodes) {
+      // Remove any piece that was randomly placed at terminal position
+      const existingPid = cells[node.index]?.pieceId;
+      if (existingPid !== null && existingPid !== undefined) {
+        delete pieces[existingPid];
+      }
+
+      cells[node.index] = {
+        blocked: false, // Objective terminal occupies cell but isn't "blocked" in traditional sense
+        pieceId: null,
+        obstacle: {
+          kind: 'objectiveTerminal',
+          id: node.id,
+          state: 'inactive',
+          charge: 0,
+          requiredCharge: node.requiredCharge,
+        },
+      };
+    }
+  }
+
+  // ─────────────────────────────────────────────
+  // Level 05+: Place signal source nodes as obstacles
+  // ─────────────────────────────────────────────
+  if (level.signalSourceNodes && level.signalSourceNodes.length > 0) {
+    if (cells === built.cells) cells = cells.slice();
+    if (pieces === built.pieces) pieces = { ...pieces };
+
+    for (const node of level.signalSourceNodes) {
+      // Remove any piece that was randomly placed at source position
+      const existingPid = cells[node.index]?.pieceId;
+      if (existingPid !== null && existingPid !== undefined) {
+        delete pieces[existingPid];
+      }
+
+      cells[node.index] = {
+        blocked: true, // Signal source is immovable, blocks pieces
+        pieceId: null,
+        obstacle: {
+          kind: 'signalSource',
+          id: node.id,
+        },
+      };
+    }
+  }
+
+  // ─────────────────────────────────────────────
+  // Level 05+: Place signal target nodes as obstacles
+  // ─────────────────────────────────────────────
+  if (level.signalTargetNodes && level.signalTargetNodes.length > 0) {
+    if (cells === built.cells) cells = cells.slice();
+    if (pieces === built.pieces) pieces = { ...pieces };
+
+    for (const node of level.signalTargetNodes) {
+      // Remove any piece that was randomly placed at target position
+      const existingPid = cells[node.index]?.pieceId;
+      if (existingPid !== null && existingPid !== undefined) {
+        delete pieces[existingPid];
+      }
+
+      cells[node.index] = {
+        blocked: true, // Signal target is immovable, blocks pieces
+        pieceId: null,
+        obstacle: {
+          kind: 'signalTarget',
+          id: node.id,
+        },
+      };
+    }
+  }
+
+  // ─────────────────────────────────────────────
+  // Level 04+: Initialize laser warning (fair: shown before turn 0)
+  // ─────────────────────────────────────────────
+  const sweepEnabled = level.sweepEnabled ?? false;
+  let laserWarning: LaserWarning | null = null;
+  const initialEvents: EngineEvent[] = [];
+
+  if (sweepEnabled) {
+    laserWarning = selectInitialLaserWarning(seed, level.width, level.height);
+    initialEvents.push({ type: 'laserWarningSet', kind: laserWarning.kind, index: laserWarning.index });
+  }
+
+  // ─────────────────────────────────────────────
+  // Build initial state
+  // ─────────────────────────────────────────────
   const base: EngineState = {
     levelId,
     width: level.width,
     height: level.height,
 
     seed,
-    rngState: built.rngState,
+    rngState,
     allowedTypes: level.allowedTypes,
     movesTotal: level.moves,
     movesLeft: level.moves,
 
+    // Turn counter (0-based)
+    turnIndex: 0,
+
+    // Level 01: Firewall/Gate mechanics
     breachesTotal: level.firewallNodes.length,
     breachesRemaining: level.firewallNodes.length,
 
     gateOpen: false,
     gateIndices: level.gateIndices,
 
-    cells: built.cells,
-    pieces: built.pieces,
-    nextPieceId: built.nextPieceId,
+    // Level 02+: Leak mechanics
+    leaksTotal: level.leakNodes.length,
+    leaksSealed: 0,
+
+    // Level 02+: Balancing knobs
+    maxSealKitsOnBoard: level.maxSealKitsOnBoard ?? 0, // 0 = unlimited
+    contaminationLoseThreshold: level.contaminationLoseThreshold ?? null,
+    spreadEveryNTurns: level.spreadEveryNTurns ?? 1,
+
+    // Level 03+: Terminal/Keycard mechanics
+    terminalsTotal: level.terminalNodes?.length ?? 0,
+    terminalsVerified: 0,
+    keycardsTotal: level.keycardNodes?.length ?? 0,
+    keycardsDelivered: 0,
+
+    // Level 04+: Objective Terminal mechanics
+    objectiveTerminalsTotal: level.objectiveTerminalNodes?.length ?? 0,
+    objectiveTerminalsActivated: 0,
+
+    // Level 04+: Laser Sweep mechanics
+    sweepEnabled,
+    sweepContaminationCount: level.sweepContaminationCount ?? 4,
+    sweepFirewallCount: level.sweepFirewallCount ?? 2,
+    sweepEveryNTurns: level.sweepEveryNTurns ?? 1,
+    laserWarning,
+    lastSweptLines: [],
+
+    // Level 05+: Signal Network mechanics
+    signalSourcesTotal: level.signalSourceNodes?.length ?? 0,
+    signalTargetsTotal: level.signalTargetNodes?.length ?? 0,
+    signalLinked: false,
+    chargedCellCount: 0,
+
+    cells,
+    pieces,
+    nextPieceId,
 
     pendingSwap: null,
-
     selectedIndex: null,
 
     phase: 'init',
@@ -53,7 +258,7 @@ export function createState(
     anim: null,
     animToken: animTokenBase,
 
-    events: [mkSeededInit(levelId, level.width, level.height, seed), ...extraEvents],
+    events: [mkSeededInit(levelId, level.width, level.height, seed), ...initialEvents, ...extraEvents],
   };
 
   const stabilized = stabilizeBoard(base);
