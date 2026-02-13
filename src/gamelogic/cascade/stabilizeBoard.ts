@@ -5,7 +5,7 @@ import { detectMatches, hasAnyMoves } from '../match';
 import { setPhase } from '../phaseState';
 import { assertPhaseInvariants } from '../invariants';
 
-import type { StabilizeOpts } from './types';
+import type { StabilizeOpts } from './typesCascade';
 import { clearCellsAndPieces } from './clear';
 import { applyGravity } from './gravity';
 import { applyRefill } from './refill';

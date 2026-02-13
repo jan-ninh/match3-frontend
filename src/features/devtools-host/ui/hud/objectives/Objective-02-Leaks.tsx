@@ -1,5 +1,5 @@
 // src\features\devtools-host\ui\hud\objectives\Objective-02-Leaks.tsx
-import type { HudObjective } from '../../../lib/hud/types';
+import type { HudObjective } from '../../../lib/hud/typesHud';
 
 type ObjectiveLeaksLike = Extract<HudObjective, { kind: 'leaks' }>;
 

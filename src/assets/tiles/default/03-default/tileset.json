@@ -1,0 +1,54 @@
+{
+  "id": "01-default",
+
+  "basics": {
+    "b-01": "piece_01.png",
+    "b-02": "piece_02.png",
+    "b-03": "piece_03.png",
+    "b-04": "piece_04.png",
+    "b-05": "piece_05.png",
+    "b-06": "piece_06.png",
+    "b-07": "piece_07.png",
+    "b-08": "piece_08.png",
+    "b-09": "piece_09.png",
+    "b-10": "piece_10.png"
+  },
+
+  "palettes": {
+    "six-core": {
+      "01": "b-01",
+      "02": "b-02",
+      "03": "b-04",
+      "04": "b-05",
+      "05": "b-07",
+      "06": "b-09"
+    },
+    "eight-full": {
+      "red": "b-01",
+      "blue": "b-02",
+      "green": "b-03",
+      "purple": "b-05",
+      "orange": "b-06",
+      "cyan": "b-07",
+      "pink": "b-08",
+      "yellow": "b-09"
+    }
+  },
+
+  "defaultPalette": "six-core",
+
+  "levelPalettes": {
+    "1": "six-core"
+  },
+
+  "pieces": {
+    "red": "piece_01.png",
+    "blue": "piece_02.png",
+    "green": "piece_03.png",
+    "purple": "piece_04.png",
+    "orange": "piece_05.png",
+    "cyan": "piece_06.png",
+    "pink": "piece_07.png",
+    "yellow": "piece_08.png"
+  }
+}

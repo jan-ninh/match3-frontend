@@ -24,12 +24,16 @@ export default function Tile({ type, dragging, preview, locked, shaking, classNa
   // Keycard special rendering (Level 03)
   const isKeycard = type === 'keycard';
 
+  // PREMIUM: avoid transform scale on the tile (scale => resampling => blur).
+  // Use ring/glow instead for "lift" feedback.
+  const dragFx = dragging ? 'ring-1 ring-white/20 shadow-[0_10px_22px_rgba(0,0,0,0.55),0_0_28px_rgba(34,211,238,0.16)]' : '';
+
   const outerCls = [
     'w-full h-full rounded-xl',
     locked ? 'opacity-70' : '',
     // Selected-Look sitzt bewusst in <GridOverlaysLayer /> (HUD/Marker-Style).
     preview ? 'ring-2 ring-white/20' : '',
-    dragging ? 'scale-[1.03]' : '',
+    dragFx,
     shaking ? 'animate-[shakeX_180ms_ease-in-out_1]' : '',
     className ?? '',
   ]

@@ -1,6 +1,6 @@
 // src/features/devtools-host/lib/hud/selectors.ts
-import type { GameplayHudInput, HudModel, HudObjective } from './types';
-import { assertNever } from './types';
+import type { GameplayHudInput, HudModel, HudObjective } from './typesHud';
+import { assertNever } from './typesHud';
 import { formatMovesLeft } from './format';
 
 function buildObjective(input: GameplayHudInput): HudObjective {

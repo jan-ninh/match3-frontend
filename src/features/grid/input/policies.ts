@@ -1,5 +1,5 @@
 import { xyOf } from '@/gamelogic';
-import type { Axis, PressState } from './types';
+import type { Axis, PressState } from './typesInput';
 
 import { sign } from '../lib/math';
 import { LOCK_DOMINANCE, LOCK_THRESHOLD, RELOCK_DOMINANCE } from '../lib/constants';

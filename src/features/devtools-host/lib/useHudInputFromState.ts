@@ -1,7 +1,7 @@
 // src/features/devtools-host/lib/useHudInputFromState.ts
 import { useMemo } from 'react';
 import type { EngineState } from '@/gamelogic';
-import type { GameplayHudInput } from '@/features/devtools-host/lib/hud/types';
+import type { GameplayHudInput } from '@/features/devtools-host/lib/hud/typesHud';
 
 type TerminalHudState = {
   id: number;

@@ -1,6 +1,6 @@
 // src/gamelogic/cascade/effects/level04/sweepFirewallClear.ts
 import type { EngineState } from '../../../types';
-import type { CascadeEffect } from '../effectTypes';
+import type { CascadeEffect } from '../typesEffects';
 import { getOrthogonalNeighbors } from '../../../board';
 import { uniqSorted } from '../selection';
 

@@ -1,5 +1,5 @@
 // src/features/devtools-host/ui/hud/widgets/TerminalStatesList.tsx
-import type { HudTerminalState } from '../../../lib/hud/types';
+import type { HudTerminalState } from '../../../lib/hud/typesHud';
 
 type Props = {
   terminals: readonly HudTerminalState[];

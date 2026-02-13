@@ -1,4 +1,4 @@
-import type { HudModel } from '../../../lib/hud/types';
+import type { HudModel } from '../../../lib/hud/typesHud';
 import { ObjectivePanel } from '../objectives/ObjectivePanel';
 import { LaserWarningBadge } from '../widgets/LaserWarningBadge';
 

@@ -2,7 +2,7 @@
 import { HudBar } from './hud/HudBar';
 import { useGameplayHudActions } from '../lib/hud/useGameplayHudActions';
 import { useGameplayHudModel } from '../lib/hud/useGameplayHudModel';
-import type { GameplayHudInput } from '../lib/hud/types';
+import type { GameplayHudInput } from '../lib/hud/typesHud';
 
 export type GameplayHudProps = GameplayHudInput;
 

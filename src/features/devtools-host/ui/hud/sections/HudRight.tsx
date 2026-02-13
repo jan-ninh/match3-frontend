@@ -1,4 +1,4 @@
-import type { HudModel } from '../../../lib/hud/types';
+import type { HudModel } from '../../../lib/hud/typesHud';
 import { MovesWidget } from '../widgets/MovesWidget';
 import { OutcomeBadge } from '../widgets/OutcomeBadge';
 

@@ -1,4 +1,4 @@
-import type { HudModel } from '../../../lib/hud/types';
+import type { HudModel } from '../../../lib/hud/typesHud';
 import { LevelMetaWidget } from '../widgets/LevelMetaWidget';
 
 type Props = {

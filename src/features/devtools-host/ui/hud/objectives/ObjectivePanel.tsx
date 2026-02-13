@@ -1,5 +1,5 @@
 // src/features/devtools-host/ui/hud/objectives/ObjectivePanel.tsx
-import type { HudObjective } from '../../../lib/hud/types';
+import type { HudObjective } from '../../../lib/hud/typesHud';
 import { ObjectiveNodes } from './Objective-01-Nodes';
 import { ObjectiveLeaks } from './Objective-02-Leaks';
 import { ObjectiveTerminals } from './Objective-03-Terminals';

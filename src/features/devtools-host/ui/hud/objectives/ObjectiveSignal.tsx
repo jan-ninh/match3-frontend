@@ -1,5 +1,5 @@
 // src/features/devtools-host/ui/hud/objectives/ObjectiveSignal.tsx
-import type { HudObjective } from '../../../lib/hud/types';
+import type { HudObjective } from '../../../lib/hud/typesHud';
 
 type HudObjectiveSignal = Extract<HudObjective, { kind: 'signal' }>;
 

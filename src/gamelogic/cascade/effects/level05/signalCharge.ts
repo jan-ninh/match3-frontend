@@ -9,7 +9,7 @@
  * - preClear: collect indices to charge into ctx.signalChargedIds
  * - postClear: actually mark cells as chargedCell obstacles (floor overlay)
  */
-import type { CascadeEffect, PreClearArgs, PostStageArgs, StageResult } from '../effectTypes';
+import type { CascadeEffect, PreClearArgs, PostStageArgs, StageResult } from '../typesEffects';
 import type { Cell } from '../../../types';
 
 /**

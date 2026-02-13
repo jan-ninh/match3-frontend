@@ -2,7 +2,7 @@ import type { Dispatch, SetStateAction } from 'react';
 
 import type { Cell, Piece, PieceId } from '@/gamelogic';
 
-import type { InputIntent, PressState } from './types';
+import type { InputIntent, PressState } from './typesInput';
 
 import { cellPixelXY, clamp, sign } from '../lib/math';
 import { DRAG_THRESHOLD, PREVIEW_LOCK_RATIO, PREVIEW_RELEASE_RATIO, SMOOTHING, tileDist } from '../lib/constants';
