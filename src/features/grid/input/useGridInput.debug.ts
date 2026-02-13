@@ -1,6 +1,6 @@
 import type { MutableRefObject } from 'react';
 import type { DebugSnapshot } from '@/devtools';
-import type { PressState } from './types';
+import type { PressState } from './types-input';
 
 export function makeInitialDebugSnapshot(): DebugSnapshot {
   return {

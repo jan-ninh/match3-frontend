@@ -1,5 +1,5 @@
 // src/features/devtools-host/ui/hud/objectives/Objective-01-Spikes.tsx
-import type { HudObjective } from '../../../lib/hud/types';
+import type { HudObjective } from '../../../lib/hud/types-hud';
 
 type ObjectiveNodesLike = Extract<HudObjective, { kind: 'spikes' | 'nodes' }>;
 

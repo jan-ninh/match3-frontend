@@ -1,5 +1,5 @@
 // src/features/devtools-host/ui/hud/objectives/ObjectiveActivatedTerminals.tsx
-import type { HudObjective, HudObjectiveTerminalState } from '../../../lib/hud/types';
+import type { HudObjective, HudObjectiveTerminalState } from '../../../lib/hud/types-hud';
 
 type ObjectiveActivatedTerminalsLike = Extract<HudObjective, { kind: 'objectiveTerminals' }>;
 

@@ -1,7 +1,7 @@
 // src/gamelogic/board/build/buildInitialBoard.ts
 import type { LevelDefinition, Piece, PieceId } from '../../types';
 import { initRngState } from '../../rng';
-import type { BuildBoardResult } from './types';
+import type { BuildBoardResult } from './types-build';
 import { initCellsFromLevel } from './initCellsFromLevel';
 import { pickSpawnType } from './spawnPicker';
 

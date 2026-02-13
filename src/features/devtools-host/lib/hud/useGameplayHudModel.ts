@@ -1,6 +1,6 @@
 // src/features/devtools-host/lib/hud/useGameplayHudModel.ts
 import { useMemo } from 'react';
-import type { GameplayHudInput, HudModel } from './types';
+import type { GameplayHudInput, HudModel } from './types-hud';
 import { toHudModel } from './selectors';
 
 export function useGameplayHudModel(input: GameplayHudInput): HudModel {

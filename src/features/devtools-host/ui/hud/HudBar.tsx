@@ -1,4 +1,4 @@
-import type { HudActions, HudModel } from '../../lib/hud/types';
+import type { HudActions, HudModel } from '../../lib/hud/types-hud';
 import { HudLeft } from './sections/HudLeft';
 import { HudCenter } from './sections/HudCenter';
 import { HudRight } from './sections/HudRight';

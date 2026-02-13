@@ -1,5 +1,5 @@
 import type { Cell, PieceId } from '@/gamelogic';
-import type { Axis, PressState } from './types';
+import type { Axis, PressState } from './types-input';
 
 export type PreviewUiSetters = {
   setPreviewActive: (v: boolean) => void;
@@ -15,14 +15,7 @@ export function clearPreviewVisuals(ui: PreviewUiSetters): void {
   ui.setPreviewDirUI(0);
 }
 
-export function latchPreview(
-  p: PressState,
-  axis: Axis,
-  dir: -1 | 0 | 1,
-  toIndex: number,
-  cells: Cell[],
-  ui: PreviewUiSetters,
-): void {
+export function latchPreview(p: PressState, axis: Axis, dir: -1 | 0 | 1, toIndex: number, cells: Cell[], ui: PreviewUiSetters): void {
   if (dir === 0) return;
 
   const otherPid = cells[toIndex]?.pieceId ?? null;

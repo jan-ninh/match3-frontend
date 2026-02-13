@@ -1,5 +1,5 @@
 // src/gamelogic/cascade.ts
-export type { ResolveOnceResult } from './cascade/types';
+export type { ResolveOnceResult } from './cascade/types-cascade';
 export { resolveOnce } from './cascade/resolveOnce';
 export { shuffleUntilValid } from './cascade/shuffleUntilValid';
 export { stabilizeBoard } from './cascade/stabilizeBoard';

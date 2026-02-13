@@ -1,6 +1,6 @@
 // src/gamelogic/cascade/resolveOnce.ts
 import type { EngineEvent, EngineState } from '../types';
-import type { ResolveOnceResult } from './types';
+import type { ResolveOnceResult } from './types-cascade';
 
 import { detect } from './detect';
 import { clearCellsAndPieces } from './clear';
