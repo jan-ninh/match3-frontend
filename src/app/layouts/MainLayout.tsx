@@ -1,3 +1,4 @@
+// src/app/layouts/MainLayout.tsx
 import { Outlet } from 'react-router';
 import stageBg from '@/assets/bg/match3-bg-04-techbay.png';
 
@@ -13,7 +14,7 @@ export default function MainLayout() {
         {/* GAME VIEWPORT (720x960) */}
         <div
           id="app-stage"
-          className="w-180 min-h-240 text-white relative overflow-hidden"
+          className="match3-viewport w-180 min-h-240 text-white relative overflow-hidden"
           style={{
             backgroundImage: `url(${stageBg})`,
             backgroundSize: 'cover',

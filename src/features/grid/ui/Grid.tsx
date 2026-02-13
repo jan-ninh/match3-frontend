@@ -1,3 +1,4 @@
+// src/features/grid/ui/Grid.tsx
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
@@ -47,6 +48,10 @@ type Props = {
 };
 
 type CssVars = CSSProperties & { '--boardDim'?: number };
+
+function clampInt(n: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, n));
+}
 
 export default function Grid({
   state,
@@ -198,7 +203,6 @@ export default function Grid({
     ];
   }, [onDevPrevLevel, onDevNextLevel, onDevResetBoard, onDevNextTilesPalette, inputLocked]);
 
-  const lockoutCursor = inputLocked && showLockoutHints ? 'cursor-not-allowed' : '';
   const showDebugLabels = isDev && debugEnabled;
 
   const shellStyle: CssVars = {
@@ -287,6 +291,7 @@ export default function Grid({
       const x = clientX - rect.left;
       const y = clientY - rect.top;
 
+      // Outside board => clear
       if (x < 0 || y < 0 || x >= rect.width || y >= rect.height) {
         if (lastHoverRef.current !== null) {
           lastHoverRef.current = null;
@@ -295,31 +300,50 @@ export default function Grid({
         return;
       }
 
+      // IMPORTANT:
+      // We intentionally DO NOT "drop" hover in GAP areas.
+      // Instead we map any point within the board rect to the nearest cell.
       const step = TILE_SIZE + GAP;
 
-      const col = Math.floor(x / step);
-      const row = Math.floor(y / step);
+      const baseCol = clampInt(Math.floor(x / step), 0, width - 1);
+      const baseRow = clampInt(Math.floor(y / step), 0, height - 1);
 
-      if (col < 0 || col >= width || row < 0 || row >= height) {
-        if (lastHoverRef.current !== null) {
-          lastHoverRef.current = null;
-          setBombHoverIndex(null);
+      const inStepX = x - baseCol * step;
+      const inStepY = y - baseRow * step;
+
+      const colCandidates: number[] = [baseCol];
+      const rowCandidates: number[] = [baseRow];
+
+      if (inStepX > TILE_SIZE) colCandidates.push(baseCol + 1);
+      if (inStepY > TILE_SIZE) rowCandidates.push(baseRow + 1);
+
+      // Evaluate nearest by distance to cell center (stable for corners too)
+      let bestCol = baseCol;
+      let bestRow = baseRow;
+      let bestD2 = Number.POSITIVE_INFINITY;
+
+      for (const c0 of colCandidates) {
+        const c = clampInt(c0, 0, width - 1);
+        for (const r0 of rowCandidates) {
+          const r = clampInt(r0, 0, height - 1);
+
+          const cx = c * step + TILE_SIZE * 0.5;
+          const cy = r * step + TILE_SIZE * 0.5;
+
+          const dx = x - cx;
+          const dy = y - cy;
+
+          const d2 = dx * dx + dy * dy;
+          if (d2 < bestD2) {
+            bestD2 = d2;
+            bestCol = c;
+            bestRow = r;
+          }
         }
-        return;
       }
 
-      // ignore pointer when it sits in the GAP area
-      const inCellX = x - col * step;
-      const inCellY = y - row * step;
-      if (inCellX > TILE_SIZE || inCellY > TILE_SIZE) {
-        if (lastHoverRef.current !== null) {
-          lastHoverRef.current = null;
-          setBombHoverIndex(null);
-        }
-        return;
-      }
+      const idx = bestRow * width + bestCol;
 
-      const idx = row * width + col;
       if (lastHoverRef.current !== idx) {
         lastHoverRef.current = idx;
         setBombHoverIndex(idx);
@@ -371,7 +395,8 @@ export default function Grid({
     onCellPointerDown(index, e);
   };
 
-  const cursorClass = bombArmed ? 'cursor-crosshair' : lockoutCursor;
+  // Cursor SSOT (board-level, stable across tiles + gaps)
+  const cursorClass = bombArmed ? 'cursor-crosshair' : inputLocked && showLockoutHints ? 'cursor-not-allowed' : 'cursor-pointer';
 
   return (
     <>

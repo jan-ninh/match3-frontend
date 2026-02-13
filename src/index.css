@@ -7,6 +7,12 @@ body {
   margin: 0;
 }
 
+/* Cursor SSOT: always crosshair inside the game viewport (720×960 area) */
+.match3-viewport,
+.match3-viewport * {
+  cursor: crosshair !important;
+}
+
 @keyframes shakeX {
   0% {
     transform: translateX(0);
