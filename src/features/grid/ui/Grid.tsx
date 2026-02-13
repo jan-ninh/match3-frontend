@@ -18,6 +18,7 @@ import { boardInnerSizePx, cellPixelXY } from '../lib/math';
 import { useGridInput } from '../input/useGridInput';
 
 type PowerArmDetail = { key: 'bomb'; armed: boolean };
+type BombTarget = { x: number; y: number };
 
 type Props = {
   state: EngineState;
@@ -33,7 +34,7 @@ type Props = {
   canSwapAt: (from: number, to: number) => boolean;
 
   // Grid emits only intents. Parent decides what to do with them.
-  onIntent: (intent: { type: 'click'; index: number } | { type: 'swap'; from: number; to: number } | { type: 'useBombAt'; index: number }) => void;
+  onIntent: (intent: { type: 'click'; index: number } | { type: 'swap'; from: number; to: number } | { type: 'useBombAt'; target: BombTarget }) => void;
   swapMs: number;
 
   // runtime debug toggle (press D)
@@ -53,6 +54,23 @@ function clampInt(n: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, n));
 }
 
+function computeBombOverlayIndices(target: BombTarget, width: number, height: number): number[] {
+  const cx = target.x | 0;
+  const cy = target.y | 0;
+
+  const out: number[] = [];
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      const x = cx + dx;
+      const y = cy + dy;
+      if (x < 0 || x >= width) continue;
+      if (y < 0 || y >= height) continue;
+      out.push(y * width + x);
+    }
+  }
+  return out;
+}
+
 export default function Grid({
   state,
   inputLocked,
@@ -70,10 +88,21 @@ export default function Grid({
   const { width, height, cells, selectedIndex } = state;
 
   const [bombArmed, setBombArmed] = useState(false);
-  const [bombHoverIndex, setBombHoverIndex] = useState<number | null>(null);
+  const [bombHoverTarget, _setBombHoverTarget] = useState<BombTarget | null>(null);
+
+  const bombHoverTargetRef = useRef<BombTarget | null>(null);
+  const setBombHoverTarget = useCallback((t: BombTarget | null) => {
+    bombHoverTargetRef.current = t;
+    _setBombHoverTarget(t);
+  }, []);
 
   const boardRef = useRef<HTMLDivElement | null>(null);
-  const lastHoverRef = useRef<number | null>(null);
+  const lastHoverRef = useRef<string | null>(null);
+
+  const clearBombHover = useCallback(() => {
+    lastHoverRef.current = null;
+    setBombHoverTarget(null);
+  }, [setBombHoverTarget]);
 
   // Listen to global power arm/disarm (GameFooter drives this)
   useEffect(() => {
@@ -86,15 +115,13 @@ export default function Grid({
 
       const armed = !!d.armed;
       setBombArmed(armed);
-      if (!armed) {
-        lastHoverRef.current = null;
-        setBombHoverIndex(null);
-      }
+
+      if (!armed) clearBombHover();
     };
 
     window.addEventListener('match3:powerArm', onArm as EventListener);
     return () => window.removeEventListener('match3:powerArm', onArm as EventListener);
-  }, []);
+  }, [clearBombHover]);
 
   const effectiveInputLocked = inputLocked || bombArmed;
 
@@ -261,26 +288,30 @@ export default function Grid({
 
   // ─────────────────────────────────────────────
   // Bomb targeting (3×3): hover → overlay indices
+  // Supports off-grid center by 1 cell: x/y ∈ [-1..w]×[-1..h]
   // ─────────────────────────────────────────────
   const bombOverlayIndices = useMemo(() => {
     if (!bombArmed) return [];
-    if (bombHoverIndex === null) return [];
+    if (!bombHoverTarget) return [];
+    return computeBombOverlayIndices(bombHoverTarget, width, height);
+  }, [bombArmed, bombHoverTarget, width, height]);
 
-    const cx = bombHoverIndex % width;
-    const cy = Math.floor(bombHoverIndex / width);
+  const confirmBombAt = useCallback(
+    (target: BombTarget) => {
+      if (inputLocked) return;
 
-    const out: number[] = [];
-    for (let dy = -1; dy <= 1; dy++) {
-      for (let dx = -1; dx <= 1; dx++) {
-        const x = cx + dx;
-        const y = cy + dy;
-        if (x < 0 || x >= width) continue;
-        if (y < 0 || y >= height) continue;
-        out.push(y * width + x);
+      const indices = computeBombOverlayIndices(target, width, height);
+      if (indices.length === 0) return;
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('match3:powerUseAt', { detail: { key: 'bomb', target } }));
+        window.dispatchEvent(new CustomEvent<PowerArmDetail>('match3:powerArm', { detail: { key: 'bomb', armed: false } }));
       }
-    }
-    return out;
-  }, [bombArmed, bombHoverIndex, width, height]);
+
+      clearBombHover();
+    },
+    [inputLocked, width, height, clearBombHover],
+  );
 
   const updateBombHoverFromClient = useCallback(
     (clientX: number, clientY: number) => {
@@ -291,49 +322,31 @@ export default function Grid({
       const x = clientX - rect.left;
       const y = clientY - rect.top;
 
-      // Outside board => clear
-      if (x < 0 || y < 0 || x >= rect.width || y >= rect.height) {
-        if (lastHoverRef.current !== null) {
-          lastHoverRef.current = null;
-          setBombHoverIndex(null);
-        }
-        return;
-      }
-
-      // IMPORTANT:
-      // We intentionally DO NOT "drop" hover in GAP areas.
-      // Instead we map any point within the board rect to the nearest cell.
       const step = TILE_SIZE + GAP;
 
-      const baseCol = clampInt(Math.floor(x / step), 0, width - 1);
-      const baseRow = clampInt(Math.floor(y / step), 0, height - 1);
+      // nearest center among a small candidate neighborhood (incl. off-grid -1/+1)
+      const baseCol = Math.floor(x / step);
+      const baseRow = Math.floor(y / step);
 
-      const inStepX = x - baseCol * step;
-      const inStepY = y - baseRow * step;
+      const colCandidates = [baseCol - 1, baseCol, baseCol + 1, baseCol + 2];
+      const rowCandidates = [baseRow - 1, baseRow, baseRow + 1, baseRow + 2];
 
-      const colCandidates: number[] = [baseCol];
-      const rowCandidates: number[] = [baseRow];
-
-      if (inStepX > TILE_SIZE) colCandidates.push(baseCol + 1);
-      if (inStepY > TILE_SIZE) rowCandidates.push(baseRow + 1);
-
-      // Evaluate nearest by distance to cell center (stable for corners too)
-      let bestCol = baseCol;
-      let bestRow = baseRow;
+      let bestCol = 0;
+      let bestRow = 0;
       let bestD2 = Number.POSITIVE_INFINITY;
 
-      for (const c0 of colCandidates) {
-        const c = clampInt(c0, 0, width - 1);
-        for (const r0 of rowCandidates) {
-          const r = clampInt(r0, 0, height - 1);
+      for (const c of colCandidates) {
+        if (c < -1 || c > width) continue;
+        const cx = c * step + TILE_SIZE * 0.5;
 
-          const cx = c * step + TILE_SIZE * 0.5;
+        for (const r of rowCandidates) {
+          if (r < -1 || r > height) continue;
           const cy = r * step + TILE_SIZE * 0.5;
 
           const dx = x - cx;
           const dy = y - cy;
-
           const d2 = dx * dx + dy * dy;
+
           if (d2 < bestD2) {
             bestD2 = d2;
             bestCol = c;
@@ -342,15 +355,83 @@ export default function Grid({
         }
       }
 
-      const idx = bestRow * width + bestCol;
+      // "near enough" gate: prevents selecting a target when you're far away in the HUD
+      const radius = Math.max(12, step * 0.8);
+      if (bestD2 > radius * radius) {
+        if (lastHoverRef.current !== null) clearBombHover();
+        return;
+      }
 
-      if (lastHoverRef.current !== idx) {
-        lastHoverRef.current = idx;
-        setBombHoverIndex(idx);
+      const key = `${bestCol},${bestRow}`;
+      if (lastHoverRef.current !== key) {
+        lastHoverRef.current = key;
+        setBombHoverTarget({ x: bestCol, y: bestRow });
       }
     },
-    [width, height],
+    [width, height, clearBombHover, setBombHoverTarget],
   );
+
+  // ─────────────────────────────────────────────
+  // Viewport-level Bomb Targeting (HUD + outside-board)
+  // - pointermove: updates hover as long as pointer is inside #app-stage
+  // - pointerdown (capture): confirms bomb anywhere in viewport (blocks HUD clicks while armed)
+  // - toggles viewport crosshair class while armed
+  // ─────────────────────────────────────────────
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+
+    const stageEl = document.getElementById('app-stage');
+    if (!stageEl) return;
+
+    if (bombArmed) stageEl.classList.add('match3-cursor-crosshair');
+    else stageEl.classList.remove('match3-cursor-crosshair');
+
+    if (!bombArmed) return;
+
+    const isInsideStage = (clientX: number, clientY: number) => {
+      const r = stageEl.getBoundingClientRect();
+      return clientX >= r.left && clientX <= r.right && clientY >= r.top && clientY <= r.bottom;
+    };
+
+    const onMove = (e: PointerEvent) => {
+      if (!isInsideStage(e.clientX, e.clientY)) {
+        clearBombHover();
+        return;
+      }
+      updateBombHoverFromClient(e.clientX, e.clientY);
+    };
+
+    const onLeave = () => {
+      clearBombHover();
+    };
+
+    const onDown = (e: PointerEvent) => {
+      if (e.button !== 0) return;
+      if (!isInsideStage(e.clientX, e.clientY)) return;
+
+      // Bomb mode should "own" the click (prevent HUD interactions)
+      e.preventDefault();
+      e.stopPropagation();
+
+      updateBombHoverFromClient(e.clientX, e.clientY);
+
+      const t = bombHoverTargetRef.current;
+      if (!t) return;
+
+      confirmBombAt(t);
+    };
+
+    stageEl.addEventListener('pointermove', onMove);
+    stageEl.addEventListener('pointerleave', onLeave);
+    stageEl.addEventListener('pointerdown', onDown, { capture: true });
+
+    return () => {
+      stageEl.removeEventListener('pointermove', onMove);
+      stageEl.removeEventListener('pointerleave', onLeave);
+      stageEl.removeEventListener('pointerdown', onDown, true);
+      stageEl.classList.remove('match3-cursor-crosshair');
+    };
+  }, [bombArmed, clearBombHover, updateBombHoverFromClient, confirmBombAt]);
 
   const onPointerMoveShell = (e: React.PointerEvent<HTMLDivElement>) => {
     if (bombArmed) {
@@ -372,8 +453,7 @@ export default function Grid({
 
   const onPointerLeaveShell = () => {
     if (!bombArmed) return;
-    lastHoverRef.current = null;
-    setBombHoverIndex(null);
+    clearBombHover();
   };
 
   const onCellPointerDownShell = (index: number, e: React.PointerEvent<HTMLButtonElement>) => {
@@ -381,22 +461,18 @@ export default function Grid({
       if (e.button !== 0) return;
       if (inputLocked) return;
 
-      // confirm -> trigger global power use, then disarm immediately (UI feedback)
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('match3:powerUseAt', { detail: { key: 'bomb', index } }));
-        window.dispatchEvent(new CustomEvent<PowerArmDetail>('match3:powerArm', { detail: { key: 'bomb', armed: false } }));
-      }
+      const x = index % width;
+      const y = Math.floor(index / width);
 
-      lastHoverRef.current = null;
-      setBombHoverIndex(null);
+      confirmBombAt({ x, y });
       return;
     }
 
     onCellPointerDown(index, e);
   };
 
-  // Cursor SSOT (board-level, stable across tiles + gaps)
-  const cursorClass = bombArmed ? 'cursor-crosshair' : inputLocked && showLockoutHints ? 'cursor-not-allowed' : 'cursor-pointer';
+  // Cursor (board-level): normal unless lockout hints say otherwise
+  const cursorClass = inputLocked && showLockoutHints ? 'cursor-not-allowed' : 'cursor-default';
 
   return (
     <>

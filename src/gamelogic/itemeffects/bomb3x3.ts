@@ -4,15 +4,26 @@ import { clearCellsAndPieces } from '../cascade/clear';
 import { applyGravity } from '../cascade/gravity';
 import { applyRefill } from '../cascade/refill';
 
+export type BombTarget = { x: number; y: number };
+
 export type Bomb3x3Result = {
   state: EngineState;
   events: EngineEvent[];
   clearedIndices: number[];
 };
 
-export function getBomb3x3Indices(centerIndex: number, width: number, height: number): number[] {
-  const cx = centerIndex % width;
-  const cy = Math.floor(centerIndex / width);
+/**
+ * Returns the affected board indices for a 3×3 blast centered on `center`.
+ *
+ * IMPORTANT:
+ * - center is allowed to be *off-grid* by 1 cell: x/y ∈ [-1..w]×[-1..h]
+ * - result is clipped to valid board indices
+ *
+ * This enables "edge precision", e.g. center at (1,-1) hits only the top row (0,0)(1,0)(2,0).
+ */
+export function getBomb3x3IndicesFromTarget(center: BombTarget, width: number, height: number): number[] {
+  const cx = center.x | 0;
+  const cy = center.y | 0;
 
   const out = new Set<number>();
 
@@ -20,8 +31,10 @@ export function getBomb3x3Indices(centerIndex: number, width: number, height: nu
     for (let dx = -1; dx <= 1; dx++) {
       const x = cx + dx;
       const y = cy + dy;
+
       if (x < 0 || x >= width) continue;
       if (y < 0 || y >= height) continue;
+
       out.add(y * width + x);
     }
   }
@@ -46,8 +59,10 @@ function countClearablePieces(state: EngineState, indices: number[]): number {
   return count;
 }
 
-export function applyBomb3x3(state: EngineState, centerIndex: number): Bomb3x3Result {
-  const indices = getBomb3x3Indices(centerIndex, state.width, state.height);
+export function applyBomb3x3(state: EngineState, center: BombTarget): Bomb3x3Result {
+  const indices = getBomb3x3IndicesFromTarget(center, state.width, state.height);
+
+  if (indices.length === 0) return { state, events: [], clearedIndices: [] };
 
   const clearedCount = countClearablePieces(state, indices);
 

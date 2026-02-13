@@ -9,7 +9,7 @@ type Args = {
 };
 
 export type PowerArmDetail = { key: 'bomb'; armed: boolean };
-type PowerUseAtDetail = { key: 'bomb'; index: number };
+type PowerUseAtDetail = { key: 'bomb'; target: { x: number; y: number } };
 
 export function useMatch3Engine({ initialLevelId = 1 }: Args) {
   const isDev = import.meta.env.DEV;
@@ -96,9 +96,11 @@ export function useMatch3Engine({ initialLevelId = 1 }: Args) {
       const ce = e as CustomEvent<PowerUseAtDetail>;
       const d = ce.detail;
       if (!d || d.key !== 'bomb') return;
-      if (typeof d.index !== 'number') return;
 
-      dispatch({ type: 'useBombAt', index: d.index, nowMs: performance.now() } as EngineAction);
+      const t = d.target;
+      if (!t || typeof t.x !== 'number' || typeof t.y !== 'number') return;
+
+      dispatch({ type: 'useBombAt', target: { x: t.x, y: t.y }, nowMs: performance.now() } as EngineAction);
     };
 
     window.addEventListener('match3:powerUseAt', onUseAt as EventListener);
@@ -164,7 +166,7 @@ export function useMatch3Engine({ initialLevelId = 1 }: Args) {
 
   const onIntent = useCallback(
     (intent: unknown) => {
-      const i = intent as unknown as { type?: unknown; index?: unknown; from?: unknown; to?: unknown };
+      const i = intent as unknown as { type?: unknown; index?: unknown; from?: unknown; to?: unknown; target?: unknown };
 
       if (i?.type === 'click' && typeof i.index === 'number') {
         dispatch({ type: 'clickCell', index: i.index, nowMs: performance.now() } as EngineAction);
@@ -177,9 +179,12 @@ export function useMatch3Engine({ initialLevelId = 1 }: Args) {
       }
 
       // optional direct route (in case you later emit it via onIntent)
-      if (i?.type === 'useBombAt' && typeof i.index === 'number') {
-        dispatch({ type: 'useBombAt', index: i.index, nowMs: performance.now() } as EngineAction);
-        return;
+      if (i?.type === 'useBombAt') {
+        const t = i.target as { x?: unknown; y?: unknown } | undefined;
+        if (t && typeof t.x === 'number' && typeof t.y === 'number') {
+          dispatch({ type: 'useBombAt', target: { x: t.x, y: t.y }, nowMs: performance.now() } as EngineAction);
+          return;
+        }
       }
 
       dispatch(intent as EngineAction);

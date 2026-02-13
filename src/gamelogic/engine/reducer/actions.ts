@@ -6,7 +6,7 @@ export type ResetBoardAction = { type: 'resetBoard'; nowMs?: number };
 export type SwapAttemptAction = { type: 'swapAttempt'; from: number; to: number; nowMs?: number };
 
 // Power: bomb (3x3 clear) targeting confirm
-export type UseBombAtAction = { type: 'useBombAt'; index: number; nowMs?: number };
+export type UseBombAtAction = { type: 'useBombAt'; target: { x: number; y: number }; nowMs?: number };
 
 // animation timing (single source of truth; UI may update via setSwapMs)
 export type SetSwapMsAction = { type: 'setSwapMs'; swapMs: number; nowMs?: number };

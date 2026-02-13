@@ -7,9 +7,9 @@ body {
   margin: 0;
 }
 
-/* Cursor SSOT: always crosshair inside the game viewport (720×960 area) */
-.match3-viewport,
-.match3-viewport * {
+/* Cursor SSOT: only crosshair while bomb targeting is armed */
+.match3-viewport.match3-cursor-crosshair,
+.match3-viewport.match3-cursor-crosshair * {
   cursor: crosshair !important;
 }
 
