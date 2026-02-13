@@ -75,8 +75,8 @@ const DEFAULT_TILESET_ID = '01-default' as const;
  */
 const LEVEL_TILESET_FOLDER_BY_LEVEL: Record<LevelId, string> = {
   1: '01-default',
-  2: '01-default',
-  3: '01-default',
+  2: '02-default',
+  3: '03-default',
   4: '01-default',
   5: '01-default',
   6: '01-default',

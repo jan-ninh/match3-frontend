@@ -1,12 +1,16 @@
 // src/features/devtools-host/ui/GameContainer.tsx
 import type { RefObject } from 'react';
+import { useCallback, useEffect, useReducer } from 'react';
 
 import type { EngineState } from '@/gamelogic';
 
 import { Grid } from '@/features/grid';
 
 import { useHudInputFromState } from '@/features/devtools-host/lib/useHudInputFromState';
-import { useTilesetSync } from '@/features/devtools-host/lib/useTilesetSync';
+
+// 🔥 tiles are module-level state -> must force rerender when they change
+import { preloadTiles, setTilesetLevel } from '@/features/grid/ui/tiles';
+import { preloadSpecialTiles, setSpecialTilesetLevel } from '@/features/grid/ui/tiles-special';
 
 import { GameStage } from './GameStage';
 import GameplayHud from './GameplayHud';
@@ -54,8 +58,29 @@ export default function GameContainer({
   onDevNextTilesPalette,
   gridRowRef,
 }: Props) {
-  // Sync tileset to current level
-  useTilesetSync(state.levelId);
+  // Bump component render when tileset/palette changes (tiles live outside React state)
+  const [, bumpTilesRender] = useReducer((n: number) => (n + 1) % 1_000_000_000, 0);
+
+  // Sync tilesets to current level AND force rerender so sprites switch immediately
+  useEffect(() => {
+    setTilesetLevel(state.levelId);
+    setSpecialTilesetLevel(state.levelId);
+
+    // Preload the currently active sheets (nice-to-have, but helps avoid “late” swap feel)
+    preloadTiles();
+    preloadSpecialTiles();
+
+    bumpTilesRender();
+  }, [state.levelId]);
+
+  const handleDevNextTilesPalette = useCallback(() => {
+    onDevNextTilesPalette?.();
+
+    // palette change also updates module globals -> force rerender now
+    preloadTiles();
+    preloadSpecialTiles();
+    bumpTilesRender();
+  }, [onDevNextTilesPalette]);
 
   // Derive HUD input from engine state
   const hudInput = useHudInputFromState(state);
@@ -72,7 +97,7 @@ export default function GameContainer({
       onDevResetBoard={onDevResetBoard}
       onDevPrevLevel={onDevPrevLevel}
       onDevNextLevel={onDevNextLevel}
-      onDevNextTilesPalette={onDevNextTilesPalette}
+      onDevNextTilesPalette={handleDevNextTilesPalette}
       swapMs={state.swapMs}
     />
   );

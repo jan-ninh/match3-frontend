@@ -1,3 +1,4 @@
+// src/features/grid/lib/useRafDragTransform.ts
 import { useCallback, useEffect, useRef } from 'react';
 
 type Args = {
@@ -41,10 +42,13 @@ export function useRafDragTransform({ swapMs, easing, getShouldContinue }: Args)
     const dx = dragDxRef.current;
     const dy = dragDyRef.current;
 
-    el.style.transform = `translate(${base.x + dx}px, ${base.y + dy}px)`;
+    // PREMIUM: snap to whole pixels during drag to avoid blur from subpixel transforms
+    const tx = Math.round(base.x + dx);
+    const ty = Math.round(base.y + dy);
+
+    el.style.transform = `translate3d(${tx}px, ${ty}px, 0)`;
 
     if (getShouldContinue()) {
-      // call the latest loop function (no self-reference issue)
       rafIdRef.current = window.requestAnimationFrame(() => loopRef.current?.());
     } else {
       rafRunningRef.current = false;
@@ -70,8 +74,11 @@ export function useRafDragTransform({ swapMs, easing, getShouldContinue }: Args)
     const base = dragBasePxRef.current;
     if (!el || !base) return;
 
+    const tx = Math.round(base.x);
+    const ty = Math.round(base.y);
+
     el.style.transition = `transform ${swapMs}ms ${easing}`;
-    el.style.transform = `translate(${base.x}px, ${base.y}px)`;
+    el.style.transform = `translate3d(${tx}px, ${ty}px, 0)`;
   }, [swapMs, easing]);
 
   const clearDragRefs = useCallback(() => {
