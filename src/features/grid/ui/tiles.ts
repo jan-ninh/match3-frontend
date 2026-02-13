@@ -59,17 +59,34 @@ type LoadedTileset = {
   sheetUrl: string;
 };
 
-function envStr(v: unknown): string | null {
-  if (typeof v !== 'string') return null;
-  const s = v.trim();
-  return s.length ? s : null;
-}
+type LevelId = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
 
-function readEnv(key: string): unknown {
-  // avoid explicit `any`, but still allow custom VITE_* keys without d.ts augmentation
-  const env = import.meta.env as unknown as Record<string, unknown>;
-  return env[key];
-}
+const DEFAULT_TILESET_ID = '01-default' as const;
+
+/**
+ * ✅ Per-Level Tileset Folder Selection (Level 1..12)
+ *
+ * Werte sind Ordnernamen unter: src/assets/tiles/default/<folder>/*
+ * Beispiel: '02-neon-dark'
+ *
+ * Fallback-Regel:
+ * - Wenn hier ein Ordner NICHT existiert oder leer ist: DEFAULT_TILESET_ID ('01-default')
+ * - Wenn auch DEFAULT nicht existiert: erster gefundener Tileset-Ordner (sorted)
+ */
+const LEVEL_TILESET_FOLDER_BY_LEVEL: Record<LevelId, string> = {
+  1: '01-default',
+  2: '01-default',
+  3: '01-default',
+  4: '01-default',
+  5: '01-default',
+  6: '01-default',
+  7: '01-default',
+  8: '01-default',
+  9: '01-default',
+  10: '01-default',
+  11: '01-default',
+  12: '01-default',
+};
 
 const tilesetMods = import.meta.glob('../../../assets/tiles/default/*/tileset.json', { eager: true, import: 'default' }) as Record<string, TilesetJson>;
 const atlasMods = import.meta.glob('../../../assets/tiles/default/*/atlas.json', { eager: true, import: 'default' }) as Record<string, AtlasJson>;
@@ -128,20 +145,26 @@ for (const [tilesetPath, cfg] of Object.entries(tilesetMods)) {
   TILESETS_BY_ID[id] = { id, cfg, atlas, sheetUrl };
 }
 
-function pickDefaultTilesetId(): string | null {
+function isValidTilesetId(id: string | null | undefined): id is string {
+  return typeof id === 'string' && id.length > 0 && Boolean(TILESETS_BY_ID[id]);
+}
+
+function toLevelId(n: number): LevelId | null {
+  if (n >= 1 && n <= 12) return n as LevelId;
+  return null;
+}
+
+function pickFallbackTilesetId(): string | null {
+  if (isValidTilesetId(DEFAULT_TILESET_ID)) return DEFAULT_TILESET_ID;
+
   const ids = Object.keys(TILESETS_BY_ID).sort();
-  if (!ids.length) return null;
-
-  const envId = envStr(readEnv('VITE_TILESET_FOLDER'));
-  if (envId && TILESETS_BY_ID[envId]) return envId;
-
   return ids[0] ?? null;
 }
 
-let activeTilesetId: string | null = pickDefaultTilesetId();
 let currentLevelId: number | null = null;
 
-// manual override (dev): if set, it wins over env/level/default
+// manual override (dev): if set, it wins over level/default
+let manualTilesetId: string | null = null;
 let manualPaletteName: string | null = null;
 
 const SIX_CORE_TYPE_ORDER: PieceType[] = ['red', 'blue', 'green', 'purple', 'cyan', 'yellow'];
@@ -152,16 +175,35 @@ function slotKeyForSixCoreType(type: PieceType): (typeof SIX_CORE_SLOT_KEYS)[num
   return i >= 0 ? SIX_CORE_SLOT_KEYS[i] : null;
 }
 
+function resolveTilesetId(): string | null {
+  // 1) manual override
+  if (isValidTilesetId(manualTilesetId)) return manualTilesetId;
+
+  // 2) per-level selection
+  if (currentLevelId !== null) {
+    const lvl = toLevelId(currentLevelId);
+    if (lvl) {
+      const desired = LEVEL_TILESET_FOLDER_BY_LEVEL[lvl];
+      if (isValidTilesetId(desired)) return desired;
+
+      // if desired folder missing/invalid -> fallback to DEFAULT (01-default) if available
+      if (isValidTilesetId(DEFAULT_TILESET_ID)) return DEFAULT_TILESET_ID;
+    }
+  }
+
+  // 3) final fallback
+  return pickFallbackTilesetId();
+}
+
 function getActive(): LoadedTileset | null {
-  if (!activeTilesetId) return null;
-  return TILESETS_BY_ID[activeTilesetId] ?? null;
+  const id = resolveTilesetId();
+  if (!id) return null;
+  return TILESETS_BY_ID[id] ?? null;
 }
 
 function resolvePaletteName(cfg: TilesetJson): string | null {
-  if (manualPaletteName) return manualPaletteName;
-
-  const envPalette = envStr(readEnv('VITE_TILE_PALETTE'));
-  if (envPalette && cfg.palettes?.[envPalette]) return envPalette;
+  // manual palette (dev) – only if it exists on this tileset
+  if (manualPaletteName && cfg.palettes?.[manualPaletteName]) return manualPaletteName;
 
   if (currentLevelId !== null) {
     const byLevel = cfg.levelPalettes?.[String(currentLevelId)];
@@ -230,10 +272,11 @@ function getFrameKeyForPieceType(cfg: TilesetJson, type: PieceType): string | nu
 }
 
 export function setTilesetId(id: string | null): void {
-  if (id && TILESETS_BY_ID[id]) {
-    activeTilesetId = id;
+  // manual override: wins over per-level/default until cleared
+  if (isValidTilesetId(id)) {
+    manualTilesetId = id;
   } else {
-    activeTilesetId = pickDefaultTilesetId();
+    manualTilesetId = null;
   }
   manualPaletteName = null;
 }
