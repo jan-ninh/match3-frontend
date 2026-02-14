@@ -104,6 +104,13 @@ export default function Grid({
     setBombHoverTarget(null);
   }, [setBombHoverTarget]);
 
+  const disarmBombTargeting = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent<PowerArmDetail>('match3:powerArm', { detail: { key: 'bomb', armed: false } }));
+    }
+    clearBombHover();
+  }, [clearBombHover]);
+
   // Listen to global power arm/disarm (GameFooter drives this)
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -301,7 +308,12 @@ export default function Grid({
       if (inputLocked) return;
 
       const indices = computeBombOverlayIndices(target, width, height);
-      if (indices.length === 0) return;
+
+      // NEW: if no red target would exist -> abort targeting
+      if (indices.length === 0) {
+        disarmBombTargeting();
+        return;
+      }
 
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('match3:powerUseAt', { detail: { key: 'bomb', target } }));
@@ -310,7 +322,7 @@ export default function Grid({
 
       clearBombHover();
     },
-    [inputLocked, width, height, clearBombHover],
+    [inputLocked, width, height, clearBombHover, disarmBombTargeting],
   );
 
   const updateBombHoverFromClient = useCallback(
@@ -373,9 +385,8 @@ export default function Grid({
 
   // ─────────────────────────────────────────────
   // Viewport-level Bomb Targeting (HUD + outside-board)
-  // - pointermove: updates hover as long as pointer is inside #app-stage
-  // - pointerdown (capture): confirms bomb anywhere in viewport (blocks HUD clicks while armed)
-  // - toggles viewport crosshair class while armed
+  // - right click/contextmenu => abort + disarm
+  // - left click without red target => abort + disarm
   // ─────────────────────────────────────────────
   useEffect(() => {
     if (typeof document === 'undefined') return;
@@ -405,33 +416,65 @@ export default function Grid({
       clearBombHover();
     };
 
+    const abort = (e: Event) => {
+      e.preventDefault();
+      e.stopPropagation();
+      disarmBombTargeting();
+    };
+
     const onDown = (e: PointerEvent) => {
-      if (e.button !== 0) return;
       if (!isInsideStage(e.clientX, e.clientY)) return;
 
-      // Bomb mode should "own" the click (prevent HUD interactions)
+      // Right click => abort
+      if (e.button === 2) {
+        abort(e);
+        return;
+      }
+
+      // Only left click confirms (and owns the click in bomb mode)
+      if (e.button !== 0) return;
+
       e.preventDefault();
       e.stopPropagation();
 
       updateBombHoverFromClient(e.clientX, e.clientY);
 
       const t = bombHoverTargetRef.current;
-      if (!t) return;
+      if (!t) {
+        // NEW: click in viewport without a red target => abort
+        disarmBombTargeting();
+        return;
+      }
+
+      // NEW: if this target would not render any red tiles => abort
+      const indices = computeBombOverlayIndices(t, width, height);
+      if (indices.length === 0) {
+        disarmBombTargeting();
+        return;
+      }
 
       confirmBombAt(t);
+    };
+
+    // Context menu (right click) => abort + no browser menu
+    const onContextMenu = (e: MouseEvent) => {
+      if (!isInsideStage(e.clientX, e.clientY)) return;
+      abort(e);
     };
 
     stageEl.addEventListener('pointermove', onMove);
     stageEl.addEventListener('pointerleave', onLeave);
     stageEl.addEventListener('pointerdown', onDown, { capture: true });
+    stageEl.addEventListener('contextmenu', onContextMenu, { capture: true });
 
     return () => {
       stageEl.removeEventListener('pointermove', onMove);
       stageEl.removeEventListener('pointerleave', onLeave);
       stageEl.removeEventListener('pointerdown', onDown, true);
+      stageEl.removeEventListener('contextmenu', onContextMenu, true);
       stageEl.classList.remove('match3-cursor-crosshair');
     };
-  }, [bombArmed, clearBombHover, updateBombHoverFromClient, confirmBombAt]);
+  }, [bombArmed, clearBombHover, updateBombHoverFromClient, confirmBombAt, disarmBombTargeting, width, height]);
 
   const onPointerMoveShell = (e: React.PointerEvent<HTMLDivElement>) => {
     if (bombArmed) {
@@ -458,6 +501,14 @@ export default function Grid({
 
   const onCellPointerDownShell = (index: number, e: React.PointerEvent<HTMLButtonElement>) => {
     if (bombArmed) {
+      // NEW: right click on cell => abort
+      if (e.button === 2) {
+        e.preventDefault();
+        e.stopPropagation();
+        disarmBombTargeting();
+        return;
+      }
+
       if (e.button !== 0) return;
       if (inputLocked) return;
 
