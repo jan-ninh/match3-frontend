@@ -1,4 +1,3 @@
-// src/features/devtools-host/ui/DevtoolsHost.tsx
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { cycleTilesetPalette, preloadTiles } from '@/features/grid/ui/tiles';
@@ -157,7 +156,7 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
   }, [isDev, debugEnabled]);
 
   return (
-    <div className="w-full">
+    <div className="w-full h-full">
       <DevPanels enabled={isDev && debugEnabled} events={events} onDevWin={onDevWin} onDevLose={onDevLose} onDevResetProgress={onDevResetProgress} />
 
       <GameContainer

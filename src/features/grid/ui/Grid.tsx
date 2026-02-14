@@ -1,3 +1,4 @@
+// src/features/grid/ui/Grid.tsx
 import { useMemo } from 'react';
 import type { CSSProperties } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
@@ -15,15 +16,13 @@ import { useBombTargeting } from './bomb/useBombTargeting';
 import { useDevPanelsPortal } from './hooks/useDevPanelsPortal';
 import { useLaserOverlay } from './hooks/useLaserOverlay';
 
-import { BOARD_PADDING, DEBUG_OVERLAY_HZ, GAP, TILE_SIZE } from '../lib/constants';
+import { BOARD_PADDING, DEBUG_OVERLAY_HZ } from '../lib/constants';
 import { boardInnerSizePx, cellPixelXY } from '../lib/math';
 
 import { useGridInput } from '../input/useGridInput';
 
-type BombTarget = {
-  x: number;
-  y: number;
-};
+type UseGridInputArgs = Parameters<typeof useGridInput>[0];
+type OnIntent = UseGridInputArgs['onIntent'];
 
 type Props = {
   state: EngineState;
@@ -39,9 +38,8 @@ type Props = {
   canSwapAt: (from: number, to: number) => boolean;
 
   // Grid emits only intents. Parent decides what to do with them.
-  onIntent: (
-    intent: { type: 'click'; index: number } | { type: 'swap'; from: number; to: number } | { type: 'useBombAt'; target: BombTarget },
-  ) => void;
+  // IMPORTANT: keep this aligned with useGridInput's InputIntent (incl. useBombAt: { index }).
+  onIntent: OnIntent;
 
   swapMs: number;
 

@@ -1,4 +1,3 @@
-// src/features/devtools-host/ui/GameStage.tsx
 import type { ReactNode, RefObject } from 'react';
 import { useLayoutEffect, useRef } from 'react';
 
@@ -20,7 +19,7 @@ function clamp(n: number, min: number, max: number): number {
 }
 
 /**
- * Layout container that positions Grid and HUD within a viewport-relative stage.
+ * Layout container that positions Grid and HUD within the stage.
  * HUD is constrained to never overlap the grid.
  *
  * PREMIUM: Pixel-snapped grid positioning (no %-based translate centering).
@@ -94,7 +93,7 @@ export function GameStage({ gridRowRef: externalGridRowRef, grid, hud }: Props) 
   }, [gridRowRef]);
 
   return (
-    <div ref={stageRef} className="relative w-full min-h-[max(520px,calc(100svh-12rem))]">
+    <div ref={stageRef} className="relative w-full h-full min-h-0">
       {/* GRID: pixel-snapped absolute positioning (no %/translate centering) */}
       <div ref={gridRowRef} className="absolute z-10">
         {grid}

@@ -18,10 +18,15 @@ export default function GameplayPage() {
   const initialLevelId = readInitialLevelIdFromUrl();
 
   return (
-    <div className="p-8 flex flex-col gap-8">
-      {/* key erzwingt Remount, falls du innerhalb derselben Route den level-Query änderst */}
-      <DevtoolsHost key={initialLevelId} initialLevelId={initialLevelId} />
-      <GameFooter openSettings={openSettings} />
+    // Stage-inner layout: [gameplay area][footer], no extra document flow, no scrollbars.
+    <div className="h-full w-full overflow-hidden grid grid-rows-[minmax(0,1fr)_auto] gap-6 p-6">
+      <div className="min-h-0">
+        <DevtoolsHost key={initialLevelId} initialLevelId={initialLevelId} />
+      </div>
+
+      <div className="shrink-0">
+        <GameFooter openSettings={openSettings} />
+      </div>
     </div>
   );
 }

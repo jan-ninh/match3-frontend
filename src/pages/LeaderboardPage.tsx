@@ -1,3 +1,4 @@
+// src/pages/LeaderboardPage.tsx
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { CyberButton, GlassSection, Navbar, PodiumCard, RankRow, YourPositionCard } from '@/components';
@@ -83,7 +84,7 @@ export default function LeaderboardPage() {
         )}
       </GlassSection>
 
-      <div className="m-6 flex justify-center">
+      <div className="px-6 pt-4 pb-10 flex justify-center">
         <CyberButton key={'Back'} label={'Back'} onClick={() => navigate('/game-map')} />
       </div>
     </>
