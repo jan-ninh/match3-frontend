@@ -1,24 +1,29 @@
-// src/features/grid/ui/Grid.tsx
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo } from 'react';
 import type { CSSProperties } from 'react';
-import { createPortal } from 'react-dom';
+import type { PointerEvent as ReactPointerEvent } from 'react';
 
 import type { EngineState } from '@/gamelogic';
-
 import { DebugInputPanel, DebugDevToolsPanel } from '@/devtools';
 
 import GridCellsLayer from './GridCellsLayer';
 import GridPiecesLayer from './GridPiecesLayer';
 import GridOverlaysLayer from './GridOverlaysLayer';
-import GridLockoutOverlay from './GridLockoutOverlay';
+
+import { GridShell } from './GridShell';
+import { BombOverlay } from './bomb/BombOverlay';
+import { useBombTargeting } from './bomb/useBombTargeting';
+import { useDevPanelsPortal } from './hooks/useDevPanelsPortal';
+import { useLaserOverlay } from './hooks/useLaserOverlay';
 
 import { BOARD_PADDING, DEBUG_OVERLAY_HZ, GAP, TILE_SIZE } from '../lib/constants';
 import { boardInnerSizePx, cellPixelXY } from '../lib/math';
 
 import { useGridInput } from '../input/useGridInput';
 
-type PowerArmDetail = { key: 'bomb'; armed: boolean };
-type BombTarget = { x: number; y: number };
+type BombTarget = {
+  x: number;
+  y: number;
+};
 
 type Props = {
   state: EngineState;
@@ -34,7 +39,10 @@ type Props = {
   canSwapAt: (from: number, to: number) => boolean;
 
   // Grid emits only intents. Parent decides what to do with them.
-  onIntent: (intent: { type: 'click'; index: number } | { type: 'swap'; from: number; to: number } | { type: 'useBombAt'; target: BombTarget }) => void;
+  onIntent: (
+    intent: { type: 'click'; index: number } | { type: 'swap'; from: number; to: number } | { type: 'useBombAt'; target: BombTarget },
+  ) => void;
+
   swapMs: number;
 
   // runtime debug toggle (press D)
@@ -49,27 +57,6 @@ type Props = {
 };
 
 type CssVars = CSSProperties & { '--boardDim'?: number };
-
-function clampInt(n: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, n));
-}
-
-function computeBombOverlayIndices(target: BombTarget, width: number, height: number): number[] {
-  const cx = target.x | 0;
-  const cy = target.y | 0;
-
-  const out: number[] = [];
-  for (let dy = -1; dy <= 1; dy++) {
-    for (let dx = -1; dx <= 1; dx++) {
-      const x = cx + dx;
-      const y = cy + dy;
-      if (x < 0 || x >= width) continue;
-      if (y < 0 || y >= height) continue;
-      out.push(y * width + x);
-    }
-  }
-  return out;
-}
 
 export default function Grid({
   state,
@@ -87,50 +74,8 @@ export default function Grid({
 }: Props) {
   const { width, height, cells, selectedIndex } = state;
 
-  const [bombArmed, setBombArmed] = useState(false);
-  const [bombHoverTarget, _setBombHoverTarget] = useState<BombTarget | null>(null);
-
-  const bombHoverTargetRef = useRef<BombTarget | null>(null);
-  const setBombHoverTarget = useCallback((t: BombTarget | null) => {
-    bombHoverTargetRef.current = t;
-    _setBombHoverTarget(t);
-  }, []);
-
-  const boardRef = useRef<HTMLDivElement | null>(null);
-  const lastHoverRef = useRef<string | null>(null);
-
-  const clearBombHover = useCallback(() => {
-    lastHoverRef.current = null;
-    setBombHoverTarget(null);
-  }, [setBombHoverTarget]);
-
-  const disarmBombTargeting = useCallback(() => {
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent<PowerArmDetail>('match3:powerArm', { detail: { key: 'bomb', armed: false } }));
-    }
-    clearBombHover();
-  }, [clearBombHover]);
-
-  // Listen to global power arm/disarm (GameFooter drives this)
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const onArm = (e: Event) => {
-      const ce = e as CustomEvent<PowerArmDetail>;
-      const d = ce.detail;
-      if (!d || d.key !== 'bomb') return;
-
-      const armed = !!d.armed;
-      setBombArmed(armed);
-
-      if (!armed) clearBombHover();
-    };
-
-    window.addEventListener('match3:powerArm', onArm as EventListener);
-    return () => window.removeEventListener('match3:powerArm', onArm as EventListener);
-  }, [clearBombHover]);
-
-  const effectiveInputLocked = inputLocked || bombArmed;
+  const bomb = useBombTargeting({ width, height, inputLocked });
+  const effectiveInputLocked = inputLocked || bomb.bombArmed;
 
   const {
     isDev,
@@ -237,6 +182,16 @@ export default function Grid({
     ];
   }, [onDevPrevLevel, onDevNextLevel, onDevResetBoard, onDevNextTilesPalette, inputLocked]);
 
+  const devPanels = useDevPanelsPortal(
+    isDev && debugEnabled,
+    <div className="flex flex-col gap-3">
+      <DebugInputPanel width={width} snapshot={debugSnapshot} hz={DEBUG_OVERLAY_HZ} />
+      <DebugDevToolsPanel locked={inputLocked} meta={{ levelId: state.levelId, width, height, seed: state.seed }} items={devItems} actions={devActions} />
+    </div>,
+  );
+
+  const laserOverlay = useLaserOverlay({ warning: state.laserWarning, innerW, innerH });
+
   const showDebugLabels = isDev && debugEnabled;
 
   const shellStyle: CssVars = {
@@ -252,388 +207,100 @@ export default function Grid({
     backgroundColor: 'rgb(0 0 0 / var(--boardDim))',
   };
 
-  const leftLane = typeof document !== 'undefined' ? (document.getElementById('dev-left-lane') as HTMLElement | null) : null;
-
-  const devPanels =
-    isDev && debugEnabled && leftLane
-      ? createPortal(
-          <div className="flex flex-col gap-3">
-            <DebugInputPanel width={width} snapshot={debugSnapshot} hz={DEBUG_OVERLAY_HZ} />
-            <DebugDevToolsPanel locked={inputLocked} meta={{ levelId: state.levelId, width, height, seed: state.seed }} items={devItems} actions={devActions} />
-          </div>,
-          leftLane,
-        )
-      : null;
-
-  // ─────────────────────────────────────────────
-  // Level 04: Laser warning overlay (row/col highlight)
-  // ─────────────────────────────────────────────
-  const laserOverlay = useMemo(() => {
-    const w = state.laserWarning;
-    if (!w) return null;
-
-    const step = TILE_SIZE + GAP;
-
-    if (w.kind === 'row') {
-      const top = w.index * step;
-      return {
-        left: 0,
-        top,
-        width: innerW,
-        height: TILE_SIZE,
-      } as const;
-    }
-
-    const left = w.index * step;
-    return {
-      left,
-      top: 0,
-      width: TILE_SIZE,
-      height: innerH,
-    } as const;
-  }, [state.laserWarning, innerW, innerH]);
-
-  // ─────────────────────────────────────────────
-  // Bomb targeting (3×3): hover → overlay indices
-  // Supports off-grid center by 1 cell: x/y ∈ [-1..w]×[-1..h]
-  // ─────────────────────────────────────────────
-  const bombOverlayIndices = useMemo(() => {
-    if (!bombArmed) return [];
-    if (!bombHoverTarget) return [];
-    return computeBombOverlayIndices(bombHoverTarget, width, height);
-  }, [bombArmed, bombHoverTarget, width, height]);
-
-  const confirmBombAt = useCallback(
-    (target: BombTarget) => {
-      if (inputLocked) return;
-
-      const indices = computeBombOverlayIndices(target, width, height);
-
-      // NEW: if no red target would exist -> abort targeting
-      if (indices.length === 0) {
-        disarmBombTargeting();
-        return;
-      }
-
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('match3:powerUseAt', { detail: { key: 'bomb', target } }));
-        window.dispatchEvent(new CustomEvent<PowerArmDetail>('match3:powerArm', { detail: { key: 'bomb', armed: false } }));
-      }
-
-      clearBombHover();
-    },
-    [inputLocked, width, height, clearBombHover, disarmBombTargeting],
-  );
-
-  const updateBombHoverFromClient = useCallback(
-    (clientX: number, clientY: number) => {
-      const el = boardRef.current;
-      if (!el) return;
-
-      const rect = el.getBoundingClientRect();
-      const x = clientX - rect.left;
-      const y = clientY - rect.top;
-
-      const step = TILE_SIZE + GAP;
-
-      // nearest center among a small candidate neighborhood (incl. off-grid -1/+1)
-      const baseCol = Math.floor(x / step);
-      const baseRow = Math.floor(y / step);
-
-      const colCandidates = [baseCol - 1, baseCol, baseCol + 1, baseCol + 2];
-      const rowCandidates = [baseRow - 1, baseRow, baseRow + 1, baseRow + 2];
-
-      let bestCol = 0;
-      let bestRow = 0;
-      let bestD2 = Number.POSITIVE_INFINITY;
-
-      for (const c of colCandidates) {
-        if (c < -1 || c > width) continue;
-        const cx = c * step + TILE_SIZE * 0.5;
-
-        for (const r of rowCandidates) {
-          if (r < -1 || r > height) continue;
-          const cy = r * step + TILE_SIZE * 0.5;
-
-          const dx = x - cx;
-          const dy = y - cy;
-          const d2 = dx * dx + dy * dy;
-
-          if (d2 < bestD2) {
-            bestD2 = d2;
-            bestCol = c;
-            bestRow = r;
-          }
-        }
-      }
-
-      // "near enough" gate: prevents selecting a target when you're far away in the HUD
-      const radius = Math.max(12, step * 0.8);
-      if (bestD2 > radius * radius) {
-        if (lastHoverRef.current !== null) clearBombHover();
-        return;
-      }
-
-      const key = `${bestCol},${bestRow}`;
-      if (lastHoverRef.current !== key) {
-        lastHoverRef.current = key;
-        setBombHoverTarget({ x: bestCol, y: bestRow });
-      }
-    },
-    [width, height, clearBombHover, setBombHoverTarget],
-  );
-
-  // ─────────────────────────────────────────────
-  // Viewport-level Bomb Targeting (HUD + outside-board)
-  // - right click/contextmenu => abort + disarm
-  // - left click without red target => abort + disarm
-  // ─────────────────────────────────────────────
-  useEffect(() => {
-    if (typeof document === 'undefined') return;
-
-    const stageEl = document.getElementById('app-stage');
-    if (!stageEl) return;
-
-    if (bombArmed) stageEl.classList.add('match3-cursor-crosshair');
-    else stageEl.classList.remove('match3-cursor-crosshair');
-
-    if (!bombArmed) return;
-
-    const isInsideStage = (clientX: number, clientY: number) => {
-      const r = stageEl.getBoundingClientRect();
-      return clientX >= r.left && clientX <= r.right && clientY >= r.top && clientY <= r.bottom;
-    };
-
-    const onMove = (e: PointerEvent) => {
-      if (!isInsideStage(e.clientX, e.clientY)) {
-        clearBombHover();
-        return;
-      }
-      updateBombHoverFromClient(e.clientX, e.clientY);
-    };
-
-    const onLeave = () => {
-      clearBombHover();
-    };
-
-    const abort = (e: Event) => {
-      e.preventDefault();
-      e.stopPropagation();
-      disarmBombTargeting();
-    };
-
-    const onDown = (e: PointerEvent) => {
-      if (!isInsideStage(e.clientX, e.clientY)) return;
-
-      // Right click => abort
-      if (e.button === 2) {
-        abort(e);
-        return;
-      }
-
-      // Only left click confirms (and owns the click in bomb mode)
-      if (e.button !== 0) return;
-
-      e.preventDefault();
-      e.stopPropagation();
-
-      updateBombHoverFromClient(e.clientX, e.clientY);
-
-      const t = bombHoverTargetRef.current;
-      if (!t) {
-        // NEW: click in viewport without a red target => abort
-        disarmBombTargeting();
-        return;
-      }
-
-      // NEW: if this target would not render any red tiles => abort
-      const indices = computeBombOverlayIndices(t, width, height);
-      if (indices.length === 0) {
-        disarmBombTargeting();
-        return;
-      }
-
-      confirmBombAt(t);
-    };
-
-    // Context menu (right click) => abort + no browser menu
-    const onContextMenu = (e: MouseEvent) => {
-      if (!isInsideStage(e.clientX, e.clientY)) return;
-      abort(e);
-    };
-
-    stageEl.addEventListener('pointermove', onMove);
-    stageEl.addEventListener('pointerleave', onLeave);
-    stageEl.addEventListener('pointerdown', onDown, { capture: true });
-    stageEl.addEventListener('contextmenu', onContextMenu, { capture: true });
-
-    return () => {
-      stageEl.removeEventListener('pointermove', onMove);
-      stageEl.removeEventListener('pointerleave', onLeave);
-      stageEl.removeEventListener('pointerdown', onDown, true);
-      stageEl.removeEventListener('contextmenu', onContextMenu, true);
-      stageEl.classList.remove('match3-cursor-crosshair');
-    };
-  }, [bombArmed, clearBombHover, updateBombHoverFromClient, confirmBombAt, disarmBombTargeting, width, height]);
-
-  const onPointerMoveShell = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (bombArmed) {
-      updateBombHoverFromClient(e.clientX, e.clientY);
-      return;
-    }
-    onPointerMove(e);
-  };
-
-  const onPointerUpShell = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (bombArmed) return;
-    onPointerUp(e);
-  };
-
-  const onPointerCancelShell = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (bombArmed) return;
-    onPointerCancel(e);
-  };
-
-  const onPointerLeaveShell = () => {
-    if (!bombArmed) return;
-    clearBombHover();
-  };
-
-  const onCellPointerDownShell = (index: number, e: React.PointerEvent<HTMLButtonElement>) => {
-    if (bombArmed) {
-      // NEW: right click on cell => abort
-      if (e.button === 2) {
-        e.preventDefault();
-        e.stopPropagation();
-        disarmBombTargeting();
-        return;
-      }
-
-      if (e.button !== 0) return;
-      if (inputLocked) return;
-
-      const x = index % width;
-      const y = Math.floor(index / width);
-
-      confirmBombAt({ x, y });
-      return;
-    }
-
-    onCellPointerDown(index, e);
-  };
-
-  // Cursor (board-level): normal unless lockout hints say otherwise
   const cursorClass = inputLocked && showLockoutHints ? 'cursor-not-allowed' : 'cursor-default';
+
+  const ignorePointer = (e: ReactPointerEvent<HTMLDivElement>) => {
+    void e;
+  };
+
+  const onPointerMoveShell = bomb.bombArmed ? bomb.onShellPointerMove : onPointerMove;
+  const onPointerUpShell = bomb.bombArmed ? ignorePointer : onPointerUp;
+  const onPointerCancelShell = bomb.bombArmed ? ignorePointer : onPointerCancel;
+  const onPointerLeaveShell = bomb.bombArmed ? bomb.onShellPointerLeave : () => {};
+
+  const onCellPointerDownShell = bomb.bombArmed ? bomb.onCellPointerDown : onCellPointerDown;
 
   return (
     <>
       {devPanels}
 
-      <div
-        className={`relative rounded-2xl p-3 border border-white/10 shadow-[0_18px_60px_rgba(0,0,0,0.55)] select-none ${cursorClass}`}
-        style={shellStyle}
+      <GridShell
+        shellStyle={shellStyle}
+        cursorClass={cursorClass}
+        inputLocked={inputLocked}
+        showLockoutHints={showLockoutHints}
+        innerW={innerW}
+        innerH={innerH}
+        boardRef={bomb.boardRef}
         onPointerMove={onPointerMoveShell}
         onPointerUp={onPointerUpShell}
         onPointerCancel={onPointerCancelShell}
         onPointerLeave={onPointerLeaveShell}
       >
-        <GridLockoutOverlay active={inputLocked} show={showLockoutHints} />
+        {/* Laser Warning highlight (under cells/pieces, above bg) */}
+        {laserOverlay ? (
+          <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
+            {/* soft fill */}
+            <div
+              className="absolute rounded-xl animate-pulse"
+              style={{
+                ...laserOverlay,
+                background:
+                  state.laserWarning?.kind === 'row'
+                    ? 'linear-gradient(90deg, rgba(244,63,94,0.00) 0%, rgba(244,63,94,0.16) 18%, rgba(244,63,94,0.20) 50%, rgba(244,63,94,0.16) 82%, rgba(244,63,94,0.00) 100%)'
+                    : 'linear-gradient(180deg, rgba(244,63,94,0.00) 0%, rgba(244,63,94,0.16) 18%, rgba(244,63,94,0.20) 50%, rgba(244,63,94,0.16) 82%, rgba(244,63,94,0.00) 100%)',
+                boxShadow: '0 0 26px rgba(244,63,94,0.18), 0 0 52px rgba(244,63,94,0.10)',
+              }}
+            />
 
-        <div ref={boardRef} className="relative" style={{ width: innerW, height: innerH }}>
-          <div className="absolute inset-0 rounded-2xl pointer-events-none" style={{ backgroundColor: 'rgb(0 0 0 / var(--boardDim))' }} />
-          <div
-            className="absolute inset-0 rounded-2xl pointer-events-none"
-            style={{
-              background: 'linear-gradient(180deg, rgba(255,255,255,0.055) 0%, rgba(255,255,255,0.022) 40%, rgba(0,0,0,0.94) 100%)',
-              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08), inset 0 -18px 40px rgba(0,0,0,0.55)',
-            }}
-          />
+            {/* crisp outline */}
+            <div
+              className="absolute rounded-xl"
+              style={{
+                ...laserOverlay,
+                outline: '1px solid rgba(248,113,113,0.32)',
+                boxShadow: 'inset 0 0 0 1px rgba(244,63,94,0.14)',
+              }}
+            />
 
-          {/* Laser Warning highlight (under cells/pieces, above bg) */}
-          {laserOverlay ? (
-            <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
-              {/* soft fill */}
-              <div
-                className="absolute rounded-xl animate-pulse"
-                style={{
-                  ...laserOverlay,
-                  background:
-                    state.laserWarning?.kind === 'row'
-                      ? 'linear-gradient(90deg, rgba(244,63,94,0.00) 0%, rgba(244,63,94,0.16) 18%, rgba(244,63,94,0.20) 50%, rgba(244,63,94,0.16) 82%, rgba(244,63,94,0.00) 100%)'
-                      : 'linear-gradient(180deg, rgba(244,63,94,0.00) 0%, rgba(244,63,94,0.16) 18%, rgba(244,63,94,0.20) 50%, rgba(244,63,94,0.16) 82%, rgba(244,63,94,0.00) 100%)',
-                  boxShadow: '0 0 26px rgba(244,63,94,0.18), 0 0 52px rgba(244,63,94,0.10)',
-                }}
-              />
+            {/* subtle scanlines */}
+            <div
+              className="absolute rounded-xl opacity-70"
+              style={{
+                ...laserOverlay,
+                background:
+                  state.laserWarning?.kind === 'row'
+                    ? 'repeating-linear-gradient(90deg, rgba(255,255,255,0.00) 0px, rgba(255,255,255,0.00) 10px, rgba(255,255,255,0.06) 11px)'
+                    : 'repeating-linear-gradient(0deg, rgba(255,255,255,0.00) 0px, rgba(255,255,255,0.00) 10px, rgba(255,255,255,0.06) 11px)',
+                mixBlendMode: 'screen',
+              }}
+            />
+          </div>
+        ) : null}
 
-              {/* crisp outline */}
-              <div
-                className="absolute rounded-xl"
-                style={{
-                  ...laserOverlay,
-                  outline: '1px solid rgba(248,113,113,0.32)',
-                  boxShadow: 'inset 0 0 0 1px rgba(244,63,94,0.14)',
-                }}
-              />
+        {/* Bomb Targeting 3×3 (square corners, red glow) */}
+        {bomb.bombArmed ? <BombOverlay indices={bomb.bombOverlayIndices} width={width} /> : null}
 
-              {/* subtle scanlines */}
-              <div
-                className="absolute rounded-xl opacity-70"
-                style={{
-                  ...laserOverlay,
-                  background:
-                    state.laserWarning?.kind === 'row'
-                      ? 'repeating-linear-gradient(90deg, rgba(255,255,255,0.00) 0px, rgba(255,255,255,0.00) 10px, rgba(255,255,255,0.06) 11px)'
-                      : 'repeating-linear-gradient(0deg, rgba(255,255,255,0.00) 0px, rgba(255,255,255,0.00) 10px, rgba(255,255,255,0.06) 11px)',
-                  mixBlendMode: 'screen',
-                }}
-              />
-            </div>
-          ) : null}
+        <GridCellsLayer width={width} height={height} cells={cells} onCellPointerDown={onCellPointerDownShell} showDebugLabels={showDebugLabels} />
 
-          {/* Bomb Targeting 3×3 (square corners, red glow) */}
-          {bombArmed && bombOverlayIndices.length ? (
-            <div className="absolute inset-0 pointer-events-none" aria-hidden="true" style={{ zIndex: 44 }}>
-              {bombOverlayIndices.map((idx) => {
-                const p = cellPixelXY(idx, width);
-                return (
-                  <div
-                    key={idx}
-                    className="absolute"
-                    style={{
-                      width: TILE_SIZE,
-                      height: TILE_SIZE,
-                      transform: `translate(${p.x}px, ${p.y}px)`,
-                      background: 'rgba(244,63,94,0.18)',
-                      outline: '1px solid rgba(248,113,113,0.38)',
-                      boxShadow: '0 0 18px rgba(244,63,94,0.16)',
-                    }}
-                  />
-                );
-              })}
-            </div>
-          ) : null}
+        <GridOverlaysLayer selectionPos={selectionPos} targetPos={targetPos} />
 
-          <GridCellsLayer width={width} height={height} cells={cells} onCellPointerDown={onCellPointerDownShell} showDebugLabels={showDebugLabels} />
-
-          <GridOverlaysLayer selectionPos={selectionPos} targetPos={targetPos} />
-
-          <GridPiecesLayer
-            width={width}
-            pieces={pieceList}
-            dragPieceId={dragPieceId}
-            isDragging={isDragging}
-            phase={state.phase}
-            swapMs={swapMs}
-            previewActive={previewActive}
-            previewOtherPieceId={previewOtherPieceId}
-            previewAxis={previewAxisUI}
-            previewDir={previewDirUI}
-            shakePieceId={shakePieceId}
-            showDebugLabels={showDebugLabels}
-            setDraggedEl={setDraggedEl}
-          />
-        </div>
-      </div>
+        <GridPiecesLayer
+          width={width}
+          pieces={pieceList}
+          dragPieceId={dragPieceId}
+          isDragging={isDragging}
+          phase={state.phase}
+          swapMs={swapMs}
+          previewActive={previewActive}
+          previewOtherPieceId={previewOtherPieceId}
+          previewAxis={previewAxisUI}
+          previewDir={previewDirUI}
+          shakePieceId={shakePieceId}
+          showDebugLabels={showDebugLabels}
+          setDraggedEl={setDraggedEl}
+        />
+      </GridShell>
     </>
   );
 }
