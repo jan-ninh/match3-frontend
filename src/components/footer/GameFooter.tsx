@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { footerActions } from './footerAction';
+import bombSprite from '@/assets/items/bomb01.png';
 import { usePowers } from '@/context/PowerContext';
 import { useAuth } from '@/context/AuthContext';
 import type { PowerKey, Powers } from '@/types';
@@ -166,7 +167,7 @@ export default function GameFooter({ openSettings }: Props) {
             ].join(' ')}
             type="button"
           >
-            <img src={item.icon} alt={item.label} className="w-8 h-8" />
+            <img src={isBomb ? bombSprite : item.icon} alt={item.label} className={['object-contain', isBomb ? 'w-80 h-80 pb-5' : 'w-8 h-8'].join(' ')} />
             {typeof item.count === 'number' && (
               <span className="absolute bottom-0 right-0 w-6 h-6 flex items-center justify-center bg-gray-600 rounded-full border border-white/20 text-xs text-white">
                 {item.count}
