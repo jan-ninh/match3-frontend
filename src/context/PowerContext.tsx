@@ -1,4 +1,3 @@
-// src\context\PowerContext.tsx
 import { createContext, useContext } from 'react';
 import type { PowerKey, Powers } from '@/types';
 
@@ -11,7 +10,7 @@ export type PowerContextValue = {
 //----------------------------------------------------
 // SET INITIAL POWERITEMS
 //----------------------------------------------------
-const INITIAL_BOMBS = 3;
+const INITIAL_BOMBS = 20;
 const INITIAL_ROCKETS = 0;
 const INITIAL_EXTRA_TIME = 0;
 

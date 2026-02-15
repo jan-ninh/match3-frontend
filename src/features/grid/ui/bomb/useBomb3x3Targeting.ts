@@ -14,6 +14,7 @@ import {
 
 import { GAP, TILE_SIZE } from '../../lib/constants';
 import type { BombTarget } from './typesBomb';
+import type { BombExplosionBurst } from '../itemeffects/BombExplosionFxLayer';
 
 type BombPowerUsedEvent = Readonly<{
   type: 'powerUsed';
@@ -41,6 +42,9 @@ type Args = {
   // Used for POWER_CONSUME_EVENT (engine ACK = powerUsed)
   engineEvents: readonly unknown[];
 
+  // Reduced motion hint (swapMs===0)
+  reducedMotion?: boolean;
+
   // Optional: stage element id used for viewport-level listeners.
   stageElementId?: string;
 };
@@ -49,6 +53,9 @@ export type Bomb3x3TargetingApi = Readonly<{
   bombArmed: boolean;
   bombHoverTarget: BombTarget | null;
   bombOverlayIndices: readonly number[];
+
+  // Detonation FX bursts (added only after ACK)
+  bombBursts: readonly BombExplosionBurst[];
 
   boardRef: RefObject<HTMLDivElement | null>;
 
@@ -60,7 +67,14 @@ export type Bomb3x3TargetingApi = Readonly<{
   disarm: () => void;
 }>;
 
-export function useBomb3x3Targeting({ width, height, inputLocked, engineEvents, stageElementId = 'app-stage' }: Args): Bomb3x3TargetingApi {
+export function useBomb3x3Targeting({
+  width,
+  height,
+  inputLocked,
+  engineEvents,
+  reducedMotion = false,
+  stageElementId = 'app-stage',
+}: Args): Bomb3x3TargetingApi {
   const [bombArmed, setBombArmed] = useState(false);
   const [bombHoverTarget, _setBombHoverTarget] = useState<BombTarget | null>(null);
 
@@ -71,6 +85,12 @@ export function useBomb3x3Targeting({ width, height, inputLocked, engineEvents, 
 
   const powerReqIdRef = useRef(1);
   const pendingConsumeRef = useRef<Set<number>>(new Set());
+
+  // requestId -> indices (used only when ACK arrives)
+  const pendingFxRef = useRef<Map<number, readonly number[]>>(new Map());
+
+  const [bombBursts, setBombBursts] = useState<readonly BombExplosionBurst[]>([]);
+  const burstTimeoutsRef = useRef<Map<number, number>>(new Map());
 
   const setBombHoverTarget = useCallback((t: BombTarget | null) => {
     bombHoverTargetRef.current = t;
@@ -121,10 +141,12 @@ export function useBomb3x3Targeting({ width, height, inputLocked, engineEvents, 
     return () => window.clearTimeout(id);
   }, [bombArmed, inputLocked, disarm]);
 
-  // Consume power only after engine ACK event (powerUsed)
+  // Consume power + emit detonation burst only after engine ACK event (powerUsed)
   useEffect(() => {
     if (typeof window === 'undefined') return;
     if (pendingConsumeRef.current.size === 0) return;
+
+    const ttlMs = reducedMotion ? 220 : 650;
 
     for (const ev of engineEvents) {
       if (!isBombPowerUsedEvent(ev)) continue;
@@ -134,10 +156,49 @@ export function useBomb3x3Targeting({ width, height, inputLocked, engineEvents, 
 
       pendingConsumeRef.current.delete(requestId);
 
+      // 1) UI consumes bomb only after ACK
       const detail: PowerConsumeDetail = { key: 'bomb', amount: 1, requestId };
       window.dispatchEvent(new CustomEvent<PowerConsumeDetail>(POWER_CONSUME_EVENT, { detail }));
+
+      // 2) Detonation FX burst (also only after ACK)
+      const indices = pendingFxRef.current.get(requestId);
+      if (indices && indices.length > 0) {
+        pendingFxRef.current.delete(requestId);
+
+        const burst: BombExplosionBurst = {
+          id: requestId,
+          indices,
+          createdAtMs: performance.now(),
+        };
+
+        setBombBursts((prev) => [...prev, burst]);
+
+        const tPrev = burstTimeoutsRef.current.get(requestId);
+        if (typeof tPrev === 'number') window.clearTimeout(tPrev);
+
+        const timeoutId = window.setTimeout(() => {
+          setBombBursts((prev) => prev.filter((b) => b.id !== requestId));
+          burstTimeoutsRef.current.delete(requestId);
+        }, ttlMs);
+
+        burstTimeoutsRef.current.set(requestId, timeoutId);
+      } else {
+        pendingFxRef.current.delete(requestId);
+      }
     }
-  }, [engineEvents]);
+  }, [engineEvents, reducedMotion]);
+
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (typeof window === 'undefined') return;
+
+      for (const id of burstTimeoutsRef.current.values()) {
+        window.clearTimeout(id);
+      }
+      burstTimeoutsRef.current.clear();
+    };
+  }, []);
 
   const confirmBombAt = useCallback(
     (target: BombTarget) => {
@@ -157,6 +218,7 @@ export function useBomb3x3Targeting({ width, height, inputLocked, engineEvents, 
 
       const requestId = powerReqIdRef.current++;
       pendingConsumeRef.current.add(requestId);
+      pendingFxRef.current.set(requestId, indices);
 
       if (typeof window !== 'undefined') {
         const detail: PowerUseAtDetail = { key: 'bomb', target, requestId };
@@ -363,6 +425,7 @@ export function useBomb3x3Targeting({ width, height, inputLocked, engineEvents, 
     bombArmed,
     bombHoverTarget,
     bombOverlayIndices,
+    bombBursts,
     boardRef,
     onShellPointerMove,
     onShellPointerLeave,

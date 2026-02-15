@@ -17,6 +17,8 @@ import type { BombTarget } from './bomb/typesBomb';
 import { BombOverlay } from './bomb/BombOverlay';
 import { useBomb3x3Targeting } from './bomb/useBomb3x3Targeting';
 
+import { BombExplosionFxLayer } from './itemeffects/BombExplosionFxLayer';
+
 import { GridShell } from './GridShell';
 import { LaserWarningOverlay } from './LaserWarningOverlay';
 import { GridDevPanels } from './GridDevPanels';
@@ -83,6 +85,7 @@ export default function Grid({
     height,
     inputLocked,
     engineEvents: state.events,
+    reducedMotion: swapMs === 0,
     stageElementId: 'app-stage',
   });
 
@@ -254,6 +257,9 @@ export default function Grid({
           showDebugLabels={showDebugLabels}
           setDraggedEl={setDraggedEl}
         />
+
+        {/* Bomb detonation FX (after ACK) */}
+        <BombExplosionFxLayer bursts={bomb.bombBursts} width={width} reducedMotionHint={swapMs === 0} zIndex={88} />
       </GridShell>
     </>
   );
