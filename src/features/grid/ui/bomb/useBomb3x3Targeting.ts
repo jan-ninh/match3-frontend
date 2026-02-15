@@ -12,6 +12,9 @@ import {
   type PowerUseAtDetail,
 } from '@/context/powerEvents';
 
+import { useAudioUnlock } from '@/features/audio/core/useAudioUnlock';
+import { playSfx, preloadSfx } from '@/features/audio/sfx/sfxPlayer';
+
 import { GAP, TILE_SIZE } from '../../lib/constants';
 import type { BombTarget } from './typesBomb';
 import type { BombExplosionBurst } from './fx/BombExplosionFxLayer';
@@ -80,7 +83,15 @@ export function useBomb3x3Targeting({
   reducedMotion = false,
   stageElementId = 'app-stage',
 }: Args): Bomb3x3TargetingApi {
+  useAudioUnlock();
+
   const [bombArmed, setBombArmed] = useState(false);
+
+  // Warm up SFX when the mode becomes active (keeps first detonation snappy)
+  useEffect(() => {
+    if (!bombArmed) return;
+    void preloadSfx('bombExplosion');
+  }, [bombArmed]);
   const [bombHoverTarget, _setBombHoverTarget] = useState<BombTarget | null>(null);
 
   const bombHoverTargetRef = useRef<BombTarget | null>(null);
@@ -169,6 +180,9 @@ export function useBomb3x3Targeting({
       const payload = pendingFxRef.current.get(requestId);
       if (payload && payload.indices.length > 0) {
         pendingFxRef.current.delete(requestId);
+
+        // SFX: best-effort (file may be missing during setup)
+        playSfx('bombExplosion', { volume: 0.9 });
 
         const burst: BombExplosionBurst = {
           id: requestId,
