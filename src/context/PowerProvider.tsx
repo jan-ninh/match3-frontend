@@ -1,19 +1,15 @@
-// src/context/PowerProvider.tsx
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { PowerKey, Powers } from '@/types';
 
 import { PowerContext, defaultPowers, getChoiceBonus } from './PowerContext';
-
-type PowerConsumeDetail = Readonly<{ key: PowerKey; amount: number; requestId?: number }>;
-
-const POWER_CONSUME_EVENT = 'match3:powerConsume' as const;
+import { POWER_CONSUME_EVENT, type PowerConsumeDetail } from './powerEvents';
 
 export function PowerProvider({ children }: { children: ReactNode }) {
   // IMPORTANT: clone to avoid sharing the frozen object reference as state
   const [powers, setPowersState] = useState<Powers>(() => ({ ...defaultPowers }));
 
-  // Engine-ack-driven consume: dispatch only after EngineEvent powerUsed was observed
+  // Engine-ack-driven consume: dispatch only after EngineEvent `powerUsed` was observed
   useEffect(() => {
     if (typeof window === 'undefined') return;
 

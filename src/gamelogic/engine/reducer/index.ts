@@ -13,7 +13,7 @@ import { handleResetBoard } from './handlers/handleResetBoard';
 import { handleSetSwapMs } from './handlers/handleSetSwapMs';
 import { handleSwapAttempt } from './handlers/handleSwapAttempt';
 import { handleTickWake } from './handlers/handleTickWake';
-import { handleUseItemAt } from './handlers/handleUseBombAt';
+import { handleUseItemAt } from './handlers/handleUseItemAt';
 
 import { applyTurnEndPipeline } from './post/applyTurnEndPipeline';
 import { resolveOutcomeIfIdle } from './post/resolveOutcome';

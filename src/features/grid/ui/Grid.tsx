@@ -56,10 +56,6 @@ type Props = {
 
 type CssVars = CSSProperties & { '--boardDim'?: number };
 
-function clampInt(n: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, n));
-}
-
 export default function Grid({
   state,
   inputLocked,

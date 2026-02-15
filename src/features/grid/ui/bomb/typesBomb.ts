@@ -1,5 +1,4 @@
-export const POWER_ARM_EVENT = 'match3:powerArm' as const;
-export const POWER_USE_AT_EVENT = 'match3:powerUseAt' as const;
+export { POWER_ARM_EVENT, POWER_USE_AT_EVENT } from '@/context/powerEvents';
 
 export type BombPowerKey = 'bomb';
 

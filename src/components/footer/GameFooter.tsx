@@ -1,18 +1,15 @@
-// src/components/footer/GameFooter.tsx
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { footerActions } from './footerAction';
 import bombSprite from '@/assets/items/bomb01.png';
 import { usePowers } from '@/context/PowerContext';
 import { useAuth } from '@/context/AuthContext';
+import { POWER_ARM_EVENT, POWER_GRANT_EVENT, type PowerArmDetail, type PowerGrantDetail } from '@/context/powerEvents';
 import type { PowerKey, Powers } from '@/types';
 
 type Props = {
   openSettings: () => void;
 };
-
-type PowerArmDetail = { key: 'bomb'; armed: boolean };
-type PowerGrantDetail = { key: 'bomb'; delta: number };
 
 export default function GameFooter({ openSettings }: Props) {
   const { powers, setPowers } = usePowers();
@@ -20,7 +17,10 @@ export default function GameFooter({ openSettings }: Props) {
 
   const [armedBomb, setArmedBomb] = useState(false);
 
-  // Keep latest powers for window event listeners (OK: effects only)
+  /**
+   * Keep latest powers ONLY for window event listeners (effects).
+   * Important: do NOT read this ref in render-path callbacks (e.g. `onUsePower`) that are passed into UI builders.
+   */
   const powersRef = useRef<Powers>(powers);
   useEffect(() => {
     powersRef.current = powers;
@@ -28,7 +28,7 @@ export default function GameFooter({ openSettings }: Props) {
 
   const emitArmBomb = useCallback((armed: boolean) => {
     if (typeof window === 'undefined') return;
-    window.dispatchEvent(new CustomEvent<PowerArmDetail>('match3:powerArm', { detail: { key: 'bomb', armed } }));
+    window.dispatchEvent(new CustomEvent<PowerArmDetail>(POWER_ARM_EVENT, { detail: { key: 'bomb', armed } }));
   }, []);
 
   // Safety: if bomb count hits 0 while armed, disarm (prevents "stuck targeting")
@@ -52,36 +52,43 @@ export default function GameFooter({ openSettings }: Props) {
       setArmedBomb(!!d.armed);
     };
 
-    window.addEventListener('match3:powerArm', onArm as EventListener);
-    return () => window.removeEventListener('match3:powerArm', onArm as EventListener);
+    window.addEventListener(POWER_ARM_EVENT, onArm as EventListener);
+    return () => window.removeEventListener(POWER_ARM_EVENT, onArm as EventListener);
   }, []);
 
-  // Optional: PowerChoice can grant bombs via event (+2 etc.)
+  /**
+   * Power grants via event (reward overlays etc.).
+   * Source of truth for consumption is PowerProvider via POWER_CONSUME_EVENT.
+   * Here we only apply grants and (optionally) persist them.
+   */
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
     const onGrant = (e: Event) => {
       const ce = e as CustomEvent<PowerGrantDetail>;
       const d = ce.detail;
-      if (!d || d.key !== 'bomb') return;
+      if (!d) return;
       if (typeof d.delta !== 'number') return;
 
-      const cur = (powersRef.current.bomb ?? 0) | 0;
-      const next: Powers = { ...powersRef.current, bomb: cur + (d.delta | 0) };
+      const delta = d.delta | 0;
+      if (delta === 0) return;
+
+      const cur = (powersRef.current[d.key] ?? 0) | 0;
+      const next: Powers = { ...powersRef.current, [d.key]: cur + delta };
+
       setPowers(next);
 
       if (!user) return;
-      updatePowers({ bomb: next.bomb }, 'set').catch(() => {
+
+      updatePowers({ [d.key]: next[d.key] }, 'set').catch(() => {
         setPowers(powersRef.current);
       });
     };
 
-    window.addEventListener('match3:powerGrant', onGrant as EventListener);
-    return () => window.removeEventListener('match3:powerGrant', onGrant as EventListener);
-  }, [setPowers, user, updatePowers]);
+    window.addEventListener(POWER_GRANT_EVENT, onGrant as EventListener);
+    return () => window.removeEventListener(POWER_GRANT_EVENT, onGrant as EventListener);
+  }, [setPowers, updatePowers, user]);
 
-  // IMPORTANT (eslint react-hooks/refs):
-  // This handler MUST NOT read powersRef.current, because it is passed during render into footerActions().
   const onUsePower = useCallback(
     async (key: PowerKey) => {
       const current = (powers[key] ?? 0) | 0;
@@ -94,7 +101,11 @@ export default function GameFooter({ openSettings }: Props) {
         return;
       }
 
-      // Bomb = targeting mode (no immediate spend; spend happens ONLY on match3:powerConsume after engine ACK)
+      /**
+       * Bomb = targeting mode only (arm/disarm).
+       * Inventory spend is applied centrally by PowerProvider when it receives POWER_CONSUME_EVENT
+       * (dispatched by the engine-event bridge after EngineEvent `powerUsed` was accepted).
+       */
       if (key === 'bomb') {
         const nextArmed = !armedBomb;
         setArmedBomb(nextArmed);

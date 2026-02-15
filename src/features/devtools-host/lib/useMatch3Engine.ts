@@ -2,13 +2,11 @@ import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState }
 
 import type { EngineAction } from '@/gamelogic';
 import { canSwap, createInitialState, engineReducer, SWAP_MS } from '@/gamelogic';
+import { POWER_USE_AT_EVENT, type PowerUseAtDetail } from '@/context/powerEvents';
 
 type Args = {
   initialLevelId?: number;
 };
-
-export type PowerArmDetail = { key: 'bomb'; armed: boolean };
-type PowerUseAtDetail = { key: 'bomb'; target: { x: number; y: number }; requestId: number };
 
 export function useMatch3Engine({ initialLevelId = 1 }: Args) {
   const isDev = import.meta.env.DEV;
@@ -99,8 +97,7 @@ export function useMatch3Engine({ initialLevelId = 1 }: Args) {
       const t = d.target;
       if (!t || typeof t.x !== 'number' || typeof t.y !== 'number') return;
 
-      // NOTE: older emitters may omit requestId at runtime → coerces to 0
-      const requestId = (d.requestId as unknown as number) | 0;
+      const requestId = typeof d.requestId === 'number' ? d.requestId | 0 : 0;
 
       // Always route legacy/modern bomb usage through useItemAt
       dispatch({
@@ -112,8 +109,8 @@ export function useMatch3Engine({ initialLevelId = 1 }: Args) {
       } as EngineAction);
     };
 
-    window.addEventListener('match3:powerUseAt', onUseAt as EventListener);
-    return () => window.removeEventListener('match3:powerUseAt', onUseAt as EventListener);
+    window.addEventListener(POWER_USE_AT_EVENT, onUseAt as EventListener);
+    return () => window.removeEventListener(POWER_USE_AT_EVENT, onUseAt as EventListener);
   }, []);
 
   // derive primitives so effects don't depend on `state.anim` object reference
