@@ -1,5 +1,5 @@
 // src/features/grid/ui/Grid.tsx
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
 
 import type { EngineState } from '@/gamelogic';
@@ -17,7 +17,7 @@ import type { BombTarget } from './bomb/typesBomb';
 import { BombOverlay } from './bomb/BombOverlay';
 import { useBomb3x3Targeting } from './bomb/useBomb3x3Targeting';
 
-import { BombExplosionFxLayer } from './bomb/fx/BombExplosionFxLayer';
+import { BombExplosionFxLayer, type BombVfxMode } from './bomb/fx/BombExplosionFxLayer';
 
 import { GridShell } from './GridShell';
 import { LaserWarningOverlay } from './LaserWarningOverlay';
@@ -61,6 +61,34 @@ type Props = {
 };
 
 type CssVars = CSSProperties & { '--boardDim'?: number };
+
+const LS_KEY_BOMB_VFX = 'match3.dev.bombVfxMode';
+
+// TOGGLE STANDARD BOMBANIMATION (legacy | flipbook)
+function readBombVfxModeFromStorage(): BombVfxMode {
+  if (!import.meta.env.DEV) return 'legacyShock';
+  if (typeof window === 'undefined') return 'legacyShock';
+
+  try {
+    const raw = window.localStorage.getItem(LS_KEY_BOMB_VFX);
+    if (raw === 'legacyShock' || raw === 'flipbook') return raw;
+  } catch {
+    // ignore (privacy mode)
+  }
+
+  return 'legacyShock';
+}
+
+function writeBombVfxModeToStorage(mode: BombVfxMode) {
+  if (!import.meta.env.DEV) return;
+  if (typeof window === 'undefined') return;
+
+  try {
+    window.localStorage.setItem(LS_KEY_BOMB_VFX, mode);
+  } catch {
+    // ignore (privacy mode)
+  }
+}
 
 export default function Grid({
   state,
@@ -156,6 +184,34 @@ export default function Grid({
 
   const showDebugLabels = isDev && debugEnabled;
 
+  const [bombVfxMode, setBombVfxMode] = useState<BombVfxMode>(() => readBombVfxModeFromStorage());
+
+  // DEV-only toggle: press "V" to switch Bomb VFX (Flipbook <-> LegacyShock)
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    if (!isDev) return;
+    if (!debugEnabled) return;
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'v' && e.key !== 'V') return;
+
+      // do not interfere with text inputs
+      const tag = (e.target instanceof Element ? e.target.tagName : '').toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+
+      e.preventDefault();
+
+      setBombVfxMode((prev) => {
+        const next: BombVfxMode = prev === 'flipbook' ? 'legacyShock' : 'flipbook';
+        writeBombVfxModeToStorage(next);
+        return next;
+      });
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isDev, debugEnabled]);
+
   const shellStyle: CssVars = {
     width: innerW + BOARD_PADDING * 2,
     touchAction: 'none',
@@ -203,6 +259,8 @@ export default function Grid({
     onCellPointerDown(index, e);
   };
 
+  const bombFxMode: BombVfxMode = import.meta.env.DEV && isDev && debugEnabled ? bombVfxMode : 'legacyShock';
+
   return (
     <>
       <GridDevPanels
@@ -235,6 +293,13 @@ export default function Grid({
         {/* Laser Warning highlight (under cells/pieces, above bg) */}
         <LaserWarningOverlay warning={state.laserWarning} innerW={innerW} innerH={innerH} />
 
+        {/* DEV label for VFX toggle */}
+        {import.meta.env.DEV && isDev && debugEnabled ? (
+          <div className="absolute left-2 top-2 z-[200] pointer-events-none select-none text-[10px] text-white/70">
+            BombVFX: {bombFxMode === 'flipbook' ? 'Flipbook' : 'LegacyShock'} (press V)
+          </div>
+        ) : null}
+
         {/* Bomb Targeting 3×3 (square corners, red glow) */}
         <BombOverlay indices={bomb.bombOverlayIndices} width={width} zIndex={44} />
 
@@ -259,7 +324,7 @@ export default function Grid({
         />
 
         {/* Bomb detonation FX (after ACK) */}
-        <BombExplosionFxLayer bursts={bomb.bombBursts} width={width} reducedMotionHint={swapMs === 0} zIndex={88} />
+        <BombExplosionFxLayer bursts={bomb.bombBursts} width={width} reducedMotionHint={swapMs === 0} zIndex={88} mode={bombFxMode} />
       </GridShell>
     </>
   );
