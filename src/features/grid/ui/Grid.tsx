@@ -1,4 +1,3 @@
-// src/features/grid/ui/Grid.tsx
 import { useEffect, useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
 
@@ -22,6 +21,8 @@ import { BombExplosionFxLayer, type BombVfxMode } from './bomb/fx/BombExplosionF
 import { GridShell } from './GridShell';
 import { LaserWarningOverlay } from './LaserWarningOverlay';
 import { GridDevPanels } from './GridDevPanels';
+
+import { useCoreSfxWarmup } from '@/features/audio';
 
 type InputIntentLike =
   | { type: 'click'; index: number }
@@ -104,6 +105,8 @@ export default function Grid({
   onDevNextLevel,
   onDevNextTilesPalette,
 }: Props) {
+  useCoreSfxWarmup();
+
   const { width, height, cells, selectedIndex } = state;
 
   const { w: innerW, h: innerH } = useMemo(() => boardInnerSizePx(width, height), [width, height]);

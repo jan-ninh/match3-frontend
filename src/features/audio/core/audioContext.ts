@@ -1,7 +1,48 @@
-// src/features/audio/core/audioContext.ts
 export type AudioContextLike = AudioContext;
 
 let ctx: AudioContextLike | null = null;
+
+type FirstGestureCb = () => void;
+const firstGestureCbs = new Set<FirstGestureCb>();
+let firstGestureFired = false;
+
+function queueMicrotaskSafe(cb: () => void): void {
+  if (typeof queueMicrotask === 'function') {
+    queueMicrotask(cb);
+    return;
+  }
+  void Promise.resolve().then(cb);
+}
+
+/**
+ * Subscribe to the first user gesture we observe (pointer/key/touch).
+ * Useful for kicking off low-latency SFX warmups right after the browser allows audio.
+ */
+export function onFirstAudioGesture(cb: FirstGestureCb): () => void {
+  firstGestureCbs.add(cb);
+
+  // If already fired, schedule ASAP (still async).
+  if (firstGestureFired) queueMicrotaskSafe(cb);
+
+  return () => {
+    firstGestureCbs.delete(cb);
+  };
+}
+
+function fireFirstGesture(): void {
+  if (firstGestureFired) return;
+  firstGestureFired = true;
+
+  for (const cb of Array.from(firstGestureCbs)) {
+    try {
+      cb();
+    } catch {
+      // ignore
+    }
+  }
+
+  firstGestureCbs.clear();
+}
 
 function getWebkitAudioContextCtor(): (new () => AudioContextLike) | null {
   if (typeof window === 'undefined') return null;
@@ -45,6 +86,7 @@ export function ensureAudioUnlocked(): void {
 
   const onFirstGesture = () => {
     tryResume();
+    fireFirstGesture();
 
     // Remove listeners after first attempt (keeps it cheap).
     window.removeEventListener('pointerdown', onFirstGesture, true);

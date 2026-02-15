@@ -1,4 +1,3 @@
-// src/features/grid/ui/bomb/useBomb3x3Targeting.ts
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent, RefObject } from 'react';
 
@@ -12,7 +11,6 @@ import {
   type PowerUseAtDetail,
 } from '@/context/powerEvents';
 
-import { useAudioUnlock } from '@/features/audio/core/useAudioUnlock';
 import { playSfx, preloadSfx } from '@/features/audio/sfx/sfxPlayer';
 
 import { GAP, TILE_SIZE } from '../../lib/constants';
@@ -83,8 +81,6 @@ export function useBomb3x3Targeting({
   reducedMotion = false,
   stageElementId = 'app-stage',
 }: Args): Bomb3x3TargetingApi {
-  useAudioUnlock();
-
   const [bombArmed, setBombArmed] = useState(false);
 
   // Warm up SFX when the mode becomes active (keeps first detonation snappy)
@@ -92,6 +88,7 @@ export function useBomb3x3Targeting({
     if (!bombArmed) return;
     void preloadSfx('bombExplosion');
   }, [bombArmed]);
+
   const [bombHoverTarget, _setBombHoverTarget] = useState<BombTarget | null>(null);
 
   const bombHoverTargetRef = useRef<BombTarget | null>(null);
