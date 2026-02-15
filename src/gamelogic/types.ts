@@ -47,7 +47,7 @@ export type CellObstacle =
   | { kind: 'contamination' }
   | { kind: 'sealKit' }
   | { kind: 'terminal'; id: number; state: TerminalState; charge: number; requiredCharge: number; chargeColor: PieceType }
-  | { kind: 'objectiveTerminal'; id: number; state: ObjectiveTerminalState; charge: number; required: number }
+  | { kind: 'objectiveTerminal'; id: number; state: ObjectiveTerminalState; charge: number; requiredCharge: number }
   | { kind: 'signalSource'; id: number }
   | { kind: 'signalTarget'; id: number }
   | { kind: 'chargedCell' };

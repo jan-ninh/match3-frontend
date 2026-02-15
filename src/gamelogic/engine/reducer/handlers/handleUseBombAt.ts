@@ -2,6 +2,7 @@ import type { EngineEvent, EngineState } from '../../../types';
 import type { UseItemAtAction } from '../actions';
 
 import { beginAnim } from '../../anim';
+import { pushEvents } from '../../events';
 import { setPhase } from '../../../phaseState';
 
 import { applyItemEffectAt, getItemEffectPreviewIndices } from '../../../itemeffects';
@@ -30,7 +31,7 @@ export function handleUseItemAt(state: EngineState, action: UseItemAtAction): En
 
   const events: EngineEvent[] = [];
 
-  // Mark this turn as a "committable" player action (turn-end must be engine-owned)
+  // Accept => arm turn commit (engine-owned)
   let s: EngineState = {
     ...state,
     pendingTurnCommit: { kind: 'item', spendMove: false },
@@ -42,26 +43,20 @@ export function handleUseItemAt(state: EngineState, action: UseItemAtAction): En
     events.push({ type: 'selectionCleared' });
   }
 
-  // Lock input immediately
+  // Lock input immediately (phase event must be preserved via same events array)
   s = setPhase(s, 'inputLock', events);
 
-  // Apply effect (clear -> gravity -> refill), then animate as fall
+  // Apply effect (clear -> gravity -> refill); keep central event policy (pushEvents only once at the end)
   const fx = applyItemEffectAt(s, action.key, target);
+  s = fx.state;
+  events.push(...fx.events);
 
   // Ack for UI consume (only after accept)
-  fx.events.push({ type: 'powerUsed', key: powerKeyForItem(action.key), requestId: action.requestId });
+  events.push({ type: 'powerUsed', key: powerKeyForItem(action.key), requestId: action.requestId });
 
-  let next = pushAllEvents(fx.state, [...events, ...fx.events]);
+  // Enter fall animation phase (engine-owned); keep phase event
+  s = setPhase(s, 'fallAnimating', events);
+  s = beginAnim(s, 'fall', s.swapMs);
 
-  // Enter fall animation phase (engine-owned)
-  next = setPhase(next, 'fallAnimating', []);
-  next = beginAnim(next, 'fall', next.swapMs);
-
-  return next;
-}
-
-// local helper to avoid importing pushEvents (keeps handler simple & explicit)
-function pushAllEvents(state: EngineState, evs: EngineEvent[]): EngineState {
-  if (evs.length === 0) return state;
-  return { ...state, events: [...state.events, ...evs] };
+  return pushEvents(s, events);
 }

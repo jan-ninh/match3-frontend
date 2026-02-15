@@ -72,16 +72,13 @@ export function engineReducer(state: EngineState, action: EngineAction): EngineS
 
   let final = next;
 
-  // Apply turn end effects if we just transitioned to idle after animations
-  const justReachedIdle = final.phase === 'idle' && pre.wasAnimating;
-  if (justReachedIdle) {
+  // Turn-end is engine-owned: apply only when idle AND a commit exists.
+  if (final.phase === 'idle' && final.pendingTurnCommit !== null) {
     const commit = final.pendingTurnCommit;
     final = applyTurnEndPipeline(final, commit);
 
-    // always clear after evaluation to avoid double-apply
-    if (commit) {
-      final = { ...final, pendingTurnCommit: null };
-    }
+    // Single-shot: always consume (also if pipeline decides "no turn-end" for swap spendMove=false)
+    final = { ...final, pendingTurnCommit: null };
   }
 
   // Resolve win/lose only when idle (win has precedence over lose)

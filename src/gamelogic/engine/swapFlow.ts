@@ -44,6 +44,7 @@ export function beginSwapAnimating(state: EngineState, from: number, to: number,
     ...swapped,
     selectedIndex: null,
     pendingSwap: { from, to, snapCells, snapPieces },
+    pendingTurnCommit: null, // defensive: clear any stale commit
     anim: null,
   };
 
@@ -96,6 +97,7 @@ export function applySwapAnimDone(state: EngineState, token: number, mode: AnimD
       pieces: snapPieces,
       selectedIndex: null,
       pendingSwap: null,
+      pendingTurnCommit: null, // no match => no turn commit
       anim: null,
     };
 
@@ -125,7 +127,8 @@ export function applySwapAnimDone(state: EngineState, token: number, mode: AnimD
 
   // spend a move only if the swap actually creates a match
   const nextMovesLeft = Math.max(0, state.movesLeft - 1);
-  if (nextMovesLeft !== state.movesLeft) events.push({ type: 'movesSpent', left: nextMovesLeft });
+  const didSpendMove = nextMovesLeft !== state.movesLeft;
+  if (didSpendMove) events.push({ type: 'movesSpent', left: nextMovesLeft });
 
   let s: EngineState = {
     ...state,
@@ -135,6 +138,9 @@ export function applySwapAnimDone(state: EngineState, token: number, mode: AnimD
   };
 
   s = setPhase(s, 'inputLock', events);
+
+  // arm commit only after match-confirmation (swapBack-safe)
+  s = { ...s, pendingTurnCommit: { kind: 'swap', spendMove: didSpendMove } };
 
   const step = resolveOnce(s);
   s = step.state;
@@ -178,7 +184,7 @@ export function applySwapBackAnimDone(state: EngineState, token: number, mode: A
 
   const events: EngineEvent[] = [mkAnimDone(mode, a, state.nowMs)];
 
-  const base: EngineState = { ...state, anim: null };
+  const base: EngineState = { ...state, anim: null, pendingTurnCommit: null };
   const next = setPhase(base, 'idle', events);
 
   return pushEvents(next, events);
