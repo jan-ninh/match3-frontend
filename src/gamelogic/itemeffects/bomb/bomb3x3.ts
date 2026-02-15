@@ -1,8 +1,8 @@
-import type { EngineEvent, EngineState } from '../types';
+import type { EngineEvent, EngineState } from '../../types';
 
-import { clearCellsAndPieces } from '../cascade/clear';
-import { applyGravity } from '../cascade/gravity';
-import { applyRefill } from '../cascade/refill';
+import { clearCellsAndPieces } from '../../cascade/clear';
+import { applyGravity } from '../../cascade/gravity';
+import { applyRefill } from '../../cascade/refill';
 
 export type BombTarget = { x: number; y: number };
 

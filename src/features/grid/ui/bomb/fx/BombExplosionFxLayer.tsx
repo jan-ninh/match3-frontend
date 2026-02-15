@@ -1,12 +1,13 @@
-// src/features/grid/ui/itemeffects/BombExplosionFxLayer.tsx
+// src/features/grid/ui/bomb/fx/BombExplosionFxLayer.tsx
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import type { CSSProperties } from 'react';
 
 import explosionSheetUrl from '@/assets/fx/explosion_flipbook_8x8_256.alpha.png';
-import { GAP, TILE_SIZE } from '../../lib/constants';
 
-import type { BombTarget } from '../bomb/typesBomb';
-import { FlipbookSprite } from './FlipbookSprite';
+import { GAP, TILE_SIZE } from '../../../lib/constants';
+
+import type { BombTarget } from '../typesBomb';
+import { FlipbookSprite } from '../../fx/FlipbookSprite';
 
 export type BombExplosionBurst = Readonly<{
   id: number;
@@ -47,7 +48,7 @@ export function BombExplosionFxLayer({ bursts, width, zIndex = 88, reducedMotion
   // Must match the TTL used in useBomb3x3Targeting (UI-only).
   const durS = rm ? 0.22 : 0.65;
 
-  // Finish the 30 frames within the burst TTL.
+  // Finish the 60 frames within the burst TTL.
   const fps = rm ? 140 : 60;
 
   const step = cellStepPx();

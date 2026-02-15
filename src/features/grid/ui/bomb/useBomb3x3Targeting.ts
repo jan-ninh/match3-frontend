@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent, RefObject } from 'react';
 
-import { getBomb3x3IndicesFromTarget } from '@/gamelogic/itemeffects/bomb3x3';
+import { getBomb3x3IndicesFromTarget } from '@/gamelogic/itemeffects/bomb';
 import {
   POWER_ARM_EVENT,
   POWER_CONSUME_EVENT,
@@ -14,7 +14,7 @@ import {
 
 import { GAP, TILE_SIZE } from '../../lib/constants';
 import type { BombTarget } from './typesBomb';
-import type { BombExplosionBurst } from '../itemeffects/BombExplosionFxLayer';
+import type { BombExplosionBurst } from './fx/BombExplosionFxLayer';
 
 type BombPowerUsedEvent = Readonly<{
   type: 'powerUsed';

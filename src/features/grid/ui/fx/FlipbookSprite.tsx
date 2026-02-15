@@ -1,4 +1,4 @@
-// src/features/grid/ui/itemeffects/FlipbookSprite.tsx
+// src\features\grid\ui\fx\FlipbookSprite.tsx
 import { useEffect, useMemo, useRef } from 'react';
 import type { CSSProperties } from 'react';
 

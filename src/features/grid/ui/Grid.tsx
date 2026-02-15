@@ -17,7 +17,7 @@ import type { BombTarget } from './bomb/typesBomb';
 import { BombOverlay } from './bomb/BombOverlay';
 import { useBomb3x3Targeting } from './bomb/useBomb3x3Targeting';
 
-import { BombExplosionFxLayer } from './itemeffects/BombExplosionFxLayer';
+import { BombExplosionFxLayer } from './bomb/fx/BombExplosionFxLayer';
 
 import { GridShell } from './GridShell';
 import { LaserWarningOverlay } from './LaserWarningOverlay';

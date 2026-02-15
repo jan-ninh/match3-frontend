@@ -1,8 +1,7 @@
-// src/gamelogic/itemeffects/index.ts
 import type { EngineEvent, EngineState } from '../types';
 
-import type { BombTarget } from './bomb3x3';
-import { applyBomb3x3, getBomb3x3IndicesFromTarget } from './bomb3x3';
+import type { BombTarget } from './bomb';
+import { applyBomb3x3, getBomb3x3IndicesFromTarget } from './bomb';
 
 export type ItemEffectKey = 'bomb3x3';
 

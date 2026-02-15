@@ -1,24 +1,10 @@
 import { GAP, TILE_SIZE } from '../../lib/constants';
 
+import { getBomb3x3IndicesFromTarget } from '@/gamelogic/itemeffects/bomb';
 import type { BombTarget } from './typesBomb';
 
 export function computeBombOverlayIndices(target: BombTarget, width: number, height: number): number[] {
-  const cx = target.x | 0;
-  const cy = target.y | 0;
-
-  const out: number[] = [];
-  for (let dy = -1; dy <= 1; dy++) {
-    for (let dx = -1; dx <= 1; dx++) {
-      const x = cx + dx;
-      const y = cy + dy;
-
-      if (x < 0 || x >= width) continue;
-      if (y < 0 || y >= height) continue;
-
-      out.push(y * width + x);
-    }
-  }
-  return out;
+  return getBomb3x3IndicesFromTarget(target, width, height);
 }
 
 type PickArgs = {
