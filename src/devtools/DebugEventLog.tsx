@@ -69,6 +69,10 @@ function formatEvent(e: EngineEvent): string {
       return `cellCharged(index=${e.index})`;
     case 'signalLinked':
       return 'signalLinked()';
+    case 'powerUsed': {
+      const req = typeof e.requestId === 'number' ? e.requestId : 0;
+      return `powerUsed(key=${e.key}, requestId=${req})`;
+    }
 
     // ─────────────────────────────
     // Level 02+: Leak/Contamination

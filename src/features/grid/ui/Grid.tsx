@@ -2,26 +2,33 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
-
 import type { EngineState } from '@/gamelogic';
 import { getBomb3x3IndicesFromTarget } from '@/gamelogic/itemeffects/bomb3x3';
-
+import {
+  POWER_ARM_EVENT,
+  POWER_CONSUME_EVENT,
+  POWER_USE_AT_EVENT,
+  type PowerArmDetail,
+  type PowerConsumeDetail,
+  type PowerUseAtDetail,
+} from '@/context/powerEvents';
+import type { BombTarget } from './bomb/typesBomb';
 import { DebugInputPanel, DebugDevToolsPanel } from '@/devtools';
-
 import GridCellsLayer from './GridCellsLayer';
 import GridPiecesLayer from './GridPiecesLayer';
 import GridOverlaysLayer from './GridOverlaysLayer';
 import GridLockoutOverlay from './GridLockoutOverlay';
-
 import { BOARD_PADDING, DEBUG_OVERLAY_HZ, GAP, TILE_SIZE } from '../lib/constants';
 import { boardInnerSizePx, cellPixelXY } from '../lib/math';
-
 import { useGridInput } from '../input/useGridInput';
 
-type PowerArmDetail = { key: 'bomb'; armed: boolean };
-type BombTarget = { x: number; y: number };
-
-type PowerConsumeDetail = { key: 'bomb' | 'rocket' | 'extraTime'; amount: number; requestId: number };
+type InputIntentLike =
+  | { type: 'click'; index: number }
+  | { type: 'swap'; from: number; to: number }
+  // legacy (useGridInput’s InputIntent enthält das offenbar noch)
+  | { type: 'useBombAt'; index: number }
+  // current
+  | { type: 'useItemAt'; key: 'bomb3x3'; target: BombTarget };
 
 type Props = {
   state: EngineState;
@@ -37,9 +44,7 @@ type Props = {
   canSwapAt: (from: number, to: number) => boolean;
 
   // Grid emits only intents. Parent decides what to do with them.
-  onIntent: (
-    intent: { type: 'click'; index: number } | { type: 'swap'; from: number; to: number } | { type: 'useItemAt'; key: 'bomb3x3'; target: BombTarget },
-  ) => void;
+  onIntent: (intent: InputIntentLike) => void;
 
   swapMs: number;
 
@@ -94,7 +99,7 @@ export default function Grid({
 
   const disarmBombTargeting = useCallback(() => {
     if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent<PowerArmDetail>('match3:powerArm', { detail: { key: 'bomb', armed: false } }));
+      window.dispatchEvent(new CustomEvent<PowerArmDetail>(POWER_ARM_EVENT, { detail: { key: 'bomb', armed: false } }));
     }
     clearBombHover();
   }, [clearBombHover]);
@@ -114,15 +119,22 @@ export default function Grid({
       if (!armed) clearBombHover();
     };
 
-    window.addEventListener('match3:powerArm', onArm as EventListener);
-    return () => window.removeEventListener('match3:powerArm', onArm as EventListener);
+    window.addEventListener(POWER_ARM_EVENT, onArm as EventListener);
+    return () => window.removeEventListener(POWER_ARM_EVENT, onArm as EventListener);
   }, [clearBombHover]);
 
   // Safety: if engine locks while bomb mode is armed, disarm (avoids "stuck crosshair")
+  // eslint react-hooks/set-state-in-effect: schedule disarm async (no sync setState in effect body)
   useEffect(() => {
     if (!bombArmed) return;
     if (!inputLocked) return;
-    disarmBombTargeting();
+    if (typeof window === 'undefined') return;
+
+    const id = window.setTimeout(() => {
+      disarmBombTargeting();
+    }, 0);
+
+    return () => window.clearTimeout(id);
   }, [bombArmed, inputLocked, disarmBombTargeting]);
 
   // Consume power only after engine ACK event (powerUsed)
@@ -139,7 +151,7 @@ export default function Grid({
       pendingConsumeRef.current.delete(requestId);
 
       const detail: PowerConsumeDetail = { key: ev.key, amount: 1, requestId };
-      window.dispatchEvent(new CustomEvent<PowerConsumeDetail>('match3:powerConsume', { detail }));
+      window.dispatchEvent(new CustomEvent<PowerConsumeDetail>(POWER_CONSUME_EVENT, { detail }));
     }
   }, [state.events]);
 
@@ -336,8 +348,9 @@ export default function Grid({
       pendingConsumeRef.current.add(requestId);
 
       if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('match3:powerUseAt', { detail: { key: 'bomb', target, requestId } }));
-        window.dispatchEvent(new CustomEvent<PowerArmDetail>('match3:powerArm', { detail: { key: 'bomb', armed: false } }));
+        const detail: PowerUseAtDetail = { key: 'bomb', target, requestId };
+        window.dispatchEvent(new CustomEvent<PowerUseAtDetail>(POWER_USE_AT_EVENT, { detail }));
+        window.dispatchEvent(new CustomEvent<PowerArmDetail>(POWER_ARM_EVENT, { detail: { key: 'bomb', armed: false } }));
       }
 
       clearBombHover();
