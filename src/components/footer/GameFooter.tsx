@@ -12,7 +12,6 @@ type Props = {
 };
 
 type PowerArmDetail = { key: 'bomb'; armed: boolean };
-type PowerUseAtDetail = { key: 'bomb'; index: number };
 type PowerGrantDetail = { key: 'bomb'; delta: number };
 
 export default function GameFooter({ openSettings }: Props) {
@@ -32,34 +31,15 @@ export default function GameFooter({ openSettings }: Props) {
     window.dispatchEvent(new CustomEvent<PowerArmDetail>('match3:powerArm', { detail: { key: 'bomb', armed } }));
   }, []);
 
-  // Spend 1 bomb after Grid confirmed a target (OK: uses ref, but only in effects/handlers)
-  const consumeBomb = useCallback(async () => {
-    const current = (powersRef.current.bomb ?? 0) | 0;
+  // Safety: if bomb count hits 0 while armed, disarm (prevents "stuck targeting")
+  useEffect(() => {
+    const cur = (powers.bomb ?? 0) | 0;
+    if (cur > 0) return;
+    if (!armedBomb) return;
 
-    if (current <= 0) {
-      setArmedBomb(false);
-      emitArmBomb(false);
-      return;
-    }
-
-    const next: Powers = { ...powersRef.current, bomb: current - 1 };
-    setPowers(next);
-
-    // auto-disarm at 0
-    if ((next.bomb ?? 0) <= 0) {
-      setArmedBomb(false);
-      emitArmBomb(false);
-    }
-
-    if (!user) return;
-
-    try {
-      await updatePowers({ bomb: next.bomb }, 'set');
-    } catch {
-      // rollback best-effort to last known ref snapshot
-      setPowers(powersRef.current);
-    }
-  }, [emitArmBomb, setPowers, updatePowers, user]);
+    setArmedBomb(false);
+    emitArmBomb(false);
+  }, [armedBomb, emitArmBomb, powers.bomb]);
 
   // Sync with global arm/disarm (Grid can disarm after confirm)
   useEffect(() => {
@@ -75,22 +55,6 @@ export default function GameFooter({ openSettings }: Props) {
     window.addEventListener('match3:powerArm', onArm as EventListener);
     return () => window.removeEventListener('match3:powerArm', onArm as EventListener);
   }, []);
-
-  // Bomb confirm (Grid emits index) => spend 1 bomb
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const onUseAt = (e: Event) => {
-      const ce = e as CustomEvent<PowerUseAtDetail>;
-      const d = ce.detail;
-      if (!d || d.key !== 'bomb') return;
-      void d.index;
-      void consumeBomb();
-    };
-
-    window.addEventListener('match3:powerUseAt', onUseAt as EventListener);
-    return () => window.removeEventListener('match3:powerUseAt', onUseAt as EventListener);
-  }, [consumeBomb]);
 
   // Optional: PowerChoice can grant bombs via event (+2 etc.)
   useEffect(() => {
@@ -121,9 +85,16 @@ export default function GameFooter({ openSettings }: Props) {
   const onUsePower = useCallback(
     async (key: PowerKey) => {
       const current = (powers[key] ?? 0) | 0;
-      if (current <= 0) return;
+      if (current <= 0) {
+        // if user tries to arm with 0, make sure it's off
+        if (key === 'bomb' && armedBomb) {
+          setArmedBomb(false);
+          emitArmBomb(false);
+        }
+        return;
+      }
 
-      // Bomb = targeting mode (no immediate spend)
+      // Bomb = targeting mode (no immediate spend; spend happens ONLY on match3:powerConsume after engine ACK)
       if (key === 'bomb') {
         const nextArmed = !armedBomb;
         setArmedBomb(nextArmed);

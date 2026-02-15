@@ -1,4 +1,3 @@
-// src/gamelogic/engine/reducer/handlers/handleSwapAttempt.ts
 import type { EngineState } from '../../../types';
 
 import { canSwap } from '../../../board';
@@ -14,5 +13,10 @@ export function handleSwapAttempt(state: EngineState, action: SwapAttemptAction)
   const check = canSwap(from, to, state.width, state.cells);
   if (!check.ok) return pushEvents(state, [rejectSwap(from, to, check.reason)]);
 
-  return beginSwapAnimating(state, from, to);
+  const withCommit: EngineState = {
+    ...state,
+    pendingTurnCommit: { kind: 'swap', spendMove: true },
+  };
+
+  return beginSwapAnimating(withCommit, from, to);
 }

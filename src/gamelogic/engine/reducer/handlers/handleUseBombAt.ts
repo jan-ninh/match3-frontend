@@ -1,4 +1,3 @@
-// src/gamelogic/engine/reducer/handlers/handleUseBombAt.ts
 import type { EngineEvent, EngineState } from '../../../types';
 import type { UseItemAtAction } from '../actions';
 
@@ -31,8 +30,13 @@ export function handleUseItemAt(state: EngineState, action: UseItemAtAction): En
 
   const events: EngineEvent[] = [];
 
+  // Mark this turn as a "committable" player action (turn-end must be engine-owned)
+  let s: EngineState = {
+    ...state,
+    pendingTurnCommit: { kind: 'item', spendMove: false },
+  };
+
   // Clear selection for cleanliness
-  let s: EngineState = state;
   if (s.selectedIndex !== null) {
     s = { ...s, selectedIndex: null };
     events.push({ type: 'selectionCleared' });

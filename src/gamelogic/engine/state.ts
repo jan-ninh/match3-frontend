@@ -1,4 +1,3 @@
-// src/gamelogic/engine/state.ts
 import type { EngineEvent, EngineState, LaserWarning, LevelId, PieceId } from '../types';
 import { getLevelDefinition } from '../levels';
 import { buildInitialBoard } from '../board';
@@ -246,6 +245,7 @@ export function createState(levelId: LevelId, seed: number, extraEvents: EngineE
     nextPieceId,
 
     pendingSwap: null,
+    pendingTurnCommit: null,
     selectedIndex: null,
 
     phase: 'init',

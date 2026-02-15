@@ -1,4 +1,3 @@
-// src/gamelogic/engine/reducer/index.ts
 import type { EngineState } from '../../types';
 import { assertPhaseInvariants } from '../../invariants';
 
@@ -76,9 +75,13 @@ export function engineReducer(state: EngineState, action: EngineAction): EngineS
   // Apply turn end effects if we just transitioned to idle after animations
   const justReachedIdle = final.phase === 'idle' && pre.wasAnimating;
   if (justReachedIdle) {
-    // Check if this was a successful swap (moves were spent)
-    const movesWereSpent = final.movesLeft < state.movesLeft;
-    final = applyTurnEndPipeline(final, movesWereSpent);
+    const commit = final.pendingTurnCommit;
+    final = applyTurnEndPipeline(final, commit);
+
+    // always clear after evaluation to avoid double-apply
+    if (commit) {
+      final = { ...final, pendingTurnCommit: null };
+    }
   }
 
   // Resolve win/lose only when idle (win has precedence over lose)

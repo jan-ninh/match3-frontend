@@ -1,4 +1,3 @@
-// src/gamelogic/types.ts
 import type { EnginePhase } from './phases';
 import type { RngState } from './rng';
 
@@ -48,7 +47,7 @@ export type CellObstacle =
   | { kind: 'contamination' }
   | { kind: 'sealKit' }
   | { kind: 'terminal'; id: number; state: TerminalState; charge: number; requiredCharge: number; chargeColor: PieceType }
-  | { kind: 'objectiveTerminal'; id: number; state: ObjectiveTerminalState; charge: number; requiredCharge: number }
+  | { kind: 'objectiveTerminal'; id: number; state: ObjectiveTerminalState; charge: number; required: number }
   | { kind: 'signalSource'; id: number }
   | { kind: 'signalTarget'; id: number }
   | { kind: 'chargedCell' };
@@ -223,6 +222,15 @@ export type PendingSwap = {
 };
 
 // ─────────────────────────────────────────────
+// Pending Turn Commit (turn-end must be engine-owned)
+// ─────────────────────────────────────────────
+
+export type PendingTurnCommit = {
+  kind: 'swap' | 'item';
+  spendMove: boolean;
+};
+
+// ─────────────────────────────────────────────
 // Swap Rejection
 // ─────────────────────────────────────────────
 
@@ -390,4 +398,7 @@ export type EngineState = {
 
   events: EngineEvent[];
   pendingSwap: PendingSwap | null;
+
+  // commit marker for "apply turn-end when we reach idle"
+  pendingTurnCommit: PendingTurnCommit | null;
 };
