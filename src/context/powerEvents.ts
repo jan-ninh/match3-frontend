@@ -3,6 +3,11 @@ import type { PowerKey } from '@/types';
 export const POWER_ARM_EVENT = 'match3:powerArm' as const;
 export const POWER_GRANT_EVENT = 'match3:powerGrant' as const;
 export const POWER_CONSUME_EVENT = 'match3:powerConsume' as const;
+
+// Non-targeted power usage (e.g. reshuffle / utility powers)
+export const POWER_USE_EVENT = 'match3:powerUse' as const;
+
+// Targeted power usage (e.g. bomb targeting confirm)
 export const POWER_USE_AT_EVENT = 'match3:powerUseAt' as const;
 
 export type PowerArmDetail = Readonly<{
@@ -18,6 +23,11 @@ export type PowerGrantDetail = Readonly<{
 export type PowerConsumeDetail = Readonly<{
   key: PowerKey;
   amount: number;
+  requestId?: number;
+}>;
+
+export type PowerUseDetail = Readonly<{
+  key: PowerKey;
   requestId?: number;
 }>;
 

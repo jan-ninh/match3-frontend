@@ -5,7 +5,17 @@ import { footerActions } from './footerAction';
 import bombSprite from '@/assets/items/bomb01.png';
 import { usePowers } from '@/context/PowerContext';
 import { useAuth } from '@/context/AuthContext';
-import { POWER_ARM_EVENT, POWER_GRANT_EVENT, type PowerArmDetail, type PowerGrantDetail } from '@/context/powerEvents';
+import {
+  POWER_ARM_EVENT,
+  POWER_CONSUME_EVENT,
+  POWER_GRANT_EVENT,
+  POWER_USE_EVENT,
+  type PowerArmDetail,
+  type PowerConsumeDetail,
+  type PowerGrantDetail,
+  type PowerUseDetail,
+} from '@/context/powerEvents';
+import { playSfx } from '@/features/audio';
 import type { PowerKey, Powers } from '@/types';
 
 type Props = {
@@ -27,10 +37,27 @@ export default function GameFooter({ openSettings }: Props) {
     powersRef.current = powers;
   }, [powers]);
 
+  const nextRequestIdRef = useRef(1);
+
+  const allocRequestId = useCallback((): number => {
+    const v = nextRequestIdRef.current | 0;
+    nextRequestIdRef.current = (v + 1) | 0;
+    return Math.max(1, v);
+  }, []);
+
   const emitArmBomb = useCallback((armed: boolean) => {
     if (typeof window === 'undefined') return;
     window.dispatchEvent(new CustomEvent<PowerArmDetail>(POWER_ARM_EVENT, { detail: { key: 'bomb', armed } }));
   }, []);
+
+  const emitUsePower = useCallback(
+    (key: PowerKey) => {
+      if (typeof window === 'undefined') return;
+      const requestId = allocRequestId();
+      window.dispatchEvent(new CustomEvent<PowerUseDetail>(POWER_USE_EVENT, { detail: { key, requestId } }));
+    },
+    [allocRequestId],
+  );
 
   // Safety: if bomb count hits 0 while armed, disarm (prevents "stuck targeting")
   useEffect(() => {
@@ -59,7 +86,7 @@ export default function GameFooter({ openSettings }: Props) {
 
   /**
    * Power grants via event (reward overlays etc.).
-   * Source of truth for consumption is PowerProvider via POWER_CONSUME_EVENT.
+   * Consumption is ack-driven via POWER_CONSUME_EVENT (emitted by the engine bridge after EngineEvent `powerUsed`).
    * Here we only apply grants and (optionally) persist them.
    */
   useEffect(() => {
@@ -90,6 +117,38 @@ export default function GameFooter({ openSettings }: Props) {
     return () => window.removeEventListener(POWER_GRANT_EVENT, onGrant as EventListener);
   }, [setPowers, updatePowers, user]);
 
+  /**
+   * Persist ack-driven consumption (backend is not the SSOT for immediate UI).
+   * Note: We compute `nextVal` from the ref-snapshot to avoid depending on React state timing.
+   */
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const onConsume = (e: Event) => {
+      if (!user) return;
+
+      const ce = e as CustomEvent<PowerConsumeDetail>;
+      const d = ce.detail;
+      if (!d) return;
+
+      const amount = d.amount | 0;
+      if (amount <= 0) return;
+
+      const key = d.key;
+
+      const cur = (powersRef.current[key] ?? 0) | 0;
+      const nextVal = Math.max(0, cur - amount);
+      if (nextVal === cur) return;
+
+      updatePowers({ [key]: nextVal }, 'set').catch(() => {
+        // Best-effort: local UI already consumed; backend sync can be retried later.
+      });
+    };
+
+    window.addEventListener(POWER_CONSUME_EVENT, onConsume as EventListener);
+    return () => window.removeEventListener(POWER_CONSUME_EVENT, onConsume as EventListener);
+  }, [updatePowers, user]);
+
   const onUsePower = useCallback(
     async (key: PowerKey) => {
       const current = (powers[key] ?? 0) | 0;
@@ -105,7 +164,7 @@ export default function GameFooter({ openSettings }: Props) {
       /**
        * Bomb = targeting mode only (arm/disarm).
        * Inventory spend is applied centrally by PowerProvider when it receives POWER_CONSUME_EVENT
-       * (dispatched by the engine-event bridge after EngineEvent `powerUsed` was accepted).
+       * (emitted by the engine-event bridge after EngineEvent `powerUsed` was accepted).
        */
       if (key === 'bomb') {
         const nextArmed = !armedBomb;
@@ -114,6 +173,18 @@ export default function GameFooter({ openSettings }: Props) {
         return;
       }
 
+      /**
+       * Reshuffle = free action:
+       * - do NOT decrement here
+       * - engine decides acceptance and emits `powerUsed` => consume happens via bridge
+       */
+      if (key === 'extraShuffle') {
+        playSfx('reshuffle');
+        emitUsePower(key);
+        return;
+      }
+
+      // Legacy behavior (until these powers are engine-owned)
       const prev = powers;
       const next: Powers = { ...powers, [key]: current - 1 };
       setPowers(next);
@@ -127,7 +198,7 @@ export default function GameFooter({ openSettings }: Props) {
         setPowers(prev);
       }
     },
-    [armedBomb, emitArmBomb, powers, setPowers, updatePowers, user],
+    [armedBomb, emitArmBomb, emitUsePower, powers, setPowers, updatePowers, user],
   );
 
   const actions = useMemo(() => footerActions(openSettings, powers, onUsePower), [openSettings, powers, onUsePower]);

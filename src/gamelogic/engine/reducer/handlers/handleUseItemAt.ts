@@ -2,8 +2,7 @@ import type { EngineEvent, EngineState } from '../../../types';
 import type { UseItemAtAction } from '../actions';
 
 import { beginAnim } from '../../anim';
-import { mkTurnCommitArmedItem, pushEvents } from '../../events';
-import { isStableIdle } from '../../guards';
+import { isStableIdle, mkTurnCommitArmedItem, pushEvents } from '../../events';
 import { setPhase } from '../../../phaseState';
 
 import { applyItemEffectAt, getItemEffectPreviewIndices } from '../../../itemeffects';

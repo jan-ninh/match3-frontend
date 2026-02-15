@@ -10,6 +10,9 @@ export type SwapAttemptAction = { type: 'swapAttempt'; from: number; to: number;
 // Power/Item effects targeting confirm (engine-owned)
 export type UseItemAtAction = { type: 'useItemAt'; key: ItemEffectKey; target: ItemTarget; requestId: number; nowMs?: number };
 
+// Utility power (free action): reshuffle board without turn-end
+export type ReshuffleAction = { type: 'reshuffle'; requestId: number; nowMs?: number };
+
 // animation timing (single source of truth; UI may update via setSwapMs)
 export type SetSwapMsAction = { type: 'setSwapMs'; swapMs: number; nowMs?: number };
 
@@ -30,6 +33,7 @@ export type EngineAction =
   | ResetBoardAction
   | SwapAttemptAction
   | UseItemAtAction
+  | ReshuffleAction
   | SetSwapMsAction
   | WakeAction
   | TickAction

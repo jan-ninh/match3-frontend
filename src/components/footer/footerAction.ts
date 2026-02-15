@@ -26,7 +26,7 @@ export const footerActions = (openSettings: () => void, powers: Powers, onUsePow
   },
   {
     id: 'extraShuffle',
-    label: 'Extra Time',
+    label: 'Reshuffle',
     icon: '/icons/extraShuffle.svg',
     count: powers.extraShuffle,
     onClick: () => onUsePower('extraShuffle'),

@@ -12,12 +12,12 @@ export type PowerContextValue = {
 //----------------------------------------------------
 const INITIAL_BOMBS = 20;
 const INITIAL_LASERS = 20;
-const INITIAL_EXTRA_TIME = 20;
+const INITIAL_EXTRA_SHUFFLE = 20;
 
 export const defaultPowers = Object.freeze({
   bomb: INITIAL_BOMBS,
   laser: INITIAL_LASERS,
-  extraShuffle: INITIAL_EXTRA_TIME,
+  extraShuffle: INITIAL_EXTRA_SHUFFLE,
 } satisfies Powers);
 
 export const PowerContext = createContext<PowerContextValue | null>(null);
@@ -25,17 +25,17 @@ export const PowerContext = createContext<PowerContextValue | null>(null);
 const CHOICE_BONUS_BY_KEY: Readonly<Partial<Record<string, number>>> = Object.freeze({
   // current
   bomb: 2,
-  // planned (safe even if PowerKey union doesn't contain these yet)
+  // planned / utility
   laser: 2,
-  reshuffle: 2, // = 2 rerolls (future)
+  extraShuffle: 2, // = 2 reshuffles
 });
 
 export function getChoiceBonus(selected: PowerKey): number {
   /**
-   * Future-proof choice bonuses:
-   * - bomb      -> +2 bombs
-   * - laser    -> +2 lasers
-   * - reshuffle -> +2 rerolls (future)
+   * Choice bonuses:
+   * - bomb         -> +2 bombs
+   * - laser       -> +2 lasers
+   * - extraShuffle -> +2 reshuffles
    *
    * Any other selection defaults to +1.
    */

@@ -2,11 +2,58 @@ import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState }
 
 import type { EngineAction } from '@/gamelogic';
 import { canSwap, createInitialState, engineReducer, SWAP_MS } from '@/gamelogic';
-import { POWER_USE_AT_EVENT, type PowerUseAtDetail } from '@/context/powerEvents';
+import {
+  POWER_CONSUME_EVENT,
+  POWER_USE_AT_EVENT,
+  POWER_USE_EVENT,
+  type PowerConsumeDetail,
+  type PowerUseAtDetail,
+  type PowerUseDetail,
+} from '@/context/powerEvents';
+import type { PowerKey } from '@/types';
 
 type Args = {
   initialLevelId?: number;
 };
+
+function isPowerKey(v: unknown): v is PowerKey {
+  return v === 'bomb' || v === 'laser' || v === 'extraShuffle';
+}
+
+type PowerUsedEvent = Readonly<{
+  type: 'powerUsed';
+  key: PowerKey;
+  requestId: number;
+}>;
+
+function isPowerUsedEvent(ev: unknown): ev is PowerUsedEvent {
+  if (!ev || typeof ev !== 'object') return false;
+  const r = ev as Record<string, unknown>;
+  if (r.type !== 'powerUsed') return false;
+  if (!isPowerKey(r.key)) return false;
+  if (typeof r.requestId !== 'number') return false;
+  const id = r.requestId | 0;
+  if (id <= 0) return false;
+  return true;
+}
+
+type SeenRing = {
+  set: Set<string>;
+  order: string[];
+};
+
+function markSeen(seen: SeenRing, id: string, max: number): boolean {
+  if (seen.set.has(id)) return false;
+  seen.set.add(id);
+  seen.order.push(id);
+
+  while (seen.order.length > max) {
+    const oldest = seen.order.shift();
+    if (oldest) seen.set.delete(oldest);
+  }
+
+  return true;
+}
 
 export function useMatch3Engine({ initialLevelId = 1 }: Args) {
   const isDev = import.meta.env.DEV;
@@ -67,6 +114,19 @@ export function useMatch3Engine({ initialLevelId = 1 }: Args) {
     dispatch({ type: 'initLevel', levelId, nowMs: performance.now() } as EngineAction);
   }, [levelId]);
 
+  // monotonic requestId allocator for power flows (prevents requestId=0 breaking consume dedupe)
+  const nextPowerRequestIdRef = useRef(1);
+  const allocPowerRequestId = useCallback((maybe: unknown): number => {
+    if (typeof maybe === 'number' && Number.isFinite(maybe)) {
+      const v = maybe | 0;
+      if (v > 0) return v;
+    }
+
+    const v = nextPowerRequestIdRef.current | 0;
+    nextPowerRequestIdRef.current = (v + 1) | 0;
+    return Math.max(1, v);
+  }, []);
+
   // 0) Low-noise wake-ups (tab return / focus)
   useEffect(() => {
     const wake = () => dispatch({ type: 'wake', nowMs: performance.now() } as EngineAction);
@@ -85,6 +145,24 @@ export function useMatch3Engine({ initialLevelId = 1 }: Args) {
     };
   }, []);
 
+  // Power → Engine bridge (non-targeted)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const onUse = (e: Event) => {
+      const ce = e as CustomEvent<PowerUseDetail>;
+      const d = ce.detail;
+      if (!d || d.key !== 'extraShuffle') return;
+
+      const requestId = allocPowerRequestId(d.requestId);
+
+      dispatch({ type: 'reshuffle', requestId, nowMs: performance.now() } as EngineAction);
+    };
+
+    window.addEventListener(POWER_USE_EVENT, onUse as EventListener);
+    return () => window.removeEventListener(POWER_USE_EVENT, onUse as EventListener);
+  }, [allocPowerRequestId]);
+
   // Power → Engine bridge (Bomb targeting confirm)
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -97,7 +175,7 @@ export function useMatch3Engine({ initialLevelId = 1 }: Args) {
       const t = d.target;
       if (!t || typeof t.x !== 'number' || typeof t.y !== 'number') return;
 
-      const requestId = typeof d.requestId === 'number' ? d.requestId | 0 : 0;
+      const requestId = allocPowerRequestId(d.requestId);
 
       // Always route legacy/modern bomb usage through useItemAt
       dispatch({
@@ -111,7 +189,29 @@ export function useMatch3Engine({ initialLevelId = 1 }: Args) {
 
     window.addEventListener(POWER_USE_AT_EVENT, onUseAt as EventListener);
     return () => window.removeEventListener(POWER_USE_AT_EVENT, onUseAt as EventListener);
-  }, []);
+  }, [allocPowerRequestId]);
+
+  // EngineEvent `powerUsed` → UI consume (ack-driven)
+  const seenPowerUsedRef = useRef<SeenRing>({ set: new Set<string>(), order: [] });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const seen = seenPowerUsedRef.current;
+
+    for (const ev of state.events) {
+      if (!isPowerUsedEvent(ev)) continue;
+
+      const id = `${ev.key}:${ev.requestId}`;
+      if (!markSeen(seen, id, 256)) continue;
+
+      window.dispatchEvent(
+        new CustomEvent<PowerConsumeDetail>(POWER_CONSUME_EVENT, {
+          detail: { key: ev.key, amount: 1, requestId: ev.requestId },
+        }),
+      );
+    }
+  }, [state.events]);
 
   // derive primitives so effects don't depend on `state.anim` object reference
   const animKind = state.anim?.kind;
@@ -195,7 +295,7 @@ export function useMatch3Engine({ initialLevelId = 1 }: Args) {
       if (i?.type === 'useBombAt') {
         const t = i.target as { x?: unknown; y?: unknown } | undefined;
         if (t && typeof t.x === 'number' && typeof t.y === 'number') {
-          const requestId = typeof i.requestId === 'number' ? i.requestId | 0 : 0;
+          const requestId = allocPowerRequestId(i.requestId);
 
           dispatch({
             type: 'useItemAt',
@@ -210,7 +310,7 @@ export function useMatch3Engine({ initialLevelId = 1 }: Args) {
 
       dispatch(intent as EngineAction);
     },
-    [dispatch],
+    [allocPowerRequestId, dispatch],
   );
 
   const onDevResetBoard = useCallback(() => {

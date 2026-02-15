@@ -10,6 +10,7 @@ import { handleAnimDone } from './handlers/handleAnimDone';
 import { handleClickCell } from './handlers/handleClickCell';
 import { handleInitLevel } from './handlers/handleInitLevel';
 import { handleResetBoard } from './handlers/handleResetBoard';
+import { handleReshuffle } from './handlers/handleReshuffle';
 import { handleSetSwapMs } from './handlers/handleSetSwapMs';
 import { handleSwapAttempt } from './handlers/handleSwapAttempt';
 import { handleTickWake } from './handlers/handleTickWake';
@@ -83,6 +84,10 @@ export function engineReducer(state: EngineState, action: EngineReducerAction): 
 
       case 'useItemAt': {
         return handleUseItemAt(s, nonPriorityAction);
+      }
+
+      case 'reshuffle': {
+        return handleReshuffle(s, nonPriorityAction);
       }
 
       default: {
