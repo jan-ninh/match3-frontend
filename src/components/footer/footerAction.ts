@@ -9,11 +9,7 @@ type ActionItem = {
 
 import type { PowerKey, Powers } from '@/types';
 
-export const footerActions = (
-  openSettings: () => void,
-  powers: Powers,
-  onUsePower: (key: PowerKey) => void,
-): ActionItem[] => [
+export const footerActions = (openSettings: () => void, powers: Powers, onUsePower: (key: PowerKey) => void): ActionItem[] => [
   {
     id: 'bomb',
     label: 'Bomb',
@@ -29,11 +25,11 @@ export const footerActions = (
     onClick: () => onUsePower('rocket'),
   },
   {
-    id: 'extraTime',
+    id: 'extraShuffle',
     label: 'Extra Time',
-    icon: '/icons/extraTime.svg',
-    count: powers.extraTime,
-    onClick: () => onUsePower('extraTime'),
+    icon: '/icons/extraShuffle.svg',
+    count: powers.extraShuffle,
+    onClick: () => onUsePower('extraShuffle'),
   },
   {
     id: 'tip',

@@ -11,13 +11,13 @@ export type PowerContextValue = {
 // SET INITIAL POWERITEMS
 //----------------------------------------------------
 const INITIAL_BOMBS = 20;
-const INITIAL_ROCKETS = 0;
-const INITIAL_EXTRA_TIME = 0;
+const INITIAL_ROCKETS = 20;
+const INITIAL_EXTRA_TIME = 20;
 
 export const defaultPowers = Object.freeze({
   bomb: INITIAL_BOMBS,
   rocket: INITIAL_ROCKETS,
-  extraTime: INITIAL_EXTRA_TIME,
+  extraShuffle: INITIAL_EXTRA_TIME,
 } satisfies Powers);
 
 export const PowerContext = createContext<PowerContextValue | null>(null);

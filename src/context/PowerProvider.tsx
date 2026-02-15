@@ -50,7 +50,7 @@ export function PowerProvider({ children }: { children: ReactNode }) {
       const next: Powers = {
         bomb: backendPowers.bomb ?? 0,
         rocket: backendPowers.rocket ?? 0,
-        extraTime: backendPowers.extraTime ?? 0,
+        extraShuffle: backendPowers.extraShuffle ?? 0,
       };
 
       const prevCount = (prev[selected] ?? 0) | 0;
