@@ -1,3 +1,4 @@
+// src/components/footer/GameFooter.tsx
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { footerActions } from './footerAction';
@@ -134,7 +135,7 @@ export default function GameFooter({ openSettings }: Props) {
   return (
     <div className="flex flex-wrap justify-center gap-4 p-4 rounded-xl">
       {actions.map((item) => {
-        const isBomb = item.id === ('bomb' as PowerKey);
+        const isBomb = item.id === 'bomb';
         const isActive = isBomb && armedBomb;
 
         return (
@@ -143,13 +144,21 @@ export default function GameFooter({ openSettings }: Props) {
             onClick={item.onClick}
             aria-label={item.label}
             aria-pressed={isActive}
+            draggable={false}
+            onDragStart={(e) => e.preventDefault()}
             className={[
-              'relative w-24 h-16 flex items-center justify-center border border-white/20 hover:scale-105 transition focus:outline-none focus:ring',
+              'relative w-24 h-16 flex items-center justify-center border border-white/20 hover:scale-105 transition focus:outline-none focus:ring select-none',
               isActive ? 'ring-2 ring-rose-500/60 shadow-[0_0_22px_rgba(244,63,94,0.22)]' : '',
             ].join(' ')}
             type="button"
           >
-            <img src={isBomb ? bombSprite : item.icon} alt={item.label} className={['object-contain', isBomb ? 'w-80 h-80 pb-5' : 'w-8 h-8'].join(' ')} />
+            <img
+              src={isBomb ? bombSprite : item.icon}
+              alt=""
+              aria-hidden="true"
+              draggable={false}
+              className={['object-contain pointer-events-none select-none', isBomb ? 'w-80 h-80 pb-5' : 'w-8 h-8'].join(' ')}
+            />
             {typeof item.count === 'number' && (
               <span className="absolute bottom-0 right-0 w-6 h-6 flex items-center justify-center bg-gray-600 rounded-full border border-white/20 text-xs text-white">
                 {item.count}
@@ -157,7 +166,7 @@ export default function GameFooter({ openSettings }: Props) {
             )}
             {!item.count && item.badge && (
               <span className="absolute bottom-0 right-0 w-6 h-6 flex items-center justify-center bg-gray-600 rounded-full border border-white/20">
-                <img src={item.badge} alt={item.label} className="w-3 h-3" aria-hidden="true" />
+                <img src={item.badge} alt={item.label} className="w-3 h-3" aria-hidden="true" draggable={false} />
               </span>
             )}
           </button>
