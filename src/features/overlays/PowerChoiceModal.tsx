@@ -10,7 +10,7 @@ type Props = {
   onChoose: (powerId: PowerId) => void;
 };
 
-const powerIds: PowerId[] = ['bomb', 'rocket', 'extraShuffle'];
+const powerIds: PowerId[] = ['bomb', 'laser', 'extraShuffle'];
 
 function getChoiceBonus(id: PowerId): number {
   return id === 'bomb' ? 2 : 1;

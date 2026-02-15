@@ -18,11 +18,11 @@ export const footerActions = (openSettings: () => void, powers: Powers, onUsePow
     onClick: () => onUsePower('bomb'),
   },
   {
-    id: 'rocket',
-    label: 'Rocket',
-    icon: '/icons/rocket.svg',
-    count: powers.rocket,
-    onClick: () => onUsePower('rocket'),
+    id: 'laser',
+    label: 'Laser',
+    icon: '/icons/laser.svg',
+    count: powers.laser,
+    onClick: () => onUsePower('laser'),
   },
   {
     id: 'extraShuffle',

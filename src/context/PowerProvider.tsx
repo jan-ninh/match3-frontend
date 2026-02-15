@@ -49,7 +49,7 @@ export function PowerProvider({ children }: { children: ReactNode }) {
     setPowersState((prev) => {
       const next: Powers = {
         bomb: backendPowers.bomb ?? 0,
-        rocket: backendPowers.rocket ?? 0,
+        laser: backendPowers.laser ?? 0,
         extraShuffle: backendPowers.extraShuffle ?? 0,
       };
 

@@ -68,15 +68,15 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
           const nextPowers =
             powerId === 'bomb'
               ? { ...powers, bomb: powers.bomb + add }
-              : powerId === 'rocket'
-                ? { ...powers, rocket: powers.rocket + add }
+              : powerId === 'laser'
+                ? { ...powers, laser: powers.laser + add }
                 : { ...powers, extraShuffle: powers.extraShuffle + add };
 
           setPowers(nextPowers);
 
           // 2) Persist reward for logged-in users (best-effort)
           if (user?.id) {
-            const delta = powerId === 'bomb' ? { bomb: add } : powerId === 'rocket' ? { rocket: add } : { extraShuffle: add };
+            const delta = powerId === 'bomb' ? { bomb: add } : powerId === 'laser' ? { laser: add } : { extraShuffle: add };
 
             try {
               await updatePowers(delta, 'add');

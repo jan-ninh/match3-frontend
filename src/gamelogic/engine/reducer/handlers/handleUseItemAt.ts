@@ -8,7 +8,7 @@ import { setPhase } from '../../../phaseState';
 
 import { applyItemEffectAt, getItemEffectPreviewIndices } from '../../../itemeffects';
 
-function powerKeyForItem(key: UseItemAtAction['key']): 'bomb' | 'rocket' | 'extraShuffle' {
+function powerKeyForItem(key: UseItemAtAction['key']): 'bomb' | 'laser' | 'extraShuffle' {
   switch (key) {
     case 'bomb3x3':
       return 'bomb';
