@@ -1,5 +1,14 @@
-// src/gamelogic/engine/events.ts
-import type { AnimDoneIgnoreReason, AnimDoneMode, EngineAnimKind, EngineEvent, EngineState, ItemEffectKeyForEvent, LevelId, SwapRejectReason } from '../types';
+import type {
+  AnimDoneIgnoreReason,
+  AnimDoneMode,
+  EngineAnimKind,
+  EngineEvent,
+  EngineState,
+  HardBoundaryKind,
+  ItemEffectKeyForEvent,
+  LevelId,
+  SwapRejectReason,
+} from '../types';
 
 const MAX_EVENTS = 80;
 
@@ -29,6 +38,20 @@ export function pushEvents(state: EngineState, newEvents: EngineEvent[]): Engine
 
 export function mkSeededInit(levelId: LevelId, width: number, height: number, seed: number): EngineEvent {
   return { type: 'seededInit', levelId, width, height, seed };
+}
+
+export function mkHardBoundary(kind: HardBoundaryKind, nowMs: number, animTokenBase: number): EngineEvent {
+  return { type: 'hardBoundary', kind, nowMs, animTokenBase };
+}
+
+export function mkAnimBegin(
+  kind: EngineAnimKind,
+  token: number,
+  durationMs: number,
+  enteredAtMs: number,
+  deadlineAtMs: number,
+): EngineEvent {
+  return { type: 'animBegin', kind, token, durationMs, enteredAtMs, deadlineAtMs };
 }
 
 export function mkAnimDone(

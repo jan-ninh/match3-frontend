@@ -1,7 +1,7 @@
-// src/gamelogic/engine/reducer/handlers/handleResetBoard.ts
 import type { EngineEvent, EngineState } from '../../../types';
 
 import { nextAnimToken } from '../../anim';
+import { mkHardBoundary } from '../../events';
 import { createState } from '../../state';
 import type { ResetBoardAction } from '../actions';
 
@@ -15,6 +15,8 @@ export function handleResetBoard(state: EngineState, _action: ResetBoardAction):
   const resetEvent: EngineEvent = { type: 'reset', levelId: state.levelId, seed: newSeed };
   const base = nextAnimToken(state.animToken);
 
+  const hardBoundary = mkHardBoundary('resetBoard', state.nowMs, base);
+
   // Carry forward monotonic nowMs (never regress to 0)
-  return createState(state.levelId, newSeed, [resetEvent], base, state.swapMs, state.nowMs);
+  return createState(state.levelId, newSeed, [hardBoundary, resetEvent], base, state.swapMs, state.nowMs);
 }

@@ -1,4 +1,3 @@
-// src/devtools/DebugEventLog.tsx
 import { Fragment, useEffect, useMemo, useRef } from 'react';
 import type { EngineEvent } from '@/gamelogic';
 
@@ -21,6 +20,8 @@ function formatEvent(e: EngineEvent): string {
       return `seededInit(level=${e.levelId}, ${e.width}x${e.height}, seed=${e.seed})`;
     case 'reset':
       return `reset(level=${e.levelId}, seed=${e.seed})`;
+    case 'hardBoundary':
+      return `hardBoundary(${e.kind}, now=${fmtNum(e.nowMs)}ms, tokenBase=${e.animTokenBase})`;
     case 'phase':
       return `phase(${e.phase})`;
     case 'select':
@@ -31,6 +32,8 @@ function formatEvent(e: EngineEvent): string {
       return `swap(from=${e.from}, to=${e.to})`;
     case 'swapBack':
       return `swapBack(from=${e.from}, to=${e.to})`;
+    case 'animBegin':
+      return `animBegin(kind=${e.kind}, token=${e.token}, dur=${fmtNum(e.durationMs)}ms, t=${fmtNum(e.enteredAtMs)}ms, ddl=${fmtNum(e.deadlineAtMs)}ms)`;
     case 'animDone':
       return `animDone(${e.mode}, kind=${e.kind}, token=${e.token}, dt=${fmtNum(e.dtMs)}ms, delta=${fmtSigned(e.deltaMs)}ms)`;
     case 'animDoneIgnored':

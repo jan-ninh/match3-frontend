@@ -1,4 +1,3 @@
-// src/gamelogic/engine/reducer/index.ts
 import type { EngineState } from '../../types';
 import { assertPhaseInvariants } from '../../invariants';
 
@@ -32,15 +31,21 @@ export function engineReducer(state: EngineState, action: EngineReducerAction): 
   // Step 2: Priority actions (initLevel/resetBoard) bypass preAutoFinish entirely.
   // Rationale: preAutoFinish processes anims on state that will be discarded.
   if (action.type === 'initLevel') {
-    const result = handleInitLevel(sNow, action);
+    const result = emitSeparatorIfNeeded(state, handleInitLevel(sNow, action));
+
+    if (import.meta.env.DEV) assertPhaseInvariants(result, `engineReducer:${action.type}`);
+
     // Fresh state from createState is always stableIdle-eligible after stabilizeBoard.
     // Emit turnSeparator if the transition qualifies.
-    return emitSeparatorIfNeeded(state, result);
+    return result;
   }
 
   if (action.type === 'resetBoard') {
-    const result = handleResetBoard(sNow, action);
-    return emitSeparatorIfNeeded(state, result);
+    const result = emitSeparatorIfNeeded(state, handleResetBoard(sNow, action));
+
+    if (import.meta.env.DEV) assertPhaseInvariants(result, `engineReducer:${action.type}`);
+
+    return result;
   }
 
   // From here on, only non-priority actions remain.

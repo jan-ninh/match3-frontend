@@ -1,4 +1,3 @@
-// src/gamelogic/types.ts
 import type { EnginePhase } from './phases';
 import type { RngState } from './rng';
 
@@ -255,6 +254,8 @@ export type EngineAnim = {
   token: number;
 };
 
+export type HardBoundaryKind = 'initLevel' | 'resetBoard';
+
 // ─────────────────────────────────────────────
 // Item Effect Keys (for turnCommitArmed payload)
 // ─────────────────────────────────────────────
@@ -268,11 +269,13 @@ export type ItemEffectKeyForEvent = 'bomb3x3';
 export type EngineEvent =
   | { type: 'seededInit'; levelId: LevelId; width: number; height: number; seed: number }
   | { type: 'reset'; levelId: LevelId; seed: number }
+  | { type: 'hardBoundary'; kind: HardBoundaryKind; nowMs: number; animTokenBase: number }
   | { type: 'phase'; phase: EnginePhase }
   | { type: 'select'; index: number }
   | { type: 'selectionCleared' }
   | { type: 'swap'; from: number; to: number }
   | { type: 'swapBack'; from: number; to: number }
+  | { type: 'animBegin'; kind: EngineAnimKind; token: number; durationMs: number; enteredAtMs: number; deadlineAtMs: number }
   | { type: 'animDone'; mode: AnimDoneMode; kind: EngineAnimKind; token: number; dtMs: number; deltaMs: number }
   | { type: 'animDoneIgnored'; kind: EngineAnimKind; token: number; reason: AnimDoneIgnoreReason }
   | { type: 'swapRejected'; from: number; to: number; reason: SwapRejectReason }
