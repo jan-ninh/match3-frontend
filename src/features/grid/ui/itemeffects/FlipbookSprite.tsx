@@ -1,5 +1,5 @@
 // src/features/grid/ui/itemeffects/FlipbookSprite.tsx
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 
 export type FlipbookSheetSpec = Readonly<{
@@ -27,7 +27,7 @@ export type FlipbookSpriteProps = Readonly<{
 
   /**
    * Time base control (recommended: performance.now()).
-   * If omitted, performance.now() is used (fallback Date.now()).
+   * If omitted, Date.now() is used.
    */
   startAtMs?: number;
   getNowMs?: () => number;
@@ -66,18 +66,10 @@ function clampNum(n: number, min: number, max: number): number {
   return n;
 }
 
-function positiveMod(n: number, mod: number): number {
-  const m = n % mod;
-  return m < 0 ? m + mod : m;
-}
-
 /**
  * FlipbookSprite (DOM/CSS background-position).
  * - 1 div, 1 spritesheet, background-position moves per frame.
  * - Driven by requestAnimationFrame.
- *
- * Perf note:
- * - backgroundPosition is updated imperatively (no React re-render per frame).
  */
 export function FlipbookSprite({
   sheet,
@@ -86,7 +78,7 @@ export function FlipbookSprite({
   paused = false,
 
   startAtMs,
-  getNowMs,
+  getNowMs = Date.now,
 
   renderW,
   renderH,
@@ -101,15 +93,6 @@ export function FlipbookSprite({
   onDone,
   ariaLabel = 'animation',
 }: FlipbookSpriteProps) {
-  const defaultNowFn = useMemo(
-    () => () => {
-      if (typeof performance !== 'undefined' && typeof performance.now === 'function') return performance.now();
-      return Date.now();
-    },
-    [],
-  );
-  const nowFn = getNowMs ?? defaultNowFn;
-
   const safeCols = clampInt(sheet.cols, 1, 2048);
   const safeRows = clampInt(sheet.rows, 1, 2048);
   const safeFrameW = clampInt(sheet.frameW, 1, 4096);
@@ -126,67 +109,29 @@ export function FlipbookSprite({
   const scaleX = outW / safeFrameW;
   const scaleY = outH / safeFrameH;
 
-  const elRef = useRef<HTMLDivElement | null>(null);
+  const [frame, setFrame] = useState<number>(0);
 
+  const frameRef = useRef<number>(0);
   const rafRef = useRef<number | null>(null);
   const startedRef = useRef<boolean>(false);
   const startMsRef = useRef<number>(0);
-  const pausedAtMsRef = useRef<number | null>(null);
   const doneRef = useRef<boolean>(false);
-  const frameRef = useRef<number>(0);
 
-  const sheetW = safeCols * safeFrameW;
-  const sheetH = safeRows * safeFrameH;
-
-  const bgSizeW = sheetW * scaleX;
-  const bgSizeH = sheetH * scaleY;
+  useEffect(() => {
+    frameRef.current = frame;
+  }, [frame]);
 
   // Reset when the sheet or timing changes
   useEffect(() => {
     doneRef.current = false;
     startedRef.current = false;
     startMsRef.current = 0;
-    pausedAtMsRef.current = null;
-    frameRef.current = 0;
-
-    const el = elRef.current;
-    if (el) el.style.backgroundPosition = '0px 0px';
+    setFrame(0);
   }, [sheet.sheetUrl, sheet.cols, sheet.rows, sheet.frameW, sheet.frameH, sheet.frameCount, safeFps, loop, outW, outH]);
 
   useEffect(() => {
+    if (paused) return;
     if (typeof window === 'undefined') return;
-
-    const setFrame = (nextFrame: number) => {
-      const el = elRef.current;
-      if (!el) return;
-
-      const col = nextFrame % safeCols;
-      const row = Math.floor(nextFrame / safeCols);
-
-      const bgX = col * safeFrameW * scaleX;
-      const bgY = row * safeFrameH * scaleY;
-
-      el.style.backgroundPosition = `${-bgX}px ${-bgY}px`;
-      frameRef.current = nextFrame;
-    };
-
-    // Pause: freeze by shifting the start time when resuming.
-    if (paused) {
-      if (rafRef.current !== null) {
-        window.cancelAnimationFrame(rafRef.current);
-        rafRef.current = null;
-      }
-      if (pausedAtMsRef.current === null) pausedAtMsRef.current = nowFn();
-      return;
-    }
-
-    // Resume: shift start time by paused duration.
-    if (pausedAtMsRef.current !== null) {
-      const resumeAt = nowFn();
-      const pausedFor = resumeAt - pausedAtMsRef.current;
-      startMsRef.current += pausedFor;
-      pausedAtMsRef.current = null;
-    }
 
     const ensureStart = () => {
       if (startedRef.current) return;
@@ -197,32 +142,29 @@ export function FlipbookSprite({
         return;
       }
 
-      startMsRef.current = nowFn();
+      startMsRef.current = getNowMs();
     };
 
     ensureStart();
 
     const tick = () => {
-      const tMs = Math.max(0, nowFn() - startMsRef.current);
+      const tMs = getNowMs() - startMsRef.current;
       const raw = Math.floor((tMs * safeFps) / 1000);
 
       if (loop) {
-        const next = positiveMod(raw, safeFrameCount);
+        const next = raw % safeFrameCount;
         if (frameRef.current !== next) setFrame(next);
         rafRef.current = window.requestAnimationFrame(tick);
         return;
       }
 
       if (raw >= safeFrameCount) {
-        const last = safeFrameCount - 1;
-        if (frameRef.current !== last) setFrame(last);
+        if (frameRef.current !== safeFrameCount - 1) setFrame(safeFrameCount - 1);
 
         if (!doneRef.current) {
           doneRef.current = true;
           onDone?.();
         }
-
-        rafRef.current = null;
         return;
       }
 
@@ -237,7 +179,19 @@ export function FlipbookSprite({
       rafRef.current = null;
       if (id !== null) window.cancelAnimationFrame(id);
     };
-  }, [paused, loop, safeFrameCount, safeFps, startAtMs, nowFn, onDone, safeCols, safeFrameW, safeFrameH, scaleX, scaleY]);
+  }, [paused, loop, safeFrameCount, safeFps, startAtMs, getNowMs, onDone]);
+
+  const sheetW = safeCols * safeFrameW;
+  const sheetH = safeRows * safeFrameH;
+
+  const col = frame % safeCols;
+  const row = Math.floor(frame / safeCols);
+
+  const bgX = col * safeFrameW * scaleX;
+  const bgY = row * safeFrameH * scaleY;
+
+  const bgSizeW = sheetW * scaleX;
+  const bgSizeH = sheetH * scaleY;
 
   const divStyle = useMemo<CSSProperties>(
     () => ({
@@ -246,7 +200,7 @@ export function FlipbookSprite({
       backgroundImage: `url(${sheet.sheetUrl})`,
       backgroundRepeat: 'no-repeat',
       backgroundSize: `${bgSizeW}px ${bgSizeH}px`,
-      backgroundPosition: '0px 0px',
+      backgroundPosition: `${-bgX}px ${-bgY}px`,
       opacity,
       mixBlendMode,
       filter,
@@ -254,8 +208,8 @@ export function FlipbookSprite({
       willChange: 'background-position',
       ...style,
     }),
-    [outW, outH, sheet.sheetUrl, bgSizeW, bgSizeH, opacity, mixBlendMode, filter, style],
+    [outW, outH, sheet.sheetUrl, bgSizeW, bgSizeH, bgX, bgY, opacity, mixBlendMode, filter, style],
   );
 
-  return <div ref={elRef} className={className} style={divStyle} role="img" aria-label={ariaLabel} />;
+  return <div className={className} style={divStyle} role="img" aria-label={ariaLabel} />;
 }

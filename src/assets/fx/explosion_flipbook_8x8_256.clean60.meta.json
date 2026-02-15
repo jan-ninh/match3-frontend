@@ -1,0 +1,36 @@
+{
+  "name": "explosion_flipbook_8x8_256.clean60.png",
+  "sheet": {
+    "cols": 8,
+    "rows": 8,
+    "frameW": 256,
+    "frameH": 256,
+    "frameCount": 60
+  },
+  "notes": [
+    "Frames 0..59: derived from source 5x6 sheet with crop+alpha extraction+grading+bloom, plus in-between blends (0.5).",
+    "Frames 60..63 in the 8x8 grid are transparent and should not be played."
+  ],
+  "processing": {
+    "source": "explosion_flipbook_5x6_256.alpha.png",
+    "crop_margin_px": 8,
+    "alpha": {
+      "method": "alpha=max(rgb)^gamma with threshold",
+      "gamma": 0.8,
+      "threshold": 0.1
+    },
+    "grade": {
+      "brighten": 1.1,
+      "contrast": 1.08,
+      "saturation": 1.15
+    },
+    "bloom": {
+      "gaussian_blur_radius": 2.0,
+      "strength": 0.55
+    },
+    "interpolation": {
+      "betweenFrames": "linear blend 0.5",
+      "finalFadeOut": 0.5
+    }
+  }
+}

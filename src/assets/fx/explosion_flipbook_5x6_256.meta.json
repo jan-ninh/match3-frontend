@@ -1,0 +1,9 @@
+{
+  "cols": 5,
+  "rows": 6,
+  "frameWidth": 256,
+  "frameHeight": 256,
+  "frameCount": 30,
+  "fpsSuggested": 30,
+  "source": "A_sprite_sheet_and_a_video_frame_of_an_explosion_e.png"
+}

@@ -67,6 +67,11 @@ export type Bomb3x3TargetingApi = Readonly<{
   disarm: () => void;
 }>;
 
+type PendingFx = Readonly<{
+  indices: readonly number[];
+  center: BombTarget;
+}>;
+
 export function useBomb3x3Targeting({
   width,
   height,
@@ -86,8 +91,8 @@ export function useBomb3x3Targeting({
   const powerReqIdRef = useRef(1);
   const pendingConsumeRef = useRef<Set<number>>(new Set());
 
-  // requestId -> indices (used only when ACK arrives)
-  const pendingFxRef = useRef<Map<number, readonly number[]>>(new Map());
+  // requestId -> indices/center (used only when ACK arrives)
+  const pendingFxRef = useRef<Map<number, PendingFx>>(new Map());
 
   const [bombBursts, setBombBursts] = useState<readonly BombExplosionBurst[]>([]);
   const burstTimeoutsRef = useRef<Map<number, number>>(new Map());
@@ -161,13 +166,14 @@ export function useBomb3x3Targeting({
       window.dispatchEvent(new CustomEvent<PowerConsumeDetail>(POWER_CONSUME_EVENT, { detail }));
 
       // 2) Detonation FX burst (also only after ACK)
-      const indices = pendingFxRef.current.get(requestId);
-      if (indices && indices.length > 0) {
+      const payload = pendingFxRef.current.get(requestId);
+      if (payload && payload.indices.length > 0) {
         pendingFxRef.current.delete(requestId);
 
         const burst: BombExplosionBurst = {
           id: requestId,
-          indices,
+          indices: payload.indices,
+          center: payload.center,
           createdAtMs: performance.now(),
         };
 
@@ -218,7 +224,7 @@ export function useBomb3x3Targeting({
 
       const requestId = powerReqIdRef.current++;
       pendingConsumeRef.current.add(requestId);
-      pendingFxRef.current.set(requestId, indices);
+      pendingFxRef.current.set(requestId, { indices, center: target });
 
       if (typeof window !== 'undefined') {
         const detail: PowerUseAtDetail = { key: 'bomb', target, requestId };
