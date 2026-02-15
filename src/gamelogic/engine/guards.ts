@@ -1,5 +1,10 @@
 import type { EngineEvent, EngineState } from '../types';
 
+export function isStableIdle(state: Pick<EngineState, 'phase' | 'pendingTurnCommit'>): boolean {
+  // NOTE: `phase === 'idle'` may be transiently non-stable while the reducer consumes a pending turn commit.
+  return state.phase === 'idle' && state.pendingTurnCommit === null;
+}
+
 export function isSelectableCell(state: EngineState, index: number): boolean {
   const cell = state.cells[index];
   if (!cell) return false;

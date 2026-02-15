@@ -1,14 +1,13 @@
-// src/gamelogic/engine/reducer/handlers/handleClickCell.ts
 import type { EngineEvent, EngineState } from '../../../types';
 
 import { canSwap } from '../../../board';
 import { pushEvents, rejectSwap } from '../../events';
-import { isSelectableCell, selectionClearedIfNeeded } from '../../guards';
+import { isSelectableCell, isStableIdle, selectionClearedIfNeeded } from '../../guards';
 import { beginSwapAnimating } from '../../swapFlow';
 import type { ClickCellAction } from '../actions';
 
 export function handleClickCell(state: EngineState, action: ClickCellAction): EngineState {
-  if (state.phase !== 'idle') return state;
+  if (!isStableIdle(state)) return state;
 
   const clicked = action.index;
 

@@ -1,9 +1,9 @@
-// src/gamelogic/engine/reducer/handlers/handleUseItemAt.ts
 import type { EngineEvent, EngineState } from '../../../types';
 import type { UseItemAtAction } from '../actions';
 
 import { beginAnim } from '../../anim';
 import { mkTurnCommitArmedItem, pushEvents } from '../../events';
+import { isStableIdle } from '../../guards';
 import { setPhase } from '../../../phaseState';
 
 import { applyItemEffectAt, getItemEffectPreviewIndices } from '../../../itemeffects';
@@ -20,9 +20,8 @@ function powerKeyForItem(key: UseItemAtAction['key']): 'bomb' | 'rocket' | 'extr
 }
 
 export function handleUseItemAt(state: EngineState, action: UseItemAtAction): EngineState {
-  // Only allow when idle and not locked
-  if (state.phase !== 'idle') return state;
-  if (state.inputLocked) return state;
+  // Only allow when truly stable idle (idle + no pending commit being consumed).
+  if (!isStableIdle(state)) return state;
 
   const target = action.target;
   const preview = getItemEffectPreviewIndices(action.key, target, state.width, state.height);

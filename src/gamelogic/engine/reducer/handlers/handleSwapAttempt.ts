@@ -1,15 +1,15 @@
-// src/gamelogic/engine/reducer/handlers/handleSwapAttempt.ts
 import type { EngineState } from '../../../types';
 
 import { canSwap } from '../../../board';
 import { pushEvents, rejectSwap } from '../../events';
+import { isStableIdle } from '../../guards';
 import { beginSwapAnimating } from '../../swapFlow';
 import type { SwapAttemptAction } from '../actions';
 
 export function handleSwapAttempt(state: EngineState, action: SwapAttemptAction): EngineState {
   // Only allow swap attempts when the engine is truly idle (not just `phase === 'idle'`).
   // If a turn-end commit is armed, the reducer must consume it first (single-shot).
-  if (state.phase !== 'idle' || state.pendingTurnCommit !== null) {
+  if (!isStableIdle(state)) {
     return pushEvents(state, [rejectSwap(action.from, action.to, 'locked')]);
   }
 
