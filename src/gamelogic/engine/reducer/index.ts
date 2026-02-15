@@ -1,7 +1,8 @@
+// src/gamelogic/engine/reducer/index.ts
 import type { EngineState } from '../../types';
 import { assertPhaseInvariants } from '../../invariants';
 
-import type { EngineAction } from './actions';
+import type { EngineAction, InitLevelAction, ResetBoardAction } from './actions';
 import { applyDone } from './applyDone';
 import { preAutoFinish } from './preAutoFinish';
 import { withNow } from './withNow';
@@ -18,53 +19,69 @@ import { handleUseItemAt } from './handlers/handleUseItemAt';
 import { applyTurnEndPipeline } from './post/applyTurnEndPipeline';
 import { resolveOutcomeIfIdle } from './post/resolveOutcome';
 
-export function engineReducer(state: EngineState, action: EngineAction): EngineState {
+import { isStableIdle, mkTurnEndComplete, mkTurnEndStart, mkTurnSeparator, pushEvents } from '../events';
+
+type EngineReducerAction = EngineAction;
+type PriorityAction = InitLevelAction | ResetBoardAction;
+type NonPriorityAction = Exclude<EngineReducerAction, PriorityAction>;
+
+export function engineReducer(state: EngineState, action: EngineReducerAction): EngineState {
+  // Step 1: withNow first — obtain monotonic nowMs for all paths
   const sNow = withNow(state, action);
 
-  // Auto-finish first: if deadline passed, unlock phase before processing the incoming action.
+  // Step 2: Priority actions (initLevel/resetBoard) bypass preAutoFinish entirely.
+  // Rationale: preAutoFinish processes anims on state that will be discarded.
+  if (action.type === 'initLevel') {
+    const result = handleInitLevel(sNow, action);
+    // Fresh state from createState is always stableIdle-eligible after stabilizeBoard.
+    // Emit turnSeparator if the transition qualifies.
+    return emitSeparatorIfNeeded(state, result);
+  }
+
+  if (action.type === 'resetBoard') {
+    const result = handleResetBoard(sNow, action);
+    return emitSeparatorIfNeeded(state, result);
+  }
+
+  // From here on, only non-priority actions remain.
+  const nonPriorityAction: NonPriorityAction = action;
+
+  // Step 3: Normal path — auto-finish if deadline passed before processing incoming action
   const pre = preAutoFinish(sNow, applyDone);
 
   const next = (() => {
     const s = pre.state;
 
-    switch (action.type) {
+    switch (nonPriorityAction.type) {
       case 'tick':
       case 'wake': {
-        return handleTickWake(s, action);
+        return handleTickWake(s, nonPriorityAction);
       }
 
       case 'setSwapMs': {
-        return handleSetSwapMs(s, action, applyDone);
-      }
-
-      case 'initLevel': {
-        return handleInitLevel(s, action);
-      }
-
-      case 'resetBoard': {
-        return handleResetBoard(s, action);
+        return handleSetSwapMs(s, nonPriorityAction, applyDone);
       }
 
       case 'swapAttempt': {
-        return handleSwapAttempt(s, action);
+        return handleSwapAttempt(s, nonPriorityAction);
       }
 
       case 'swapAnimDone':
       case 'swapBackAnimDone':
       case 'fallAnimDone': {
-        return handleAnimDone(s, action);
+        return handleAnimDone(s, nonPriorityAction);
       }
 
       case 'clickCell': {
-        return handleClickCell(s, action);
+        return handleClickCell(s, nonPriorityAction);
       }
 
       case 'useItemAt': {
-        return handleUseItemAt(s, action);
+        return handleUseItemAt(s, nonPriorityAction);
       }
 
       default: {
-        const _exhaustive: never = action;
+        const _exhaustive: never = nonPriorityAction;
         throw new Error(`Unhandled action: ${JSON.stringify(_exhaustive)}`);
       }
     }
@@ -72,21 +89,45 @@ export function engineReducer(state: EngineState, action: EngineAction): EngineS
 
   let final = next;
 
-  // Turn-end is engine-owned: apply only when idle AND a commit exists.
+  // Step 4: Turn-end is engine-owned: apply only when idle AND a commit exists.
   if (final.phase === 'idle' && final.pendingTurnCommit !== null) {
     const commit = final.pendingTurnCommit;
+
+    // Observability: bracket turn-end pipeline
+    final = pushEvents(final, [mkTurnEndStart(commit.kind, commit.spendMove)]);
+
     final = applyTurnEndPipeline(final, commit);
 
     // Single-shot: always consume (also if pipeline decides "no turn-end" for swap spendMove=false)
     final = { ...final, pendingTurnCommit: null };
+
+    final = pushEvents(final, [mkTurnEndComplete()]);
   }
 
-  // Resolve win/lose only when idle (win has precedence over lose)
+  // Step 5: Resolve win/lose only when idle (win has precedence over lose)
   final = resolveOutcomeIfIdle(final);
+
+  // Step 6: Emit turnSeparator on (!prevStableIdle && nextStableIdle)
+  final = emitSeparatorIfNeeded(state, final);
 
   if (import.meta.env.DEV) assertPhaseInvariants(final, `engineReducer:${action.type}`);
 
   return final;
+}
+
+/**
+ * Emit turnSeparator exactly on the transition (!prevStableIdle && nextStableIdle).
+ * Uses isStableIdle as SSOT. Emitted via pushEvents (respects event cap).
+ */
+function emitSeparatorIfNeeded(prev: EngineState, next: EngineState): EngineState {
+  const prevStable = isStableIdle(prev);
+  const nextStable = isStableIdle(next);
+
+  if (!prevStable && nextStable) {
+    return pushEvents(next, [mkTurnSeparator()]);
+  }
+
+  return next;
 }
 
 export type { EngineAction } from './actions';

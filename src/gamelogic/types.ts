@@ -1,3 +1,4 @@
+// src/gamelogic/types.ts
 import type { EnginePhase } from './phases';
 import type { RngState } from './rng';
 
@@ -255,6 +256,12 @@ export type EngineAnim = {
 };
 
 // ─────────────────────────────────────────────
+// Item Effect Keys (for turnCommitArmed payload)
+// ─────────────────────────────────────────────
+
+export type ItemEffectKeyForEvent = 'bomb3x3';
+
+// ─────────────────────────────────────────────
 // Engine Events
 // ─────────────────────────────────────────────
 
@@ -308,7 +315,13 @@ export type EngineEvent =
   | { type: 'cellCharged'; index: number }
   | { type: 'signalLinked' }
   // Power/Item consumption ack (UI consumes only after this)
-  | { type: 'powerUsed'; key: 'bomb' | 'rocket' | 'extraTime'; requestId: number };
+  | { type: 'powerUsed'; key: 'bomb' | 'rocket' | 'extraTime'; requestId: number }
+  // ─── Pre-Falling Guardrails: Observability events ───
+  | { type: 'turnCommitArmed'; kind: 'swap'; spendMove: boolean; from: number; to: number }
+  | { type: 'turnCommitArmed'; kind: 'item'; key: ItemEffectKeyForEvent; target: { x: number; y: number }; requestId: number }
+  | { type: 'turnEndStart'; kind: 'swap' | 'item'; spendMove: boolean }
+  | { type: 'turnEndComplete' }
+  | { type: 'turnSeparator' };
 
 // ─────────────────────────────────────────────
 // Engine State

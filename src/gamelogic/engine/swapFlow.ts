@@ -141,6 +141,7 @@ export function applySwapAnimDone(state: EngineState, token: number, mode: AnimD
 
   // arm commit only after match-confirmation (swapBack-safe)
   s = { ...s, pendingTurnCommit: { kind: 'swap', spendMove: didSpendMove } };
+  events.push({ type: 'turnCommitArmed', kind: 'swap', spendMove: didSpendMove, from, to });
 
   const step = resolveOnce(s);
   s = step.state;

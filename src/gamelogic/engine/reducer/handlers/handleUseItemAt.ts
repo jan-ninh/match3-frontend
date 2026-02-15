@@ -1,8 +1,9 @@
+// src/gamelogic/engine/reducer/handlers/handleUseItemAt.ts
 import type { EngineEvent, EngineState } from '../../../types';
 import type { UseItemAtAction } from '../actions';
 
 import { beginAnim } from '../../anim';
-import { pushEvents } from '../../events';
+import { mkTurnCommitArmedItem, pushEvents } from '../../events';
 import { setPhase } from '../../../phaseState';
 
 import { applyItemEffectAt, getItemEffectPreviewIndices } from '../../../itemeffects';
@@ -36,6 +37,9 @@ export function handleUseItemAt(state: EngineState, action: UseItemAtAction): En
     ...state,
     pendingTurnCommit: { kind: 'item', spendMove: false },
   };
+
+  // Observability: instrument every pendingTurnCommit arming
+  events.push(mkTurnCommitArmedItem(action.key, target, action.requestId));
 
   // Clear selection for cleanliness
   if (s.selectedIndex !== null) {

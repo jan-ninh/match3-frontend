@@ -6,8 +6,10 @@ import { nextAnimToken } from '../../anim';
 import { createState } from '../../state';
 import type { InitLevelAction } from '../actions';
 
-export function handleInitLevel(state: EngineState, action: InitLevelAction): EngineState {
-  const level = getLevelDefinition(action.levelId);
+export function handleInitLevel(state: EngineState, _action: InitLevelAction): EngineState {
+  const level = getLevelDefinition(_action.levelId);
   const base = nextAnimToken(state.animToken);
-  return createState(action.levelId, level.baseSeed, [], base, state.swapMs);
+
+  // Hard boundary: carry forward monotonic nowMs (never regress to 0)
+  return createState(_action.levelId, level.baseSeed, [], base, state.swapMs, state.nowMs);
 }
