@@ -1,41 +1,63 @@
+// src/gamelogic/engine/reducer/handlers/handleUseBombAt.ts
 import type { EngineEvent, EngineState } from '../../../types';
-
-import { setPhase } from '../../../phaseState';
-import { applyBomb3x3, getBomb3x3IndicesFromTarget } from '../../../itemeffects/bomb3x3';
+import type { UseItemAtAction } from '../actions';
 
 import { beginAnim } from '../../anim';
-import { pushEvents } from '../../events';
+import { setPhase } from '../../../phaseState';
 
-import type { UseBombAtAction } from '../actions';
+import { applyItemEffectAt, getItemEffectPreviewIndices } from '../../../itemeffects';
 
-export function handleUseBombAt(state: EngineState, action: UseBombAtAction): EngineState {
+function powerKeyForItem(key: UseItemAtAction['key']): 'bomb' | 'rocket' | 'extraTime' {
+  switch (key) {
+    case 'bomb3x3':
+      return 'bomb';
+    default: {
+      const _exhaustive: never = key;
+      return _exhaustive;
+    }
+  }
+}
+
+export function handleUseItemAt(state: EngineState, action: UseItemAtAction): EngineState {
+  // Only allow when idle and not locked
   if (state.phase !== 'idle') return state;
+  if (state.inputLocked) return state;
 
-  const t = action.target;
-  if (!t || typeof t.x !== 'number' || typeof t.y !== 'number') return state;
+  const target = action.target;
+  const preview = getItemEffectPreviewIndices(action.key, target, state.width, state.height);
 
-  const x = t.x | 0;
-  const y = t.y | 0;
-
-  // allow off-grid center by 1 cell for edge-precision targeting
-  if (x < -1 || x > state.width) return state;
-  if (y < -1 || y > state.height) return state;
-
-  const preview = getBomb3x3IndicesFromTarget({ x, y }, state.width, state.height);
+  // If nothing would be affected -> ignore (UI should also abort)
   if (preview.length === 0) return state;
 
   const events: EngineEvent[] = [];
 
-  // lock immediately (same pattern as swap pipeline)
-  let s = setPhase(state, 'inputLock', events);
+  // Clear selection for cleanliness
+  let s: EngineState = state;
+  if (s.selectedIndex !== null) {
+    s = { ...s, selectedIndex: null };
+    events.push({ type: 'selectionCleared' });
+  }
 
-  const fx = applyBomb3x3(s, { x, y });
-  s = fx.state;
-  events.push(...fx.events);
+  // Lock input immediately
+  s = setPhase(s, 'inputLock', events);
 
-  // run the same fall animation pipeline (fallAnimDone will stabilize/resolve)
-  s = setPhase(s, 'fallAnimating', events);
-  s = beginAnim(s, 'fall', s.swapMs);
+  // Apply effect (clear -> gravity -> refill), then animate as fall
+  const fx = applyItemEffectAt(s, action.key, target);
 
-  return pushEvents(s, events);
+  // Ack for UI consume (only after accept)
+  fx.events.push({ type: 'powerUsed', key: powerKeyForItem(action.key), requestId: action.requestId });
+
+  let next = pushAllEvents(fx.state, [...events, ...fx.events]);
+
+  // Enter fall animation phase (engine-owned)
+  next = setPhase(next, 'fallAnimating', []);
+  next = beginAnim(next, 'fall', next.swapMs);
+
+  return next;
+}
+
+// local helper to avoid importing pushEvents (keeps handler simple & explicit)
+function pushAllEvents(state: EngineState, evs: EngineEvent[]): EngineState {
+  if (evs.length === 0) return state;
+  return { ...state, events: [...state.events, ...evs] };
 }

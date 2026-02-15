@@ -1,4 +1,3 @@
-// src\features\devtools-host\lib\useMatch3Engine.ts
 import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react';
 
 import type { EngineAction } from '@/gamelogic';
@@ -9,7 +8,7 @@ type Args = {
 };
 
 export type PowerArmDetail = { key: 'bomb'; armed: boolean };
-type PowerUseAtDetail = { key: 'bomb'; target: { x: number; y: number } };
+type PowerUseAtDetail = { key: 'bomb'; target: { x: number; y: number }; requestId: number };
 
 export function useMatch3Engine({ initialLevelId = 1 }: Args) {
   const isDev = import.meta.env.DEV;
@@ -88,7 +87,7 @@ export function useMatch3Engine({ initialLevelId = 1 }: Args) {
     };
   }, []);
 
-  // NEW) Power → Engine bridge (Bomb targeting confirm)
+  // Power → Engine bridge (Bomb targeting confirm)
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -100,7 +99,17 @@ export function useMatch3Engine({ initialLevelId = 1 }: Args) {
       const t = d.target;
       if (!t || typeof t.x !== 'number' || typeof t.y !== 'number') return;
 
-      dispatch({ type: 'useBombAt', target: { x: t.x, y: t.y }, nowMs: performance.now() } as EngineAction);
+      // NOTE: older emitters may omit requestId at runtime → coerces to 0
+      const requestId = (d.requestId as unknown as number) | 0;
+
+      // Always route legacy/modern bomb usage through useItemAt
+      dispatch({
+        type: 'useItemAt',
+        key: 'bomb3x3',
+        target: { x: t.x | 0, y: t.y | 0 },
+        requestId,
+        nowMs: performance.now(),
+      } as EngineAction);
     };
 
     window.addEventListener('match3:powerUseAt', onUseAt as EventListener);
@@ -166,7 +175,14 @@ export function useMatch3Engine({ initialLevelId = 1 }: Args) {
 
   const onIntent = useCallback(
     (intent: unknown) => {
-      const i = intent as unknown as { type?: unknown; index?: unknown; from?: unknown; to?: unknown; target?: unknown };
+      const i = intent as unknown as {
+        type?: unknown;
+        index?: unknown;
+        from?: unknown;
+        to?: unknown;
+        target?: unknown;
+        requestId?: unknown;
+      };
 
       if (i?.type === 'click' && typeof i.index === 'number') {
         dispatch({ type: 'clickCell', index: i.index, nowMs: performance.now() } as EngineAction);
@@ -178,11 +194,19 @@ export function useMatch3Engine({ initialLevelId = 1 }: Args) {
         return;
       }
 
-      // optional direct route (in case you later emit it via onIntent)
+      // Legacy route: convert useBombAt intents to useItemAt (prevents reducer crash)
       if (i?.type === 'useBombAt') {
         const t = i.target as { x?: unknown; y?: unknown } | undefined;
         if (t && typeof t.x === 'number' && typeof t.y === 'number') {
-          dispatch({ type: 'useBombAt', target: { x: t.x, y: t.y }, nowMs: performance.now() } as EngineAction);
+          const requestId = typeof i.requestId === 'number' ? i.requestId | 0 : 0;
+
+          dispatch({
+            type: 'useItemAt',
+            key: 'bomb3x3',
+            target: { x: t.x | 0, y: t.y | 0 },
+            requestId,
+            nowMs: performance.now(),
+          } as EngineAction);
           return;
         }
       }

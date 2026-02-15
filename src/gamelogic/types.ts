@@ -298,7 +298,9 @@ export type EngineEvent =
   | { type: 'laserSweepHazards'; contaminationIndices: number[]; firewallIndices: number[] }
   // Level 05+: Signal Network events
   | { type: 'cellCharged'; index: number }
-  | { type: 'signalLinked' };
+  | { type: 'signalLinked' }
+  // Power/Item consumption ack (UI consumes only after this)
+  | { type: 'powerUsed'; key: 'bomb' | 'rocket' | 'extraTime'; requestId: number };
 
 // ─────────────────────────────────────────────
 // Engine State
