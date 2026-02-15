@@ -1,26 +1,22 @@
 /**
  * Public URL-based SFX manifest.
- *
  * - points to files in /public so missing files won't break builds
- * - keep the same basenames and you can swap the actual assets later without code changes
+ * - you can drop multiple formats for max compatibility (mp3 + ogg + m4a)
  *
- * Format priority (best -> fallback):
- * 1) .ogg (small, great quality, not supported everywhere)
- * 2) .m4a (Safari/iOS friendly)
- * 3) .mp3 (max compatibility)
+ * Loader tries in order until one works (404 or unsupported codec => fallback).
  */
-export const SFX_SOURCES = {
+export const SFX_URLS = {
   bombExplosion: [
+    '/audio/sfx/items/bomb/bomb_laserSFX.mp3',
     '/audio/sfx/items/bomb/bomb_laserSFX.ogg',
     '/audio/sfx/items/bomb/bomb_laserSFX.m4a',
-    '/audio/sfx/items/bomb/bomb_laserSFX.mp3',
   ],
 } as const;
 
-export type SfxId = keyof typeof SFX_SOURCES;
+export type SfxId = keyof typeof SFX_URLS;
 
-/**
- * “Critical” SFX that should be warmed up ASAP in gameplay screens.
- * Add more over time.
- */
+// Optional alias (helps readability in other modules)
+export const SFX_SOURCES = SFX_URLS;
+
+// Single Source of Truth: "critical" SFX you want warmed up ASAP.
 export const CORE_SFX: readonly SfxId[] = ['bombExplosion'] as const;

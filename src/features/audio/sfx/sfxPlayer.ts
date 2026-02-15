@@ -1,36 +1,22 @@
-import { getAudioContext, onFirstAudioGesture } from '../core/audioContext';
-import { CORE_SFX, SFX_SOURCES, type SfxId } from './sfxManifest';
+// src/features/audio/sfx/sfxPlayer.ts
+import { addAudioUnlockSubscriber, ensureAudioUnlocked, getAudioContext, primeAudioOutput, resumeAudioContextIfNeeded } from '../core/audioContext';
+import { CORE_SFX, SFX_URLS, type SfxId } from './sfxManifest';
 
 export type PlaySfxOptions = Readonly<{
   volume?: number; // 0..1
   playbackRate?: number; // 0.25..4
 }>;
 
-const bufferCache = new Map<SfxId, AudioBuffer>();
-const bytesCache = new Map<SfxId, ArrayBuffer>();
+type CachedBuffer = Readonly<{
+  buf: AudioBuffer;
+  url: string;
+}>;
 
-// id -> in-flight preload promise (dedupe)
-const loadingCache = new Map<SfxId, Promise<boolean>>();
-
-// id -> resolved URL that we know exists (first successful fetch)
-const resolvedUrlCache = new Map<SfxId, string>();
+const bufferCache = new Map<SfxId, CachedBuffer>();
+const chosenUrlCache = new Map<SfxId, string>();
+const loadingCache = new Map<SfxId, Promise<CachedBuffer | null>>();
 
 const activeHtmlAudio = new Set<HTMLAudioElement>();
-
-let probeAudio: HTMLAudioElement | null = null;
-
-function getProbeAudio(): HTMLAudioElement | null {
-  if (typeof window === 'undefined') return null;
-  if (probeAudio) return probeAudio;
-
-  try {
-    probeAudio = new Audio();
-    return probeAudio;
-  } catch {
-    probeAudio = null;
-    return null;
-  }
-}
 
 function clampNum(n: number, min: number, max: number): number {
   if (!Number.isFinite(n)) return min;
@@ -39,152 +25,67 @@ function clampNum(n: number, min: number, max: number): number {
   return n;
 }
 
-function extOf(url: string): string {
-  const q = url.indexOf('?');
-  const s = q >= 0 ? url.slice(0, q) : url;
-  const dot = s.lastIndexOf('.');
-  if (dot < 0) return '';
-  return s.slice(dot + 1).toLowerCase();
-}
-
-function mimeForExt(ext: string): string {
-  if (ext === 'mp3') return 'audio/mpeg';
-  if (ext === 'm4a') return 'audio/mp4';
-  if (ext === 'ogg' || ext === 'oga') return 'audio/ogg';
-  return '';
-}
-
-function isLikelyPlayable(url: string): boolean {
-  const a = getProbeAudio();
-  if (!a) return true; // SSR / no probe -> assume playable
-  const mime = mimeForExt(extOf(url));
-  if (!mime) return true;
-
-  const r = a.canPlayType(mime);
-  return r === 'probably' || r === 'maybe';
-}
-
 function urlsForId(id: SfxId): readonly string[] {
-  return SFX_SOURCES[id];
+  const urls = SFX_URLS[id];
+  return Array.isArray(urls) ? urls : [];
 }
 
-function urlsSortedForFetch(id: SfxId): readonly string[] {
-  const urls = urlsForId(id);
-  const playable = urls.filter((u) => isLikelyPlayable(u));
-  const rest = urls.filter((u) => !isLikelyPlayable(u));
-  return [...playable, ...rest];
-}
+async function tryFetchDecode(url: string): Promise<AudioBuffer | null> {
+  const ctx = getAudioContext();
+  if (!ctx) return null;
 
-/**
- * For *instant* HTMLAudio playback we bias towards “most likely to exist right now”.
- * - If we already successfully fetched a URL, we use that (true prio).
- * - Otherwise: try the last entry in SFX_SOURCES first (usually mp3), to avoid silence
- *   when only one file is present during setup.
- */
-function urlForImmediatePlayback(id: SfxId): string | null {
-  const resolved = resolvedUrlCache.get(id);
-  if (resolved) return resolved;
-
-  const urls = urlsForId(id);
-  if (urls.length === 0) return null;
-
-  // prefer the most compatible fallback until we have a resolved URL
-  const last = urls[urls.length - 1] ?? null;
-  return last;
-}
-
-async function fetchBytes(url: string): Promise<ArrayBuffer | null> {
   try {
     const res = await fetch(url);
     if (!res.ok) return null;
-    return await res.arrayBuffer();
+
+    const ab = await res.arrayBuffer();
+    const buf = await ctx.decodeAudioData(ab);
+    return buf;
   } catch {
     return null;
   }
 }
 
-export async function prefetchSfx(id: SfxId): Promise<boolean> {
-  if (bytesCache.has(id)) return true;
-
-  const urls = urlsSortedForFetch(id);
+async function loadBuffer(id: SfxId): Promise<CachedBuffer | null> {
+  const urls = urlsForId(id);
+  if (urls.length === 0) return null;
 
   for (const url of urls) {
-    const ab = await fetchBytes(url);
-    if (!ab) continue;
+    const buf = await tryFetchDecode(url);
+    if (!buf) continue;
 
-    bytesCache.set(id, ab);
-    resolvedUrlCache.set(id, url);
-    return true;
+    const rec: CachedBuffer = { buf, url };
+    bufferCache.set(id, rec);
+    chosenUrlCache.set(id, url);
+    return rec;
   }
 
-  return false;
+  return null;
 }
 
-async function ensureCtxRunning(): Promise<AudioContext | null> {
-  const ctx = getAudioContext();
-  if (!ctx) return null;
-
-  if (ctx.state !== 'running') {
-    // Might still fail outside user gesture; best-effort.
-    await ctx.resume().catch(() => {});
-  }
-
-  return ctx;
-}
-
-export async function decodeSfx(id: SfxId): Promise<boolean> {
-  if (bufferCache.has(id)) return true;
-
-  const ctx = await ensureCtxRunning();
-  if (!ctx) return false;
-
-  const hasBytes = bytesCache.has(id) || (await prefetchSfx(id));
-  if (!hasBytes) return false;
-
-  const bytes = bytesCache.get(id);
-  if (!bytes) return false;
-
-  try {
-    // Copy the bytes: some browsers detach the underlying buffer during decode.
-    const buf = await ctx.decodeAudioData(bytes.slice(0));
-    bufferCache.set(id, buf);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Preload = prefetch early (works without an AudioContext) + decode when possible.
- * Return value means “decoded and ready for low-latency WebAudio”.
- */
 export async function preloadSfx(id: SfxId): Promise<boolean> {
   if (bufferCache.has(id)) return true;
 
   const existing = loadingCache.get(id);
-  if (existing) return await existing;
+  if (existing) {
+    const rec = await existing;
+    return !!rec;
+  }
 
-  const p = (async () => {
-    // Always try to prefetch (so we can resolve the correct URL & warm caches).
-    await prefetchSfx(id);
-
-    // If the AudioContext is available/running, decode now.
-    return await decodeSfx(id);
-  })();
-
+  const p = loadBuffer(id);
   loadingCache.set(id, p);
 
-  const ok = await p;
+  const rec = await p;
   loadingCache.delete(id);
-  return ok;
+  return !!rec;
 }
 
 function playWithWebAudio(buf: AudioBuffer, opts: PlaySfxOptions | undefined): void {
   const ctx = getAudioContext();
   if (!ctx) return;
 
-  // try to resume in case it was suspended; ignore errors
-  if (ctx.state !== 'running') void ctx.resume().catch(() => {});
+  resumeAudioContextIfNeeded();
+  primeAudioOutput();
 
   const vol = clampNum(opts?.volume ?? 1, 0, 1);
   const rate = clampNum(opts?.playbackRate ?? 1, 0.25, 4);
@@ -205,23 +106,61 @@ function playWithWebAudio(buf: AudioBuffer, opts: PlaySfxOptions | undefined): v
     // ignore
   }
 
-  src.addEventListener('ended', () => {
+  src.onended = () => {
     try {
       src.disconnect();
       gain.disconnect();
     } catch {
       // ignore
     }
-  });
+  };
 }
 
-function playWithHtmlAudio(url: string, opts: PlaySfxOptions | undefined): void {
+function scoreCanPlay(val: string): number {
+  if (val === 'probably') return 2;
+  if (val === 'maybe') return 1;
+  return 0;
+}
+
+function guessMime(url: string): string | null {
+  const u = url.toLowerCase();
+  if (u.endsWith('.mp3')) return 'audio/mpeg';
+  if (u.endsWith('.ogg')) return 'audio/ogg; codecs="vorbis"';
+  if (u.endsWith('.m4a') || u.endsWith('.mp4')) return 'audio/mp4; codecs="mp4a.40.2"';
+  if (u.endsWith('.wav')) return 'audio/wav';
+  return null;
+}
+
+function orderUrlsForHtmlAudio(urls: readonly string[]): readonly string[] {
+  if (typeof document === 'undefined') return urls;
+
+  const probe = document.createElement('audio');
+
+  const scored = urls.map((u) => {
+    const mime = guessMime(u);
+    const score = mime ? scoreCanPlay(probe.canPlayType(mime)) : 0;
+    return { u, score };
+  });
+
+  // Keep original priority, but prefer "supported" when available.
+  const bestScore = scored.reduce((m, r) => (r.score > m ? r.score : m), 0);
+  if (bestScore === 0) return urls;
+
+  const supported = scored.filter((r) => r.score === bestScore).map((r) => r.u);
+  const unsupported = scored.filter((r) => r.score !== bestScore).map((r) => r.u);
+  return [...supported, ...unsupported];
+}
+
+function playWithHtmlAudio(urls: readonly string[], opts: PlaySfxOptions | undefined): void {
   if (typeof window === 'undefined') return;
+  if (urls.length === 0) return;
 
   const vol = clampNum(opts?.volume ?? 1, 0, 1);
   const rate = clampNum(opts?.playbackRate ?? 1, 0.25, 4);
 
-  const a = new Audio(url);
+  const ordered = orderUrlsForHtmlAudio(urls);
+
+  const a = new Audio();
   a.preload = 'auto';
   a.volume = vol;
   a.playbackRate = rate;
@@ -239,51 +178,182 @@ function playWithHtmlAudio(url: string, opts: PlaySfxOptions | undefined): void 
   a.addEventListener('pause', cleanup);
   a.addEventListener('error', cleanup);
 
-  void a.play().catch(() => {
-    // autoplay blocked / missing file => ignore
-    cleanup();
-  });
+  let i = 0;
+
+  const tryNext = () => {
+    if (i >= ordered.length) {
+      cleanup();
+      return;
+    }
+
+    const url = ordered[i];
+    i += 1;
+
+    a.src = url;
+
+    void a.play().catch(() => {
+      // unsupported format / 404 / autoplay blocked -> try next
+      tryNext();
+    });
+  };
+
+  tryNext();
 }
 
 /**
  * Play a registered SFX.
- * - If already decoded (AudioBuffer): plays via WebAudio (low latency).
- * - Otherwise: best-effort HTMLAudio fallback and kick off preload for next time.
+ * - If already preloaded (AudioBuffer): plays via WebAudio (low latency).
+ * - Otherwise: falls back to HTMLAudio *and* kicks off a preload for next time.
  */
 export function playSfx(id: SfxId, opts?: PlaySfxOptions): void {
-  const buf = bufferCache.get(id);
-  if (buf) {
-    playWithWebAudio(buf, opts);
+  const cached = bufferCache.get(id);
+  if (cached) {
+    playWithWebAudio(cached.buf, opts);
     return;
   }
 
-  const url = urlForImmediatePlayback(id);
-  if (url) playWithHtmlAudio(url, opts);
+  const urls = urlsForId(id);
+  if (urls.length === 0) return;
+
+  // If we already know which url decodes (from an earlier preload), prefer that first.
+  const preferred = chosenUrlCache.get(id);
+  const ordered = preferred ? [preferred, ...urls.filter((u) => u !== preferred)] : urls;
+
+  // no buffer yet -> immediate fallback
+  playWithHtmlAudio(ordered, opts);
 
   // warm up for future plays
   void preloadSfx(id);
+}
+
+/**
+ * Prefetch CORE_SFX audio files (network/cache only, no WebAudio decode).
+ * Safe before user gestures / AudioContext resume policies.
+ */
+type Prefetched = Readonly<{ ab: ArrayBuffer; url: string }>;
+
+const prefetchCache = new Map<SfxId, Prefetched>();
+const prefetchLoadingCache = new Map<SfxId, Promise<Prefetched | null>>();
+
+async function tryFetchArrayBuffer(url: string): Promise<ArrayBuffer | null> {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    return await res.arrayBuffer();
+  } catch {
+    return null;
+  }
+}
+
+async function prefetchSfx(id: SfxId): Promise<Prefetched | null> {
+  const cached = prefetchCache.get(id);
+  if (cached) return cached;
+
+  const inflight = prefetchLoadingCache.get(id);
+  if (inflight) return await inflight;
+
+  const p = (async (): Promise<Prefetched | null> => {
+    const urls = urlsForId(id);
+    if (urls.length === 0) return null;
+
+    for (const url of urls) {
+      const ab = await tryFetchArrayBuffer(url);
+      if (!ab) continue;
+
+      const rec: Prefetched = { ab, url };
+      prefetchCache.set(id, rec);
+
+      // Helps playSfx() prefer the first successfully fetched url.
+      chosenUrlCache.set(id, url);
+
+      return rec;
+    }
+
+    return null;
+  })();
+
+  prefetchLoadingCache.set(id, p);
+
+  const rec = await p;
+  prefetchLoadingCache.delete(id);
+  return rec;
 }
 
 export async function prefetchCoreSfx(): Promise<void> {
   await Promise.all(CORE_SFX.map((id) => prefetchSfx(id)));
 }
 
-export async function decodeCoreSfx(): Promise<void> {
-  await Promise.all(CORE_SFX.map((id) => decodeSfx(id)));
+async function warmupCoreSfx(): Promise<void> {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+
+  resumeAudioContextIfNeeded();
+  primeAudioOutput();
+
+  await Promise.all(
+    CORE_SFX.map(async (id) => {
+      if (bufferCache.has(id)) return;
+
+      // Prefer prefetched ArrayBuffer (no extra network).
+      const pref = prefetchCache.get(id) ?? (await prefetchSfx(id));
+      if (!pref) {
+        void preloadSfx(id);
+        return;
+      }
+
+      try {
+        // decodeAudioData may detach the ArrayBuffer → keep cache stable.
+        const ab = pref.ab.slice(0);
+        const buf = await ctx.decodeAudioData(ab);
+
+        const rec: CachedBuffer = { buf, url: pref.url };
+        bufferCache.set(id, rec);
+        chosenUrlCache.set(id, pref.url);
+
+        // free memory (we no longer need the ArrayBuffer once decoded)
+        prefetchCache.delete(id);
+      } catch {
+        // Fallback: normal preload path (fetch+decode).
+        void preloadSfx(id);
+      }
+    }),
+  );
 }
 
 let coreWarmupInstalled = false;
 
 /**
- * Install a one-time “first gesture” warmup:
- * - after the browser allows audio, decode CORE_SFX so the first “real” hit is not cold.
+ * One-shot warmup:
+ * - Waits for the first successful "audio unlock" (gesture/focus/visibility resume),
+ * - then decodes CORE_SFX into WebAudio buffers (low latency guarantee).
+ *
+ * Uses the central unlock mechanism (no extra DOM listeners).
  */
 export function installCoreSfxWarmupOnFirstGesture(): void {
+  if (typeof window === 'undefined') return;
   if (coreWarmupInstalled) return;
   coreWarmupInstalled = true;
 
-  // Note: ensureAudioUnlocked() must be installed somewhere else (e.g. via useCoreSfxWarmup).
-  onFirstAudioGesture(() => {
-    void decodeCoreSfx();
-  });
+  ensureAudioUnlocked();
+
+  let ran = false;
+  let unsub: (() => void) | null = null;
+
+  const runOnce = () => {
+    if (ran) return;
+    ran = true;
+
+    if (unsub) {
+      const u = unsub;
+      unsub = null;
+      u();
+    }
+
+    void warmupCoreSfx();
+  };
+
+  unsub = addAudioUnlockSubscriber(runOnce);
+
+  const c = getAudioContext();
+  if (c && c.state === 'running') runOnce();
 }
