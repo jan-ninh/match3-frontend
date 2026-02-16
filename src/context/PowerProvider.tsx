@@ -32,6 +32,7 @@ function isPowerGrantManyDetail(v: unknown): v is PowerGrantManyDetail {
 export function PowerProvider({ children }: { children: ReactNode }) {
   // IMPORTANT: clone to avoid sharing the frozen object reference as state
   const [powers, setPowersState] = useState<Powers>(() => ({ ...defaultPowers }));
+  const [selectedPowersForNextStage, setSelectedPowersForNextStageState] = useState<Partial<Powers> | null>(null);
 
   // UI grants (dev cheats, backend rewards, etc.)
   useEffect(() => {
@@ -151,7 +152,7 @@ export function PowerProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  const value = useMemo(() => ({ powers, setFromBackendAndSelect, setPowers }), [powers]);
+  const value = useMemo(() => ({ powers, setFromBackendAndSelect, setPowers, selectedPowersForNextStage, setSelectedPowersForNextStage: setSelectedPowersForNextStageState }), [powers, selectedPowersForNextStage]);
 
   return <PowerContext.Provider value={value}>{children}</PowerContext.Provider>;
 }
