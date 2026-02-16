@@ -1,6 +1,6 @@
 // src/components/footer/GameFooter.tsx
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-
+import { apiGetGameStatus } from '@/api/game';
 import { footerActions } from './footerAction';
 import bombSprite from '@/assets/items/bomb01.png';
 import { usePowers } from '@/context/PowerContext';
@@ -27,7 +27,6 @@ export default function GameFooter({ openSettings }: Props) {
   const { user, updatePowers } = useAuth();
 
   const [armedBomb, setArmedBomb] = useState(false);
-
   /**
    * Keep latest powers ONLY for window event listeners (effects).
    * Important: do NOT read this ref in render-path callbacks (e.g. `onUsePower`) that are passed into UI builders.
@@ -36,6 +35,21 @@ export default function GameFooter({ openSettings }: Props) {
   useEffect(() => {
     powersRef.current = powers;
   }, [powers]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    (async () => {
+      try {
+        const status = await apiGetGameStatus(user.id);
+        if (status?.powers) {
+          setPowers(status.powers);
+        }
+      } catch (err) {
+        console.error('Failed to load game status:', err);
+      }
+    })();
+  }, [user?.id, setPowers]);
 
   const nextRequestIdRef = useRef(1);
 
