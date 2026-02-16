@@ -298,7 +298,7 @@ export default function Grid({
 
         {/* DEV label for VFX toggle */}
         {import.meta.env.DEV && isDev && debugEnabled ? (
-          <div className="absolute left-2 top-2 z-[200] pointer-events-none select-none text-[10px] text-white/70">
+          <div className="absolute left-2 top-2 z-200 pointer-events-none select-none text-[10px] text-white/70">
             BombVFX: {bombFxMode === 'flipbook' ? 'Flipbook' : 'LegacyShock'} (press V)
           </div>
         ) : null}

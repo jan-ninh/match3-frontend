@@ -52,7 +52,7 @@ export default function MainLayout() {
             id="app-stage"
             className={[
               'match3-viewport relative overflow-hidden text-white pointer-events-auto',
-              'aspect-[3/4]',
+              'aspect-3/4',
               // Design policy: keep the stage at 720×960 (or smaller if viewport is smaller).
               'h-[min(960px,100svh)] w-auto max-w-[min(720px,calc(100vw-2rem))]',
             ].join(' ')}

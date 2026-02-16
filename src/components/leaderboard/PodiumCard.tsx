@@ -7,7 +7,7 @@ type Props = {
 };
 
 export default function PodiumCard({ user, position }: Props) {
-  const height = position === 1 ? 'h-48' : position === 2 ? 'h-36' : 'h-32';
+  const height = position === 1 ? 'h-48' : position === 2 ? 'h-40' : 'h-39';
   // Neon theme per position
   const neon =
     position === 1
@@ -58,7 +58,7 @@ export default function PodiumCard({ user, position }: Props) {
       </div>
 
       <div className="relative flex-1 flex flex-col justify-end items-center p-2 text-white/85">
-        <AvatarSprite name={(user.avatar as any) || 'default.png'} size={48} />
+        <AvatarSprite name={(user.avatar as any) || 'default.png'} size={64} />
         <span className="mt-1 font-semibold text-[13px] truncate max-w-22">{user.name}</span>
         <span className="text-xs text-white/70">{user.score} pts</span>
       </div>
