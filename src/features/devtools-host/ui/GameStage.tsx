@@ -101,7 +101,7 @@ export function GameStage({ gridRowRef: externalGridRowRef, grid, hud }: Props) 
       <div ref={gridRowRef} className="absolute z-10">
         {grid}
       </div>
-      <div className="absolute top-0 right-0 top-[-160px] right-[-160px] z-30 pointer-events-auto">
+      <div className="absolute top-0 right-0 top-[-160px] right-[-200px] z-90 pointer-events-auto">
         <SettingsGearButton iconSrc="/icons/settings-gear02.png" />
       </div>
       {/* HUD: top-anchored, clipped to not overlap grid */}
