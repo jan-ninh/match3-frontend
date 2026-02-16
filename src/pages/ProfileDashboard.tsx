@@ -83,7 +83,6 @@ export default function ProfileDashboard() {
         <Navbar />
       </div>
 
-      {/* ✅ Content scrollable - flex-1 overflow-y-auto */}
       <div className="m-8 flex flex-col space-y-4">
         <ProfileHeader
           username={profile.username}
@@ -100,6 +99,7 @@ export default function ProfileDashboard() {
           }
         />
       </div>
+      {/* ✅ Content scrollable - flex-1 overflow-y-auto */}
       <div className="flex-1 overflow-y-auto scrollbar-cyber">
         <div className="m-8 flex flex-col space-y-4">
           <GlassSection className="flex flex-col gap-6 p-6">

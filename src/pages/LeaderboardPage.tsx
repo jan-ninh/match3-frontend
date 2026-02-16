@@ -45,15 +45,19 @@ export default function LeaderboardPage() {
   const currentRank = currentIndex >= 0 ? currentIndex + 1 : undefined;
 
   return (
-    <>
-      <Navbar />
-      <GlassSection className="text-center max-w-xl mx-auto">
-        {loading && <div className="text-center text-gray-500 py-8">Loading leaderboard...</div>}
-        {!loading && error && <div className="text-center text-red-600 py-8">{error}</div>}
+    <div className="flex flex-col h-full">
+      <div className="shrink-0">
+        <Navbar />
+      </div>
 
-        {!loading && !error && (
-          <>
-            <div className="flex justify-center items-end mb-6 flex-wrap sm:flex-nowrap gap-4">
+      {/* ✅ Podium */}
+      <div className="shrink-0">
+        <GlassSection className="text-center max-w-xl mx-auto mb-4">
+          {loading && <div className="text-center text-gray-500 py-8">Loading leaderboard...</div>}
+          {!loading && error && <div className="text-center text-red-600 py-8">{error}</div>}
+
+          {!loading && !error && (
+            <div className="flex justify-center items-end  flex-wrap sm:flex-nowrap gap-4">
               {[
                 { user: topThree[1], order: 1, position: 2 },
                 { user: topThree[0], order: 2, position: 1 },
@@ -66,27 +70,37 @@ export default function LeaderboardPage() {
                   </div>
                 ))}
             </div>
+          )}
+        </GlassSection>
+      </div>
 
-            <div>
-              {restTopTen.map((user, idx) => (
-                <RankRow key={`${user.id ?? user.name ?? 'row'}-${idx}`} user={user} rank={idx + 4} />
-              ))}
-            </div>
+      {/* ✅ 1-4*/}
+      <div className="flex-1 overflow-y-auto scrollbar-cyber ">
+        <div className="m-8">
+          <GlassSection className="text-center">
+            {!loading && !error && (
+              <>
+                <div className="flex flex-col space-y-4">
+                  {restTopTen.map((user, idx) => (
+                    <RankRow key={`${user.id ?? user.name ?? 'row'}-${idx}`} user={user} rank={idx + 4} />
+                  ))}
+                </div>
 
-            {currentUser && currentRank && currentRank > 10 && (
-              <div className="mt-4">
-                <YourPositionCard user={currentUser} rank={currentRank} />
-              </div>
+                {currentUser && currentRank && currentRank > 10 && (
+                  <div className="mt-8 pt-4 border-t border-white/10">
+                    <YourPositionCard user={currentUser} rank={currentRank} />
+                  </div>
+                )}
+                {!sorted.length && <div className="text-center text-gray-500 py-8">No leaderboard data yet.</div>}
+              </>
             )}
+          </GlassSection>
+        </div>
+      </div>
 
-            {!sorted.length && <div className="text-center text-gray-500 py-8">No leaderboard data yet.</div>}
-          </>
-        )}
-      </GlassSection>
-
-      <div className="px-6 pt-4 pb-10 flex justify-center">
+      <div className="shrink-0 px-6 pt-4 pb-10 flex justify-center">
         <CyberButton key={'Back'} label={'Back'} onClick={() => navigate('/game-map')} />
       </div>
-    </>
+    </div>
   );
 }
