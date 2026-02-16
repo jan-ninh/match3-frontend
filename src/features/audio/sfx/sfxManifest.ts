@@ -7,7 +7,7 @@
  */
 export const SFX_URLS = {
   bombExplosion: ['/audio/sfx/items/bomb/bomb_laserSFX.mp3', '/audio/sfx/items/bomb/bomb_laserSFX.ogg', '/audio/sfx/items/bomb/bomb_laserSFX.m4a'],
-  reshuffle: ['/audio/sfx/items/reshuffle/reshuffle_SFX.mp3', '/audio/sfx/items/reshuffle/reshuffle_SFX.ogg', '/audio/sfx/items/reshuffle/reshuffle_SFX.wav'],
+  reshuffle: ['/audio/sfx/items/reshuffle/reshuffle.mp3', '/audio/sfx/items/reshuffle/reshuffle_SFX.ogg', '/audio/sfx/items/reshuffle/reshuffle_SFX.wav'],
 } as const;
 
 export type SfxId = keyof typeof SFX_URLS;

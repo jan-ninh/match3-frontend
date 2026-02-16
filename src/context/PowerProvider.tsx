@@ -1,3 +1,4 @@
+// src\context\PowerProvider.tsx
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { PowerKey, Powers } from '@/types';
