@@ -5,10 +5,11 @@ import type { ComponentProps } from 'react';
 import type { EngineState } from '@/gamelogic';
 import { DebugInputPanel, DebugDevToolsPanel } from '@/devtools';
 import type { PowerKey } from '@/types';
-import { POWER_GRANT_EVENT } from '@/context/powerEvents';
 
 import { DEBUG_OVERLAY_HZ } from '../lib/constants';
 import { useDevPanelsPortal } from './hooks/useDevPanelsPortal';
+
+const POWERS_GRANT_MANY_EVENT = 'match3:powersGrantMany' as const;
 
 type DevtoolsMeta = Readonly<{
   levelId: EngineState['levelId'];
@@ -90,15 +91,12 @@ export function GridDevPanels({
   }, [onDevPrevLevel, onDevNextLevel, onDevResetBoard, onDevNextTilesPalette, inputLocked]);
 
   const panels = useMemo(() => {
-    const grant = (key: PowerKey, delta: number) => {
-      if (typeof window === 'undefined') return;
-      window.dispatchEvent(new CustomEvent(POWER_GRANT_EVENT, { detail: { key, delta } }));
-    };
-
     const onCheatItems = () => {
-      grant('bomb', 5);
-      grant('laser', 5);
-      grant('extraShuffle', 5); // reshuffle
+      if (typeof window === 'undefined') return;
+
+      const grants = { bomb: 5, laser: 5, extraShuffle: 5 } satisfies Partial<Record<PowerKey, number>>;
+
+      window.dispatchEvent(new CustomEvent(POWERS_GRANT_MANY_EVENT, { detail: { grants } }));
     };
 
     return (
