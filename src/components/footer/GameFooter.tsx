@@ -16,6 +16,7 @@ import {
 } from '@/context/powerEvents';
 import { playSfx } from '@/features/audio';
 import type { PowerKey, Powers } from '@/types';
+import { NeonFooterButton } from '@/components'; // ✅ NEW (UI only)
 
 type FooterActionItem = ReturnType<typeof footerActions>[number];
 
@@ -260,35 +261,23 @@ export default function GameFooter() {
         const iconPxInactive = iconPxActive - 1;
         const iconPx = isActive ? iconPxActive : iconPxInactive;
 
+        const badge = showCount ? (
+          <span>{item.count}</span>
+        ) : showBadge ? (
+          <img src={item.badge} alt={item.label} className="w-3 h-3" aria-hidden="true" draggable={false} />
+        ) : null;
+
         return (
-          <button
+          <NeonFooterButton
             key={item.id}
             onClick={item.onClick}
             aria-label={item.label}
-            aria-pressed={isActive}
             disabled={isDisabled}
+            active={isActive}
             data-footer-btn={item.id}
             draggable={false}
             onDragStart={(e) => e.preventDefault()}
-            className={[
-              'relative flex-1 min-w-0 flex-1 min-w-0 aspect-[13/10] min-h-12 max-h-20  flex items-center justify-center rounded-xl overflow-hidden select-none mb-2',
-              'border border-white/15',
-              'bg-[linear-gradient(135deg,rgba(255,255,255,0.32)_0%,rgba(255,255,255,0.25)_18%,rgba(0,0,0,0.38)_52%,rgba(255,255,255,0.38)_82%,rgba(0,0,0,0.55)_100%)]',
-              'shadow-[inset_0_1px_0_rgba(255,255,255,0.18),inset_0_-10px_18px_rgba(0,0,0,0.55),0_10px_22px_rgba(0,0,0,0.35)]',
-              "before:content-[''] before:absolute before:inset-0 before:rounded-xl before:pointer-events-none before:z-0",
-              'before:bg-[repeating-linear-gradient(90deg,rgba(255,255,255,0.055)_0px,rgba(255,255,255,0.055)_1px,rgba(0,0,0,0)_3px,rgba(0,0,0,0)_6px)]',
-              'before:opacity-35',
-              "after:content-[''] after:absolute after:inset-0 after:rounded-xl after:pointer-events-none after:z-0",
-              'after:bg-[radial-gradient(circle_at_30%_15%,rgba(255,255,255,0.22)_0%,rgba(255,255,255,0.06)_34%,rgba(255,255,255,0)_68%)]',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/60',
-              isDisabled
-                ? 'opacity-45 cursor-not-allowed'
-                : 'transition-[transform,filter,box-shadow] duration-150 hover:-translate-y-0.5 hover:brightness-110 active:translate-y-0 active:brightness-95',
-              isActive ? 'ring-2 ring-rose-500/60 drop-shadow-[0_0_14px_rgba(244,63,94,0.28)]' : '',
-            ]
-              .filter(Boolean)
-              .join(' ')}
-            type="button"
+            badge={badge}
           >
             <img
               src={item.icon}
@@ -304,19 +293,7 @@ export default function GameFooter() {
                 .filter(Boolean)
                 .join(' ')}
             />
-
-            {showCount && (
-              <span className="absolute bottom-0 right-0 z-20 w-6 h-6 flex items-center justify-center bg-gray-600 rounded-full border border-white/20 text-xs text-white">
-                {item.count}
-              </span>
-            )}
-
-            {showBadge && (
-              <span className="absolute bottom-0 right-0 z-20 w-6 h-6 flex items-center justify-center bg-gray-600 rounded-full border border-white/20">
-                <img src={item.badge} alt={item.label} className="w-3 h-3" aria-hidden="true" draggable={false} />
-              </span>
-            )}
-          </button>
+          </NeonFooterButton>
         );
       })}
     </div>
