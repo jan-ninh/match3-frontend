@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { footerActions } from './footerAction';
-import bombSprite from '@/assets/items/bomb01.png';
+import bombSprite from '@/assets/items/gridlaser.png';
 import { usePowers } from '@/context/PowerContext';
 import { useAuth } from '@/context/AuthContext';
 import {
