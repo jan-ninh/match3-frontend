@@ -19,7 +19,7 @@ export default function GameplayPage() {
 
   return (
     // Stage-inner layout: [gameplay area][footer], no extra document flow, no scrollbars.
-    <div className="h-full w-full overflow-hidden grid grid-rows-[minmax(0,1fr)_auto] gap-6 p-6">
+    <div className="h-full w-full  overflow-hidden grid grid-rows-[minmax(0,1fr)_auto] gap-0 p-6">
       <div className="min-h-0">
         <DevtoolsHost key={initialLevelId} initialLevelId={initialLevelId} />
       </div>

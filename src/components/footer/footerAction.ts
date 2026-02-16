@@ -4,7 +4,7 @@ import type { PowerKey, Powers } from '@/types';
 import gridlaserIcon from '@/assets/items/gridlaser.png';
 import laserIcon from '@/assets/items/laser.png';
 import reshuffleIcon from '@/assets/items/reshuffle.png';
-// import button4IconPng from '@/assets/items/footer-button4.png';
+import noaccessIcon from '@/assets/items/noaccess.png';
 
 type ActionItem = {
   id: string;
@@ -48,7 +48,7 @@ export const footerActions = (openSettings: () => void, powers: Powers, onUsePow
   {
     id: 'button4',
     label: 'Button4',
-    // icon: button4IconPng,
+    icon: noaccessIcon,
     onClick: () => undefined,
   },
 

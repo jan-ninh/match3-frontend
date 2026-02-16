@@ -22,6 +22,30 @@ type Props = {
 };
 
 type FooterActionItem = ReturnType<typeof footerActions>[number];
+type FooterActionId = FooterActionItem['id'];
+
+const DEFAULT_ICON_PX_ACTIVE = 60;
+
+// TODO: Set these numbers. Goal: you only edit these values.
+const ICON_PX_ACTIVE_BOMB = 60;
+const ICON_PX_ACTIVE_LASER = 60;
+const ICON_PX_ACTIVE_RESHUFFLE = 58;
+const ICON_PX_ACTIVE_ITEM4 = 60;
+const ICON_PX_ACTIVE_SETTINGS = 60;
+
+/**
+ * Per-button icon sizing (active).
+ * - Add entries by `item.id` (string).
+ * - Missing ids fall back to DEFAULT_ICON_PX_ACTIVE.
+ */
+const ICON_PX_ACTIVE_BY_ID: Readonly<Partial<Record<string, number>>> = {
+  bomb: ICON_PX_ACTIVE_BOMB,
+  laser: ICON_PX_ACTIVE_LASER,
+  reshuffle: ICON_PX_ACTIVE_RESHUFFLE,
+  extraShuffle: ICON_PX_ACTIVE_RESHUFFLE, // alias: current PowerKey id
+  item4: ICON_PX_ACTIVE_ITEM4,
+  settings: ICON_PX_ACTIVE_SETTINGS,
+};
 
 function isCounted(item: FooterActionItem): item is FooterActionItem & { count: number } {
   return typeof item.count === 'number';
@@ -221,7 +245,7 @@ export default function GameFooter({ openSettings }: Props) {
         const showCount = counted;
         const showBadge = !counted && typeof item.badge === 'string' && item.badge.length > 0;
 
-        const iconPxActive = 60;
+        const iconPxActive = ICON_PX_ACTIVE_BY_ID[item.id] ?? DEFAULT_ICON_PX_ACTIVE;
         const iconPxInactive = iconPxActive - 1;
         const iconPx = isActive ? iconPxActive : iconPxInactive;
 
