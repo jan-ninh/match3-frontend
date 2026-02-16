@@ -1,4 +1,4 @@
-// src\devtools\DebugEventLog.tsx
+// src/devtools/DebugEventLog.tsx
 import { Fragment, useEffect, useMemo, useRef } from 'react';
 import type { EngineEvent } from '@/gamelogic';
 
@@ -156,29 +156,36 @@ function formatEvent(e: EngineEvent): string {
 
 type Props = {
   events: EngineEvent[];
+
+  // Cap for perf/readability. Set <= 0 to render all events.
   maxLines?: number;
 };
 
-export default function DebugEventLog({ events, maxLines = 20 }: Props) {
-  const scrollerRef = useRef<HTMLDivElement | null>(null);
-  const bottomRef = useRef<HTMLDivElement | null>(null);
+const DEFAULT_MAX_LINES = 80;
 
-  const lastEventsChrono = useMemo(() => events.slice(-maxLines), [events, maxLines]);
+export default function DebugEventLog({ events, maxLines = DEFAULT_MAX_LINES }: Props) {
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
+  const bottomRef = useRef<HTMLLIElement | null>(null);
+
+  const lastEventsChrono = useMemo(() => {
+    if (!Number.isFinite(maxLines) || maxLines <= 0) return events;
+    return events.slice(-maxLines);
+  }, [events, maxLines]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [events.length]);
 
   return (
-    <div className="w-full lg:w-[420px] rounded-2xl p-3 bg-black/30 border border-white/10 shadow-lg">
+    <div className="w-full max-w-full rounded-2xl p-3 bg-black/30 border border-white/10 shadow-lg">
       <div className="flex items-center justify-between">
         <div className="text-white/90 font-semibold">Event log</div>
         <div className="text-white/50 text-xs">
-          {Math.min(maxLines, events.length)} / {events.length}
+          {lastEventsChrono.length} / {events.length}
         </div>
       </div>
 
-      <div ref={scrollerRef} className="mt-2 h-[420px] overflow-y-auto" style={{ scrollbarGutter: 'stable' }}>
+      <div ref={scrollerRef} className="mt-2 h-[min(620px,calc(100svh-260px))] overflow-y-auto overscroll-contain" style={{ scrollbarGutter: 'stable' }}>
         <ul className="space-y-0">
           {lastEventsChrono.map((e, i) => {
             // turnSeparator: render as engine-owned blank line (no inference)
@@ -233,7 +240,7 @@ export default function DebugEventLog({ events, maxLines = 20 }: Props) {
             );
           })}
 
-          <div ref={bottomRef} />
+          <li ref={bottomRef} className="h-px" aria-hidden="true" />
         </ul>
       </div>
 

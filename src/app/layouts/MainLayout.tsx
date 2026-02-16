@@ -43,9 +43,9 @@ export default function MainLayout() {
         <div className="absolute inset-y-0 left-0 z-20 flex justify-end pointer-events-none"></div>
         {/* DEV RIGHT LANE */}
         <div className="absolute inset-y-0 right-0 z-20 flex justify-start pointer-events-none">
-          <div id="dev-right-lane" className="w-[min(520px,33vw)] max-w-full flex justify-start px-6 pointer-events-auto" style={{ paddingTop: '10px' }} />
+          <div id="dev-right-lane" className="w-[min(520px,33vw)] max-w-full flex justify-start px-6 pointer-events-auto" style={{ paddingTop: '20px' }} />
         </div>{' '}
-        <div id="dev-left-lane" className="w-[min(520px,33vw)] max-w-full flex justify-end px-6 pointer-events-auto" style={{ paddingTop: '10px' }} />
+        <div id="dev-left-lane" className="w-[min(520px,33vw)] max-w-full flex justify-end px-6 pointer-events-auto" style={{ paddingTop: '20px' }} />
         {/* STAGE HOST */}
         <div className="absolute inset-0 z-10 flex items-center justify-center p-4 overflow-hidden pointer-events-none">
           <div
