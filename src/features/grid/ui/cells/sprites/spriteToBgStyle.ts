@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 
-import type { TileSprite } from '../../tiles-special';
+import type { TileSprite } from '../../tilesSpecial';
 import { TILE_SIZE } from '../../../lib/constants';
 
 export function spriteToBgStyle(sprite: TileSprite | null): CSSProperties | undefined {

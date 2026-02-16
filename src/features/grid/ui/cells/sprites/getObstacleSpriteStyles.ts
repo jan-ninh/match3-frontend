@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 
-import { getSpecialTileSprite, specialSpike, specialTile_04 } from '../../tiles-special';
+import { getSpecialTileSprite, specialSpike, specialTile_04 } from '../../tilesSpecial';
 import { spriteToBgStyle } from './spriteToBgStyle';
 
 export type ObstacleSpriteStyles = {

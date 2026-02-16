@@ -1,4 +1,4 @@
-// src/features/grid/ui/tiles-special.ts
+// src\features\grid\ui\tilesSpecial.ts
 export type TileSprite = {
   sheet: string;
 
@@ -150,7 +150,7 @@ const FALLBACK_TILESETS_BY_ID = buildTilesetsById({
   tilesetMods: fallbackTilesetMods,
   atlasMods: fallbackAtlasMods,
   sheetMods: fallbackSheetMods,
-  rootKey: '/assets/tiles/',
+  rootKey: '/assets/tiles/default/',
   label: 'Fallback special',
 });
 

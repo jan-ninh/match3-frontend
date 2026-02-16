@@ -6,12 +6,12 @@ export type User = {
 };
 
 // types/user.ts
-export type PowerKey = 'bomb' | 'rocket' | 'extraTime';
+export type PowerKey = 'bomb' | 'laser' | 'extraShuffle';
 
 export type Powers = {
   bomb: number;
-  rocket: number;
-  extraTime: number;
+  laser: number;
+  extraShuffle: number;
 };
 
 export type StageProgress = {

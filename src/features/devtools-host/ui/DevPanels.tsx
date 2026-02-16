@@ -1,3 +1,4 @@
+// src\features\devtools-host\ui\DevPanels.tsx
 import { createPortal } from 'react-dom';
 
 import type { EngineEvent } from '@/gamelogic';
@@ -18,7 +19,7 @@ export default function DevPanels({ enabled, events, onDevWin, onDevLose, onDevR
   if (!enabled || !rightLane) return null;
 
   return createPortal(
-    <div className="min-w-[320px] max-w-[520px] w-full flex flex-col gap-3">
+    <div className="min-w-[320px] max-w-[520px] w-full flex flex-col gap-3 pointer-events-auto">
       <DebugEventLog events={events} />
 
       <div className="rounded-xl border border-white/10 bg-black/35 backdrop-blur p-3">

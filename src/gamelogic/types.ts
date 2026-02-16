@@ -1,4 +1,3 @@
-// src/gamelogic/types.ts
 import type { EnginePhase } from './phases';
 import type { RngState } from './rng';
 
@@ -223,6 +222,15 @@ export type PendingSwap = {
 };
 
 // ─────────────────────────────────────────────
+// Pending Turn Commit (turn-end must be engine-owned)
+// ─────────────────────────────────────────────
+
+export type PendingTurnCommit = {
+  kind: 'swap' | 'item';
+  spendMove: boolean;
+};
+
+// ─────────────────────────────────────────────
 // Swap Rejection
 // ─────────────────────────────────────────────
 
@@ -246,6 +254,14 @@ export type EngineAnim = {
   token: number;
 };
 
+export type HardBoundaryKind = 'initLevel' | 'resetBoard';
+
+// ─────────────────────────────────────────────
+// Item Effect Keys (for turnCommitArmed payload)
+// ─────────────────────────────────────────────
+
+export type ItemEffectKeyForEvent = 'bomb3x3';
+
 // ─────────────────────────────────────────────
 // Engine Events
 // ─────────────────────────────────────────────
@@ -253,11 +269,13 @@ export type EngineAnim = {
 export type EngineEvent =
   | { type: 'seededInit'; levelId: LevelId; width: number; height: number; seed: number }
   | { type: 'reset'; levelId: LevelId; seed: number }
+  | { type: 'hardBoundary'; kind: HardBoundaryKind; nowMs: number; animTokenBase: number }
   | { type: 'phase'; phase: EnginePhase }
   | { type: 'select'; index: number }
   | { type: 'selectionCleared' }
   | { type: 'swap'; from: number; to: number }
   | { type: 'swapBack'; from: number; to: number }
+  | { type: 'animBegin'; kind: EngineAnimKind; token: number; durationMs: number; enteredAtMs: number; deadlineAtMs: number }
   | { type: 'animDone'; mode: AnimDoneMode; kind: EngineAnimKind; token: number; dtMs: number; deltaMs: number }
   | { type: 'animDoneIgnored'; kind: EngineAnimKind; token: number; reason: AnimDoneIgnoreReason }
   | { type: 'swapRejected'; from: number; to: number; reason: SwapRejectReason }
@@ -298,7 +316,15 @@ export type EngineEvent =
   | { type: 'laserSweepHazards'; contaminationIndices: number[]; firewallIndices: number[] }
   // Level 05+: Signal Network events
   | { type: 'cellCharged'; index: number }
-  | { type: 'signalLinked' };
+  | { type: 'signalLinked' }
+  // Power/Item consumption ack (UI consumes only after this)
+  | { type: 'powerUsed'; key: 'bomb' | 'laser' | 'extraShuffle'; requestId: number }
+  // ─── Pre-Falling Guardrails: Observability events ───
+  | { type: 'turnCommitArmed'; kind: 'swap'; spendMove: boolean; from: number; to: number }
+  | { type: 'turnCommitArmed'; kind: 'item'; key: ItemEffectKeyForEvent; target: { x: number; y: number }; requestId: number }
+  | { type: 'turnEndStart'; kind: 'swap' | 'item'; spendMove: boolean }
+  | { type: 'turnEndComplete' }
+  | { type: 'turnSeparator' };
 
 // ─────────────────────────────────────────────
 // Engine State
@@ -388,4 +414,7 @@ export type EngineState = {
 
   events: EngineEvent[];
   pendingSwap: PendingSwap | null;
+
+  // commit marker for "apply turn-end when we reach idle"
+  pendingTurnCommit: PendingTurnCommit | null;
 };

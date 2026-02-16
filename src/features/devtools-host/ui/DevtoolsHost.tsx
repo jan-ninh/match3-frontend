@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { cycleTilesetPalette, preloadTiles } from '@/features/grid/ui/tiles';
-import { cycleSpecialTilesetPalette, preloadSpecialTiles } from '@/features/grid/ui/tiles-special';
+import { cycleSpecialTilesetPalette, preloadSpecialTiles } from '@/features/grid/ui/tilesSpecial';
 import { useOverlays } from '@/features/overlays';
 import { completeLevel, resetProgress } from '@/services/progress/progressActions';
 import { useAuth } from '@/context/AuthContext';
@@ -62,19 +62,21 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
       openPowerChoice({
         title: 'Choose your Power!',
         onChoose: async (powerId) => {
+          const add = powerId === 'bomb' ? 2 : 1;
+
           // 1) Optimistic local powers update (immediate feedback)
           const nextPowers =
             powerId === 'bomb'
-              ? { ...powers, bomb: powers.bomb + 1 }
-              : powerId === 'rocket'
-                ? { ...powers, rocket: powers.rocket + 1 }
-                : { ...powers, extraTime: powers.extraTime + 1 };
+              ? { ...powers, bomb: powers.bomb + add }
+              : powerId === 'laser'
+                ? { ...powers, laser: powers.laser + add }
+                : { ...powers, extraShuffle: powers.extraShuffle + add };
 
           setPowers(nextPowers);
 
           // 2) Persist reward for logged-in users (best-effort)
           if (user?.id) {
-            const delta = powerId === 'bomb' ? { bomb: 1 } : powerId === 'rocket' ? { rocket: 1 } : { extraTime: 1 };
+            const delta = powerId === 'bomb' ? { bomb: add } : powerId === 'laser' ? { laser: add } : { extraShuffle: add };
 
             try {
               await updatePowers(delta, 'add');
@@ -154,7 +156,7 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
   }, [isDev, debugEnabled]);
 
   return (
-    <div className="w-full">
+    <div className="w-full h-full">
       <DevPanels enabled={isDev && debugEnabled} events={events} onDevWin={onDevWin} onDevLose={onDevLose} onDevResetProgress={onDevResetProgress} />
 
       <GameContainer

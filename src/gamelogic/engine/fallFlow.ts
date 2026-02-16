@@ -1,4 +1,4 @@
-// src/gamelogic/engine/fallFlow.ts
+// src\gamelogic\engine\fallFlow.ts
 import type { AnimDoneIgnoreReason, AnimDoneMode, EngineEvent, EngineState } from '../types';
 import { hasAnyMoves } from '../match';
 import { resolveOnce, shuffleUntilValid, stabilizeBoard } from '../cascade';
@@ -7,25 +7,16 @@ import { setPhase } from '../phaseState';
 
 import { beginAnim } from './anim';
 import { autoFinishAll } from './autoFinish';
+import type { ApplyAnimDone } from './autoFinish';
 import { mkAnimDone, mkAnimDoneIgnored, pushEvents } from './events';
-import { applyTurnEndEffects } from './turnEnd';
 
-function applyTurnEndAndStabilize(s: EngineState, events: EngineEvent[]): EngineState {
-  // Turn-end mechanics exist only for these systems (right now)
-  const hasTurnEndMechanics = (s.leaksTotal ?? 0) > 0 || s.sweepEnabled;
-  if (!hasTurnEndMechanics) return s;
+// Turn-end is engine-owned and runs centrally in engineReducer when we reach `idle` and `pendingTurnCommit` exists.
+// fallFlow must NOT execute any turn-end logic, otherwise it can double-fire.
 
-  const te = applyTurnEndEffects(s);
-  s = te.state;
-  events.push(...te.events);
-
-  // Turn-end effects (esp. laser) can create holes / forced changes -> ensure stable & playable.
-  const stabilized = stabilizeBoard(s, { maxShuffleAttempts: 200 });
-  s = stabilized.state;
-  events.push(...stabilized.events);
-
-  return s;
-}
+const applyDone: ApplyAnimDone = (st, kind, tok, mode) => {
+  if (kind !== 'fall') return st;
+  return applyFallAnimDone(st, tok, mode);
+};
 
 export function applyFallAnimDone(state: EngineState, token: number, mode: AnimDoneMode): EngineState {
   const ignore = (reason: AnimDoneIgnoreReason): EngineState => {
@@ -66,7 +57,6 @@ export function applyFallAnimDone(state: EngineState, token: number, mode: AnimD
     }
 
     if (withEvents.anim?.durationMs === 0) {
-      const applyDone = (st: EngineState, kind: any, tok: number, m: AnimDoneMode) => (kind === 'fall' ? applyFallAnimDone(st, tok, m) : st);
       return autoFinishAll(withEvents, applyDone);
     }
 
@@ -79,9 +69,7 @@ export function applyFallAnimDone(state: EngineState, token: number, mode: AnimD
   events.push({ type: 'deadlockCheck', hasMove });
 
   if (hasMove) {
-    // ✅ TURN END (spread/sweep) happens right before returning to idle
-    s = applyTurnEndAndStabilize(s, events);
-
+    // IMPORTANT: do NOT run turn-end here. We just reach idle; engineReducer will run turn-end via pendingTurnCommit.
     s = setPhase(s, 'idle', events);
     const withEvents = pushEvents(s, events);
 
@@ -116,7 +104,6 @@ export function applyFallAnimDone(state: EngineState, token: number, mode: AnimD
     }
 
     if (withEvents.anim?.durationMs === 0) {
-      const applyDone = (st: EngineState, kind: any, tok: number, m: AnimDoneMode) => (kind === 'fall' ? applyFallAnimDone(st, tok, m) : st);
       return autoFinishAll(withEvents, applyDone);
     }
 
@@ -142,9 +129,7 @@ export function applyFallAnimDone(state: EngineState, token: number, mode: AnimD
     return merged;
   }
 
-  // ✅ TURN END (spread/sweep) happens right before returning to idle (even after shuffle branch)
-  s = applyTurnEndAndStabilize(s, events);
-
+  // IMPORTANT: do NOT run turn-end here. We just reach idle; engineReducer will run turn-end via pendingTurnCommit.
   s = setPhase(s, 'idle', events);
   const final = pushEvents(s, events);
 

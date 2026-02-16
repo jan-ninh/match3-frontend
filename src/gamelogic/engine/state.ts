@@ -24,7 +24,14 @@ function selectInitialLaserWarning(seed: number, width: number, height: number):
   return { kind: 'col', index: pick - height };
 }
 
-export function createState(levelId: LevelId, seed: number, extraEvents: EngineEvent[] = [], animTokenBase = 0, swapMs = SWAP_MS): EngineState {
+export function createState(
+  levelId: LevelId,
+  seed: number,
+  extraEvents: EngineEvent[] = [],
+  animTokenBase = 0,
+  swapMs = SWAP_MS,
+  nowMs = 0,
+): EngineState {
   const level = getLevelDefinition(levelId);
   const built = buildInitialBoard(level, seed);
 
@@ -246,6 +253,7 @@ export function createState(levelId: LevelId, seed: number, extraEvents: EngineE
     nextPieceId,
 
     pendingSwap: null,
+    pendingTurnCommit: null,
     selectedIndex: null,
 
     phase: 'init',
@@ -254,7 +262,8 @@ export function createState(levelId: LevelId, seed: number, extraEvents: EngineE
     // animation timing (UI reads this)
     swapMs: sanitizeSwapMs(swapMs),
 
-    nowMs: 0,
+    // Carry forward monotonic clock (never regress to 0 on init/reset)
+    nowMs,
     anim: null,
     animToken: animTokenBase,
 
@@ -274,5 +283,5 @@ export function createState(levelId: LevelId, seed: number, extraEvents: EngineE
 
 export function createInitialState(levelId: LevelId): EngineState {
   const level = getLevelDefinition(levelId);
-  return createState(levelId, level.baseSeed, [], 1, SWAP_MS);
+  return createState(levelId, level.baseSeed, [], 1, SWAP_MS, 0);
 }

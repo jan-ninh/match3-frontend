@@ -1,0 +1,15 @@
+{
+  "name": "explosion_flipbook_5x6_256.alpha.png",
+  "sheet": {
+    "cols": 5,
+    "rows": 6,
+    "frameW": 256,
+    "frameH": 256,
+    "frameCount": 30
+  },
+  "alpha_extract": {
+    "method": "alpha=max(rgb)^gamma with threshold",
+    "gamma": 0.75,
+    "threshold": 0.06
+  }
+}

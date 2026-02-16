@@ -5,22 +5,30 @@ import { useCallback, useEffect, useReducer } from 'react';
 import type { EngineState } from '@/gamelogic';
 
 import { Grid } from '@/features/grid';
+import type { BombTarget } from '@/features/grid/ui/bomb/typesBomb';
 
 import { useHudInputFromState } from '@/features/devtools-host/lib/useHudInputFromState';
 
 // 🔥 tiles are module-level state -> must force rerender when they change
 import { preloadTiles, setTilesetLevel } from '@/features/grid/ui/tiles';
-import { preloadSpecialTiles, setSpecialTilesetLevel } from '@/features/grid/ui/tiles-special';
+import { preloadSpecialTiles, setSpecialTilesetLevel } from '@/features/grid/ui/tilesSpecial';
 
 import { GameStage } from './GameStage';
 import GameplayHud from './GameplayHud';
+
+type GridIntent =
+  | { type: 'click'; index: number }
+  | { type: 'swap'; from: number; to: number }
+  // legacy intent still present in input layer; upstream can ignore/convert
+  | { type: 'useBombAt'; index: number }
+  | { type: 'useItemAt'; key: 'bomb3x3'; target: BombTarget };
 
 type Props = {
   state: EngineState;
   inputLocked: boolean;
 
   canSwapAt: (from: number, to: number) => boolean;
-  onIntent: (intent: { type: 'click'; index: number } | { type: 'swap'; from: number; to: number }) => void;
+  onIntent: (intent: GridIntent) => void;
 
   // Runtime / environment
   isDev?: boolean;

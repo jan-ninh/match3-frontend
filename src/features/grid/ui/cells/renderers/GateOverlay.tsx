@@ -1,4 +1,4 @@
-import { getGateSprite } from '../../tiles-special';
+import { getGateSprite } from '../../tilesSpecial';
 import { spriteToBgStyle } from '../sprites/spriteToBgStyle';
 
 type Props = {

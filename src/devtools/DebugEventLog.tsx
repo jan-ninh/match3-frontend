@@ -1,4 +1,4 @@
-// src/devtools/DebugEventLog.tsx
+// src\devtools\DebugEventLog.tsx
 import { Fragment, useEffect, useMemo, useRef } from 'react';
 import type { EngineEvent } from '@/gamelogic';
 
@@ -21,6 +21,8 @@ function formatEvent(e: EngineEvent): string {
       return `seededInit(level=${e.levelId}, ${e.width}x${e.height}, seed=${e.seed})`;
     case 'reset':
       return `reset(level=${e.levelId}, seed=${e.seed})`;
+    case 'hardBoundary':
+      return `hardBoundary(${e.kind}, now=${fmtNum(e.nowMs)}ms, tokenBase=${e.animTokenBase})`;
     case 'phase':
       return `phase(${e.phase})`;
     case 'select':
@@ -31,6 +33,8 @@ function formatEvent(e: EngineEvent): string {
       return `swap(from=${e.from}, to=${e.to})`;
     case 'swapBack':
       return `swapBack(from=${e.from}, to=${e.to})`;
+    case 'animBegin':
+      return `animBegin(kind=${e.kind}, token=${e.token}, dur=${fmtNum(e.durationMs)}ms, t=${fmtNum(e.enteredAtMs)}ms, ddl=${fmtNum(e.deadlineAtMs)}ms)`;
     case 'animDone':
       return `animDone(${e.mode}, kind=${e.kind}, token=${e.token}, dt=${fmtNum(e.dtMs)}ms, delta=${fmtSigned(e.deltaMs)}ms)`;
     case 'animDoneIgnored':
@@ -62,17 +66,21 @@ function formatEvent(e: EngineEvent): string {
     case 'lose':
       return 'lose()';
 
-    // ─────────────────────────────
+    // ─────────────────────────────────
     // Misc / newer events
-    // ─────────────────────────────
+    // ─────────────────────────────────
     case 'cellCharged':
       return `cellCharged(index=${e.index})`;
     case 'signalLinked':
       return 'signalLinked()';
+    case 'powerUsed': {
+      const req = typeof e.requestId === 'number' ? e.requestId : 0;
+      return `powerUsed(key=${e.key}, requestId=${req})`;
+    }
 
-    // ─────────────────────────────
+    // ─────────────────────────────────
     // Level 02+: Leak/Contamination
-    // ─────────────────────────────
+    // ─────────────────────────────────
     case 'turnEnd':
       return `turnEnd(turnIndex=${e.turnIndex})`;
     case 'spreadTick':
@@ -92,9 +100,9 @@ function formatEvent(e: EngineEvent): string {
     case 'contaminationLose':
       return `contaminationLose(count=${e.count})`;
 
-    // ─────────────────────────────
+    // ─────────────────────────────────
     // Level 03+: Terminal/Keycard
-    // ─────────────────────────────
+    // ─────────────────────────────────
     case 'terminalCharged':
       return `terminalCharged(id=${e.terminalId}, charge=${e.charge}/${e.requiredCharge})`;
     case 'terminalOpened':
@@ -104,17 +112,17 @@ function formatEvent(e: EngineEvent): string {
     case 'terminalVerified':
       return `terminalVerified(id=${e.terminalId})`;
 
-    // ─────────────────────────────
+    // ─────────────────────────────────
     // Level 04+: Objective Terminal
-    // ─────────────────────────────
+    // ─────────────────────────────────
     case 'objectiveTerminalCharged':
       return `objectiveTerminalCharged(id=${e.terminalId}, charge=${e.charge}/${e.requiredCharge})`;
     case 'objectiveTerminalActivated':
       return `objectiveTerminalActivated(id=${e.terminalId})`;
 
-    // ─────────────────────────────
+    // ─────────────────────────────────
     // Level 04+: Laser Sweep
-    // ─────────────────────────────
+    // ─────────────────────────────────
     case 'laserWarningSet':
       return `laserWarningSet(${e.kind}, index=${e.index})`;
     case 'laserSweepStart':
@@ -123,6 +131,21 @@ function formatEvent(e: EngineEvent): string {
       return `laserSweepCleared(indices=[${fmtList(e.indices)}])`;
     case 'laserSweepHazards':
       return `laserSweepHazards(contamination=[${fmtList(e.contaminationIndices)}], firewall=[${fmtList(e.firewallIndices)}])`;
+
+    // ─────────────────────────────────
+    // Pre-Falling Guardrails: Observability
+    // ─────────────────────────────────
+    case 'turnCommitArmed':
+      if (e.kind === 'swap') {
+        return `turnCommitArmed(swap, spendMove=${String(e.spendMove)}, from=${e.from}, to=${e.to})`;
+      }
+      return `turnCommitArmed(item, key=${e.key}, target=${e.target.x},${e.target.y}, reqId=${e.requestId})`;
+    case 'turnEndStart':
+      return `turnEndStart(${e.kind}, spendMove=${String(e.spendMove)})`;
+    case 'turnEndComplete':
+      return 'turnEndComplete()';
+    case 'turnSeparator':
+      return ''; // rendered as blank line, not text
 
     default: {
       const _exhaustive: never = e;
@@ -158,6 +181,15 @@ export default function DebugEventLog({ events, maxLines = 20 }: Props) {
       <div ref={scrollerRef} className="mt-2 h-[420px] overflow-y-auto" style={{ scrollbarGutter: 'stable' }}>
         <ul className="space-y-0">
           {lastEventsChrono.map((e, i) => {
+            // turnSeparator: render as engine-owned blank line (no inference)
+            if (e.type === 'turnSeparator') {
+              return (
+                <li key={i} className="font-mono text-xs whitespace-pre text-white/0 select-none" aria-hidden="true">
+                  {'\u00A0'}
+                </li>
+              );
+            }
+
             const next = lastEventsChrono[i + 1];
             const isClear = e.type === 'selectionCleared';
 

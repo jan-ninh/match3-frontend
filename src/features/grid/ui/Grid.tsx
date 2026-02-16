@@ -1,20 +1,36 @@
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
-import { createPortal } from 'react-dom';
 
 import type { EngineState } from '@/gamelogic';
-
-import { DebugInputPanel, DebugDevToolsPanel } from '@/devtools';
 
 import GridCellsLayer from './GridCellsLayer';
 import GridPiecesLayer from './GridPiecesLayer';
 import GridOverlaysLayer from './GridOverlaysLayer';
-import GridLockoutOverlay from './GridLockoutOverlay';
 
-import { BOARD_PADDING, DEBUG_OVERLAY_HZ, GAP, TILE_SIZE } from '../lib/constants';
+import { BOARD_PADDING } from '../lib/constants';
 import { boardInnerSizePx, cellPixelXY } from '../lib/math';
 
 import { useGridInput } from '../input/useGridInput';
+
+import type { BombTarget } from './bomb/typesBomb';
+import { BombOverlay } from './bomb/BombOverlay';
+import { useBomb3x3Targeting } from './bomb/useBomb3x3Targeting';
+
+import { BombExplosionFxLayer, type BombVfxMode } from './bomb/fx/BombExplosionFxLayer';
+
+import { GridShell } from './GridShell';
+import { LaserWarningOverlay } from './LaserWarningOverlay';
+import { GridDevPanels } from './GridDevPanels';
+
+import { useCoreSfxWarmup } from '@/features/audio';
+
+type InputIntentLike =
+  | { type: 'click'; index: number }
+  | { type: 'swap'; from: number; to: number }
+  // legacy (useGridInput’s InputIntent enthält das offenbar noch)
+  | { type: 'useBombAt'; index: number }
+  // current
+  | { type: 'useItemAt'; key: 'bomb3x3'; target: BombTarget };
 
 type Props = {
   state: EngineState;
@@ -30,7 +46,8 @@ type Props = {
   canSwapAt: (from: number, to: number) => boolean;
 
   // Grid emits only intents. Parent decides what to do with them.
-  onIntent: (intent: { type: 'click'; index: number } | { type: 'swap'; from: number; to: number }) => void;
+  onIntent: (intent: InputIntentLike) => void;
+
   swapMs: number;
 
   // runtime debug toggle (press D)
@@ -46,6 +63,34 @@ type Props = {
 
 type CssVars = CSSProperties & { '--boardDim'?: number };
 
+const LS_KEY_BOMB_VFX = 'match3.dev.bombVfxMode';
+
+// TOGGLE STANDARD BOMBANIMATION (legacy | flipbook)
+function readBombVfxModeFromStorage(): BombVfxMode {
+  if (!import.meta.env.DEV) return 'legacyShock';
+  if (typeof window === 'undefined') return 'legacyShock';
+
+  try {
+    const raw = window.localStorage.getItem(LS_KEY_BOMB_VFX);
+    if (raw === 'legacyShock' || raw === 'flipbook') return raw;
+  } catch {
+    // ignore (privacy mode)
+  }
+
+  return 'legacyShock';
+}
+
+function writeBombVfxModeToStorage(mode: BombVfxMode) {
+  if (!import.meta.env.DEV) return;
+  if (typeof window === 'undefined') return;
+
+  try {
+    window.localStorage.setItem(LS_KEY_BOMB_VFX, mode);
+  } catch {
+    // ignore (privacy mode)
+  }
+}
+
 export default function Grid({
   state,
   inputLocked,
@@ -60,9 +105,22 @@ export default function Grid({
   onDevNextLevel,
   onDevNextTilesPalette,
 }: Props) {
+  useCoreSfxWarmup();
+
   const { width, height, cells, selectedIndex } = state;
 
-  const containerRef = useRef<HTMLDivElement | null>(null);
+  const { w: innerW, h: innerH } = useMemo(() => boardInnerSizePx(width, height), [width, height]);
+
+  const bomb = useBomb3x3Targeting({
+    width,
+    height,
+    inputLocked,
+    engineEvents: state.events,
+    reducedMotion: swapMs === 0,
+    stageElementId: 'app-stage',
+  });
+
+  const effectiveInputLocked = inputLocked || bomb.bombArmed;
 
   const {
     isDev,
@@ -85,9 +143,7 @@ export default function Grid({
     onPointerCancel,
 
     setDraggedEl,
-  } = useGridInput({ state, inputLocked, canSwapAt, onIntent, debugEnabled, swapMs });
-
-  const { w: innerW, h: innerH } = useMemo(() => boardInnerSizePx(width, height), [width, height]);
+  } = useGridInput({ state, inputLocked: effectiveInputLocked, canSwapAt, onIntent, debugEnabled, swapMs });
 
   const selectionPos = useMemo(() => {
     if (selectedIndex === null) return null;
@@ -129,48 +185,35 @@ export default function Grid({
     return cellPixelXY(toIndex, width);
   }, [isDragging, previewActive, previewAxisUI, previewDirUI, dragPieceId, pieceList, width, height, cells]);
 
-  const devItems = useMemo(() => {
-    return [
-      {
-        kind: 'toggle' as const,
-        label: 'show: Input Lockout',
-        value: showLockoutHints,
-        onToggle: onToggleShowLockoutHints,
-      },
-    ];
-  }, [showLockoutHints, onToggleShowLockoutHints]);
-
-  const devActions = useMemo(() => {
-    return [
-      {
-        kind: 'action' as const,
-        label: 'level: Prev',
-        onPress: onDevPrevLevel,
-        disabled: inputLocked,
-      },
-      {
-        kind: 'action' as const,
-        label: 'level: Next',
-        onPress: onDevNextLevel,
-        disabled: inputLocked,
-      },
-      {
-        kind: 'action' as const,
-        label: 'reset: Board',
-        onPress: onDevResetBoard,
-        disabled: inputLocked,
-      },
-      {
-        kind: 'action' as const,
-        label: 'tiles: Next palette',
-        onPress: onDevNextTilesPalette,
-        disabled: inputLocked,
-      },
-    ];
-  }, [onDevPrevLevel, onDevNextLevel, onDevResetBoard, onDevNextTilesPalette, inputLocked]);
-
-  const lockoutCursor = inputLocked && showLockoutHints ? 'cursor-not-allowed' : '';
   const showDebugLabels = isDev && debugEnabled;
+
+  const [bombVfxMode, setBombVfxMode] = useState<BombVfxMode>(() => readBombVfxModeFromStorage());
+
+  // DEV-only toggle: press "V" to switch Bomb VFX (Flipbook <-> LegacyShock)
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    if (!isDev) return;
+    if (!debugEnabled) return;
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'v' && e.key !== 'V') return;
+
+      // do not interfere with text inputs
+      const tag = (e.target instanceof Element ? e.target.tagName : '').toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+
+      e.preventDefault();
+
+      setBombVfxMode((prev) => {
+        const next: BombVfxMode = prev === 'flipbook' ? 'legacyShock' : 'flipbook';
+        writeBombVfxModeToStorage(next);
+        return next;
+      });
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isDev, debugEnabled]);
 
   const shellStyle: CssVars = {
     width: innerW + BOARD_PADDING * 2,
@@ -185,133 +228,107 @@ export default function Grid({
     backgroundColor: 'rgb(0 0 0 / var(--boardDim))',
   };
 
-  const leftLane = typeof document !== 'undefined' ? (document.getElementById('dev-left-lane') as HTMLElement | null) : null;
+  // Cursor (board-level): normal unless lockout hints say otherwise
+  const cursorClass = inputLocked && showLockoutHints ? 'cursor-not-allowed' : 'cursor-default';
 
-  const devPanels =
-    isDev && debugEnabled && leftLane
-      ? createPortal(
-          <div className="flex flex-col gap-3">
-            <DebugInputPanel width={width} snapshot={debugSnapshot} hz={DEBUG_OVERLAY_HZ} />
-            <DebugDevToolsPanel locked={inputLocked} meta={{ levelId: state.levelId, width, height, seed: state.seed }} items={devItems} actions={devActions} />
-          </div>,
-          leftLane,
-        )
-      : null;
-
-  // ─────────────────────────────────────────────
-  // Level 04: Laser warning overlay (row/col highlight)
-  // ─────────────────────────────────────────────
-  const laserOverlay = useMemo(() => {
-    const w = state.laserWarning;
-    if (!w) return null;
-
-    const step = TILE_SIZE + GAP;
-
-    if (w.kind === 'row') {
-      const top = w.index * step;
-      return {
-        left: 0,
-        top,
-        width: innerW,
-        height: TILE_SIZE,
-      } as const;
+  const onPointerMoveShell = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (bomb.bombArmed) {
+      bomb.onShellPointerMove(e);
+      return;
     }
+    onPointerMove(e);
+  };
 
-    const left = w.index * step;
-    return {
-      left,
-      top: 0,
-      width: TILE_SIZE,
-      height: innerH,
-    } as const;
-  }, [state.laserWarning, innerW, innerH]);
+  const onPointerUpShell = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (bomb.bombArmed) return;
+    onPointerUp(e);
+  };
+
+  const onPointerCancelShell = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (bomb.bombArmed) return;
+    onPointerCancel(e);
+  };
+
+  const onPointerLeaveShell = () => {
+    if (!bomb.bombArmed) return;
+    bomb.onShellPointerLeave();
+  };
+
+  const onCellPointerDownShell = (index: number, e: React.PointerEvent<HTMLButtonElement>) => {
+    if (bomb.bombArmed) {
+      bomb.onCellPointerDown(index, e);
+      return;
+    }
+    onCellPointerDown(index, e);
+  };
+
+  const bombFxMode: BombVfxMode = import.meta.env.DEV && isDev && debugEnabled ? bombVfxMode : 'legacyShock';
 
   return (
     <>
-      {devPanels}
+      <GridDevPanels
+        enabled={isDev && debugEnabled}
+        width={width}
+        inputLocked={inputLocked}
+        showLockoutHints={showLockoutHints}
+        onToggleShowLockoutHints={onToggleShowLockoutHints}
+        onDevPrevLevel={onDevPrevLevel}
+        onDevNextLevel={onDevNextLevel}
+        onDevResetBoard={onDevResetBoard}
+        onDevNextTilesPalette={onDevNextTilesPalette}
+        debugSnapshot={debugSnapshot}
+        stateMeta={{ levelId: state.levelId, width, height, seed: state.seed }}
+      />
 
-      <div
-        ref={containerRef}
-        className={`relative rounded-2xl p-3 border border-white/10 shadow-[0_18px_60px_rgba(0,0,0,0.55)] select-none ${lockoutCursor}`}
-        style={shellStyle}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerCancel}
+      <GridShell
+        shellStyle={shellStyle}
+        cursorClass={cursorClass}
+        inputLocked={inputLocked}
+        showLockoutHints={showLockoutHints}
+        innerW={innerW}
+        innerH={innerH}
+        boardRef={bomb.boardRef}
+        onPointerMove={onPointerMoveShell}
+        onPointerUp={onPointerUpShell}
+        onPointerCancel={onPointerCancelShell}
+        onPointerLeave={onPointerLeaveShell}
       >
-        <GridLockoutOverlay active={inputLocked} show={showLockoutHints} />
+        {/* Laser Warning highlight (under cells/pieces, above bg) */}
+        <LaserWarningOverlay warning={state.laserWarning} innerW={innerW} innerH={innerH} />
 
-        <div className="relative" style={{ width: innerW, height: innerH }}>
-          <div className="absolute inset-0 rounded-2xl pointer-events-none" style={{ backgroundColor: 'rgb(0 0 0 / var(--boardDim))' }} />
-          <div
-            className="absolute inset-0 rounded-2xl pointer-events-none"
-            style={{
-              background: 'linear-gradient(180deg, rgba(255,255,255,0.055) 0%, rgba(255,255,255,0.022) 40%, rgba(0,0,0,0.94) 100%)',
-              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08), inset 0 -18px 40px rgba(0,0,0,0.55)',
-            }}
-          />
+        {/* DEV label for VFX toggle */}
+        {import.meta.env.DEV && isDev && debugEnabled ? (
+          <div className="absolute left-2 top-2 z-[200] pointer-events-none select-none text-[10px] text-white/70">
+            BombVFX: {bombFxMode === 'flipbook' ? 'Flipbook' : 'LegacyShock'} (press V)
+          </div>
+        ) : null}
 
-          {/* Laser Warning highlight (under cells/pieces, above bg) */}
-          {laserOverlay ? (
-            <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
-              {/* soft fill */}
-              <div
-                className="absolute rounded-xl animate-pulse"
-                style={{
-                  ...laserOverlay,
-                  background:
-                    state.laserWarning?.kind === 'row'
-                      ? 'linear-gradient(90deg, rgba(244,63,94,0.00) 0%, rgba(244,63,94,0.16) 18%, rgba(244,63,94,0.20) 50%, rgba(244,63,94,0.16) 82%, rgba(244,63,94,0.00) 100%)'
-                      : 'linear-gradient(180deg, rgba(244,63,94,0.00) 0%, rgba(244,63,94,0.16) 18%, rgba(244,63,94,0.20) 50%, rgba(244,63,94,0.16) 82%, rgba(244,63,94,0.00) 100%)',
-                  boxShadow: '0 0 26px rgba(244,63,94,0.18), 0 0 52px rgba(244,63,94,0.10)',
-                }}
-              />
+        {/* Bomb Targeting 3×3 (square corners, red glow) */}
+        <BombOverlay indices={bomb.bombOverlayIndices} width={width} zIndex={44} />
 
-              {/* crisp outline */}
-              <div
-                className="absolute rounded-xl"
-                style={{
-                  ...laserOverlay,
-                  outline: '1px solid rgba(248,113,113,0.32)',
-                  boxShadow: 'inset 0 0 0 1px rgba(244,63,94,0.14)',
-                }}
-              />
+        <GridCellsLayer width={width} height={height} cells={cells} onCellPointerDown={onCellPointerDownShell} showDebugLabels={showDebugLabels} />
 
-              {/* subtle scanlines */}
-              <div
-                className="absolute rounded-xl opacity-70"
-                style={{
-                  ...laserOverlay,
-                  background:
-                    state.laserWarning?.kind === 'row'
-                      ? 'repeating-linear-gradient(90deg, rgba(255,255,255,0.00) 0px, rgba(255,255,255,0.00) 10px, rgba(255,255,255,0.06) 11px)'
-                      : 'repeating-linear-gradient(0deg, rgba(255,255,255,0.00) 0px, rgba(255,255,255,0.00) 10px, rgba(255,255,255,0.06) 11px)',
-                  mixBlendMode: 'screen',
-                }}
-              />
-            </div>
-          ) : null}
+        <GridOverlaysLayer selectionPos={selectionPos} targetPos={targetPos} />
 
-          <GridCellsLayer width={width} height={height} cells={cells} onCellPointerDown={onCellPointerDown} showDebugLabels={showDebugLabels} />
+        <GridPiecesLayer
+          width={width}
+          pieces={pieceList}
+          dragPieceId={dragPieceId}
+          isDragging={isDragging}
+          phase={state.phase}
+          swapMs={swapMs}
+          previewActive={previewActive}
+          previewOtherPieceId={previewOtherPieceId}
+          previewAxis={previewAxisUI}
+          previewDir={previewDirUI}
+          shakePieceId={shakePieceId}
+          showDebugLabels={showDebugLabels}
+          setDraggedEl={setDraggedEl}
+        />
 
-          <GridOverlaysLayer selectionPos={selectionPos} targetPos={targetPos} />
-
-          <GridPiecesLayer
-            width={width}
-            pieces={pieceList}
-            dragPieceId={dragPieceId}
-            isDragging={isDragging}
-            phase={state.phase}
-            swapMs={swapMs}
-            previewActive={previewActive}
-            previewOtherPieceId={previewOtherPieceId}
-            previewAxis={previewAxisUI}
-            previewDir={previewDirUI}
-            shakePieceId={shakePieceId}
-            showDebugLabels={showDebugLabels}
-            setDraggedEl={setDraggedEl}
-          />
-        </div>
-      </div>
+        {/* Bomb detonation FX (after ACK) */}
+        <BombExplosionFxLayer bursts={bomb.bombBursts} width={width} reducedMotionHint={swapMs === 0} zIndex={88} mode={bombFxMode} />
+      </GridShell>
     </>
   );
 }

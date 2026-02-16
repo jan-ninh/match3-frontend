@@ -1,4 +1,6 @@
 import Modal from '@/components/Modal';
+import { usePowers } from '@/context/PowerContext';
+import type { PowerKey, Powers } from '@/types';
 import type { PowerId } from './overlayContext';
 
 type Props = {
@@ -7,19 +9,43 @@ type Props = {
   onClose: () => void;
   onChoose: (powerId: PowerId) => void;
 };
-const powerIds: PowerId[] = ['bomb', 'rocket', 'extraTime'];
+
+const powerIds: PowerId[] = ['bomb', 'laser', 'extraShuffle'];
+
+function getChoiceBonus(id: PowerId): number {
+  return id === 'bomb' ? 2 : 1;
+}
 
 export default function PowerChoiceModal({ open, title, onClose, onChoose }: Props) {
+  const { powers, setPowers } = usePowers();
+
+  const onPick = (id: PowerId) => {
+    // instant local reward
+    const key = id as unknown as PowerKey;
+    const bonus = getChoiceBonus(id);
+
+    const next: Powers = {
+      ...powers,
+      [key]: ((powers[key] ?? 0) | 0) + bonus,
+    };
+
+    setPowers(next);
+
+    // existing flow (likely backend sync / overlay close)
+    onChoose(id);
+  };
+
   return (
     <Modal open={open} onClose={onClose} title="Boosters" size="md" closeOnBackdrop={false}>
       <div className="flex flex-col items-center gap-4 py-4">
         <div className="text-2xl font-semibold text-cyan-600">{title}</div>
+
         <div className="flex gap-3 mt-2">
           {powerIds.map((id) => (
             <button
               key={id}
               type="button"
-              onClick={() => onChoose(id)}
+              onClick={() => onPick(id)}
               className="px-3 py-2 rounded-lg text-black hover:bg-yellow-400 flex items-center justify-center"
               aria-label={`choose ${id}`}
             >
@@ -27,18 +53,6 @@ export default function PowerChoiceModal({ open, title, onClose, onChoose }: Pro
             </button>
           ))}
         </div>
-
-        {/* <div className="flex gap-3 mt-2">
-          <button type="button" onClick={() => onChoose('bomb')} className="px-4 py-2 rounded-lg bg-yellow-400/80 text-black hover:bg-yellow-400">
-            1
-          </button>
-          <button type="button" onClick={() => onChoose('rocket')} className="px-4 py-2 rounded-lg bg-yellow-400/80 text-black hover:bg-yellow-400">
-            2
-          </button>
-          <button type="button" onClick={() => onChoose('extraTime')} className="px-4 py-2 rounded-lg bg-yellow-400/80 text-black hover:bg-yellow-400">
-            3
-          </button>
-        </div> */}
       </div>
     </Modal>
   );

@@ -1,5 +1,4 @@
-// src/gamelogic/engine/reducer/post/applyTurnEndPipeline.ts
-import type { EngineEvent, EngineState } from '../../../types';
+import type { EngineEvent, EngineState, PendingTurnCommit } from '../../../types';
 
 import { setPhase } from '../../../phaseState';
 import { stabilizeBoard } from '../../../cascade';
@@ -7,9 +6,14 @@ import { pushEvents } from '../../events';
 import { processKeycardDeliveries } from '../../deliveryFlow';
 import { applyTurnEndEffects } from '../../turnEnd';
 
-export function applyTurnEndPipeline(state: EngineState, wasSuccessfulSwap: boolean): EngineState {
-  // Only apply turn end effects after a successful swap that created matches
-  if (!wasSuccessfulSwap) return state;
+function shouldRunTurnEnd(commit: PendingTurnCommit): boolean {
+  if (commit.kind === 'item') return true;
+  // swap only counts as a "turn" if it actually spent a move (match-confirmed)
+  return commit.spendMove;
+}
+
+export function applyTurnEndPipeline(state: EngineState, commit: PendingTurnCommit): EngineState {
+  if (!shouldRunTurnEnd(commit)) return state;
 
   let s = state;
 

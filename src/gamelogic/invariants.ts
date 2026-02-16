@@ -62,9 +62,13 @@ export function assertBoardIntegrity(board: Pick<EngineState, 'width' | 'height'
   }
 }
 
-export function assertPhaseInvariants(state: Pick<EngineState, 'phase' | 'inputLocked' | 'anim' | 'animToken' | 'pendingSwap'>, ctx = ''): void {
+export function assertPhaseInvariants(
+  state: Pick<EngineState, 'phase' | 'inputLocked' | 'anim' | 'animToken' | 'pendingSwap'> & Partial<Pick<EngineState, 'pendingTurnCommit'>>,
+  ctx = '',
+): void {
   const tag = ctx ? ` ${ctx}` : '';
   const { phase, inputLocked, anim, animToken, pendingSwap } = state;
+  const pendingTurnCommit = state.pendingTurnCommit ?? null;
 
   const expectedLocked = isInputLocked(phase);
   if (inputLocked !== expectedLocked) {
@@ -95,6 +99,9 @@ export function assertPhaseInvariants(state: Pick<EngineState, 'phase' | 'inputL
     if (pendingSwap === null) {
       throw new Error(`[phase]${tag} pendingSwap missing in swapAnimating`);
     }
+    if (pendingTurnCommit !== null) {
+      throw new Error(`[phase]${tag} swapAnimating requires pendingTurnCommit=null`);
+    }
   } else {
     if (pendingSwap !== null) {
       throw new Error(`[phase]${tag} pendingSwap must be null outside swapAnimating (phase=${phase})`);
@@ -105,9 +112,17 @@ export function assertPhaseInvariants(state: Pick<EngineState, 'phase' | 'inputL
     if (inputLocked !== false) throw new Error(`[phase]${tag} idle requires inputLocked=false`);
     if (anim !== null) throw new Error(`[phase]${tag} idle requires anim=null`);
     if (pendingSwap !== null) throw new Error(`[phase]${tag} idle requires pendingSwap=null`);
+    // NOTE:
+    // pendingTurnCommit MAY be non-null in idle (transient) while engineReducer consumes it
+    // via its post-step (turn-end pipeline). This avoids timing/heuristic coupling.
   }
 
   if (phase === 'swapBackAnimating') {
     if (pendingSwap !== null) throw new Error(`[phase]${tag} swapBackAnimating requires pendingSwap=null`);
+    if (pendingTurnCommit !== null) throw new Error(`[phase]${tag} swapBackAnimating requires pendingTurnCommit=null`);
+  }
+
+  if (phase === 'win' || phase === 'lose' || phase === 'init' || phase === 'shuffle') {
+    if (pendingTurnCommit !== null) throw new Error(`[phase]${tag} ${phase} requires pendingTurnCommit=null`);
   }
 }
