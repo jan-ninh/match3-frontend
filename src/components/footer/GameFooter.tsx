@@ -22,14 +22,13 @@ type Props = {
 };
 
 type FooterActionItem = ReturnType<typeof footerActions>[number];
-type FooterActionId = FooterActionItem['id'];
 
 const DEFAULT_ICON_PX_ACTIVE = 60;
 
-// TODO: Set these numbers. Goal: you only edit these values.
-const ICON_PX_ACTIVE_BOMB = 60;
-const ICON_PX_ACTIVE_LASER = 60;
-const ICON_PX_ACTIVE_RESHUFFLE = 58;
+// Set numbers for each Button
+const ICON_PX_ACTIVE_BOMB = 65;
+const ICON_PX_ACTIVE_LASER = 80;
+const ICON_PX_ACTIVE_RESHUFFLE = 60;
 const ICON_PX_ACTIVE_ITEM4 = 60;
 const ICON_PX_ACTIVE_SETTINGS = 60;
 
@@ -260,12 +259,23 @@ export default function GameFooter({ openSettings }: Props) {
             draggable={false}
             onDragStart={(e) => e.preventDefault()}
             className={[
-              'relative w-24 h-16 flex items-center justify-center rounded-xl border border-white/20 select-none',
-              'bg-white/5 backdrop-blur-sm',
+              'relative w-26 h-20 flex items-center justify-center rounded-xl overflow-hidden select-none',
+              'border border-white/15',
+              'bg-[linear-gradient(135deg,rgba(255,255,255,0.16)_0%,rgba(255,255,255,0.05)_18%,rgba(0,0,0,0.38)_52%,rgba(255,255,255,0.08)_82%,rgba(0,0,0,0.55)_100%)]',
+              'shadow-[inset_0_1px_0_rgba(255,255,255,0.18),inset_0_-10px_18px_rgba(0,0,0,0.55),0_10px_22px_rgba(0,0,0,0.35)]',
+              "before:content-[''] before:absolute before:inset-0 before:rounded-xl before:pointer-events-none before:z-0",
+              'before:bg-[repeating-linear-gradient(90deg,rgba(255,255,255,0.055)_0px,rgba(255,255,255,0.055)_1px,rgba(0,0,0,0)_3px,rgba(0,0,0,0)_6px)]',
+              'before:opacity-35',
+              "after:content-[''] after:absolute after:inset-0 after:rounded-xl after:pointer-events-none after:z-0",
+              'after:bg-[radial-gradient(circle_at_30%_15%,rgba(255,255,255,0.22)_0%,rgba(255,255,255,0.06)_34%,rgba(255,255,255,0)_68%)]',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/60',
-              isDisabled ? 'opacity-40 cursor-not-allowed' : 'hover:scale-105 transition',
-              isActive ? 'ring-2 ring-rose-500/60 shadow-[0_0_22px_rgba(244,63,94,0.22)]' : '',
-            ].join(' ')}
+              isDisabled
+                ? 'opacity-45 cursor-not-allowed'
+                : 'transition-[transform,filter,box-shadow] duration-150 hover:-translate-y-0.5 hover:brightness-110 active:translate-y-0 active:brightness-95',
+              isActive ? 'ring-2 ring-rose-500/60 drop-shadow-[0_0_14px_rgba(244,63,94,0.28)]' : '',
+            ]
+              .filter(Boolean)
+              .join(' ')}
             type="button"
           >
             <img
@@ -275,7 +285,7 @@ export default function GameFooter({ openSettings }: Props) {
               draggable={false}
               style={{ width: iconPx, height: iconPx }}
               className={[
-                'object-contain pointer-events-none select-none',
+                'relative z-10 object-contain pointer-events-none select-none',
                 isActive ? 'drop-shadow-[0_0_10px_rgba(244,63,94,0.35)]' : '',
                 !canUse ? 'grayscale' : '',
               ]
@@ -284,13 +294,13 @@ export default function GameFooter({ openSettings }: Props) {
             />
 
             {showCount && (
-              <span className="absolute bottom-0 right-0 w-6 h-6 flex items-center justify-center bg-gray-600 rounded-full border border-white/20 text-xs text-white">
+              <span className="absolute bottom-0 right-0 z-20 w-6 h-6 flex items-center justify-center bg-gray-600 rounded-full border border-white/20 text-xs text-white">
                 {item.count}
               </span>
             )}
 
             {showBadge && (
-              <span className="absolute bottom-0 right-0 w-6 h-6 flex items-center justify-center bg-gray-600 rounded-full border border-white/20">
+              <span className="absolute bottom-0 right-0 z-20 w-6 h-6 flex items-center justify-center bg-gray-600 rounded-full border border-white/20">
                 <img src={item.badge} alt={item.label} className="w-3 h-3" aria-hidden="true" draggable={false} />
               </span>
             )}
