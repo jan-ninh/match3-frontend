@@ -2,7 +2,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { apiGetGameStatus } from '@/api/game';
 import { footerActions } from './footerAction';
-import bombSprite from '@/assets/items/bomb01.png';
 import { usePowers } from '@/context/PowerContext';
 import { useAuth } from '@/context/AuthContext';
 import {
@@ -21,6 +20,35 @@ import type { PowerKey, Powers } from '@/types';
 type Props = {
   openSettings: () => void;
 };
+
+type FooterActionItem = ReturnType<typeof footerActions>[number];
+
+const DEFAULT_ICON_PX_ACTIVE = 60;
+
+// Set numbers for each Button
+const ICON_PX_ACTIVE_BOMB = 65;
+const ICON_PX_ACTIVE_LASER = 80;
+const ICON_PX_ACTIVE_RESHUFFLE = 60;
+const ICON_PX_ACTIVE_ITEM4 = 60;
+const ICON_PX_ACTIVE_SETTINGS = 60;
+
+/**
+ * Per-button icon sizing (active).
+ * - Add entries by `item.id` (string).
+ * - Missing ids fall back to DEFAULT_ICON_PX_ACTIVE.
+ */
+const ICON_PX_ACTIVE_BY_ID: Readonly<Partial<Record<string, number>>> = {
+  bomb: ICON_PX_ACTIVE_BOMB,
+  laser: ICON_PX_ACTIVE_LASER,
+  reshuffle: ICON_PX_ACTIVE_RESHUFFLE,
+  extraShuffle: ICON_PX_ACTIVE_RESHUFFLE, // alias: current PowerKey id
+  item4: ICON_PX_ACTIVE_ITEM4,
+  settings: ICON_PX_ACTIVE_SETTINGS,
+};
+
+function isCounted(item: FooterActionItem): item is FooterActionItem & { count: number } {
+  return typeof item.count === 'number';
+}
 
 export default function GameFooter({ openSettings }: Props) {
   const { powers, setPowers } = usePowers();
@@ -223,34 +251,70 @@ export default function GameFooter({ openSettings }: Props) {
         const isBomb = item.id === 'bomb';
         const isActive = isBomb && armedBomb;
 
+        const counted = isCounted(item);
+        const canUse = counted ? item.count > 0 : true;
+        const isDisabled = counted ? item.count <= 0 : false;
+
+        const showCount = counted;
+        const showBadge = !counted && typeof item.badge === 'string' && item.badge.length > 0;
+
+        const iconPxActive = ICON_PX_ACTIVE_BY_ID[item.id] ?? DEFAULT_ICON_PX_ACTIVE;
+        const iconPxInactive = iconPxActive - 1;
+        const iconPx = isActive ? iconPxActive : iconPxInactive;
+
         return (
           <button
             key={item.id}
             onClick={item.onClick}
             aria-label={item.label}
             aria-pressed={isActive}
+            disabled={isDisabled}
+            data-footer-btn={item.id}
             draggable={false}
             onDragStart={(e) => e.preventDefault()}
             className={[
-              'relative w-24 h-16 flex items-center justify-center border border-white/20 hover:scale-105 transition focus:outline-none focus:ring select-none',
-              isActive ? 'ring-2 ring-rose-500/60 shadow-[0_0_22px_rgba(244,63,94,0.22)]' : '',
-            ].join(' ')}
+              'relative w-26 h-20 flex items-center justify-center rounded-xl overflow-hidden select-none',
+              'border border-white/15',
+              'bg-[linear-gradient(135deg,rgba(255,255,255,0.16)_0%,rgba(255,255,255,0.05)_18%,rgba(0,0,0,0.38)_52%,rgba(255,255,255,0.08)_82%,rgba(0,0,0,0.55)_100%)]',
+              'shadow-[inset_0_1px_0_rgba(255,255,255,0.18),inset_0_-10px_18px_rgba(0,0,0,0.55),0_10px_22px_rgba(0,0,0,0.35)]',
+              "before:content-[''] before:absolute before:inset-0 before:rounded-xl before:pointer-events-none before:z-0",
+              'before:bg-[repeating-linear-gradient(90deg,rgba(255,255,255,0.055)_0px,rgba(255,255,255,0.055)_1px,rgba(0,0,0,0)_3px,rgba(0,0,0,0)_6px)]',
+              'before:opacity-35',
+              "after:content-[''] after:absolute after:inset-0 after:rounded-xl after:pointer-events-none after:z-0",
+              'after:bg-[radial-gradient(circle_at_30%_15%,rgba(255,255,255,0.22)_0%,rgba(255,255,255,0.06)_34%,rgba(255,255,255,0)_68%)]',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/60',
+              isDisabled
+                ? 'opacity-45 cursor-not-allowed'
+                : 'transition-[transform,filter,box-shadow] duration-150 hover:-translate-y-0.5 hover:brightness-110 active:translate-y-0 active:brightness-95',
+              isActive ? 'ring-2 ring-rose-500/60 drop-shadow-[0_0_14px_rgba(244,63,94,0.28)]' : '',
+            ]
+              .filter(Boolean)
+              .join(' ')}
             type="button"
           >
             <img
-              src={isBomb ? bombSprite : item.icon}
+              src={item.icon}
               alt=""
               aria-hidden="true"
               draggable={false}
-              className={['object-contain pointer-events-none select-none', isBomb ? 'w-80 h-80 pb-5' : 'w-8 h-8'].join(' ')}
+              style={{ width: iconPx, height: iconPx }}
+              className={[
+                'relative z-10 object-contain pointer-events-none select-none',
+                isActive ? 'drop-shadow-[0_0_10px_rgba(244,63,94,0.35)]' : '',
+                !canUse ? 'grayscale' : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
             />
-            {typeof item.count === 'number' && (
-              <span className="absolute bottom-0 right-0 w-6 h-6 flex items-center justify-center bg-gray-600 rounded-full border border-white/20 text-xs text-white">
+
+            {showCount && (
+              <span className="absolute bottom-0 right-0 z-20 w-6 h-6 flex items-center justify-center bg-gray-600 rounded-full border border-white/20 text-xs text-white">
                 {item.count}
               </span>
             )}
-            {!item.count && item.badge && (
-              <span className="absolute bottom-0 right-0 w-6 h-6 flex items-center justify-center bg-gray-600 rounded-full border border-white/20">
+
+            {showBadge && (
+              <span className="absolute bottom-0 right-0 z-20 w-6 h-6 flex items-center justify-center bg-gray-600 rounded-full border border-white/20">
                 <img src={item.badge} alt={item.label} className="w-3 h-3" aria-hidden="true" draggable={false} />
               </span>
             )}

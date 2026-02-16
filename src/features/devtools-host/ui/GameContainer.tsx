@@ -4,6 +4,7 @@ import { useCallback, useEffect, useReducer } from 'react';
 
 import type { EngineState } from '@/gamelogic';
 
+import { useCoreSfxWarmup, useEngineMatchObjectiveSfx } from '@/features/audio';
 import { Grid } from '@/features/grid';
 import type { BombTarget } from '@/features/grid/ui/bomb/typesBomb';
 
@@ -66,6 +67,10 @@ export default function GameContainer({
   onDevNextTilesPalette,
   gridRowRef,
 }: Props) {
+  // Audio warmup + engine-event→SFX mapping
+  useCoreSfxWarmup();
+  useEngineMatchObjectiveSfx(state);
+
   // Bump component render when tileset/palette changes (tiles live outside React state)
   const [, bumpTilesRender] = useReducer((n: number) => (n + 1) % 1_000_000_000, 0);
 

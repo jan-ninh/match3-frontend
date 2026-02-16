@@ -27,7 +27,7 @@ export function handleReshuffle(state: EngineState, action: ReshuffleAction): En
   s = setPhase(s, 'inputLock', events);
   s = setPhase(s, 'shuffle', events);
 
-  const sh = shuffleUntilValid(s, 16000);
+  const sh = shuffleUntilValid(s, 200);
   s = sh.state;
   events.push({ type: 'shuffled', attempts: sh.attempts });
 
