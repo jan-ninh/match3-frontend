@@ -2,6 +2,7 @@ import { Link, useNavigate } from 'react-router';
 import { useOverlays } from '@/features/overlays';
 import { useAuth } from '@/context/AuthContext';
 import SpriteIcon from '@/components/SpriteIcon'; // default export assumed
+import { CyberTitle } from './CyberTitle';
 
 type NavLinkItem = {
   kind: 'link';
@@ -71,7 +72,7 @@ export default function Navbar() {
       className="flex justify-between items-center p-6
                   backdrop-blur-10px "
     >
-      <h1 className="text-xl font-bold">Match-3</h1>
+      <CyberTitle size="sm">Match-3</CyberTitle>
       <ul className="flex gap-1 items-center">
         {navItems.map((item) => (
           <li key={item.label} className="flex items-center">
