@@ -14,7 +14,7 @@ type Props = {
   level?: number;
 };
 
-export default function LoseOverlay({ open, onClose, level = 1 }: Props) {
+export default function LoseOverlay({ open, onClose, level: _level = 1 }: Props) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { setPowers } = usePowers();
