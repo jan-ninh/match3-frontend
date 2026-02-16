@@ -6,6 +6,7 @@ import type { LevelId, Progress } from '@/services/progress/ProgressStore';
 import { apiProfile } from '@/api/user';
 import { useAuth } from '@/context/AuthContext';
 import type { UserProfile } from '@/types';
+import { apiGetGameStatus } from '@/api/game';
 
 function uniqSorted(levels: number[]): number[] {
   return Array.from(new Set(levels)).sort((a, b) => a - b);
@@ -48,16 +49,24 @@ export default function LevelMapPage() {
     };
   };
 
+  // ✅ Fetch progress on mount AND when user changes (after loss)
   useEffect(() => {
     void (async () => {
       const local = await getProgress().catch(() => null);
 
       if (user?.id) {
         try {
-          const profile = await apiProfile(user.id);
-          const fromProfile = profileToProgress(profile);
+          const gameStatus = await apiGetGameStatus(user.id);
 
-          setProgress(local ? mergeProgress(fromProfile, local) : fromProfile);
+          if (gameStatus?.profile) {
+            const fromProfile = profileToProgress(gameStatus.profile);
+            setProgress(local ? mergeProgress(fromProfile, local) : fromProfile);
+          } else {
+            // Fallback: try apiProfile
+            const profile = await apiProfile(user.id);
+            const profileProgress = profileToProgress(profile);
+            setProgress(local ? mergeProgress(profileProgress, local) : profileProgress);
+          }
         } catch {
           // backend unavailable => fall back to local progress
           if (local) {
@@ -77,7 +86,7 @@ export default function LevelMapPage() {
         setProgress(p);
       }
     })();
-  }, [user?.id]);
+  }, [user?.id]); // ✅ Re-fetch whenever user changes
 
   const onSelect = (level: LevelId) => {
     navigate(`/game-map/play-game?level=${level}`);

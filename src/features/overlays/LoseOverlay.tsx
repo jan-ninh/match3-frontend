@@ -1,7 +1,12 @@
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
+import { useAuth } from '@/context/AuthContext';
+import { usePowers } from '@/context/PowerContext';
+import { apiLoseGame } from '@/api/game';
 import Modal from '@/components/Modal';
-import { CyberButton } from '@/components';
 import { motion } from 'framer-motion';
+import type { Powers } from '@/types';
+import { CyberButton } from '@/components';
 
 type Props = {
   open: boolean;
@@ -9,8 +14,37 @@ type Props = {
   level?: number;
 };
 
-export default function LoseOverlay({ open, onClose, level }: Props) {
+export default function LoseOverlay({ open, onClose, level = 1 }: Props) {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { setPowers } = usePowers();
+
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [powerReset, setPowerReset] = useState(false);
+
+  // ✅ Call loss API on server
+  useEffect(() => {
+    if (!open || !user?.id || isProcessing || powerReset) return;
+
+    (async () => {
+      setIsProcessing(true);
+      try {
+        const result = (await apiLoseGame(user.id)) as { powers?: Powers };
+
+        // ✅ Reset powers to zero/default
+        if (result.powers) {
+          setPowers(result.powers);
+        }
+
+        setPowerReset(true);
+      } catch (err) {
+        console.error('Failed to process loss:', err);
+        setPowerReset(true);
+      } finally {
+        setIsProcessing(false);
+      }
+    })();
+  }, [open, user?.id, isProcessing, powerReset, setPowers]);
 
   const backToMap = () => {
     onClose();
@@ -29,7 +63,6 @@ export default function LoseOverlay({ open, onClose, level }: Props) {
           show: { opacity: 1, transition: { staggerChildren: 0.06, delayChildren: 0.05 } },
         }}
       >
-        {/* Headline (با یک shake خیلی کوتاه) */}
         <motion.div
           className="flex items-center gap-3 text-3xl font-semibold text-cyan-600"
           variants={{
@@ -38,14 +71,12 @@ export default function LoseOverlay({ open, onClose, level }: Props) {
           }}
           transition={{ duration: 0.2, ease: 'easeOut' }}
           animate={{
-            x: [0, -4, 4, -4, 4, 0], // shake
+            x: [0, -4, 4, -4, 4, 0],
           }}
         >
           <div className="text-pink-500">You Lost</div>
-          {typeof level === 'number' && <div className="text-pink-500">Level {level}</div>}
         </motion.div>
 
-        {/* Message */}
         <motion.div
           className="text-cyan-600/70 text-center max-w-[38ch]"
           variants={{
@@ -54,10 +85,9 @@ export default function LoseOverlay({ open, onClose, level }: Props) {
           }}
           transition={{ duration: 0.18, ease: 'easeOut' }}
         >
-          Progress was reset. Return to the map to start again from Level 1.
+          Powers have been reset. Return to the map and try again from Level 1.
         </motion.div>
 
-        {/* Divider glow */}
         <motion.div
           className="h-0.5 w-64 rounded-full bg-pink-500/50"
           variants={{
@@ -76,7 +106,7 @@ export default function LoseOverlay({ open, onClose, level }: Props) {
           }}
           transition={{ duration: 0.18, ease: 'easeOut' }}
         >
-          <CyberButton type="button" onClick={backToMap} label="Return to map" size="md" />
+          <CyberButton type="button" onClick={backToMap} label="Return to map" size="md" disabled={isProcessing} />
         </motion.div>
       </motion.div>
     </Modal>

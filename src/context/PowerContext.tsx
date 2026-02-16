@@ -6,6 +6,8 @@ export type PowerContextValue = {
   powers: Powers;
   setFromBackendAndSelect: (backendPowers: Powers, selected: PowerKey) => void;
   setPowers: (next: Powers) => void;
+  selectedPowersForNextStage: Partial<Powers> | null;
+  setSelectedPowersForNextStage: (powers: Partial<Powers> | null) => void;
 };
 
 //----------------------------------------------------

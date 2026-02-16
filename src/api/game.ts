@@ -1,5 +1,10 @@
 import { request } from './http';
-import type { Powers, PowerKey } from '@/types';
+import type { Powers, PowerKey, UserProfile } from '@/types';
+
+export type GameStatus = {
+  profile: UserProfile;
+  powers: Powers;
+};
 
 /**
  * Start a stage with optional selected boosters
@@ -48,7 +53,7 @@ export async function apiAbandonGame(userId: string, usedPower?: PowerKey) {
  * Get current game status (powers, progress, hearts, etc.)
  */
 export async function apiGetGameStatus(userId: string) {
-  return request(`/api/game/${userId}/status`, {
+  return request<GameStatus>(`/api/game/${userId}/status`, {
     method: 'GET',
   });
 }

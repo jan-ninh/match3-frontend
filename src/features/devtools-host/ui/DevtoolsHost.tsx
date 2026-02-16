@@ -6,6 +6,9 @@ import { useOverlays } from '@/features/overlays';
 import { completeLevel, resetProgress } from '@/services/progress/progressActions';
 import { useAuth } from '@/context/AuthContext';
 import { usePowers } from '@/context/PowerContext';
+import { apiStartStage, apiCompleteStage } from '@/api/game';
+import type { Powers, PowerKey } from '@/types';
+import { POWER_CONSUME_EVENT, type PowerConsumeDetail } from '@/context/powerEvents';
 
 import { useDevHotkeys } from '../lib/useDevHotkeys';
 import { useDevPanelsTopSync } from '../lib/useDevPanelsTopSync';
@@ -21,16 +24,34 @@ type Props = {
 export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
   const [showLockoutHints, setShowLockoutHints] = useState<boolean>(false);
   const [debugEnabled, setDebugEnabled] = useState<boolean>(false);
+  const [usedPowerInCurrentStage, setUsedPowerInCurrentStage] = useState<string | null>(null);
 
   const { openWin, openLose, openPowerChoice } = useOverlays();
   const { user, updatePowers } = useAuth();
-  const { powers, setPowers } = usePowers();
+  const { powers, setPowers, selectedPowersForNextStage, setSelectedPowersForNextStage } = usePowers();
 
   const { isDev, state, inputLocked, canSwapAt, onIntent, onDevResetBoard, onDevNextLevel, onDevPrevLevel, onDevSetLevel, events } = useMatch3Engine({
     initialLevelId,
   });
 
   const gridRowRef = useRef<HTMLDivElement | null>(null);
+
+  // Track power consumption during gameplay
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const onConsume = (e: Event) => {
+      const ce = e as CustomEvent<PowerConsumeDetail>;
+      const detail = ce.detail;
+      if (!detail) return;
+
+      // Store the power that was used (only first used power per stage)
+      setUsedPowerInCurrentStage((prev) => prev || detail.key);
+    };
+
+    window.addEventListener(POWER_CONSUME_EVENT, onConsume as EventListener);
+    return () => window.removeEventListener(POWER_CONSUME_EVENT, onConsume as EventListener);
+  }, []);
 
   useDevHotkeys({
     enabled: isDev,
@@ -59,6 +80,24 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
 
   const beginWinRewardFlow = useCallback(
     (lvl: number) => {
+      // Skip power selection for stage 12 (final stage)
+      if (lvl === 12) {
+        // Report stage completion with used power
+        if (user?.id) {
+          const usedPower = usedPowerInCurrentStage as PowerKey | undefined;
+          apiCompleteStage(user.id, lvl, usedPower).catch((err) => {
+            console.error(`Failed to report stage completion for ${lvl}:`, err);
+          });
+        }
+        // Mark level completed locally
+        completeLevel(lvl).catch(() => {});
+        // Clear any previously selected powers
+        setSelectedPowersForNextStage(null);
+        // Show Win overlay directly
+        openWin(lvl);
+        return;
+      }
+
       openPowerChoice({
         title: 'Choose your Power!',
         onChoose: async (powerId) => {
@@ -74,7 +113,13 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
 
           setPowers(nextPowers);
 
-          // 2) Persist reward for logged-in users (best-effort)
+          // 2) Store selected powers for next stage
+          const selectedForNextStage: Partial<Powers> = {
+            [powerId]: add,
+          };
+          setSelectedPowersForNextStage(selectedForNextStage);
+
+          // 3) Persist reward for logged-in users (best-effort)
           if (user?.id) {
             const delta = powerId === 'bomb' ? { bomb: add } : powerId === 'laser' ? { laser: add } : { extraShuffle: add };
 
@@ -85,19 +130,29 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
             }
           }
 
-          // 3) Mark level completed locally (unlocks next level in local map)
+          // 4) Report stage completion with used power
+          if (user?.id) {
+            const usedPower = usedPowerInCurrentStage as PowerKey | undefined;
+            try {
+              await apiCompleteStage(user.id, lvl, usedPower);
+            } catch (err) {
+              console.error(`Failed to report stage completion for ${lvl}:`, err);
+            }
+          }
+
+          // 5) Mark level completed locally (unlocks next level in local map)
           try {
             await completeLevel(lvl);
           } catch {
             // ignore (localStorage)
           }
 
-          // 4) Show Win overlay (PowerChoice overlay auto-closes right after click)
+          // 6) Show Win overlay (PowerChoice overlay auto-closes right after click)
           openWin(lvl);
         },
       });
     },
-    [openPowerChoice, powers, setPowers, user?.id, updatePowers, openWin],
+    [openPowerChoice, powers, setPowers, user?.id, updatePowers, openWin, setSelectedPowersForNextStage, usedPowerInCurrentStage],
   );
 
   const onDevWin = async () => {
@@ -120,6 +175,27 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
   const onDevResetProgress = async () => {
     await resetProgress();
   };
+
+  // Call apiStartStage with selected powers when a level is loaded
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const lvl = state.levelId;
+    if (lvl <= 0) return;
+
+    // Reset used power for new stage
+    setUsedPowerInCurrentStage(null);
+
+    // Call apiStartStage with selected powers (if any)
+    apiStartStage(user.id, lvl, selectedPowersForNextStage ?? undefined)
+      .then(() => {
+        // Clear selected powers after they've been sent to backend
+        setSelectedPowersForNextStage(null);
+      })
+      .catch((err) => {
+        console.error(`Failed to start stage ${lvl}:`, err);
+      });
+  }, [user?.id, state.levelId, selectedPowersForNextStage, setSelectedPowersForNextStage]);
 
   useEffect(() => {
     const lvl = state.levelId;
