@@ -1,6 +1,5 @@
 // src/components/footer/footerAction.ts
 import type { PowerKey, Powers } from '@/types';
-
 import gridlaserIcon from '@/assets/items/gridlaser.png';
 import laserIcon from '@/assets/items/laser.png';
 import reshuffleIcon from '@/assets/items/reshuffle.png';
@@ -16,27 +15,29 @@ type ActionItem = {
 };
 
 /**
- * Footer button model.
- *
- * PNG placeholders live in `src/assets/items/*`.
- * Replace those PNG files with your final 256×256 transparent icons (keep filenames for zero code changes).
+ * FOOTER BUTTON
  */
-export const footerActions = (openSettings: () => void, powers: Powers, onUsePower: (key: PowerKey) => void): ActionItem[] => [
+export const footerActions = (_openSettings: () => void, powers: Powers, onUsePower: (key: PowerKey) => void): ActionItem[] => [
   {
+    // Button1
     id: 'bomb',
     label: 'Bomb',
     icon: gridlaserIcon,
     count: powers.bomb,
     onClick: () => onUsePower('bomb'),
   },
+
   {
+    // Button2
     id: 'laser',
     label: 'Laser',
     icon: laserIcon,
     count: powers.laser,
     onClick: () => onUsePower('laser'),
   },
+
   {
+    // Button3
     id: 'extraShuffle',
     label: 'Reshuffle',
     icon: reshuffleIcon,
@@ -44,18 +45,11 @@ export const footerActions = (openSettings: () => void, powers: Powers, onUsePow
     onClick: () => onUsePower('extraShuffle'),
   },
 
-  // Button4 placeholder (function TBD)
   {
+    // Button4
     id: 'button4',
     label: 'Button4',
     icon: noaccessIcon,
     onClick: () => undefined,
-  },
-
-  {
-    id: 'settings-main',
-    label: 'Settings',
-    icon: '/icons/setting.svg',
-    onClick: openSettings,
   },
 ];
