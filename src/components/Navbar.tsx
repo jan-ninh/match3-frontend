@@ -67,7 +67,10 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="flex justify-between p-6 items-center">
+    <nav
+      className="flex justify-between items-center p-6
+                  backdrop-blur-10px "
+    >
       <h1 className="text-xl font-bold">Match-3</h1>
       <ul className="flex gap-1 items-center">
         {navItems.map((item) => (

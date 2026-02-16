@@ -77,10 +77,14 @@ export default function ProfileDashboard() {
   }
 
   return (
-    <>
-      <Navbar />
+    <div className="flex flex-col h-full">
+      {/* ✅ Navbar top - relative position */}
+      <div className="shrink-0">
+        <Navbar />
+      </div>
 
-      <div className="m-8 max-w-xl mx-auto flex flex-col space-y-4">
+      {/* ✅ Content scrollable - flex-1 overflow-y-auto */}
+      <div className="m-8 flex flex-col space-y-4">
         <ProfileHeader
           username={profile.username}
           level={level}
@@ -95,19 +99,22 @@ export default function ProfileDashboard() {
             </button>
           }
         />
+      </div>
+      <div className="flex-1 overflow-y-auto scrollbar-cyber">
+        <div className="m-8 flex flex-col space-y-4">
+          <GlassSection className="flex flex-col gap-6 p-6">
+            <StatsGrid stats={stats} />
+            <GlassSection>
+              <ProgressBar percent={progressPercent} />
+            </GlassSection>
 
-        <StatsGrid stats={stats} />
-
-        <GlassSection>
-          <ProgressBar percent={progressPercent} />
-        </GlassSection>
-
-        <GlassSection>
-          <BadgeGrid badges={achievedBadges} />
-        </GlassSection>
+            <BadgeGrid badges={achievedBadges} />
+          </GlassSection>
+        </div>
       </div>
 
-      <div className="px-6 pt-2 pb-10 flex justify-center">
+      {/* ✅ Back button bottom - flex-shrink-0 */}
+      <div className="shrink-0 px-6 pt-2 pb-10 flex justify-center">
         <CyberButton key={'Back'} label={'Back'} onClick={() => navigate('/game-map')} />
       </div>
 
@@ -118,14 +125,12 @@ export default function ProfileDashboard() {
         userId={user?.id ?? ''}
         currentAvatar={profile.avatar as any}
         onUpdated={async (newAvatar) => {
-          // Update profile immediately for instant UI feedback
           if (profile) {
             profile.avatar = newAvatar;
           }
-          // Then refresh from backend to ensure sync
           await refreshProfile().catch(() => {});
         }}
       />
-    </>
+    </div>
   );
 }
