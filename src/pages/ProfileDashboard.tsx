@@ -87,7 +87,7 @@ export default function ProfileDashboard() {
         <ProfileHeader
           username={profile.username}
           level={level}
-          avatar={<AvatarSprite name={profile.avatar as any} size={124} />}
+          avatar={<AvatarSprite name={profile.avatar as any} size={132} />}
           actions={
             <button
               type="button"
@@ -101,7 +101,7 @@ export default function ProfileDashboard() {
       </div>
       {/* ✅ Content scrollable - flex-1 overflow-y-auto */}
       <div className="flex-1 overflow-y-auto scrollbar-cyber">
-        <div className="m-8 flex flex-col space-y-4">
+        <div className="mx-8 flex flex-col space-y-4">
           <GlassSection className="flex flex-col gap-6 p-6">
             <StatsGrid stats={stats} />
             <GlassSection>
@@ -114,7 +114,7 @@ export default function ProfileDashboard() {
       </div>
 
       {/* ✅ Back button bottom - flex-shrink-0 */}
-      <div className="shrink-0 px-6 pt-2 pb-10 flex justify-center">
+      <div className="shrink-0 px-6 mt-4 pb-10 flex justify-center">
         <CyberButton key={'Back'} label={'Back'} onClick={() => navigate('/game-map')} />
       </div>
 
