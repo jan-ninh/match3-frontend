@@ -76,7 +76,7 @@ export default function LeaderboardPage() {
 
       {/* ✅ 1-4*/}
       <div className="flex-1 overflow-y-auto scrollbar-cyber ">
-        <div className="m-8">
+        <div className=" max-w-xl mx-auto">
           <GlassSection className="text-center">
             {!loading && !error && (
               <>
