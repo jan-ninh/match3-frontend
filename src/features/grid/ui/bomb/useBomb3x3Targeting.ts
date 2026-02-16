@@ -3,14 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent, RefObject } from 'react';
 
 import { getBomb3x3IndicesFromTarget } from '@/gamelogic/itemeffects/bomb';
-import {
-  POWER_ARM_EVENT,
-  POWER_CONSUME_EVENT,
-  POWER_USE_AT_EVENT,
-  type PowerArmDetail,
-  type PowerConsumeDetail,
-  type PowerUseAtDetail,
-} from '@/context/powerEvents';
+import { POWER_ARM_EVENT, POWER_USE_AT_EVENT, type PowerArmDetail, type PowerUseAtDetail } from '@/context/powerEvents';
 
 import { playSfx, preloadSfx } from '@/features/audio/sfx/sfxPlayer';
 
