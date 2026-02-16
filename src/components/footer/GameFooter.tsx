@@ -2,7 +2,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { footerActions } from './footerAction';
-import bombSprite from '@/assets/items/gridlaser.png';
 import { usePowers } from '@/context/PowerContext';
 import { useAuth } from '@/context/AuthContext';
 import {
@@ -21,6 +20,12 @@ import type { PowerKey, Powers } from '@/types';
 type Props = {
   openSettings: () => void;
 };
+
+type FooterActionItem = ReturnType<typeof footerActions>[number];
+
+function isCounted(item: FooterActionItem): item is FooterActionItem & { count: number } {
+  return typeof item.count === 'number';
+}
 
 export default function GameFooter({ openSettings }: Props) {
   const { powers, setPowers } = usePowers();
@@ -209,33 +214,58 @@ export default function GameFooter({ openSettings }: Props) {
         const isBomb = item.id === 'bomb';
         const isActive = isBomb && armedBomb;
 
+        const counted = isCounted(item);
+        const canUse = counted ? item.count > 0 : true;
+        const isDisabled = counted ? item.count <= 0 : false;
+
+        const showCount = counted;
+        const showBadge = !counted && typeof item.badge === 'string' && item.badge.length > 0;
+
+        const iconPxActive = 60;
+        const iconPxInactive = iconPxActive - 1;
+        const iconPx = isActive ? iconPxActive : iconPxInactive;
+
         return (
           <button
             key={item.id}
             onClick={item.onClick}
             aria-label={item.label}
             aria-pressed={isActive}
+            disabled={isDisabled}
+            data-footer-btn={item.id}
             draggable={false}
             onDragStart={(e) => e.preventDefault()}
             className={[
-              'relative w-24 h-16 flex items-center justify-center border border-white/20 hover:scale-105 transition focus:outline-none focus:ring select-none',
+              'relative w-24 h-16 flex items-center justify-center rounded-xl border border-white/20 select-none',
+              'bg-white/5 backdrop-blur-sm',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/60',
+              isDisabled ? 'opacity-40 cursor-not-allowed' : 'hover:scale-105 transition',
               isActive ? 'ring-2 ring-rose-500/60 shadow-[0_0_22px_rgba(244,63,94,0.22)]' : '',
             ].join(' ')}
             type="button"
           >
             <img
-              src={isBomb ? bombSprite : item.icon}
+              src={item.icon}
               alt=""
               aria-hidden="true"
               draggable={false}
-              className={['object-contain pointer-events-none select-none', isBomb ? 'w-80 h-80 pb-5' : 'w-8 h-8'].join(' ')}
+              style={{ width: iconPx, height: iconPx }}
+              className={[
+                'object-contain pointer-events-none select-none',
+                isActive ? 'drop-shadow-[0_0_10px_rgba(244,63,94,0.35)]' : '',
+                !canUse ? 'grayscale' : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
             />
-            {typeof item.count === 'number' && (
+
+            {showCount && (
               <span className="absolute bottom-0 right-0 w-6 h-6 flex items-center justify-center bg-gray-600 rounded-full border border-white/20 text-xs text-white">
                 {item.count}
               </span>
             )}
-            {!item.count && item.badge && (
+
+            {showBadge && (
               <span className="absolute bottom-0 right-0 w-6 h-6 flex items-center justify-center bg-gray-600 rounded-full border border-white/20">
                 <img src={item.badge} alt={item.label} className="w-3 h-3" aria-hidden="true" draggable={false} />
               </span>
