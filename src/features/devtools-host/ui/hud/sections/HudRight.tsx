@@ -9,7 +9,7 @@ type Props = {
 
 export function HudRight({ model }: Props) {
   return (
-    <div className="relative flex flex-col items-end gap-2">
+    <div className="relative flex flex-col items-end gap-2 mt-31  ">
       <div>
         <MovesWidget movesLeftText={model.movesLeftText} />
         <OutcomeBadge isWin={model.isWin} isLose={model.isLose} />

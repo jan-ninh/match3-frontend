@@ -17,7 +17,7 @@ export function HudBar({ model, actions }: Props) {
         // 3-slot layout: left (auto) / center (minmax(0,1fr)) / right (auto)
         'mb-4 w-full grid grid-cols-[auto_minmax(0,1fr)_auto] items-start',
         // responsive spacing
-        'gap-2 sm:gap-4 px-[clamp(0rem,0.6vw,0.5rem)]',
+        'gap-2 sm:gap-4 px-[clamp(0rem,0.6vw,0.5rem)] ',
       ].join(' ')}
     >
       <HudLeft model={model} />

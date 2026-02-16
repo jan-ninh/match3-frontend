@@ -9,7 +9,7 @@ type CyberTitleProps = {
 };
 
 const sizeMap: Record<TitleSize, string> = {
-  sm: 'text-xl md:text-2xl',
+  sm: 'text-xl md:text-xl',
   md: 'text-3xl md:text-4xl',
   lg: 'text-4xl md:text-5xl',
   xl: 'text-5xl md:text-6xl',
@@ -33,7 +33,7 @@ export function CyberTitle({ children, size = 'lg', className = '' }: CyberTitle
     >
       {children}
 
-      {/* neon underline */}
+      {/* neon underline
       <span
         aria-hidden
         className="absolute left-1/2 -translate-x-1/2 bottom-[-0.6rem] h-1 rounded-full"
@@ -42,7 +42,7 @@ export function CyberTitle({ children, size = 'lg', className = '' }: CyberTitle
           background: 'linear-gradient(90deg, rgba(6,182,212,0.9), rgba(236,72,153,0.9))',
           boxShadow: '0 0 18px rgba(6,182,212,0.45), 0 0 30px rgba(236,72,153,0.35)',
         }}
-      />
+      /> */}
     </h1>
   );
 }

@@ -7,6 +7,7 @@ export { default as SpriteIcon } from './SpriteIcon';
 export { default as GlassSection } from './GlassSection';
 
 export { default as GameFooter } from './footer/GameFooter';
+export { default as NeonFooterButton } from './footer/NeonFooterButton';
 
 export { default as Header } from './header/Header';
 export { default as MovesDisplay } from './header/MovesDisplay';

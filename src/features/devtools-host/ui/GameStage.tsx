@@ -96,7 +96,7 @@ export function GameStage({ gridRowRef: externalGridRowRef, grid, hud }: Props) 
   }, [gridRowRef]);
 
   return (
-    <div ref={stageRef} className="relative overflow-visible w-full h-full min-h-0 ">
+    <div ref={stageRef} className="relative overflow-visible w-full h-full min-h-0  ">
       {/* GRID: pixel-snapped absolute positioning (no %/translate centering) */}
       <div ref={gridRowRef} className="absolute z-10">
         {grid}
