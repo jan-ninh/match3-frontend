@@ -1,3 +1,4 @@
+// src\features\grid\ui\bomb\useBomb3x3Targeting.ts
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent, RefObject } from 'react';
 
@@ -169,10 +170,7 @@ export function useBomb3x3Targeting({
 
       pendingConsumeRef.current.delete(requestId);
 
-      // 1) UI consumes bomb only after ACK
-      const detail: PowerConsumeDetail = { key: 'bomb', amount: 1, requestId };
-      window.dispatchEvent(new CustomEvent<PowerConsumeDetail>(POWER_CONSUME_EVENT, { detail }));
-
+      // 1) ACK drives FX here; inventory spend is emitted by engine bridge
       // 2) Detonation FX burst (also only after ACK)
       const payload = pendingFxRef.current.get(requestId);
       if (payload && payload.indices.length > 0) {

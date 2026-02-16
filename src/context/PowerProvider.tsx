@@ -3,11 +3,36 @@ import type { ReactNode } from 'react';
 import type { PowerKey, Powers } from '@/types';
 
 import { PowerContext, defaultPowers, getChoiceBonus } from './PowerContext';
-import { POWER_CONSUME_EVENT, type PowerConsumeDetail } from './powerEvents';
+import { POWER_CONSUME_EVENT, POWER_GRANT_EVENT, type PowerConsumeDetail, type PowerGrantDetail } from './powerEvents';
 
 export function PowerProvider({ children }: { children: ReactNode }) {
   // IMPORTANT: clone to avoid sharing the frozen object reference as state
   const [powers, setPowersState] = useState<Powers>(() => ({ ...defaultPowers }));
+
+  // UI grants (dev cheats, backend rewards, etc.)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const onGrant = (e: Event) => {
+      const ce = e as CustomEvent<PowerGrantDetail>;
+      const d = ce.detail;
+      if (!d) return;
+
+      const key = d.key;
+      const delta = d.delta | 0;
+      if (delta === 0) return;
+
+      setPowersState((prev) => {
+        const cur = (prev[key] ?? 0) | 0;
+        const nextVal = Math.max(0, cur + delta);
+        if (nextVal === cur) return prev;
+        return { ...prev, [key]: nextVal };
+      });
+    };
+
+    window.addEventListener(POWER_GRANT_EVENT, onGrant as EventListener);
+    return () => window.removeEventListener(POWER_GRANT_EVENT, onGrant as EventListener);
+  }, []);
 
   // Engine-ack-driven consume: dispatch only after EngineEvent `powerUsed` was observed
   useEffect(() => {

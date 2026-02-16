@@ -4,6 +4,8 @@ import type { ComponentProps } from 'react';
 
 import type { EngineState } from '@/gamelogic';
 import { DebugInputPanel, DebugDevToolsPanel } from '@/devtools';
+import type { PowerKey } from '@/types';
+import { POWER_GRANT_EVENT } from '@/context/powerEvents';
 
 import { DEBUG_OVERLAY_HZ } from '../lib/constants';
 import { useDevPanelsPortal } from './hooks/useDevPanelsPortal';
@@ -88,9 +90,32 @@ export function GridDevPanels({
   }, [onDevPrevLevel, onDevNextLevel, onDevResetBoard, onDevNextTilesPalette, inputLocked]);
 
   const panels = useMemo(() => {
+    const grant = (key: PowerKey, delta: number) => {
+      if (typeof window === 'undefined') return;
+      window.dispatchEvent(new CustomEvent(POWER_GRANT_EVENT, { detail: { key, delta } }));
+    };
+
+    const onCheatItems = () => {
+      grant('bomb', 5);
+      grant('laser', 5);
+      grant('extraShuffle', 5); // reshuffle
+    };
+
     return (
       <div className="flex flex-col gap-3">
         <DebugInputPanel width={width} snapshot={debugSnapshot} hz={DEBUG_OVERLAY_HZ} />
+
+        <div className="rounded-xl border border-white/10 bg-black/35 backdrop-blur p-3">
+          <div className="text-xs tracking-widest text-white/60 uppercase mb-2">Cheats</div>
+          <button
+            type="button"
+            onClick={onCheatItems}
+            className="w-full px-3 py-2 rounded-lg bg-rose-600/15 hover:bg-rose-600/25 border border-rose-300/30 text-rose-100/90"
+          >
+            Items: +5 (Bomb / Laser / Reshuffle)
+          </button>
+        </div>
+
         <DebugDevToolsPanel locked={inputLocked} meta={stateMeta} items={devItems} actions={devActions} />
       </div>
     );

@@ -1,3 +1,4 @@
+// src\context\powerEvents.ts
 import type { PowerKey } from '@/types';
 
 export const POWER_ARM_EVENT = 'match3:powerArm' as const;

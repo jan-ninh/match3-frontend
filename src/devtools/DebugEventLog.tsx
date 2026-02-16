@@ -1,3 +1,4 @@
+// src\devtools\DebugEventLog.tsx
 import { Fragment, useEffect, useMemo, useRef } from 'react';
 import type { EngineEvent } from '@/gamelogic';
 

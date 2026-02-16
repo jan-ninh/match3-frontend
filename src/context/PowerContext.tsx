@@ -1,3 +1,4 @@
+// src\context\PowerContext.tsx
 import { createContext, useContext } from 'react';
 import type { PowerKey, Powers } from '@/types';
 
@@ -10,9 +11,9 @@ export type PowerContextValue = {
 //----------------------------------------------------
 // SET INITIAL POWERITEMS
 //----------------------------------------------------
-const INITIAL_BOMBS = 20;
-const INITIAL_LASERS = 20;
-const INITIAL_EXTRA_SHUFFLE = 20;
+const INITIAL_BOMBS = 2;
+const INITIAL_LASERS = 2;
+const INITIAL_EXTRA_SHUFFLE = 2;
 
 export const defaultPowers = Object.freeze({
   bomb: INITIAL_BOMBS,
