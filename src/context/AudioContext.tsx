@@ -1,64 +1,71 @@
+// src/context/AudioContext.tsx
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import clickSoundFile from '@/assets/sound/CLICK.wav';
 
 type AudioContextType = {
-  soundOn: boolean;
-  setSoundOn: (value: boolean) => void;
-  volume: number;
-  setVolume: (value: number) => void;
+  // Background Music
+  musicOn: boolean;
+  setMusicOn: (value: boolean) => void;
+  musicVolume: number;
+  setMusicVolume: (value: number) => void;
+
+  // Effects (Click)
+  clickSoundOn: boolean;
+  setClickSoundOn: (value: boolean) => void;
+  clickVolume: number;
+  setClickVolume: (value: number) => void;
+
   playClickSound: () => void;
 };
 
 const AudioContext = createContext<AudioContextType | undefined>(undefined);
 
 export function AudioProvider({ children }: { children: React.ReactNode }) {
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [soundOn, setSoundOn] = useState(true);
-  const [volume, setVolume] = useState(70);
+  const musicRef = useRef<HTMLAudioElement | null>(null);
+  const clickRef = useRef<HTMLAudioElement | null>(null);
+
+  const [musicOn, setMusicOn] = useState(true);
+  const [musicVolume, setMusicVolume] = useState(70);
+
+  const [clickSoundOn, setClickSoundOn] = useState(true);
+  const [clickVolume, setClickVolume] = useState(70);
+
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
   const [showEnableSound, setShowEnableSound] = useState(true);
-  const clickAudioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Initialize background music from URL
+  // 1) init background music (only once)
   useEffect(() => {
-    if (!audioRef.current) {
-      audioRef.current = new Audio('https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3');
-      audioRef.current.loop = false;
-      audioRef.current.volume = volume / 100;
-
-      console.log('Audio URL:', audioRef.current.src);
-      audioRef.current.addEventListener('error', () => {
-        console.warn('Audio element error:', audioRef.current?.error);
-      });
+    if (!musicRef.current) {
+      musicRef.current = new Audio('https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3');
+      musicRef.current.loop = true; // usually background music should loop
+      musicRef.current.volume = (musicOn ? musicVolume : 0) / 100;
     }
   }, []);
 
-  // Play/Pause based on soundOn state
+  // 2) update background music volume when slider or toggle changes
   useEffect(() => {
-    if (!audioRef.current || !hasUserInteracted) return;
+    if (!musicRef.current) return;
+    musicRef.current.volume = (musicOn ? musicVolume : 0) / 100;
+  }, [musicOn, musicVolume]);
 
-    if (soundOn) {
-      audioRef.current.play().catch((err) => {
-        console.warn('Failed to play audio:', err);
+  // 3) play/pause background music when toggled (after first user interaction)
+  useEffect(() => {
+    if (!musicRef.current || !hasUserInteracted) return;
+
+    if (musicOn && musicVolume > 0) {
+      musicRef.current.play().catch((err) => {
+        console.warn('Failed to play background music:', err);
       });
     } else {
-      audioRef.current.pause();
+      musicRef.current.pause();
     }
-  }, [soundOn, hasUserInteracted]);
+  }, [musicOn, musicVolume, hasUserInteracted]);
 
-  // Update volume
-  useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.volume = volume / 100;
-    }
-  }, [volume]);
-
-  // Listen for first user interaction
+  // 4) first interaction unlock (browser autoplay policy)
   useEffect(() => {
     const handleUserInteraction = () => {
       if (!hasUserInteracted) {
         setHasUserInteracted(true);
-        setSoundOn(true);
         setShowEnableSound(false);
       }
       document.removeEventListener('click', handleUserInteraction);
@@ -74,29 +81,48 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     };
   }, [hasUserInteracted]);
 
-  // Initialize click sound from assets
+  // 5) init click sound (only once)
   useEffect(() => {
-    if (!clickAudioRef.current) {
-      clickAudioRef.current = new Audio(clickSoundFile);
-      clickAudioRef.current.volume = 0.5;
+    if (!clickRef.current) {
+      clickRef.current = new Audio(clickSoundFile);
+      clickRef.current.volume = clickVolume / 100;
     }
   }, []);
 
+  // 6) update click volume independently
+  useEffect(() => {
+    if (!clickRef.current) return;
+    clickRef.current.volume = clickVolume / 100;
+  }, [clickVolume]);
+
   const playClickSound = () => {
-    if (clickAudioRef.current) {
-      clickAudioRef.current.currentTime = 0;
-      clickAudioRef.current.play().catch(() => {});
-    }
+    if (!clickRef.current) return;
+    if (!clickSoundOn || clickVolume <= 0) return;
+
+    clickRef.current.currentTime = 0;
+    clickRef.current.play().catch(() => {});
   };
 
   return (
-    <AudioContext.Provider value={{ soundOn, setSoundOn, volume, setVolume, playClickSound }}>
+    <AudioContext.Provider
+      value={{
+        musicOn,
+        setMusicOn,
+        musicVolume,
+        setMusicVolume,
+        clickSoundOn,
+        setClickSoundOn,
+        clickVolume,
+        setClickVolume,
+        playClickSound,
+      }}
+    >
       {children}
+
       {showEnableSound && (
         <button
           onClick={() => {
             setHasUserInteracted(true);
-            setSoundOn(true);
             setShowEnableSound(false);
           }}
           style={{
@@ -119,9 +145,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
 
 export function useAudio() {
   const context = useContext(AudioContext);
-  if (!context) {
-    throw new Error('useAudio must be used within AudioProvider');
-  }
+  if (!context) throw new Error('useAudio must be used within AudioProvider');
   return context;
 }
-

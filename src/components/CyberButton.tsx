@@ -1,4 +1,5 @@
 import type { ButtonHTMLAttributes } from 'react';
+import { useAudio } from '@/context/AudioContext';
 
 type ButtonSize = 'xl' | 'md' | 'sm';
 
@@ -14,9 +15,11 @@ const sizeMap: Record<ButtonSize, string> = {
 };
 
 export default function CyberButton({ label, className = '', type = 'button', size = 'xl', onClick, ...props }: ButtonProps) {
+  const { playClickSound } = useAudio();
   const hexClip = 'polygon(20% 0%, 80% 0%, 92% 50%, 80% 100%, 20% 100%, 8% 50%)';
 
   const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    playClickSound();
     onClick?.(e);
   };
 
