@@ -1,9 +1,9 @@
-// src\features\grid\ui\bomb\useBomb3x3Targeting.ts
+// src/features/grid/ui/bomb/useBomb3x3Targeting.ts
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent, RefObject } from 'react';
 
 import { getBomb3x3IndicesFromTarget } from '@/gamelogic/itemeffects/bomb';
-import { POWER_ARM_EVENT, POWER_USE_AT_EVENT, type PowerArmDetail, type PowerUseAtDetail } from '@/context/powerEvents';
+import { POWER_ARM_EVENT, POWER_CONSUME_EVENT, POWER_USE_AT_EVENT, type PowerArmDetail, type PowerUseAtDetail } from '@/context/powerEvents';
 
 import { playSfx, preloadSfx } from '@/features/audio/sfx/sfxPlayer';
 
@@ -11,20 +11,41 @@ import { GAP, TILE_SIZE } from '../../lib/constants';
 import type { BombTarget } from './typesBomb';
 import type { BombExplosionBurst } from './fx/BombExplosionFxLayer';
 
-type BombPowerUsedEvent = Readonly<{
-  type: 'powerUsed';
-  requestId: number;
-  key: 'bomb';
+type BombTargetingKey = 'gridlaser' | 'bomb';
+
+declare global {
+  interface Window {
+    __match3PowerRequestId?: number;
+  }
+}
+
+function allocPowerRequestId(): number {
+  if (typeof window === 'undefined') return 1;
+  const cur = window.__match3PowerRequestId ?? 1;
+  const next = (cur | 0) + 1;
+  window.__match3PowerRequestId = next;
+  return cur | 0;
+}
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return !!v && typeof v === 'object';
+}
+
+type ConsumeDetailLike = Readonly<{
+  key: string;
+  amount: number;
+  requestId?: number;
 }>;
 
-function isBombPowerUsedEvent(ev: unknown): ev is BombPowerUsedEvent {
-  if (!ev || typeof ev !== 'object') return false;
-  const rec = ev as Record<string, unknown>;
+function isConsumeDetailLike(v: unknown): v is ConsumeDetailLike {
+  if (!isRecord(v)) return false;
+  if (typeof v.key !== 'string') return false;
+  if (typeof v.amount !== 'number' || !Number.isFinite(v.amount)) return false;
 
-  if (rec.type !== 'powerUsed') return false;
-  if (typeof rec.requestId !== 'number' || !Number.isFinite(rec.requestId)) return false;
+  const rid = v.requestId;
+  if (rid !== undefined && (typeof rid !== 'number' || !Number.isFinite(rid))) return false;
 
-  return rec.key === 'bomb';
+  return true;
 }
 
 type Args = {
@@ -34,10 +55,10 @@ type Args = {
   // Engine-relevant lockout (prevents overlapping actions).
   inputLocked: boolean;
 
-  // Used for POWER_CONSUME_EVENT (engine ACK = powerUsed)
-  engineEvents: readonly unknown[];
+  // Optional: reduced motion hint (swapMs===0).
+  swapMs?: number;
 
-  // Reduced motion hint (swapMs===0)
+  // Reduced motion hint override.
   reducedMotion?: boolean;
 
   // Optional: stage element id used for viewport-level listeners.
@@ -49,7 +70,7 @@ export type Bomb3x3TargetingApi = Readonly<{
   bombHoverTarget: BombTarget | null;
   bombOverlayIndices: readonly number[];
 
-  // Detonation FX bursts (added only after ACK)
+  // Detonation FX bursts (added only after engine consume/ACK)
   bombBursts: readonly BombExplosionBurst[];
 
   boardRef: RefObject<HTMLDivElement | null>;
@@ -67,15 +88,23 @@ type PendingFx = Readonly<{
   center: BombTarget;
 }>;
 
-export function useBomb3x3Targeting({
-  width,
-  height,
-  inputLocked,
-  engineEvents,
-  reducedMotion = false,
-  stageElementId = 'app-stage',
-}: Args): Bomb3x3TargetingApi {
+function isBombTargetingKey(k: unknown): k is BombTargetingKey {
+  return k === 'gridlaser' || k === 'bomb';
+}
+
+function emitArm(key: BombTargetingKey, armed: boolean) {
+  if (typeof window === 'undefined') return;
+  const detail: PowerArmDetail = { key, armed };
+  window.dispatchEvent(new CustomEvent<PowerArmDetail>(POWER_ARM_EVENT, { detail }));
+}
+
+export function useBomb3x3Targeting({ width, height, inputLocked, swapMs, reducedMotion, stageElementId = 'app-stage' }: Args): Bomb3x3TargetingApi {
+  const reducedMotionHint = reducedMotion ?? swapMs === 0;
+
   const [bombArmed, setBombArmed] = useState(false);
+
+  // Which key the footer used to arm us. We reuse it for POWER_USE_AT_EVENT so engine expectations match.
+  const armedKeyRef = useRef<BombTargetingKey>('gridlaser');
 
   // Warm up SFX when the mode becomes active (keeps first detonation snappy)
   useEffect(() => {
@@ -89,9 +118,6 @@ export function useBomb3x3Targeting({
   const lastHoverRef = useRef<string | null>(null);
 
   const boardRef = useRef<HTMLDivElement | null>(null);
-
-  const powerReqIdRef = useRef(1);
-  const pendingConsumeRef = useRef<Set<number>>(new Set());
 
   // requestId -> indices/center (used only when ACK arrives)
   const pendingFxRef = useRef<Map<number, PendingFx>>(new Map());
@@ -110,9 +136,15 @@ export function useBomb3x3Targeting({
   }, [setBombHoverTarget]);
 
   const disarm = useCallback(() => {
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent<PowerArmDetail>(POWER_ARM_EVENT, { detail: { key: 'bomb', armed: false } }));
-    }
+    const key = armedKeyRef.current;
+
+    // Only emit disarm for the actually-armed key.
+    // Emitting extra keys can keep other UI/controllers in a "power mode" gate.
+    emitArm(key, false);
+
+    // Local safety: ensure our own capture listeners get removed even if some other listener ignores the event.
+    setBombArmed(false);
+
     clearBombHover();
   }, [clearBombHover]);
 
@@ -123,11 +155,25 @@ export function useBomb3x3Targeting({
     const onArm = (e: Event) => {
       const ce = e as CustomEvent<PowerArmDetail>;
       const d = ce.detail;
-      if (!d || d.key !== 'bomb') return;
+      if (!d) return;
 
+      if (!isBombTargetingKey(d.key)) return;
+
+      const key: BombTargetingKey = d.key;
       const armed = !!d.armed;
-      setBombArmed(armed);
-      if (!armed) clearBombHover();
+
+      // Only treat the key as "active" when armed=true.
+      // When armed=false, only clear if it matches our active key.
+      if (armed) {
+        armedKeyRef.current = key;
+        setBombArmed(true);
+        return;
+      }
+
+      if (armedKeyRef.current !== key) return;
+
+      setBombArmed(false);
+      clearBombHover();
     };
 
     window.addEventListener(POWER_ARM_EVENT, onArm as EventListener);
@@ -148,53 +194,63 @@ export function useBomb3x3Targeting({
     return () => window.clearTimeout(id);
   }, [bombArmed, inputLocked, disarm]);
 
-  // Consume power + emit detonation burst only after engine ACK event (powerUsed)
+  // Engine ACK: consume event -> play SFX and spawn detonation bursts (best-effort mapping to last pending)
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    if (pendingConsumeRef.current.size === 0) return;
 
-    const ttlMs = reducedMotion ? 220 : 650;
+    const ttlMs = reducedMotionHint ? 220 : 650;
 
-    for (const ev of engineEvents) {
-      if (!isBombPowerUsedEvent(ev)) continue;
+    const onConsume = (e: Event) => {
+      const ce = e as CustomEvent<unknown>;
+      const raw = ce.detail;
+      if (!isConsumeDetailLike(raw)) return;
 
-      const requestId = ev.requestId | 0;
-      if (!pendingConsumeRef.current.has(requestId)) continue;
+      if (!isBombTargetingKey(raw.key)) return;
 
-      pendingConsumeRef.current.delete(requestId);
+      const amt = raw.amount | 0;
+      if (amt <= 0) return;
 
-      // 1) ACK drives FX here; inventory spend is emitted by engine bridge
-      // 2) Detonation FX burst (also only after ACK)
-      const payload = pendingFxRef.current.get(requestId);
-      if (payload && payload.indices.length > 0) {
-        pendingFxRef.current.delete(requestId);
+      // Sound always on ACK (even if we can't map a PendingFx).
+      playSfx('bombExplosion', { volume: 1 });
 
-        // SFX: best-effort (file may be missing during setup)
-        playSfx('bombExplosion', { volume: 1 });
+      // Prefer requestId if provided, else fall back to FIFO (actions are serialized by input lock anyway).
+      let requestId: number | null = typeof raw.requestId === 'number' ? raw.requestId | 0 : null;
 
-        const burst: BombExplosionBurst = {
-          id: requestId,
-          indices: payload.indices,
-          center: payload.center,
-          createdAtMs: performance.now(),
-        };
-
-        setBombBursts((prev) => [...prev, burst]);
-
-        const tPrev = burstTimeoutsRef.current.get(requestId);
-        if (typeof tPrev === 'number') window.clearTimeout(tPrev);
-
-        const timeoutId = window.setTimeout(() => {
-          setBombBursts((prev) => prev.filter((b) => b.id !== requestId));
-          burstTimeoutsRef.current.delete(requestId);
-        }, ttlMs);
-
-        burstTimeoutsRef.current.set(requestId, timeoutId);
-      } else {
-        pendingFxRef.current.delete(requestId);
+      if (requestId === null || requestId <= 0 || !pendingFxRef.current.has(requestId)) {
+        const it = pendingFxRef.current.keys().next();
+        requestId = it.done ? null : it.value;
       }
-    }
-  }, [engineEvents, reducedMotion]);
+
+      if (requestId === null) return;
+
+      const payload = pendingFxRef.current.get(requestId);
+      pendingFxRef.current.delete(requestId);
+
+      if (!payload || payload.indices.length === 0) return;
+
+      const burst: BombExplosionBurst = {
+        id: requestId,
+        indices: payload.indices,
+        center: payload.center,
+        createdAtMs: performance.now(),
+      };
+
+      setBombBursts((prev) => [...prev, burst]);
+
+      const tPrev = burstTimeoutsRef.current.get(requestId);
+      if (typeof tPrev === 'number') window.clearTimeout(tPrev);
+
+      const timeoutId = window.setTimeout(() => {
+        setBombBursts((prev) => prev.filter((b) => b.id !== requestId));
+        burstTimeoutsRef.current.delete(requestId);
+      }, ttlMs);
+
+      burstTimeoutsRef.current.set(requestId, timeoutId);
+    };
+
+    window.addEventListener(POWER_CONSUME_EVENT, onConsume as EventListener);
+    return () => window.removeEventListener(POWER_CONSUME_EVENT, onConsume as EventListener);
+  }, [reducedMotionHint]);
 
   // Cleanup timeouts on unmount
   useEffect(() => {
@@ -224,14 +280,19 @@ export function useBomb3x3Targeting({
         return;
       }
 
-      const requestId = powerReqIdRef.current++;
-      pendingConsumeRef.current.add(requestId);
+      const requestId = allocPowerRequestId();
       pendingFxRef.current.set(requestId, { indices, center: target });
 
       if (typeof window !== 'undefined') {
-        const detail: PowerUseAtDetail = { key: 'bomb', target, requestId };
+        const key: BombTargetingKey = armedKeyRef.current;
+        const detail: PowerUseAtDetail = { key, target, requestId };
         window.dispatchEvent(new CustomEvent<PowerUseAtDetail>(POWER_USE_AT_EVENT, { detail }));
-        window.dispatchEvent(new CustomEvent<PowerArmDetail>(POWER_ARM_EVENT, { detail: { key: 'bomb', armed: false } }));
+
+        // Disarm only the active key.
+        emitArm(key, false);
+
+        // Local safety (removes capture listeners immediately)
+        setBombArmed(false);
       }
 
       clearBombHover();

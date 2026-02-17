@@ -2,6 +2,11 @@
 import { addAudioUnlockSubscriber, ensureAudioUnlocked, getAudioContext, primeAudioOutput, resumeAudioContextIfNeeded } from '../core/audioContext';
 import { CORE_SFX, SFX_URLS, type SfxId } from './sfxManifest';
 
+// Ensure the unlock capture listeners are installed as early as possible.
+// This matters because many SFX are triggered *after* the initial click (e.g. engine ACK in an effect),
+// so the AudioContext must already have been resumed during the gesture.
+ensureAudioUnlocked();
+
 export type PlaySfxOptions = Readonly<{
   volume?: number; // 0..1
   playbackRate?: number; // 0.25..4
@@ -64,6 +69,8 @@ async function loadBuffer(id: SfxId): Promise<CachedBuffer | null> {
 }
 
 export async function preloadSfx(id: SfxId): Promise<boolean> {
+  ensureAudioUnlocked();
+
   if (bufferCache.has(id)) return true;
 
   const existing = loadingCache.get(id);
@@ -84,6 +91,8 @@ function playWithWebAudio(buf: AudioBuffer, opts: PlaySfxOptions | undefined): v
   const ctx = getAudioContext();
   if (!ctx) return;
 
+  // Best-effort: if unlocked already, this is a no-op; otherwise capture listeners will handle the next gesture.
+  ensureAudioUnlocked();
   resumeAudioContextIfNeeded();
   primeAudioOutput();
 
@@ -101,7 +110,8 @@ function playWithWebAudio(buf: AudioBuffer, opts: PlaySfxOptions | undefined): v
   gain.connect(ctx.destination);
 
   try {
-    src.start(ctx.currentTime);
+    // Starting slightly in the future avoids edge cases where resume/prime happens in the same tick.
+    src.start(ctx.currentTime + 0.005);
   } catch {
     // ignore
   }
@@ -155,6 +165,8 @@ function playWithHtmlAudio(urls: readonly string[], opts: PlaySfxOptions | undef
   if (typeof window === 'undefined') return;
   if (urls.length === 0) return;
 
+  ensureAudioUnlocked();
+
   const vol = clampNum(opts?.volume ?? 1, 0, 1);
   const rate = clampNum(opts?.playbackRate ?? 1, 0.25, 4);
 
@@ -206,6 +218,8 @@ function playWithHtmlAudio(urls: readonly string[], opts: PlaySfxOptions | undef
  * - Otherwise: falls back to HTMLAudio *and* kicks off a preload for next time.
  */
 export function playSfx(id: SfxId, opts?: PlaySfxOptions): void {
+  ensureAudioUnlocked();
+
   const cached = bufferCache.get(id);
   if (cached) {
     playWithWebAudio(cached.buf, opts);
@@ -287,6 +301,7 @@ async function warmupCoreSfx(): Promise<void> {
   const ctx = getAudioContext();
   if (!ctx) return;
 
+  ensureAudioUnlocked();
   resumeAudioContextIfNeeded();
   primeAudioOutput();
 

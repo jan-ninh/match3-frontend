@@ -1,3 +1,4 @@
+// src/devtools/DebugInputPanel.tsx
 import { useEffect, useRef, useState } from 'react';
 import { xyOf } from '@/gamelogic';
 
@@ -27,9 +28,27 @@ export type DebugSnapshot = {
   previewToIndex: number | null;
 };
 
+const FALLBACK_SNAPSHOT: DebugSnapshot = {
+  active: false,
+  pointerId: null,
+  draggable: false,
+  fromIndex: null,
+  toIndex: null,
+  axis: null,
+  exceededThreshold: false,
+  rawDx: 0,
+  rawDy: 0,
+  smoothedDx: 0,
+  smoothedDy: 0,
+  previewLatched: false,
+  previewAxis: null,
+  previewDir: 0,
+  previewToIndex: null,
+};
+
 type Props = {
   width: number;
-  snapshot: DebugSnapshot;
+  snapshot?: DebugSnapshot;
   hz?: number;
 };
 
@@ -72,7 +91,7 @@ export default function DebugInputPanel({ width, snapshot, hz = 15 }: Props) {
 
   void tick;
 
-  const s = snapshot;
+  const s = snapshot ?? FALLBACK_SNAPSHOT;
 
   const rows = [
     ['active', String(s.active)],

@@ -1,23 +1,20 @@
 // src/features/grid/ui/laser/useLaserRowTargeting.ts
+// src/features/grid/ui/laser/useLaserRowTargeting.ts
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { PointerEvent as ReactPointerEvent } from 'react';
-import { POWER_ARM_EVENT, POWER_USE_AT_EVENT } from '@/context/powerEvents';
+import type { PointerEvent as ReactPointerEvent, RefObject } from 'react';
+import { POWER_ARM_EVENT, POWER_USE_AT_EVENT, type PowerUseAtDetail } from '@/context/powerEvents';
 
 type Opts = Readonly<{
   width: number;
   height: number;
   inputLocked: boolean;
+  /** Optional board element rect to avoid padding/border skew from shell wrapper. */
+  boardRef?: RefObject<HTMLElement | null>;
 }>;
 
 type ArmDetailLike = Readonly<{
   key: string;
   armed: boolean;
-}>;
-
-type UseAtDetail = Readonly<{
-  key: string;
-  index: number;
-  requestId: number;
 }>;
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -50,28 +47,26 @@ function allocPowerRequestId(): number {
   return cur <= 0 ? 1 : cur;
 }
 
-/**
- * IMPORTANT:
- * - 'laser' = row-clear power
- * - 'gridlaser'/'bomb' = different power (old bomb refactor)
- *
- * This hook MUST NOT arm when 'gridlaser' or 'bomb' are armed.
- */
-const LASER_ARM_KEYS = new Set<string>(['laser', 'laserRow', 'laserRowClear']);
+// IMPORTANT:
+// - `laser` is the ROW-CLEAR power.
+// - `gridlaser` is the OLD BOMB (3x3) refactor and must NOT be handled here.
+const LASER_KEYS = new Set<string>(['laser', 'laserRow', 'laserRowClear']);
 
-function normalizeLaserKey(raw: string): 'laser' | null {
-  if (raw === 'laser') return 'laser';
-  if (raw === 'laserRow' || raw === 'laserRowClear') return 'laser';
-  return null;
+function normalizeLaserKeyForEngine(key: string): 'laser' | null {
+  return LASER_KEYS.has(key) ? 'laser' : null;
 }
 
-export function useLaserRowTargeting({ width, height, inputLocked }: Opts) {
+export function useLaserRowTargeting({ width, height, inputLocked, boardRef }: Opts) {
   const [laserArmed, setLaserArmed] = useState(false);
   const [hoverRow, setHoverRow] = useState<number | null>(null);
 
+  // Remember which key variant armed us, so we can disarm the exact same key.
+  const armedKeyRef = useRef<string>('laser');
+
   const emitArm = useCallback((armed: boolean) => {
     if (typeof window === 'undefined') return;
-    window.dispatchEvent(new CustomEvent(POWER_ARM_EVENT, { detail: { key: 'laser', armed } }));
+    const key = armedKeyRef.current;
+    window.dispatchEvent(new CustomEvent(POWER_ARM_EVENT, { detail: { key, armed } }));
   }, []);
 
   // Global arm/disarm sync (Footer emits this).
@@ -83,11 +78,9 @@ export function useLaserRowTargeting({ width, height, inputLocked }: Opts) {
       const d = ce.detail;
 
       if (!isArmDetailLike(d)) return;
-      if (!LASER_ARM_KEYS.has(d.key)) return;
+      if (!LASER_KEYS.has(d.key)) return;
 
-      const normalized = normalizeLaserKey(d.key);
-      if (!normalized) return;
-
+      armedKeyRef.current = d.key;
       setLaserArmed(!!d.armed);
       if (!d.armed) setHoverRow(null);
     };
@@ -110,17 +103,23 @@ export function useLaserRowTargeting({ width, height, inputLocked }: Opts) {
     (e: ReactPointerEvent<HTMLDivElement>) => {
       if (!laserArmed) return;
 
-      const rect = e.currentTarget.getBoundingClientRect();
+      const rect = boardRef?.current?.getBoundingClientRect() ?? e.currentTarget.getBoundingClientRect();
       const h = rect.height;
       if (!(h > 0)) return;
 
       const y = e.clientY - rect.top;
-      const ratio = y / h;
 
+      // If the pointer is outside the actual board, clear hover so we don't "snap" to row 0/last row.
+      if (y < 0 || y > h) {
+        setHoverRow(null);
+        return;
+      }
+
+      const ratio = y / h;
       const row = clampInt(Math.floor(ratio * height), 0, Math.max(0, height - 1));
       setHoverRow(row);
     },
-    [height, laserArmed],
+    [boardRef, height, laserArmed],
   );
 
   const onShellPointerLeave = useCallback(() => {
@@ -135,11 +134,32 @@ export function useLaserRowTargeting({ width, height, inputLocked }: Opts) {
       e.preventDefault();
       e.stopPropagation();
 
+      const safeW = Math.max(0, width | 0);
+      const safeH = Math.max(0, height | 0);
+
+      // If board dimensions are invalid, disarm without emitting a malformed event.
+      if (!(safeW > 0 && safeH > 0)) {
+        setLaserArmed(false);
+        setHoverRow(null);
+        emitArm(false);
+        return;
+      }
+
+      const idx = index | 0;
+      const xRaw = idx % safeW;
+      const yRaw = Math.floor(idx / safeW);
+
+      const x = clampInt(xRaw, 0, Math.max(0, safeW - 1));
+      const y = clampInt(yRaw, 0, Math.max(0, safeH - 1));
+
       const requestId = allocPowerRequestId();
-      const detail: UseAtDetail = { key: 'laser', index, requestId };
+
+      // Engine/bridge expects `target:{x,y}`. For row-clear, `y` selects row; `x` is harmless.
+      const key = normalizeLaserKeyForEngine(armedKeyRef.current) ?? 'laser';
+      const detail: PowerUseAtDetail = { key, target: { x, y }, requestId };
 
       if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent(POWER_USE_AT_EVENT, { detail }));
+        window.dispatchEvent(new CustomEvent<PowerUseAtDetail>(POWER_USE_AT_EVENT, { detail }));
       }
 
       // Disarm immediately after confirm (engine-bridge owns acceptance).
@@ -147,7 +167,7 @@ export function useLaserRowTargeting({ width, height, inputLocked }: Opts) {
       setHoverRow(null);
       emitArm(false);
     },
-    [emitArm, laserArmed],
+    [emitArm, height, laserArmed, width],
   );
 
   return useMemo(

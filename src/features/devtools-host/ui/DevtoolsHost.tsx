@@ -1,3 +1,4 @@
+// src/features/devtools-host/ui/DevtoolsHost.tsx
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { cycleTilesetPalette, preloadTiles } from '@/features/grid/ui/tiles';
@@ -21,6 +22,28 @@ type Props = {
   initialLevelId?: number;
 };
 
+function getHttpStatus(err: unknown): number | null {
+  if (!err || typeof err !== 'object') return null;
+  const rec = err as Record<string, unknown>;
+  const s = rec.status;
+  if (typeof s === 'number' && Number.isFinite(s)) return s | 0;
+  return null;
+}
+
+function getHttpMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  if (!err || typeof err !== 'object') return String(err);
+  const rec = err as Record<string, unknown>;
+  const m = rec.message;
+  if (typeof m === 'string') return m;
+  return String(err);
+}
+
+function isPrevStageNotCompleted(err: unknown): boolean {
+  const msg = getHttpMessage(err);
+  return /previous\s+stage\s+not\s+completed/i.test(msg);
+}
+
 export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
   const [showLockoutHints, setShowLockoutHints] = useState<boolean>(false);
   const [debugEnabled, setDebugEnabled] = useState<boolean>(false);
@@ -35,6 +58,9 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
   });
 
   const gridRowRef = useRef<HTMLDivElement | null>(null);
+
+  // Guards re-trying the backend-unlock workaround more than once per level.
+  const stageStartRetryRef = useRef<Set<number>>(new Set());
 
   // Track power consumption during gameplay
   useEffect(() => {
@@ -186,15 +212,64 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
     // Reset used power for new stage
     setUsedPowerInCurrentStage(null);
 
-    // Call apiStartStage with selected powers (if any)
-    apiStartStage(user.id, lvl, selectedPowersForNextStage ?? undefined)
-      .then(() => {
+    let cancelled = false;
+
+    const start = async () => {
+      try {
+        await apiStartStage(user.id, lvl, selectedPowersForNextStage ?? undefined);
+
+        if (cancelled) return;
+
         // Clear selected powers after they've been sent to backend
         setSelectedPowersForNextStage(null);
-      })
-      .catch((err) => {
+
+        // Success => allow future retries for this level (if we come back later)
+        stageStartRetryRef.current.delete(lvl);
+        return;
+      } catch (err) {
+        if (cancelled) return;
+
+        const status = getHttpStatus(err);
+
+        // DEV-friendly recovery:
+        // If the backend blocks stage start because the previous stage isn't completed,
+        // auto-report completion for (lvl-1) once, then retry start once.
+        if (status === 403 && lvl > 1 && isPrevStageNotCompleted(err) && !stageStartRetryRef.current.has(lvl)) {
+          stageStartRetryRef.current.add(lvl);
+
+          try {
+            await apiCompleteStage(user.id, lvl - 1, undefined);
+          } catch {
+            // ignore: we will still attempt start; worst case we run locally
+          }
+
+          try {
+            await apiStartStage(user.id, lvl, selectedPowersForNextStage ?? undefined);
+
+            if (cancelled) return;
+
+            setSelectedPowersForNextStage(null);
+            return;
+          } catch (err2) {
+            console.warn(`Start stage ${lvl} blocked by backend (previous stage incomplete). Running locally.`, err2);
+            return;
+          }
+        }
+
+        if (status === 403) {
+          console.warn(`Start stage ${lvl} rejected (${getHttpMessage(err)}). Running locally.`, err);
+          return;
+        }
+
         console.error(`Failed to start stage ${lvl}:`, err);
-      });
+      }
+    };
+
+    void start();
+
+    return () => {
+      cancelled = true;
+    };
   }, [user?.id, state.levelId, selectedPowersForNextStage, setSelectedPowersForNextStage]);
 
   useEffect(() => {

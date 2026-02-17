@@ -1,4 +1,4 @@
-// src\features\grid\ui\Grid.tsx
+// src/features/grid/ui/Grid.tsx
 import { useMemo } from 'react';
 import type { ComponentProps } from 'react';
 
@@ -123,16 +123,12 @@ export function GridView({
 
   const effectiveInputLocked = inputLocked || bomb.bombArmed || laser.laserArmed;
 
-  const capturePointerMove = bomb.bombArmed || laser.laserArmed;
-
   const cursorClass = useMemo(() => {
     if (effectiveInputLocked && showLockoutHints) return 'cursor-not-allowed';
     if (bomb.bombArmed || laser.laserArmed) return 'cursor-crosshair';
     if (isDragging) return 'cursor-grabbing';
     return 'cursor-grab';
   }, [bomb.bombArmed, effectiveInputLocked, isDragging, laser.laserArmed, showLockoutHints]);
-
-  const shellStyle = useMemo(() => ({ '--boardDim': 0.35 }), []);
 
   const onShellPointerMoveEffective = (e: React.PointerEvent<HTMLDivElement>) => {
     if (bomb.bombArmed) {
@@ -153,20 +149,20 @@ export function GridView({
   };
 
   const onPointerMoveEffective = (e: React.PointerEvent<HTMLDivElement>) => {
+    // While targeting (bomb/laser), block normal pointer-move so swap/drag logic does not run.
     if (bomb.bombArmed || laser.laserArmed) return;
     onPointerMove(e);
   };
 
   const onPointerUpEffective = (e: React.PointerEvent<HTMLDivElement>) => {
-    // IMPORTANT:
-    // While targeting (bomb/laser), we block normal pointer-move / cell-down to prevent swaps,
-    // but we MUST still forward pointer-up / pointer-cancel so the input controller can release
-    // the current pointer sequence (otherwise the grid can get stuck).
+    // CRITICAL (Freeze fix):
+    // Never swallow pointerup while targeting. Otherwise the input controller (useGridInput)
+    // can stay in a "pressed/dragging" state and the grid becomes stuck.
     onPointerUp(e);
   };
 
   const onPointerCancelEffective = (e: React.PointerEvent<HTMLDivElement>) => {
-    // See note in onPointerUpEffective.
+    // Same reasoning as onPointerUpEffective.
     onPointerCancel(e);
   };
 
@@ -203,18 +199,13 @@ export function GridView({
       />
 
       <GridShell
-        shellStyle={shellStyle}
-        cursorClass={cursorClass}
-        inputLocked={inputLocked}
-        showLockoutHints={showLockoutHints}
-        innerW={innerW}
-        innerH={innerH}
         boardRef={bomb.boardRef}
-        capturePointerMove={capturePointerMove}
-        onPointerMove={onShellPointerMoveEffective}
-        onPointerUp={onPointerUpEffective}
-        onPointerCancel={onPointerCancelEffective}
-        onPointerLeave={onShellPointerLeaveEffective}
+        width={width}
+        height={height}
+        cursorClass={cursorClass}
+        showDebugLabels={showDebugLabels}
+        onShellPointerMove={onShellPointerMoveEffective}
+        onShellPointerLeave={onShellPointerLeaveEffective}
       >
         {/* Laser Warning highlight (under cells/pieces, above bg) */}
         <LaserWarningOverlay warning={state.laserWarning} innerW={innerW} innerH={innerH} />
@@ -232,7 +223,13 @@ export function GridView({
         {/* Laser Targeting (row highlight) */}
         <LaserRowOverlay armed={laser.laserArmed} row={laser.hoverRow} height={height} zIndex={46} />
 
-        <GridCellsLayer width={width} height={height} cells={cells} onCellPointerDown={onCellPointerDownEffective} showDebugLabels={showDebugLabels} />
+        <GridCellsLayer
+          width={width}
+          height={height}
+          cells={cells}
+          onCellPointerDown={onCellPointerDownEffective}
+          showDebugLabels={showDebugLabels}
+        />
 
         <GridOverlaysLayer selectionPos={selectionPos} targetPos={targetPos} />
 

@@ -3,7 +3,6 @@ import type { CascadePreStep } from '../cascade/typesCascade';
 
 import type { BombTarget } from './bomb';
 import { applyBomb3x3, getBomb3x3IndicesFromTarget } from './bomb';
-
 import type { LaserTarget } from './laser';
 import { applyLaserRow, getLaserRowIndicesFromTarget, getLaserRowPreSteps } from './laser';
 

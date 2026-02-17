@@ -1,3 +1,4 @@
+// src\features\grid\ui\GridCellsLayer.tsx
 import type { Cell } from '@/gamelogic';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 

@@ -1,4 +1,4 @@
-// src\features\devtools-host\lib\useMatch3Engine.ts
+// src/features/devtools-host/lib/useMatch3Engine.ts
 import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react';
 
 import type { EngineAction } from '@/gamelogic';
@@ -12,6 +12,7 @@ import {
   type PowerUseDetail,
 } from '@/context/powerEvents';
 import type { PowerKey } from '@/types';
+import { useCampaignTracking } from '@/services/campaign/useCampaignTracking';
 
 type Args = {
   initialLevelId?: number;
@@ -98,6 +99,9 @@ export function useMatch3Engine({ initialLevelId = 1 }: Args) {
 
   const [state, dispatch] = useReducer(engineReducer, levelId, createInitialState);
 
+  // campaign/run tracking (FE → BE)
+  useCampaignTracking({ state });
+
   // keep Engine timing in sync (Engine is the source of truth)
   const desiredSwapMs = reducedMotion ? 0 : SWAP_MS;
   useLayoutEffect(() => {
@@ -178,7 +182,7 @@ export function useMatch3Engine({ initialLevelId = 1 }: Args) {
 
       let itemKey: 'bomb3x3' | 'laserRow';
       if (powerKey === 'gridlaser' || powerKey === 'bomb') itemKey = 'bomb3x3';
-      else if (powerKey === 'laser') itemKey = 'laserRow';
+      else if (powerKey === 'laser' || powerKey === 'laserRow' || powerKey === 'laserRowClear') itemKey = 'laserRow';
       else return;
 
       const t = d.target;
@@ -278,6 +282,12 @@ export function useMatch3Engine({ initialLevelId = 1 }: Args) {
     [state.width, state.cells],
   );
 
+  // Keep current grid dims for event-driven handlers (avoids recreating input controllers each render).
+  const gridDimsRef = useRef<{ width: number; height: number }>({ width: state.width, height: state.height });
+  useEffect(() => {
+    gridDimsRef.current = { width: state.width, height: state.height };
+  }, [state.width, state.height]);
+
   const onIntent = useCallback(
     (intent: unknown) => {
       const i = intent as unknown as {
@@ -288,9 +298,29 @@ export function useMatch3Engine({ initialLevelId = 1 }: Args) {
         target?: unknown;
         requestId?: unknown;
       };
-
       if (i?.type === 'click' && typeof i.index === 'number') {
-        dispatch({ type: 'clickCell', index: i.index, nowMs: performance.now() } as EngineAction);
+        const idx = i.index;
+        if (!Number.isFinite(idx)) return;
+
+        const { width, height } = gridDimsRef.current;
+        if (width <= 0 || height <= 0) return;
+
+        const max = width * height;
+        if (idx < 0 || idx >= max) return;
+
+        const x = idx % width;
+        const y = Math.floor(idx / width);
+
+        dispatch({
+          type: 'clickCell',
+          // Compatibility: different reducer versions may read different fields.
+          index: idx,
+          cellIndex: idx,
+          x,
+          y,
+          target: { x, y },
+          nowMs: performance.now(),
+        } as EngineAction);
         return;
       }
 

@@ -260,7 +260,7 @@ export type HardBoundaryKind = 'initLevel' | 'resetBoard';
 // Item Effect Keys (for turnCommitArmed payload)
 // ─────────────────────────────────────────────
 
-export type ItemEffectKeyForEvent = 'bomb3x3';
+export type ItemEffectKeyForEvent = 'bomb3x3' | 'laserRow';
 
 // ─────────────────────────────────────────────
 // Engine Events
@@ -307,7 +307,7 @@ export type EngineEvent =
   | { type: 'keycardDelivered'; terminalId: number; keycardIndex: number }
   | { type: 'terminalVerified'; terminalId: number }
   // Level 04+: Objective Terminal events
-  | { type: 'objectiveTerminalCharged'; terminalId: number; charge: number; requiredCharge: number }
+  | { type: 'objectiveTerminalCharged'; terminalId: number; charge: number; required: number }
   | { type: 'objectiveTerminalActivated'; terminalId: number }
   // Level 04+: Laser Sweep events
   | { type: 'laserWarningSet'; kind: LaserLineKind; index: number }
@@ -317,6 +317,10 @@ export type EngineEvent =
   // Level 05+: Signal Network events
   | { type: 'cellCharged'; index: number }
   | { type: 'signalLinked' }
+  // Item accept (engine acknowledged input)
+  | { type: 'itemAccepted'; key: ItemEffectKeyForEvent; target: { x: number; y: number }; requestId: number }
+  // First-class cascade observability (e.g. item preSteps)
+  | { type: 'cascadeStep'; kind: 'itemLaserRowClear'; row: number; indices: number[]; cleared: number }
   // Power/Item consumption ack (UI consumes only after this)
   | { type: 'powerUsed'; key: 'gridlaser' | 'bomb' | 'laser' | 'extraShuffle'; requestId: number }
   // ─── Pre-Falling Guardrails: Observability events ───

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
-import { GlassSection } from '@/components';
-import { DASHBOARD_STYLE as S } from './theme';
+import { CyberTitle, GlassSection } from '@/components';
+// import { DASHBOARD_STYLE as S } from './theme';
 
 type Props = {
   username: string;
@@ -15,11 +15,15 @@ export default function ProfileHeader({ username, level, avatar, actions }: Prop
   return (
     <GlassSection className="flex items-center justify-between gap-6">
       {/* Left: name + actions */}
-      <div className="min-w-0 flex-1">
-        <p className={`${S.text.primary} text-3xl font-semibold leading-tight truncate`}>{capitalize(username)}</p>
-
-        <p className={`${S.text.secondary} text-sm mt-0.5`}>Level {level}</p>
-
+      <div className="min-w-0 flex-col">
+        {/* <p className={`${S.text.primary} text-3xl font-semibold leading-tight truncate`}>{capitalize(username)}</p> */}
+        <CyberTitle size="lg" className="truncate">
+          {capitalize(username)}
+        </CyberTitle>
+        {/* <p className={`${S.text.secondary} text-sm mt-0.5`}>Level {level}</p> */}
+        <CyberTitle size="sm" className="mt-1 text-cyan-300/80">
+          Level {level}
+        </CyberTitle>
         {actions ? <div className="mt-3">{actions}</div> : null}
       </div>
 

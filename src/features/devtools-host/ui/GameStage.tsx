@@ -105,8 +105,11 @@ export function GameStage({ gridRowRef: externalGridRowRef, grid, hud }: Props) 
         <SettingsGearButton iconSrc="/icons/settings-gear02.png" />
       </div>
       {/* HUD: top-anchored, clipped to not overlap grid */}
-      <div className="absolute inset-x-0 top-0 z-20 overflow-y-hidden overflow-x-visible" style={{ maxHeight: hudMaxPx !== null ? `${hudMaxPx}px` : '45%' }}>
-        {hud}
+      <div
+        className="absolute inset-x-0 top-0 z-20 overflow-y-hidden overflow-x-visible pointer-events-none"
+        style={{ maxHeight: hudMaxPx !== null ? `${hudMaxPx}px` : '45%' }}
+      >
+        <div className="pointer-events-auto">{hud}</div>
       </div>
     </div>
   );
