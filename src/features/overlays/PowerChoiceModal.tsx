@@ -1,7 +1,7 @@
 import Modal from '@/components/Modal';
 import { usePowers } from '@/context/PowerContext';
 import Lottie from 'lottie-react';
-import confettiAnimation from '@/assets/Animation/confetti on transparent background.json';
+import confettiAnimation from '@/assets/fx/confetti on transparent background.json';
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import type { PowerKey, Powers } from '@/types';
@@ -24,12 +24,12 @@ export default function PowerChoiceModal({ open, title, onClose, onChoose }: Pro
   const { powers, setPowers } = usePowers();
   const [showConfetti, setShowConfetti] = useState(false);
 
-  // Reset confetti هنگام بسته شدن مدال
+  // Reset confetti
   useEffect(() => {
     if (showConfetti) {
       const timer = setTimeout(() => {
         setShowConfetti(false);
-      }, 2500); // مدت زمان انیمیشن confetti (3.5 ثانیه)
+      }, 2500);
 
       return () => clearTimeout(timer);
     }
@@ -47,7 +47,7 @@ export default function PowerChoiceModal({ open, title, onClose, onChoose }: Pro
 
     setPowers(next);
 
-    // فعال کردن confetti
+    // confetti
     setShowConfetti(true);
 
     // existing flow (likely backend sync / overlay close)

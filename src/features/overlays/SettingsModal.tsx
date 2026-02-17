@@ -1,23 +1,25 @@
 // Example: SettingsModal
 import { useState } from 'react';
 import { useOverlays } from './useOverlays';
+import { useAudio } from '@/context/AudioContext';
 import { CyberButton, Modal } from '@/components';
 
 export default function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [soundOn, setSoundOn] = useState(true);
-  const [volume, setVolume] = useState(70);
+  const { soundOn, setSoundOn, volume, setVolume } = useAudio();
   const [graphics, setGraphics] = useState<'low' | 'medium' | 'high'>('high');
   const api = useOverlays();
   const isInGame = location.pathname === '/game-map/play-game';
+
   const handleClose = () => {
     onClose(); // close settings
     api.openQuitConfirm(); // open quit confirm
   };
+
   return (
     <Modal open={open} onClose={onClose} title="Settings" size="md">
       {/* Sound + Volume */}
       <div className="flex items-center gap-4 mb-6">
-        <button className={`px-4 py-3 rounded-xl ${soundOn ? 'bg-cyan-800' : 'bg-pink-800'}`} onClick={() => setSoundOn(!soundOn)}>
+        <button className={`px-4 py-3 rounded-xl transition-colors ${soundOn ? 'bg-cyan-800' : 'bg-pink-800'}`} onClick={() => setSoundOn(!soundOn)}>
           <img src={soundOn ? '/icons/sound-on.svg' : '/icons/sound-off.svg'} alt="Sound toggle" className="w-6 h-6" />
         </button>
         <input
@@ -28,6 +30,7 @@ export default function SettingsModal({ open, onClose }: { open: boolean; onClos
           onChange={(e) => setVolume(Number(e.target.value))}
           className="flex-1 h-2.5 rounded-sm cursor-pointer accent-cyan-400"
         />
+        <span className="text-cyan-400 w-8">{volume}%</span>
       </div>
 
       {/* Graphics */}
@@ -53,6 +56,7 @@ export default function SettingsModal({ open, onClose }: { open: boolean; onClos
       <div className="flex justify-center my-4">
         <CyberButton label="Close" onClick={onClose} size="md" />
       </div>
+
       {isInGame && (
         <div className="flex justify-center">
           <CyberButton label="Quit Game" onClick={handleClose} size="md" />
