@@ -29,6 +29,19 @@ function toBackendPowerKey(key: unknown): PowerKey | null {
   return null;
 }
 
+function extractAllowedStage(err: unknown): number | null {
+  if (!err || typeof err !== 'object') return null;
+
+  const maybePayload = (err as { payload?: unknown }).payload;
+  if (!maybePayload || typeof maybePayload !== 'object') return null;
+
+  const raw = (maybePayload as { allowedStage?: unknown }).allowedStage;
+  if (typeof raw !== 'number') return null;
+  if (!Number.isFinite(raw) || raw < 1) return null;
+
+  return Math.floor(raw);
+}
+
 function buildPowerRewardDelta(powerId: RewardPowerId, amount: number): Partial<Powers> {
   if (powerId === 'bomb') return { bomb: amount };
   if (powerId === 'laser') return { laser: amount };
@@ -309,9 +322,15 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
         setSelectedPowersForNextStage(null);
       })
       .catch((err) => {
+        const allowedStage = extractAllowedStage(err);
+        if (allowedStage && allowedStage !== lvl) {
+          onDevSetLevel(allowedStage);
+          return;
+        }
+
         console.error(`Failed to start stage ${lvl}:`, err);
       });
-  }, [user?.id, state.levelId, selectedPowersForNextStage, setSelectedPowersForNextStage]);
+  }, [onDevSetLevel, setPowers, user?.id, state.levelId, selectedPowersForNextStage, setSelectedPowersForNextStage]);
 
   useEffect(() => {
     const lvl = state.levelId;
