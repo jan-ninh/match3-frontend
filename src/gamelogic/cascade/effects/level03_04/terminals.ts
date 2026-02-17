@@ -114,7 +114,7 @@ function chargeAdjacentObjectiveTerminals(
     nextCells[terminalIndex] = { ...nextCells[terminalIndex]!, obstacle: { ...terminal, charge: newCharge, state: newState } };
     newChargedIds.add(terminalId);
 
-    events.push({ type: 'objectiveTerminalCharged', terminalId, charge: newCharge, requiredCharge: terminal.requiredCharge });
+    events.push({ type: 'objectiveTerminalCharged', terminalId, charge: newCharge, required: terminal.requiredCharge });
 
     if (newState === 'active') {
       events.push({ type: 'objectiveTerminalActivated', terminalId });

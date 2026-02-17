@@ -142,7 +142,7 @@ function formatEvent(e: EngineEvent): string {
     // Level 04+: Objective Terminal
     // ─────────────────────────────────
     case 'objectiveTerminalCharged':
-      return `objectiveTerminalCharged(id=${e.terminalId}, charge=${e.charge}/${e.requiredCharge})`;
+      return `objectiveTerminalCharged(id=${e.terminalId}, charge=${e.charge}/${e.required})`;
     case 'objectiveTerminalActivated':
       return `objectiveTerminalActivated(id=${e.terminalId})`;
 
