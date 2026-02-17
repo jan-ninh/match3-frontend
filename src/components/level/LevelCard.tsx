@@ -16,11 +16,15 @@ export default function LevelCard({ level, isLocked, onClick }: Props) {
   const ringBase = isLocked ? 'ring-pink-300/25' : 'ring-cyan-200/25';
   const ringHover = isLocked ? 'group-hover:ring-pink-300/40' : 'group-hover:ring-cyan-200/45';
 
+  const handleClick = () => {
+    onClick();
+  };
+
   return (
     <MotionButton
       type="button"
       disabled={isLocked}
-      onClick={onClick}
+      onClick={handleClick}
       className={`${T.button.base} ${T.shape.clip} ${isLocked ? T.button.locked : T.button.active}`}
       whileHover={isLocked ? undefined : { scale: 1.04, y: -2 }}
       whileTap={isLocked ? undefined : { scale: 0.99, y: 0 }}
