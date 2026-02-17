@@ -1,266 +1,177 @@
-import { useEffect, useMemo, useState } from 'react';
-import type { CSSProperties } from 'react';
+// src/features/grid/ui/Grid.tsx
+import { useMemo } from 'react';
+import type { ComponentProps } from 'react';
 
-import type { EngineState } from '@/gamelogic';
-
-import GridCellsLayer from './GridCellsLayer';
-import GridPiecesLayer from './GridPiecesLayer';
-import GridOverlaysLayer from './GridOverlaysLayer';
-
-import { BOARD_PADDING } from '../lib/constants';
-import { boardInnerSizePx, cellPixelXY } from '../lib/math';
-
-import { useGridInput } from '../input/useGridInput';
-
-import type { BombTarget } from './bomb/typesBomb';
-import { BombOverlay } from './bomb/BombOverlay';
-import { useBomb3x3Targeting } from './bomb/useBomb3x3Targeting';
-
-import { BombExplosionFxLayer, type BombVfxMode } from './bomb/fx/BombExplosionFxLayer';
+import type { EngineState } from '@/gamelogic/types';
 
 import { GridShell } from './GridShell';
-import { LaserWarningOverlay } from './LaserWarningOverlay';
+import GridOverlaysLayer from './GridOverlaysLayer';
+import GridPiecesLayer from './GridPiecesLayer';
+import GridCellsLayer from './GridCellsLayer';
 import { GridDevPanels } from './GridDevPanels';
 
-import { useCoreSfxWarmup } from '@/features/audio';
+import { LaserWarningOverlay } from './LaserWarningOverlay';
 
-type InputIntentLike =
-  | { type: 'click'; index: number }
-  | { type: 'swap'; from: number; to: number }
-  // legacy (useGridInput’s InputIntent enthält das offenbar noch)
-  | { type: 'useBombAt'; index: number }
-  // current
-  | { type: 'useItemAt'; key: 'bomb3x3'; target: BombTarget };
+import { BombExplosionFxLayer } from './bomb/fx/BombExplosionFxLayer';
+import { BombOverlay } from './bomb/BombOverlay';
+import type { BombVfxMode } from './bomb/fx/BombExplosionFxLayer';
+import { useBomb3x3Targeting } from './bomb/useBomb3x3Targeting';
 
-type Props = {
+import { LaserRowOverlay } from './laser/LaserRowOverlay';
+import { useLaserRowTargeting } from './laser/useLaserRowTargeting';
+
+type GridInputViewModel = Readonly<{
+  cells: ComponentProps<typeof GridCellsLayer>['cells'];
+  pieceList: ComponentProps<typeof GridPiecesLayer>['pieces'];
+  selectionPos: ComponentProps<typeof GridOverlaysLayer>['selectionPos'];
+  targetPos: ComponentProps<typeof GridOverlaysLayer>['targetPos'];
+
+  dragPieceId: ComponentProps<typeof GridPiecesLayer>['dragPieceId'];
+  isDragging: ComponentProps<typeof GridPiecesLayer>['isDragging'];
+
+  previewActive: ComponentProps<typeof GridPiecesLayer>['previewActive'];
+  previewOtherPieceId: ComponentProps<typeof GridPiecesLayer>['previewOtherPieceId'];
+  previewAxisUI: ComponentProps<typeof GridPiecesLayer>['previewAxis'];
+  previewDirUI: ComponentProps<typeof GridPiecesLayer>['previewDir'];
+
+  shakePieceId: ComponentProps<typeof GridPiecesLayer>['shakePieceId'];
+  setDraggedEl: ComponentProps<typeof GridPiecesLayer>['setDraggedEl'];
+}>;
+
+export type GridUIProps = {
   state: EngineState;
-
-  // Engine-relevant lockout (prevents overlapping actions).
-  inputLocked: boolean;
-
-  // Dev-only visuals for lockout feedback (cursor/dim/badge).
-  showLockoutHints: boolean;
-  onToggleShowLockoutHints?: () => void;
-
-  // Game rules injected: Grid doesn't know what is "legal".
-  canSwapAt: (from: number, to: number) => boolean;
-
-  // Grid emits only intents. Parent decides what to do with them.
-  onIntent: (intent: InputIntentLike) => void;
-
+  width: number;
+  height: number;
   swapMs: number;
+  debugEnabled: boolean;
+  bombVfxMode: BombVfxMode;
 
-  // runtime debug toggle (press D)
-  debugEnabled?: boolean;
+  // SSOT for input visuals (drag/hover/selection, etc.)
+  vm: GridInputViewModel;
 
-  // dev action: reset board (only shown when debugEnabled)
-  onDevResetBoard?: () => void;
-  // dev action: level nav (only shown when debugEnabled)
-  onDevPrevLevel?: () => void;
-  onDevNextLevel?: () => void;
-  onDevNextTilesPalette?: () => void;
+  // derived
+  inputLocked: boolean;
+  showLockoutHints: boolean;
+  showDebugLabels: boolean;
+  innerW: number;
+  innerH: number;
+
+  // handlers
+  onPointerMove: (e: React.PointerEvent<HTMLDivElement>) => void;
+  onPointerUp: (e: React.PointerEvent<HTMLDivElement>) => void;
+  onPointerCancel: (e: React.PointerEvent<HTMLDivElement>) => void;
+  onCellPointerDown: (index: number, e: React.PointerEvent<HTMLButtonElement>) => void;
+  onShellPointerMove: (e: React.PointerEvent<HTMLDivElement>) => void;
+  onShellPointerLeave: () => void;
+
+  // dev
+  debugSnapshot: unknown;
+  onToggleShowLockoutHints: () => void;
+  onDevPrevLevel: () => void;
+  onDevNextLevel: () => void;
+  onDevResetBoard: () => void;
+  onDevNextTilesPalette: () => void;
 };
 
-type CssVars = CSSProperties & { '--boardDim'?: number };
-
-const LS_KEY_BOMB_VFX = 'match3.dev.bombVfxMode';
-
-// TOGGLE STANDARD BOMBANIMATION (legacy | flipbook)
-function readBombVfxModeFromStorage(): BombVfxMode {
-  if (!import.meta.env.DEV) return 'legacyShock';
-  if (typeof window === 'undefined') return 'legacyShock';
-
-  try {
-    const raw = window.localStorage.getItem(LS_KEY_BOMB_VFX);
-    if (raw === 'legacyShock' || raw === 'flipbook') return raw;
-  } catch {
-    // ignore (privacy mode)
-  }
-
-  return 'legacyShock';
-}
-
-function writeBombVfxModeToStorage(mode: BombVfxMode) {
-  if (!import.meta.env.DEV) return;
-  if (typeof window === 'undefined') return;
-
-  try {
-    window.localStorage.setItem(LS_KEY_BOMB_VFX, mode);
-  } catch {
-    // ignore (privacy mode)
-  }
-}
-
-export default function Grid({
+export function Grid({
   state,
+  width,
+  height,
+  swapMs,
+  debugEnabled,
+  bombVfxMode,
+  vm,
   inputLocked,
   showLockoutHints,
+  showDebugLabels,
+  innerW,
+  innerH,
+  onPointerMove,
+  onPointerUp,
+  onPointerCancel,
+  onCellPointerDown,
+  onShellPointerMove,
+  onShellPointerLeave,
+  debugSnapshot,
   onToggleShowLockoutHints,
-  canSwapAt,
-  onIntent,
-  swapMs,
-  debugEnabled = false,
-  onDevResetBoard,
   onDevPrevLevel,
   onDevNextLevel,
+  onDevResetBoard,
   onDevNextTilesPalette,
-}: Props) {
-  useCoreSfxWarmup();
-
-  const { width, height, cells, selectedIndex } = state;
-
-  const { w: innerW, h: innerH } = useMemo(() => boardInnerSizePx(width, height), [width, height]);
-
-  const bomb = useBomb3x3Targeting({
-    width,
-    height,
-    inputLocked,
-    engineEvents: state.events,
-    reducedMotion: swapMs === 0,
-    stageElementId: 'app-stage',
-  });
-
-  const effectiveInputLocked = inputLocked || bomb.bombArmed;
-
+}: GridUIProps) {
   const {
-    isDev,
-    debugSnapshot,
-
+    cells,
     pieceList,
-
+    selectionPos,
+    targetPos,
     dragPieceId,
     isDragging,
-    shakePieceId,
-
     previewActive,
     previewOtherPieceId,
     previewAxisUI,
     previewDirUI,
-
-    onCellPointerDown,
-    onPointerMove,
-    onPointerUp,
-    onPointerCancel,
-
+    shakePieceId,
     setDraggedEl,
-  } = useGridInput({ state, inputLocked: effectiveInputLocked, canSwapAt, onIntent, debugEnabled, swapMs });
+  } = vm;
 
-  const selectionPos = useMemo(() => {
-    if (selectedIndex === null) return null;
-    const cell = cells[selectedIndex];
-    if (!cell || cell.blocked) return null;
-    return cellPixelXY(selectedIndex, width);
-  }, [selectedIndex, cells, width]);
+  const bomb = useBomb3x3Targeting({ width, height, swapMs, inputLocked });
+  const laser = useLaserRowTargeting({ width, height, inputLocked });
 
-  // DnD preview target slot (adjacent swap target)
-  const targetPos = useMemo(() => {
-    if (!isDragging) return null;
-    if (!previewActive) return null;
-    if (!previewAxisUI) return null;
-    if (previewDirUI === 0) return null;
-    if (dragPieceId === null) return null;
+  const effectiveInputLocked = inputLocked || bomb.bombArmed || laser.laserArmed;
 
-    const dragged = pieceList.find((p) => p.id === dragPieceId);
-    if (!dragged) return null;
+  const cursorClass = useMemo(() => {
+    if (effectiveInputLocked && showLockoutHints) return 'cursor-not-allowed';
+    if (bomb.bombArmed || laser.laserArmed) return 'cursor-crosshair';
+    if (isDragging) return 'cursor-grabbing';
+    return 'cursor-grab';
+  }, [bomb.bombArmed, effectiveInputLocked, isDragging, laser.laserArmed, showLockoutHints]);
 
-    const fromIndex = dragged.cellIndex;
-
-    let toIndex = fromIndex;
-
-    if (previewAxisUI === 'x') {
-      const x = fromIndex % width;
-      if (previewDirUI === -1 && x === 0) return null;
-      if (previewDirUI === 1 && x === width - 1) return null;
-      toIndex = fromIndex + previewDirUI;
-    } else {
-      const y = Math.floor(fromIndex / width);
-      if (previewDirUI === -1 && y === 0) return null;
-      if (previewDirUI === 1 && y === height - 1) return null;
-      toIndex = fromIndex + previewDirUI * width;
-    }
-
-    const cell = cells[toIndex];
-    if (!cell || cell.blocked) return null;
-
-    return cellPixelXY(toIndex, width);
-  }, [isDragging, previewActive, previewAxisUI, previewDirUI, dragPieceId, pieceList, width, height, cells]);
-
-  const showDebugLabels = isDev && debugEnabled;
-
-  const [bombVfxMode, setBombVfxMode] = useState<BombVfxMode>(() => readBombVfxModeFromStorage());
-
-  // DEV-only toggle: press "V" to switch Bomb VFX (Flipbook <-> LegacyShock)
-  useEffect(() => {
-    if (!import.meta.env.DEV) return;
-    if (!isDev) return;
-    if (!debugEnabled) return;
-
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== 'v' && e.key !== 'V') return;
-
-      // do not interfere with text inputs
-      const tag = (e.target instanceof Element ? e.target.tagName : '').toLowerCase();
-      if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
-
-      e.preventDefault();
-
-      setBombVfxMode((prev) => {
-        const next: BombVfxMode = prev === 'flipbook' ? 'legacyShock' : 'flipbook';
-        writeBombVfxModeToStorage(next);
-        return next;
-      });
-    };
-
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [isDev, debugEnabled]);
-
-  const shellStyle: CssVars = {
-    width: innerW + BOARD_PADDING * 2,
-    touchAction: 'none',
-    WebkitUserSelect: 'none',
-    userSelect: 'none',
-
-    // 0..1 (higher = darker / less BG visible)
-    '--boardDim': 0.92,
-
-    // applies to the padding/rim area of the board shell
-    backgroundColor: 'rgb(0 0 0 / var(--boardDim))',
-  };
-
-  // Cursor (board-level): normal unless lockout hints say otherwise
-  const cursorClass = inputLocked && showLockoutHints ? 'cursor-not-allowed' : 'cursor-default';
-
-  const onPointerMoveShell = (e: React.PointerEvent<HTMLDivElement>) => {
+  const onShellPointerMoveEffective = (e: React.PointerEvent<HTMLDivElement>) => {
     if (bomb.bombArmed) {
       bomb.onShellPointerMove(e);
       return;
     }
+    if (laser.laserArmed) {
+      laser.onShellPointerMove(e);
+      return;
+    }
+    onShellPointerMove(e);
+  };
+
+  const onShellPointerLeaveEffective = () => {
+    if (bomb.bombArmed) bomb.onShellPointerLeave();
+    if (laser.laserArmed) laser.onShellPointerLeave();
+    onShellPointerLeave();
+  };
+
+  const onPointerMoveEffective = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (bomb.bombArmed || laser.laserArmed) return;
     onPointerMove(e);
   };
 
-  const onPointerUpShell = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (bomb.bombArmed) return;
+  const onPointerUpEffective = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (bomb.bombArmed || laser.laserArmed) return;
     onPointerUp(e);
   };
 
-  const onPointerCancelShell = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (bomb.bombArmed) return;
+  const onPointerCancelEffective = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (bomb.bombArmed || laser.laserArmed) return;
     onPointerCancel(e);
   };
 
-  const onPointerLeaveShell = () => {
-    if (!bomb.bombArmed) return;
-    bomb.onShellPointerLeave();
-  };
-
-  const onCellPointerDownShell = (index: number, e: React.PointerEvent<HTMLButtonElement>) => {
+  const onCellPointerDownEffective = (index: number, e: React.PointerEvent<HTMLButtonElement>) => {
     if (bomb.bombArmed) {
       bomb.onCellPointerDown(index, e);
       return;
     }
+    if (laser.laserArmed) {
+      laser.onCellPointerDown(index, e);
+      return;
+    }
     onCellPointerDown(index, e);
   };
+
+  const isDev = import.meta.env.DEV;
 
   const bombFxMode: BombVfxMode = import.meta.env.DEV && isDev && debugEnabled ? bombVfxMode : 'legacyShock';
 
@@ -281,17 +192,13 @@ export default function Grid({
       />
 
       <GridShell
-        shellStyle={shellStyle}
-        cursorClass={cursorClass}
-        inputLocked={inputLocked}
-        showLockoutHints={showLockoutHints}
-        innerW={innerW}
-        innerH={innerH}
         boardRef={bomb.boardRef}
-        onPointerMove={onPointerMoveShell}
-        onPointerUp={onPointerUpShell}
-        onPointerCancel={onPointerCancelShell}
-        onPointerLeave={onPointerLeaveShell}
+        width={width}
+        height={height}
+        cursorClass={cursorClass}
+        showDebugLabels={showDebugLabels}
+        onShellPointerMove={onShellPointerMoveEffective}
+        onShellPointerLeave={onShellPointerLeaveEffective}
       >
         {/* Laser Warning highlight (under cells/pieces, above bg) */}
         <LaserWarningOverlay warning={state.laserWarning} innerW={innerW} innerH={innerH} />
@@ -306,7 +213,16 @@ export default function Grid({
         {/* Bomb Targeting 3×3 (square corners, red glow) */}
         <BombOverlay indices={bomb.bombOverlayIndices} width={width} zIndex={44} />
 
-        <GridCellsLayer width={width} height={height} cells={cells} onCellPointerDown={onCellPointerDownShell} showDebugLabels={showDebugLabels} />
+        {/* Laser Targeting (row highlight) */}
+        <LaserRowOverlay row={laser.hoverRow} height={height} zIndex={46} />
+
+        <GridCellsLayer
+          width={width}
+          height={height}
+          cells={cells}
+          onCellPointerDown={onCellPointerDownEffective}
+          showDebugLabels={showDebugLabels}
+        />
 
         <GridOverlaysLayer selectionPos={selectionPos} targetPos={targetPos} />
 
@@ -324,10 +240,19 @@ export default function Grid({
           shakePieceId={shakePieceId}
           showDebugLabels={showDebugLabels}
           setDraggedEl={setDraggedEl}
+          onPointerMove={onPointerMoveEffective}
+          onPointerUp={onPointerUpEffective}
+          onPointerCancel={onPointerCancelEffective}
         />
 
         {/* Bomb detonation FX (after ACK) */}
-        <BombExplosionFxLayer bursts={bomb.bombBursts} width={width} reducedMotionHint={swapMs === 0} zIndex={88} mode={bombFxMode} />
+        <BombExplosionFxLayer
+          bursts={bomb.bombBursts}
+          width={width}
+          reducedMotionHint={swapMs === 0}
+          zIndex={88}
+          mode={bombFxMode}
+        />
       </GridShell>
     </>
   );

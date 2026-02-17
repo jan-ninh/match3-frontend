@@ -164,7 +164,7 @@ export function useMatch3Engine({ initialLevelId = 1 }: Args) {
     return () => window.removeEventListener(POWER_USE_EVENT, onUse as EventListener);
   }, [allocPowerRequestId]);
 
-  // Power → Engine bridge (targeted confirm: Bomb + Laser)
+  // Power → Engine bridge (Bomb targeting confirm)
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -173,8 +173,13 @@ export function useMatch3Engine({ initialLevelId = 1 }: Args) {
       const d = ce.detail;
       if (!d) return;
 
-      // PowerKey (UI) -> ItemEffectKey (Engine)
-      if (d.key !== 'bomb' && d.key !== 'laser') return;
+      // Use runtime string compare to avoid TS "no overlap" if PowerUseAtDetail.key union lags behind.
+      const powerKey = String(d.key);
+
+      let itemKey: 'bomb3x3' | 'laserRow';
+      if (powerKey === 'bomb') itemKey = 'bomb3x3';
+      else if (powerKey === 'laser') itemKey = 'laserRow';
+      else return;
 
       const t = d.target;
       if (!t || typeof t.x !== 'number' || typeof t.y !== 'number') return;
@@ -183,7 +188,7 @@ export function useMatch3Engine({ initialLevelId = 1 }: Args) {
 
       dispatch({
         type: 'useItemAt',
-        key: d.key === 'bomb' ? 'bomb3x3' : 'laserRow',
+        key: itemKey,
         target: { x: t.x | 0, y: t.y | 0 },
         requestId,
         nowMs: performance.now(),

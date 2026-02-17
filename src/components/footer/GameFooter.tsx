@@ -16,9 +16,11 @@ import {
 } from '@/context/powerEvents';
 import { playSfx } from '@/features/audio';
 import type { PowerKey, Powers } from '@/types';
-import { NeonFooterButton } from '@/components'; // ✅ NEW (UI only)
+import { NeonFooterButton } from '@/components';
 
 type FooterActionItem = ReturnType<typeof footerActions>[number];
+
+type ArmedKey = Extract<PowerKey, 'bomb' | 'laser'>;
 
 const DEFAULT_ICON_PX_ACTIVE = 60;
 
@@ -38,6 +40,7 @@ const noopOpenSettings = (): void => undefined;
 const ICON_PX_ACTIVE_BY_ID: Readonly<Partial<Record<string, number>>> = {
   bomb: ICON_PX_ACTIVE_BOMB,
   laser: ICON_PX_ACTIVE_LASER,
+  gridlaser: ICON_PX_ACTIVE_LASER, // alias used by some footerAction configs
   reshuffle: ICON_PX_ACTIVE_RESHUFFLE,
   extraShuffle: ICON_PX_ACTIVE_RESHUFFLE, // alias: current PowerKey id
   item4: ICON_PX_ACTIVE_ITEM4,
@@ -47,11 +50,35 @@ function isCounted(item: FooterActionItem): item is FooterActionItem & { count: 
   return typeof item.count === 'number';
 }
 
+function footerIdToPowerKey(id: FooterActionItem['id']): PowerKey | null {
+  if (id === 'bomb') return 'bomb';
+  if (id === 'laser') return 'laser';
+  if (id === 'gridlaser') return 'laser'; // legacy/alias id (same power)
+  if (id === 'laserRow') return 'laser'; // alias
+  if (id === 'laserRowClear') return 'laser'; // alias
+  // Some UIs still call the button "reshuffle" while the PowerKey is "extraShuffle".
+  if (id === 'extraShuffle' || id === 'reshuffle') return 'extraShuffle';
+  return null;
+}
+
+function allocFooterRequestId(): number {
+  // RequestIds are only used for UI idempotence (consume-ack). Any monotonic id is fine.
+  // Use a shared `window` slot so different emitters don't collide.
+  if (typeof window === 'undefined') return 1;
+  const w = window as unknown as { __match3PowerRequestId?: number };
+  const cur = (w.__match3PowerRequestId ?? 1) | 0;
+  const next = (cur + 1) | 0;
+  w.__match3PowerRequestId = next <= 0 ? 1 : next;
+  return cur <= 0 ? 1 : cur;
+}
+
 export default function GameFooter() {
   const { powers, setPowers } = usePowers();
   const { user, updatePowers } = useAuth();
 
   const [armedBomb, setArmedBomb] = useState(false);
+  const [armedLaser, setArmedLaser] = useState(false);
+
   /**
    * Keep latest powers ONLY for window event listeners (effects).
    * Important: do NOT read this ref in render-path callbacks (e.g. `onUsePower`) that are passed into UI builders.
@@ -76,37 +103,46 @@ export default function GameFooter() {
     })();
   }, [user?.id, setPowers]);
 
-  const nextRequestIdRef = useRef(1);
-
-  const allocRequestId = useCallback((): number => {
-    const v = nextRequestIdRef.current | 0;
-    nextRequestIdRef.current = (v + 1) | 0;
-    return Math.max(1, v);
-  }, []);
-
-  const emitArmBomb = useCallback((armed: boolean) => {
+  const emitArmPower = useCallback((key: ArmedKey, armed: boolean) => {
     if (typeof window === 'undefined') return;
-    window.dispatchEvent(new CustomEvent<PowerArmDetail>(POWER_ARM_EVENT, { detail: { key: 'bomb', armed } }));
+    window.dispatchEvent(new CustomEvent<PowerArmDetail>(POWER_ARM_EVENT, { detail: { key, armed } }));
   }, []);
 
-  const emitUsePower = useCallback(
-    (key: PowerKey) => {
-      if (typeof window === 'undefined') return;
-      const requestId = allocRequestId();
-      window.dispatchEvent(new CustomEvent<PowerUseDetail>(POWER_USE_EVENT, { detail: { key, requestId } }));
-    },
-    [allocRequestId],
-  );
+  const emitUsePower = useCallback((key: PowerKey) => {
+    if (typeof window === 'undefined') return;
+    const requestId = allocFooterRequestId();
+    window.dispatchEvent(new CustomEvent<PowerUseDetail>(POWER_USE_EVENT, { detail: { key, requestId } }));
+  }, []);
 
-  // Safety: if bomb count hits 0 while armed, disarm (prevents "stuck targeting")
+  const disarmAllTargeting = useCallback(() => {
+    if (armedBomb) {
+      setArmedBomb(false);
+      emitArmPower('bomb', false);
+    }
+    if (armedLaser) {
+      setArmedLaser(false);
+      emitArmPower('laser', false);
+    }
+  }, [armedBomb, armedLaser, emitArmPower]);
+
+  // Safety: if count hits 0 while armed, disarm (prevents "stuck targeting")
   useEffect(() => {
     const cur = (powers.bomb ?? 0) | 0;
     if (cur > 0) return;
     if (!armedBomb) return;
 
     setArmedBomb(false);
-    emitArmBomb(false);
-  }, [armedBomb, emitArmBomb, powers.bomb]);
+    emitArmPower('bomb', false);
+  }, [armedBomb, emitArmPower, powers.bomb]);
+
+  useEffect(() => {
+    const cur = (powers.laser ?? 0) | 0;
+    if (cur > 0) return;
+    if (!armedLaser) return;
+
+    setArmedLaser(false);
+    emitArmPower('laser', false);
+  }, [armedLaser, emitArmPower, powers.laser]);
 
   // Sync with global arm/disarm (Grid can disarm after confirm)
   useEffect(() => {
@@ -115,8 +151,10 @@ export default function GameFooter() {
     const onArm = (e: Event) => {
       const ce = e as CustomEvent<PowerArmDetail>;
       const d = ce.detail;
-      if (!d || d.key !== 'bomb') return;
-      setArmedBomb(!!d.armed);
+      if (!d) return;
+
+      if (d.key === 'bomb') setArmedBomb(!!d.armed);
+      if (d.key === 'laser') setArmedLaser(!!d.armed);
     };
 
     window.addEventListener(POWER_ARM_EVENT, onArm as EventListener);
@@ -143,6 +181,7 @@ export default function GameFooter() {
       const cur = (powersRef.current[d.key] ?? 0) | 0;
       const next: Powers = { ...powersRef.current, [d.key]: cur + delta };
 
+      powersRef.current = next;
       setPowers(next);
 
       if (!user) return;
@@ -157,15 +196,12 @@ export default function GameFooter() {
   }, [setPowers, updatePowers, user]);
 
   /**
-   * Persist ack-driven consumption (backend is not the SSOT for immediate UI).
-   * Note: We compute `nextVal` from the ref-snapshot to avoid depending on React state timing.
+   * Apply ack-driven consumption locally + best-effort persist.
    */
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
     const onConsume = (e: Event) => {
-      if (!user) return;
-
       const ce = e as CustomEvent<PowerConsumeDetail>;
       const d = ce.detail;
       if (!d) return;
@@ -179,6 +215,12 @@ export default function GameFooter() {
       const nextVal = Math.max(0, cur - amount);
       if (nextVal === cur) return;
 
+      const next: Powers = { ...powersRef.current, [key]: nextVal };
+      powersRef.current = next;
+      setPowers(next);
+
+      if (!user) return;
+
       updatePowers({ [key]: nextVal }, 'set').catch(() => {
         // Best-effort: local UI already consumed; backend sync can be retried later.
       });
@@ -186,29 +228,40 @@ export default function GameFooter() {
 
     window.addEventListener(POWER_CONSUME_EVENT, onConsume as EventListener);
     return () => window.removeEventListener(POWER_CONSUME_EVENT, onConsume as EventListener);
-  }, [updatePowers, user]);
+  }, [setPowers, updatePowers, user]);
 
   const onUsePower = useCallback(
     async (key: PowerKey) => {
       const current = (powers[key] ?? 0) | 0;
       if (current <= 0) {
-        // if user tries to arm with 0, make sure it's off
-        if (key === 'bomb' && armedBomb) {
-          setArmedBomb(false);
-          emitArmBomb(false);
-        }
+        // If user tries to arm with 0, make sure it's off
+        if (key === 'bomb' || key === 'laser') disarmAllTargeting();
         return;
       }
 
       /**
-       * Bomb = targeting mode only (arm/disarm).
-       * Inventory spend is applied centrally by PowerProvider when it receives POWER_CONSUME_EVENT
-       * (emitted by the engine-event bridge after EngineEvent `powerUsed` was accepted).
+       * Targeting powers (bomb + laser) = arm/disarm only.
+       * Inventory spend is applied by POWER_CONSUME_EVENT (engine ack).
        */
       if (key === 'bomb') {
+        if (armedLaser) {
+          setArmedLaser(false);
+          emitArmPower('laser', false);
+        }
         const nextArmed = !armedBomb;
         setArmedBomb(nextArmed);
-        emitArmBomb(nextArmed);
+        emitArmPower('bomb', nextArmed);
+        return;
+      }
+
+      if (key === 'laser') {
+        if (armedBomb) {
+          setArmedBomb(false);
+          emitArmPower('bomb', false);
+        }
+        const nextArmed = !armedLaser;
+        setArmedLaser(nextArmed);
+        emitArmPower('laser', nextArmed);
         return;
       }
 
@@ -237,7 +290,7 @@ export default function GameFooter() {
         setPowers(prev);
       }
     },
-    [armedBomb, emitArmBomb, emitUsePower, powers, setPowers, updatePowers, user],
+    [armedBomb, armedLaser, disarmAllTargeting, emitArmPower, emitUsePower, powers, setPowers, updatePowers, user],
   );
 
   const actions = useMemo<FooterActionItem[]>(() => {
@@ -247,30 +300,43 @@ export default function GameFooter() {
   return (
     <div className="flex flex-nowrap justify-center gap-4 p-4 rounded-xl">
       {actions.map((item) => {
-        const isBomb = item.id === 'bomb';
-        const isActive = isBomb && armedBomb;
+        // Robust: derive power identity from `item.id` (footerActions can drift / aliases).
+        const powerKey = footerIdToPowerKey(item.id);
+        const isBomb = powerKey === 'bomb';
+        const isLaser = powerKey === 'laser';
+        const isActive = (isBomb && armedBomb) || (isLaser && armedLaser);
+        const powerCount = powerKey ? ((powers[powerKey] ?? 0) | 0) : null;
 
         const counted = isCounted(item);
-        const canUse = counted ? item.count > 0 : true;
-        const isDisabled = counted ? item.count <= 0 : false;
+        const countToShow = powerCount != null ? powerCount : counted ? item.count : null;
 
-        const showCount = counted;
-        const showBadge = !counted && typeof item.badge === 'string' && item.badge.length > 0;
+        const canUse = countToShow != null ? countToShow > 0 : true;
+        const isDisabled = countToShow != null ? countToShow <= 0 : false;
+
+        const showBadge = countToShow == null && !counted && typeof item.badge === 'string' && item.badge.length > 0;
 
         const iconPxActive = ICON_PX_ACTIVE_BY_ID[item.id] ?? DEFAULT_ICON_PX_ACTIVE;
         const iconPxInactive = iconPxActive - 1;
         const iconPx = isActive ? iconPxActive : iconPxInactive;
 
-        const badge = showCount ? (
-          <span>{item.count}</span>
+        const badge = countToShow != null ? (
+          <span>{countToShow}</span>
         ) : showBadge ? (
           <img src={item.badge} alt={item.label} className="w-3 h-3" aria-hidden="true" draggable={false} />
         ) : null;
 
+        const onClick = () => {
+          if (powerKey) {
+            void onUsePower(powerKey);
+            return;
+          }
+          item.onClick();
+        };
+
         return (
           <NeonFooterButton
             key={item.id}
-            onClick={item.onClick}
+            onClick={onClick}
             aria-label={item.label}
             disabled={isDisabled}
             active={isActive}
