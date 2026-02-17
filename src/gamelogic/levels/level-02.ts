@@ -8,38 +8,43 @@ type Args = {
 };
 
 /**
- * Level 02 — PATCH THE HOLE
+ * Level 02 — BREACH PROTOCOL
  *
- * Fantasy/Theme:
- * - "Leckraum": 3 offene Lecks pumpen pro Zug "Contamination" ins System.
- * - Sieg nicht über HP/Damage, sondern über Patchen unter Druck (Contain-Feeling light).
+ * Theme:
+ * - First "real" breach mission after the CLEAN ROOM tutorial.
+ * - Crack 3 Firewall Nodes (HP2) by matching orthogonally adjacent.
  *
- * Win: alle 3 Lecks sind sealed (progress >= required)
- * Lose: Moves = 0 (optional: hazard_contamination >= threshold)
- *
- * Gameplay:
- * - Match neben Leak → spawnt SealKit
- * - Match neben SealKit → triggert Patch auf nächstes offenes Leak
- * - Nach jedem Zug: offene Leaks spreaden 1 Contamination
- * - Match neben Contamination → entfernt sie
+ * Notes:
+ * - Uses the existing firewallNodes/breach mechanic (same as Level 01),
+ *   but with higher HP so HUD will treat it as "nodes" (not "spikes").
  */
 export function makeLevel02({ baseSeed, allowedTypes }: Args): LevelDefinition {
   const id = 2;
 
+  // Same board size as early levels, but with a small "shape" to reduce noise.
   const width = 8;
   const height = 8;
 
-  // Leak-Positionen: (x,y), (0,0) oben links
-  // Leak A: (1,1) = index 9
-  // Leak B: (6,2) = index 22
-  // Leak C: (3,6) = index 51
-  const leakNodes = [
-    { index: 1 + 1 * width, patchStepsRequired: 2 },
-    { index: 6 + 2 * width, patchStepsRequired: 2 },
-    { index: 3 + 6 * width, patchStepsRequired: 2 },
+  // Blocked corner cells (2x2) bottom-right:
+  // (6,6) (7,6) (6,7) (7,7)
+  const cornerBlocks = [6 + 6 * width, 7 + 6 * width, 6 + 7 * width, 7 + 7 * width];
+
+  // Nodes: HP2 each (progression from Level 01 spikes HP1).
+  const hp = 2;
+  const firewallNodes = [
+    { index: 2 + 2 * width, hp }, // (2,2)
+    { index: 5 + 3 * width, hp }, // (5,3)
+    { index: 3 + 5 * width, hp }, // (3,5)
   ];
 
+  const gateIndices: number[] = [];
+
+  // Block corner voids + objective tiles (nodes are blocked until breached).
+  const blockedIndices = [...cornerBlocks, ...firewallNodes.map((n) => n.index)];
+
+  // Slightly more breathing room than Level 01.
   const moves = 13;
+
   const seed = deriveSeed(baseSeed, id);
 
   return {
@@ -47,24 +52,13 @@ export function makeLevel02({ baseSeed, allowedTypes }: Args): LevelDefinition {
     width,
     height,
     moves,
+    blockedIndices,
     allowedTypes,
-    baseSeed: seed,
-
-    // IMPORTANT:
-    // Leaks are obstacles, not "blocked" void cells.
-    blockedIndices: [],
-
-    firewallNodes: [],
-    gateIndices: [],
-
-    leakNodes,
-
+    firewallNodes,
+    gateIndices,
+    leakNodes: [],
     terminalNodes: [],
     keycardNodes: [],
-
-    // Balancing knobs
-    maxSealKitsOnBoard: 3,
-    contaminationLoseThreshold: 14,
-    spreadEveryNTurns: 1,
+    baseSeed: seed,
   };
 }

@@ -1,4 +1,4 @@
-// src/features/devtools-host/ui/hud/objectives/Objective-01-Spikes.tsx
+// src/features/devtools-host/ui/hud/objectives/Objective-01-Nodes.tsx
 import type { HudObjective } from '../../../lib/hud/typesHud';
 
 type ObjectiveNodesLike = Extract<HudObjective, { kind: 'spikes' | 'nodes' }>;
@@ -10,8 +10,11 @@ type Props = {
 export function ObjectiveNodes({ objective }: Props) {
   const isSpikes = objective.kind === 'spikes';
 
-  const title = 'Crack the Nodes!';
-  const hint = 'Match next to a node to damage it. Break all nodes.';
+  // Level 01 = spikes, Level 02+ = nodes (higher HP)
+  const title = isSpikes ? 'Clean the Spikes!' : 'Breach the Nodes!';
+  const hint = isSpikes
+    ? 'Match next to a spike to remove it. Clear all spikes.'
+    : 'Match next to a node to damage it. Break all nodes.';
 
   const done = objective.breachDone | 0;
   const total = objective.breachTotal | 0;
