@@ -52,7 +52,7 @@ export default function LeaderboardPage() {
 
       {/* ✅ Podium */}
       <div className="shrink-0">
-        <GlassSection className="text-center max-w-xl mx-auto mb-4">
+        <GlassSection className="text-center max-w-xl mx-auto mb-4 w-full">
           {loading && <div className="text-center text-gray-500 py-8">Loading leaderboard...</div>}
           {!loading && error && <div className="text-center text-red-600 py-8">{error}</div>}
 
@@ -75,9 +75,9 @@ export default function LeaderboardPage() {
       </div>
 
       {/* ✅ 1-4*/}
-      <div className="flex-1 overflow-y-auto scrollbar-cyber ">
-        <div className=" max-w-xl mx-auto">
-          <GlassSection className="text-center">
+      <div className="flex-1 flex flex-col min-h-0">
+        <div className="max-w-xl mx-auto w-full flex flex-col space-y-4 flex-1 min-h-0">
+          <GlassSection className="text-center overflow-y-auto scrollbar-cyber flex-1 min-h-0">
             {!loading && !error && (
               <>
                 <div className="flex flex-col space-y-4">
