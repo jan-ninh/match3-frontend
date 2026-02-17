@@ -18,7 +18,7 @@ type Args = {
 };
 
 function isPowerKey(v: unknown): v is PowerKey {
-  return v === 'bomb' || v === 'laser' || v === 'extraShuffle';
+  return v === 'gridlaser' || v === 'bomb' || v === 'laser' || v === 'extraShuffle';
 }
 
 type PowerUsedEvent = Readonly<{
@@ -177,7 +177,7 @@ export function useMatch3Engine({ initialLevelId = 1 }: Args) {
       const powerKey = String(d.key);
 
       let itemKey: 'bomb3x3' | 'laserRow';
-      if (powerKey === 'bomb') itemKey = 'bomb3x3';
+      if (powerKey === 'gridlaser' || powerKey === 'bomb') itemKey = 'bomb3x3';
       else if (powerKey === 'laser') itemKey = 'laserRow';
       else return;
 

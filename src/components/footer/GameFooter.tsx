@@ -20,12 +20,12 @@ import { NeonFooterButton } from '@/components';
 
 type FooterActionItem = ReturnType<typeof footerActions>[number];
 
-type ArmedKey = Extract<PowerKey, 'bomb' | 'laser'>;
+type TargetingKey = Extract<PowerKey, 'gridlaser' | 'laser'>;
 
 const DEFAULT_ICON_PX_ACTIVE = 60;
 
 // Set numbers for each Button
-const ICON_PX_ACTIVE_BOMB = 65;
+const ICON_PX_ACTIVE_GRIDLASER = 65;
 const ICON_PX_ACTIVE_LASER = 80;
 const ICON_PX_ACTIVE_RESHUFFLE = 60;
 const ICON_PX_ACTIVE_ITEM4 = 60;
@@ -38,17 +38,17 @@ const noopOpenSettings = (): void => undefined;
  * - Missing ids fall back to DEFAULT_ICON_PX_ACTIVE.
  */
 const ICON_PX_ACTIVE_BY_ID: Readonly<Partial<Record<string, number>>> = {
-  bomb: ICON_PX_ACTIVE_BOMB,
-
-  // Laser aliases (see footerIdToPowerKey)
+  // canonical ids
+  gridlaser: ICON_PX_ACTIVE_GRIDLASER,
   laser: ICON_PX_ACTIVE_LASER,
-  gridlaser: ICON_PX_ACTIVE_LASER,
+
+  // legacy aliases (configs/assets drift)
+  bomb: ICON_PX_ACTIVE_GRIDLASER,
   laserRow: ICON_PX_ACTIVE_LASER,
   laserRowClear: ICON_PX_ACTIVE_LASER,
 
   reshuffle: ICON_PX_ACTIVE_RESHUFFLE,
   extraShuffle: ICON_PX_ACTIVE_RESHUFFLE, // alias: current PowerKey id
-
   item4: ICON_PX_ACTIVE_ITEM4,
 };
 
@@ -56,14 +56,29 @@ function isCounted(item: FooterActionItem): item is FooterActionItem & { count: 
   return typeof item.count === 'number';
 }
 
+function normalizeTargetingKey(key: PowerKey): TargetingKey | null {
+  if (key === 'gridlaser' || key === 'laser') return key;
+  // Compatibility: older builds may still emit/use "bomb" as the legacy key for gridlaser.
+  if (key === 'bomb') return 'gridlaser';
+  return null;
+}
+
+function getPowerCount(powers: Powers, key: PowerKey): number {
+  if (key === 'gridlaser') return ((powers.gridlaser ?? powers.bomb ?? 0) | 0);
+  if (key === 'bomb') return ((powers.bomb ?? powers.gridlaser ?? 0) | 0);
+  return ((powers[key] ?? 0) | 0);
+}
+
 function footerIdToPowerKey(id: FooterActionItem['id']): PowerKey | null {
   const idStr = String(id);
 
-  if (idStr === 'bomb') return 'bomb';
+  // IMPORTANT: "gridlaser" (old bomb refactor) and "laser" (row clear) are two different powers.
+  // Keep aliases mapped to the correct canonical keys.
+  if (idStr === 'gridlaser' || idStr === 'laser') return idStr as PowerKey;
 
-  // Laser button has historically drifted across ids (asset: gridlaser.png, etc.).
-  // Treat known aliases as the same PowerKey.
-  if (idStr === 'laser' || idStr === 'gridlaser' || idStr === 'laserRow' || idStr === 'laserRowClear') return 'laser';
+  // Legacy ids:
+  if (idStr === 'bomb') return 'gridlaser';
+  if (idStr === 'laserRow' || idStr === 'laserRowClear') return 'laser';
 
   // Some UIs still call the button "reshuffle" while the PowerKey is "extraShuffle".
   if (idStr === 'extraShuffle' || idStr === 'reshuffle') return 'extraShuffle';
@@ -86,7 +101,7 @@ export default function GameFooter() {
   const { powers, setPowers } = usePowers();
   const { user, updatePowers } = useAuth();
 
-  const [armedBomb, setArmedBomb] = useState(false);
+  const [armedGridlaser, setArmedGridlaser] = useState(false);
   const [armedLaser, setArmedLaser] = useState(false);
 
   /**
@@ -113,9 +128,16 @@ export default function GameFooter() {
     })();
   }, [user?.id, setPowers]);
 
-  const emitArmPower = useCallback((key: ArmedKey, armed: boolean) => {
+  const emitArmPower = useCallback((key: TargetingKey, armed: boolean) => {
     if (typeof window === 'undefined') return;
+
+    // Canonical emit
     window.dispatchEvent(new CustomEvent<PowerArmDetail>(POWER_ARM_EVENT, { detail: { key, armed } }));
+
+    // Compatibility: older listeners still subscribe to "bomb" for the old gridlaser power.
+    if (key === 'gridlaser') {
+      window.dispatchEvent(new CustomEvent<PowerArmDetail>(POWER_ARM_EVENT, { detail: { key: 'bomb', armed } }));
+    }
   }, []);
 
   const emitUsePower = useCallback((key: PowerKey) => {
@@ -125,34 +147,34 @@ export default function GameFooter() {
   }, []);
 
   const disarmAllTargeting = useCallback(() => {
-    if (armedBomb) {
-      setArmedBomb(false);
-      emitArmPower('bomb', false);
+    if (armedGridlaser) {
+      setArmedGridlaser(false);
+      emitArmPower('gridlaser', false);
     }
     if (armedLaser) {
       setArmedLaser(false);
       emitArmPower('laser', false);
     }
-  }, [armedBomb, armedLaser, emitArmPower]);
+  }, [armedGridlaser, armedLaser, emitArmPower]);
 
   // Safety: if count hits 0 while armed, disarm (prevents "stuck targeting")
   useEffect(() => {
-    const cur = (powers.bomb ?? 0) | 0;
+    const cur = getPowerCount(powers, 'gridlaser');
     if (cur > 0) return;
-    if (!armedBomb) return;
+    if (!armedGridlaser) return;
 
-    setArmedBomb(false);
-    emitArmPower('bomb', false);
-  }, [armedBomb, emitArmPower, powers.bomb]);
+    setArmedGridlaser(false);
+    emitArmPower('gridlaser', false);
+  }, [armedGridlaser, emitArmPower, powers]);
 
   useEffect(() => {
-    const cur = (powers.laser ?? 0) | 0;
+    const cur = getPowerCount(powers, 'laser');
     if (cur > 0) return;
     if (!armedLaser) return;
 
     setArmedLaser(false);
     emitArmPower('laser', false);
-  }, [armedLaser, emitArmPower, powers.laser]);
+  }, [armedLaser, emitArmPower, powers]);
 
   // Sync with global arm/disarm (Grid can disarm after confirm)
   useEffect(() => {
@@ -163,7 +185,8 @@ export default function GameFooter() {
       const d = ce.detail;
       if (!d) return;
 
-      if (d.key === 'bomb') setArmedBomb(!!d.armed);
+      // Accept both canonical and legacy key for the old gridlaser power.
+      if (d.key === 'gridlaser' || d.key === 'bomb') setArmedGridlaser(!!d.armed);
       if (d.key === 'laser') setArmedLaser(!!d.armed);
     };
 
@@ -188,15 +211,20 @@ export default function GameFooter() {
       const delta = d.delta | 0;
       if (delta === 0) return;
 
-      const cur = (powersRef.current[d.key] ?? 0) | 0;
-      const next: Powers = { ...powersRef.current, [d.key]: cur + delta };
+      const cur = getPowerCount(powersRef.current, d.key);
+      const nextVal = cur + delta;
+      const next: Powers = { ...powersRef.current, [d.key]: nextVal };
+
+      // Keep legacy alias in sync when granting gridlaser/bomb.
+      if (d.key === 'gridlaser') next.bomb = next.gridlaser;
+      if (d.key === 'bomb') next.gridlaser = next.bomb;
 
       powersRef.current = next;
       setPowers(next);
 
       if (!user) return;
 
-      updatePowers({ [d.key]: next[d.key] }, 'set').catch(() => {
+      updatePowers({ [d.key]: nextVal }, 'set').catch(() => {
         setPowers(powersRef.current);
       });
     };
@@ -220,12 +248,16 @@ export default function GameFooter() {
       if (amount <= 0) return;
 
       const key = d.key;
-
-      const cur = (powersRef.current[key] ?? 0) | 0;
+      const cur = getPowerCount(powersRef.current, key);
       const nextVal = Math.max(0, cur - amount);
       if (nextVal === cur) return;
 
       const next: Powers = { ...powersRef.current, [key]: nextVal };
+
+      // Keep legacy alias in sync when consuming gridlaser/bomb.
+      if (key === 'gridlaser') next.bomb = nextVal;
+      if (key === 'bomb') next.gridlaser = nextVal;
+
       powersRef.current = next;
       setPowers(next);
 
@@ -242,32 +274,34 @@ export default function GameFooter() {
 
   const onUsePower = useCallback(
     async (key: PowerKey) => {
-      const current = (powers[key] ?? 0) | 0;
+      const targetingKey = normalizeTargetingKey(key);
+
+      const current = getPowerCount(powers, key);
       if (current <= 0) {
         // If user tries to arm with 0, make sure it's off
-        if (key === 'bomb' || key === 'laser') disarmAllTargeting();
+        if (targetingKey) disarmAllTargeting();
         return;
       }
 
       /**
-       * Targeting powers (bomb + laser) = arm/disarm only.
+       * Targeting powers (gridlaser + laser) = arm/disarm only.
        * Inventory spend is applied by POWER_CONSUME_EVENT (engine ack).
        */
-      if (key === 'bomb') {
+      if (targetingKey === 'gridlaser') {
         if (armedLaser) {
           setArmedLaser(false);
           emitArmPower('laser', false);
         }
-        const nextArmed = !armedBomb;
-        setArmedBomb(nextArmed);
-        emitArmPower('bomb', nextArmed);
+        const nextArmed = !armedGridlaser;
+        setArmedGridlaser(nextArmed);
+        emitArmPower('gridlaser', nextArmed);
         return;
       }
 
-      if (key === 'laser') {
-        if (armedBomb) {
-          setArmedBomb(false);
-          emitArmPower('bomb', false);
+      if (targetingKey === 'laser') {
+        if (armedGridlaser) {
+          setArmedGridlaser(false);
+          emitArmPower('gridlaser', false);
         }
         const nextArmed = !armedLaser;
         setArmedLaser(nextArmed);
@@ -288,36 +322,48 @@ export default function GameFooter() {
 
       // Legacy behavior (until these powers are engine-owned)
       const prev = powers;
-      const next: Powers = { ...powers, [key]: current - 1 };
+      const nextVal = current - 1;
+      const next: Powers = { ...powers, [key]: nextVal };
       setPowers(next);
 
       if (!user) return;
 
       try {
-        await updatePowers({ [key]: next[key] }, 'set');
+        const nextVal = current - 1;
+        await updatePowers({ [key]: nextVal }, 'set');
       } catch {
         // rollback to render-state snapshot
         setPowers(prev);
       }
     },
-    [armedBomb, armedLaser, disarmAllTargeting, emitArmPower, e        const powerKey = footerIdToPowerKey(item.id);
+    [
+      armedGridlaser,
+      armedLaser,
+      disarmAllTargeting,
+      emitArmPower,
+      emitUsePower,
+      powers,
+      setPowers,
+      updatePowers,
+      user,
+    ],
+  );
 
-        const isBomb = powerKey === 'bomb';
-        const isLaser = powerKey === 'laser';
-        const isActive = (isBomb && armedBomb) || (isLaser && armedLaser);
+  const actions = useMemo<FooterActionItem[]>(() => {
+    return footerActions(noopOpenSettings, powers, onUsePower).filter((a) => a.id !== 'settings');
+  }, [powers, onUsePower]);
 
-        // Derive count/disabled from `powers` ONLY when this key exists in the current build.
-        // If `powers[powerKey]` is missing/undefined (type drift), fall back to footerActions' own count.
-        const rawCount = powerKey ? powers[powerKey] : undefined;
-        const powerCount = typeof rawCount === 'number' ? (rawCount | 0) : null;
-
-b';
-        const isLaser = item.id === 'laser';
-        const isActive = (isBomb && armedBomb) || (isLaser && armedLaser);
-
-        // Robust: derive count/disabled from `powers` for known power-ids (footerActions can drift).
+  return (
+    <div className="flex flex-nowrap justify-center gap-4 p-4 rounded-xl">
+      {actions.map((item) => {
+        // Robust: derive power identity from `item.id` (footerActions can drift / aliases).
         const powerKey = footerIdToPowerKey(item.id);
-        const powerCount = powerKey ? ((powers[powerKey] ?? 0) | 0) : null;
+
+        const isGridlaser = powerKey === 'gridlaser';
+        const isLaser = powerKey === 'laser';
+        const isActive = (isGridlaser && armedGridlaser) || (isLaser && armedLaser);
+
+        const powerCount = powerKey ? getPowerCount(powers, powerKey) : null;
 
         const counted = isCounted(item);
         const countToShow = powerCount != null ? powerCount : counted ? item.count : null;

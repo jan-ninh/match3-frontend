@@ -47,7 +47,8 @@ export type GridUIProps = {
   bombVfxMode: BombVfxMode;
 
   // SSOT for input visuals (drag/hover/selection, etc.)
-  vm: GridInputViewModel;
+  // NOTE: runtime wiring can still pass undefined; Grid must not hard-crash.
+  vm: GridInputViewModel | undefined;
 
   // derived
   inputLocked: boolean;
@@ -99,25 +100,14 @@ export function Grid({
   onDevResetBoard,
   onDevNextTilesPalette,
 }: GridUIProps) {
-  const {
-    cells,
-    pieceList,
-    selectionPos,
-    targetPos,
-    dragPieceId,
-    isDragging,
-    previewActive,
-    previewOtherPieceId,
-    previewAxisUI,
-    previewDirUI,
-    shakePieceId,
-    setDraggedEl,
-  } = vm;
+  const vmMissing = vm == null;
 
   const bomb = useBomb3x3Targeting({ width, height, swapMs, inputLocked });
   const laser = useLaserRowTargeting({ width, height, inputLocked });
 
   const effectiveInputLocked = inputLocked || bomb.bombArmed || laser.laserArmed;
+
+  const isDragging = vm?.isDragging ?? false;
 
   const cursorClass = useMemo(() => {
     if (effectiveInputLocked && showLockoutHints) return 'cursor-not-allowed';
@@ -172,6 +162,7 @@ export function Grid({
   };
 
   const isDev = import.meta.env.DEV;
+  const showVmMissingBanner = vmMissing && (import.meta.env.DEV || debugEnabled);
 
   const bombFxMode: BombVfxMode = import.meta.env.DEV && isDev && debugEnabled ? bombVfxMode : 'legacyShock';
 
@@ -203,6 +194,18 @@ export function Grid({
         {/* Laser Warning highlight (under cells/pieces, above bg) */}
         <LaserWarningOverlay warning={state.laserWarning} innerW={innerW} innerH={innerH} />
 
+        {showVmMissingBanner ? (
+          <div className="absolute inset-0 z-200 flex items-center justify-center pointer-events-none">
+            <div className="rounded-xl bg-black/75 px-4 py-3 text-center">
+              <div className="text-sm font-semibold text-red-300">Grid wiring error</div>
+              <div className="mt-1 text-[11px] text-white/70">
+                prop <span className="font-mono">vm</span> is missing. Check <span className="font-mono">GameContainer</span> /{' '}
+                <span className="font-mono">useGridInput</span> wiring.
+              </div>
+            </div>
+          </div>
+        ) : null}
+
         {/* DEV label for VFX toggle */}
         {import.meta.env.DEV && isDev && debugEnabled ? (
           <div className="absolute left-2 top-2 z-200 pointer-events-none select-none text-[10px] text-white/70">
@@ -216,43 +219,35 @@ export function Grid({
         {/* Laser Targeting (row highlight) */}
         <LaserRowOverlay armed={laser.laserArmed} row={laser.hoverRow} height={height} zIndex={46} />
 
-        <GridCellsLayer
-          width={width}
-          height={height}
-          cells={cells}
-          onCellPointerDown={onCellPointerDownEffective}
-          showDebugLabels={showDebugLabels}
-        />
+        {vmMissing ? null : (
+          <>
+            <GridCellsLayer width={width} height={height} cells={vm.cells} onCellPointerDown={onCellPointerDownEffective} showDebugLabels={showDebugLabels} />
 
-        <GridOverlaysLayer selectionPos={selectionPos} targetPos={targetPos} />
+            <GridOverlaysLayer selectionPos={vm.selectionPos} targetPos={vm.targetPos} />
 
-        <GridPiecesLayer
-          width={width}
-          pieces={pieceList}
-          dragPieceId={dragPieceId}
-          isDragging={isDragging}
-          phase={state.phase}
-          swapMs={swapMs}
-          previewActive={previewActive}
-          previewOtherPieceId={previewOtherPieceId}
-          previewAxis={previewAxisUI}
-          previewDir={previewDirUI}
-          shakePieceId={shakePieceId}
-          showDebugLabels={showDebugLabels}
-          setDraggedEl={setDraggedEl}
-          onPointerMove={onPointerMoveEffective}
-          onPointerUp={onPointerUpEffective}
-          onPointerCancel={onPointerCancelEffective}
-        />
+            <GridPiecesLayer
+              width={width}
+              pieces={vm.pieceList}
+              dragPieceId={vm.dragPieceId}
+              isDragging={vm.isDragging}
+              phase={state.phase}
+              swapMs={swapMs}
+              previewActive={vm.previewActive}
+              previewOtherPieceId={vm.previewOtherPieceId}
+              previewAxis={vm.previewAxisUI}
+              previewDir={vm.previewDirUI}
+              shakePieceId={vm.shakePieceId}
+              showDebugLabels={showDebugLabels}
+              setDraggedEl={vm.setDraggedEl}
+              onPointerMove={onPointerMoveEffective}
+              onPointerUp={onPointerUpEffective}
+              onPointerCancel={onPointerCancelEffective}
+            />
+          </>
+        )}
 
         {/* Bomb detonation FX (after ACK) */}
-        <BombExplosionFxLayer
-          bursts={bomb.bombBursts}
-          width={width}
-          reducedMotionHint={swapMs === 0}
-          zIndex={88}
-          mode={bombFxMode}
-        />
+        <BombExplosionFxLayer bursts={bomb.bombBursts} width={width} reducedMotionHint={swapMs === 0} zIndex={88} mode={bombFxMode} />
       </GridShell>
     </>
   );

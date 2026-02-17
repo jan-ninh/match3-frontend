@@ -8,10 +8,10 @@ import { setPhase } from '../../../phaseState';
 import { stabilizeBoard } from '../../../cascade/stabilizeBoard';
 import { applyItemEffectAt, getItemEffectPreSteps, getItemEffectPreviewIndices } from '../../../itemeffects';
 
-function powerKeyForItem(key: UseItemAtAction['key']): 'bomb' | 'laser' | 'extraShuffle' {
+function powerKeyForItem(key: UseItemAtAction['key']): 'gridlaser' | 'laser' | 'extraShuffle' {
   switch (key) {
     case 'bomb3x3':
-      return 'bomb';
+      return 'gridlaser';
     case 'laserRow':
       return 'laser';
     default: {
