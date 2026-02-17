@@ -167,14 +167,8 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
             bottom: 16,
             right: 16,
             zIndex: 999999,
-            background: '#fff',
-            color: '#000',
-            padding: '8px 12px',
-            border: '1px solid #000',
           }}
-        >
-          Enable Sound
-        </button>
+        ></button>
       )}
     </AudioContext.Provider>
   );
