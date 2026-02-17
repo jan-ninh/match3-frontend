@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { levelTheme as T } from './levelTheme';
+import { useAudio } from '@/context/AudioContext';
 
 type Props = {
   level: number;
@@ -8,6 +9,7 @@ type Props = {
 };
 
 export default function LevelCard({ level, isLocked, onClick }: Props) {
+  const { playClickSound } = useAudio();
   const MotionButton = motion.button;
 
   const tintBase = isLocked ? 'bg-pink-400/10' : 'bg-cyan-300/10';
@@ -16,17 +18,23 @@ export default function LevelCard({ level, isLocked, onClick }: Props) {
   const ringBase = isLocked ? 'ring-pink-300/25' : 'ring-cyan-200/25';
   const ringHover = isLocked ? 'group-hover:ring-pink-300/40' : 'group-hover:ring-cyan-200/45';
 
+  const handleClick = () => {
+    if (isLocked) return; // ✅ locked => هیچ کاری نکن
+    playClickSound(); // ✅ مستقل از musicOn
+    onClick(); // ✅ فقط برای unlocked
+  };
+
   return (
     <MotionButton
       type="button"
       disabled={isLocked}
-      onClick={onClick}
+      onClick={handleClick}
       className={`${T.button.base} ${T.shape.clip} ${isLocked ? T.button.locked : T.button.active}`}
       whileHover={isLocked ? undefined : { scale: 1.04, y: -2 }}
       whileTap={isLocked ? undefined : { scale: 0.99, y: 0 }}
       transition={{ type: 'spring', stiffness: 340, damping: 22 }}
     >
-      {/* octagon red border as SVG */}
+      {/* octagon border as SVG */}
       <svg className="pointer-events-none absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
         <polygon
           points="25,6 75,6 96,50 75,94 25,94 4,50"
@@ -38,33 +46,16 @@ export default function LevelCard({ level, isLocked, onClick }: Props) {
         />
       </svg>
 
-      {/* subtle ring (not a border) */}
-      <span
-        aria-hidden="true"
-        className={`
-          pointer-events-none absolute inset-0 ${T.shape.clip}
-          ring-1 ${ringBase} ${ringHover}
-        `}
-      />
+      {/* subtle ring */}
+      <span aria-hidden="true" className={`pointer-events-none absolute inset-0 ${T.shape.clip} ring-1 ${ringBase} ${ringHover}`} />
 
-      {/* ✅ single tint layer (cyan for active, pink for locked) */}
-      <span
-        aria-hidden="true"
-        className={`
-          pointer-events-none absolute inset-0 ${T.shape.clip}
-          ${tintBase} ${tintHover}
-          transition-colors duration-200
-        `}
-      />
+      {/* tint layer */}
+      <span aria-hidden="true" className={`pointer-events-none absolute inset-0 ${T.shape.clip} ${tintBase} ${tintHover} transition-colors duration-200`} />
 
-      {/* optional: tiny top gloss to make gradient feel “alive” */}
+      {/* top gloss */}
       <span
         aria-hidden="true"
-        className={`
-          pointer-events-none absolute inset-0 ${T.shape.clip}
-          opacity-30
-          bg-[linear-gradient(to_bottom,rgba(255,255,255,0.18),transparent_55%)]
-        `}
+        className={`pointer-events-none absolute inset-0 ${T.shape.clip} opacity-30 bg-[linear-gradient(to_bottom,rgba(255,255,255,0.18),transparent_55%)]`}
       />
 
       <div className="relative z-10 flex flex-col items-center justify-center gap-1">
