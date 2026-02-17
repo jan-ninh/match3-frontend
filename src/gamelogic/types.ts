@@ -260,7 +260,7 @@ export type HardBoundaryKind = 'initLevel' | 'resetBoard';
 // Item Effect Keys (for turnCommitArmed payload)
 // ─────────────────────────────────────────────
 
-export type ItemEffectKeyForEvent = 'bomb3x3' | 'laserRow';
+export type ItemEffectKeyForEvent = 'bomb3x3';
 
 // ─────────────────────────────────────────────
 // Engine Events
@@ -317,10 +317,6 @@ export type EngineEvent =
   // Level 05+: Signal Network events
   | { type: 'cellCharged'; index: number }
   | { type: 'signalLinked' }
-  // Item acceptance (observability; not a consume ack)
-  | { type: 'itemAccepted'; key: ItemEffectKeyForEvent; target: { x: number; y: number }; requestId: number }
-  // Cascade step events (explicit steps, not inferred)
-  | { type: 'cascadeStep'; kind: 'itemLaserRowClear'; row: number; indices: number[]; cleared: number }
   // Power/Item consumption ack (UI consumes only after this)
   | { type: 'powerUsed'; key: 'bomb' | 'laser' | 'extraShuffle'; requestId: number }
   // ─── Pre-Falling Guardrails: Observability events ───
@@ -421,4 +417,11 @@ export type EngineState = {
 
   // commit marker for "apply turn-end when we reach idle"
   pendingTurnCommit: PendingTurnCommit | null;
+
+  /**
+   * When set, cascade effects (objectives / level mechanics) are disabled for the current resolve chain.
+   * Used by items like laserRow to ensure item-driven clears do not progress objectives.
+   * Cleared when we reach idle.
+   */
+  cascadeEffectPolicy?: 'noObjectives';
 };

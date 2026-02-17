@@ -32,6 +32,7 @@ export function resolveOnce(state: EngineState, chargedIds: Set<number> = new Se
   let s = state;
   const events: EngineEvent[] = [];
 
+  const effectsEnabled = state.cascadeEffectPolicy !== 'noObjectives';
   const effects = getCascadeEffectsForState(s);
   let ctx = { chargedIds };
 
@@ -43,38 +44,23 @@ export function resolveOnce(state: EngineState, chargedIds: Set<number> = new Se
   const preSteps = opts?.preSteps ?? [];
   for (const step of preSteps) {
     if (step.kind === 'itemLaserRowClear') {
-      const m: MatchDetectionLike = { clearIndices: step.indices, groups: 0 };
       const clearedCount = countClearablePieces(s, step.indices);
 
-      const pre = runPreClearEffects(effects, s, m, ctx, events);
-      s = pre.state;
-      ctx = pre.ctx;
-
+      // NOTE: Item-driven clear must not progress objectives/level mechanics.
+      // Therefore: do NOT run cascade effects here (even if effectsEnabled === true).
       events.push({ type: 'phase', phase: 'clear' });
       s = clearCellsAndPieces(s, step.indices);
       if (clearedCount > 0) events.push({ type: 'cleared', count: clearedCount });
       events.push({ type: 'cascadeStep', kind: 'itemLaserRowClear', row: step.row, indices: step.indices, cleared: clearedCount });
 
-      const postClear = runPostClearEffects(effects, s, ctx, events);
-      s = postClear.state;
-      ctx = postClear.ctx;
-
       events.push({ type: 'phase', phase: 'gravity' });
       s = applyGravity(s);
       events.push({ type: 'gravity' });
-
-      const postGravity = runPostGravityEffects(effects, s, ctx, events);
-      s = postGravity.state;
-      ctx = postGravity.ctx;
 
       events.push({ type: 'phase', phase: 'refill' });
       const ref = applyRefill(s);
       s = ref.state;
       events.push({ type: 'refilled', count: ref.spawned });
-
-      const postRefill = runPostRefillEffects(effects, s, ctx, events);
-      s = postRefill.state;
-      ctx = postRefill.ctx;
 
       events.push({ type: 'phase', phase: 'settle' });
 
@@ -101,34 +87,42 @@ export function resolveOnce(state: EngineState, chargedIds: Set<number> = new Se
   events.push({ type: 'matchesFound', clears: m.clearIndices.length, groups: m.groups });
 
   // pre-clear effects (level mechanics)
-  const pre = runPreClearEffects(effects, s, m, ctx, events);
-  s = pre.state;
-  ctx = pre.ctx;
+  if (effectsEnabled) {
+    const pre = runPreClearEffects(effects, s, m, ctx, events);
+    s = pre.state;
+    ctx = pre.ctx;
+  }
 
   events.push({ type: 'phase', phase: 'clear' });
   s = clearCellsAndPieces(s, m.clearIndices);
   events.push({ type: 'cleared', count: m.clearIndices.length });
 
-  const postClear = runPostClearEffects(effects, s, ctx, events);
-  s = postClear.state;
-  ctx = postClear.ctx;
+  if (effectsEnabled) {
+    const postClear = runPostClearEffects(effects, s, ctx, events);
+    s = postClear.state;
+    ctx = postClear.ctx;
+  }
 
   events.push({ type: 'phase', phase: 'gravity' });
   s = applyGravity(s);
   events.push({ type: 'gravity' });
 
-  const postGravity = runPostGravityEffects(effects, s, ctx, events);
-  s = postGravity.state;
-  ctx = postGravity.ctx;
+  if (effectsEnabled) {
+    const postGravity = runPostGravityEffects(effects, s, ctx, events);
+    s = postGravity.state;
+    ctx = postGravity.ctx;
+  }
 
   events.push({ type: 'phase', phase: 'refill' });
   const ref = applyRefill(s);
   s = ref.state;
   events.push({ type: 'refilled', count: ref.spawned });
 
-  const postRefill = runPostRefillEffects(effects, s, ctx, events);
-  s = postRefill.state;
-  ctx = postRefill.ctx;
+  if (effectsEnabled) {
+    const postRefill = runPostRefillEffects(effects, s, ctx, events);
+    s = postRefill.state;
+    ctx = postRefill.ctx;
+  }
 
   events.push({ type: 'phase', phase: 'settle' });
 

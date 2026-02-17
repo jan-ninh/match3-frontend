@@ -164,24 +164,26 @@ export function useMatch3Engine({ initialLevelId = 1 }: Args) {
     return () => window.removeEventListener(POWER_USE_EVENT, onUse as EventListener);
   }, [allocPowerRequestId]);
 
-  // Power → Engine bridge (Bomb targeting confirm)
+  // Power → Engine bridge (targeted confirm: Bomb + Laser)
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
     const onUseAt = (e: Event) => {
       const ce = e as CustomEvent<PowerUseAtDetail>;
       const d = ce.detail;
-      if (!d || d.key !== 'bomb') return;
+      if (!d) return;
+
+      // PowerKey (UI) -> ItemEffectKey (Engine)
+      if (d.key !== 'bomb' && d.key !== 'laser') return;
 
       const t = d.target;
       if (!t || typeof t.x !== 'number' || typeof t.y !== 'number') return;
 
       const requestId = allocPowerRequestId(d.requestId);
 
-      // Always route legacy/modern bomb usage through useItemAt
       dispatch({
         type: 'useItemAt',
-        key: 'bomb3x3',
+        key: d.key === 'bomb' ? 'bomb3x3' : 'laserRow',
         target: { x: t.x | 0, y: t.y | 0 },
         requestId,
         nowMs: performance.now(),

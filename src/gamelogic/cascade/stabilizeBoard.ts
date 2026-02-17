@@ -36,52 +36,34 @@ function countClearablePieces(state: EngineState, indices: number[]): number {
 function applyPreSteps(
   s0: EngineState,
   preSteps: CascadePreStep[],
-  ctx0: { chargedIds: Set<number> },
   events: EngineEvent[],
-  effects: ReturnType<typeof getCascadeEffectsForState>,
   toPhase: (phase: EnginePhase) => void,
   devAssert: (tag: string) => void,
-): { state: EngineState; ctx: { chargedIds: Set<number> } } {
+): EngineState {
   let s = s0;
-  let ctx = ctx0;
 
   for (const step of preSteps) {
     if (step.kind === 'itemLaserRowClear') {
-      const m: MatchDetectionLike = { clearIndices: step.indices, groups: 0 };
       const clearedCount = countClearablePieces(s, step.indices);
 
-      const pre = runPreClearEffects(effects, s, m, ctx, events);
-      s = pre.state;
-      ctx = pre.ctx;
-
+      // NOTE: Item-driven clear must not progress objectives/level mechanics.
+      // Therefore: do NOT run cascade effects here (even if enabled for normal matches).
       toPhase('clear');
       s = clearCellsAndPieces(s, step.indices);
       devAssert('preStep:itemLaserRowClear:clearCellsAndPieces');
       if (clearedCount > 0) events.push({ type: 'cleared', count: clearedCount });
       events.push({ type: 'cascadeStep', kind: 'itemLaserRowClear', row: step.row, indices: step.indices, cleared: clearedCount });
 
-      const postClear = runPostClearEffects(effects, s, ctx, events);
-      s = postClear.state;
-      ctx = postClear.ctx;
-
       toPhase('gravity');
       s = applyGravity(s);
       devAssert('preStep:itemLaserRowClear:applyGravity');
       events.push({ type: 'gravity' });
-
-      const postGravity = runPostGravityEffects(effects, s, ctx, events);
-      s = postGravity.state;
-      ctx = postGravity.ctx;
 
       toPhase('refill');
       const ref = applyRefill(s);
       s = ref.state;
       devAssert('preStep:itemLaserRowClear:applyRefill');
       events.push({ type: 'refilled', count: ref.spawned });
-
-      const postRefill = runPostRefillEffects(effects, s, ctx, events);
-      s = postRefill.state;
-      ctx = postRefill.ctx;
 
       toPhase('settle');
       continue;
@@ -91,7 +73,7 @@ function applyPreSteps(
     void _exhaustive;
   }
 
-  return { state: s, ctx };
+  return s;
 }
 
 export function stabilizeBoard(state: EngineState, opts?: StabilizeOpts): { state: EngineState; events: EngineEvent[] } {
@@ -103,6 +85,7 @@ export function stabilizeBoard(state: EngineState, opts?: StabilizeOpts): { stat
   let s: EngineState = state;
   const events: EngineEvent[] = [];
 
+  const effectsEnabled = state.cascadeEffectPolicy !== 'noObjectives';
   const effects = getCascadeEffectsForState(s);
 
   // “once per move” charged-set (reset on shuffle)
@@ -131,9 +114,7 @@ export function stabilizeBoard(state: EngineState, opts?: StabilizeOpts): { stat
   // First-class preSteps (e.g. item clears) BEFORE detect
   // ─────────────────────────────────────────────
   if (preSteps.length > 0) {
-    const applied = applyPreSteps(s, preSteps, ctx, events, effects, toPhase, devAssert);
-    s = applied.state;
-    ctx = applied.ctx;
+    s = applyPreSteps(s, preSteps, events, toPhase, devAssert);
   }
 
   const resolveLoop = (label: string) => {
@@ -144,9 +125,11 @@ export function stabilizeBoard(state: EngineState, opts?: StabilizeOpts): { stat
 
       events.push({ type: 'matchesFound', clears: m.clearIndices.length, groups: m.groups });
 
-      const pre = runPreClearEffects(effects, s, m, ctx, events);
-      s = pre.state;
-      ctx = pre.ctx;
+      if (effectsEnabled) {
+        const pre = runPreClearEffects(effects, s, m, ctx, events);
+        s = pre.state;
+        ctx = pre.ctx;
+      }
 
       toPhase('mark');
       // (future) spawnPlan/specials go here
@@ -156,18 +139,22 @@ export function stabilizeBoard(state: EngineState, opts?: StabilizeOpts): { stat
       devAssert(`${label}:clearCellsAndPieces`);
       events.push({ type: 'cleared', count: m.clearIndices.length });
 
-      const postClear = runPostClearEffects(effects, s, ctx, events);
-      s = postClear.state;
-      ctx = postClear.ctx;
+      if (effectsEnabled) {
+        const postClear = runPostClearEffects(effects, s, ctx, events);
+        s = postClear.state;
+        ctx = postClear.ctx;
+      }
 
       toPhase('gravity');
       s = applyGravity(s);
       devAssert(`${label}:applyGravity`);
       events.push({ type: 'gravity' });
 
-      const postGravity = runPostGravityEffects(effects, s, ctx, events);
-      s = postGravity.state;
-      ctx = postGravity.ctx;
+      if (effectsEnabled) {
+        const postGravity = runPostGravityEffects(effects, s, ctx, events);
+        s = postGravity.state;
+        ctx = postGravity.ctx;
+      }
 
       toPhase('refill');
       const ref = applyRefill(s);
@@ -175,9 +162,11 @@ export function stabilizeBoard(state: EngineState, opts?: StabilizeOpts): { stat
       devAssert(`${label}:applyRefill`);
       events.push({ type: 'refilled', count: ref.spawned });
 
-      const postRefill = runPostRefillEffects(effects, s, ctx, events);
-      s = postRefill.state;
-      ctx = postRefill.ctx;
+      if (effectsEnabled) {
+        const postRefill = runPostRefillEffects(effects, s, ctx, events);
+        s = postRefill.state;
+        ctx = postRefill.ctx;
+      }
 
       toPhase('settle');
       // (instant settle for now)

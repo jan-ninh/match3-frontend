@@ -33,10 +33,13 @@ export function handleUseItemAt(state: EngineState, action: UseItemAtAction): En
 
   const events: EngineEvent[] = [];
 
+  const isLaser = action.key === 'laserRow';
+
   // Accept => arm turn commit (engine-owned)
   let s: EngineState = {
     ...state,
     pendingTurnCommit: { kind: 'item', spendMove: false },
+    cascadeEffectPolicy: isLaser ? 'noObjectives' : undefined,
   };
 
   // Observability: instrument every pendingTurnCommit arming
