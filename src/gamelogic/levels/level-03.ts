@@ -1,4 +1,18 @@
 // src/gamelogic/levels/level-03.ts
+/**
+ * Level 03 — "TIBERIUM RUN"
+ *
+ * Fantasy/Theme:
+ * - Each match "infects" the board with a transparent tiberium trace (charged floor).
+ * - The green trace is purely a visual overlay; gameplay remains normal match-3.
+ *
+ * Win: Orthogonal path of charged cells connects Point A (left edge) to Point B (right edge).
+ * Lose: Moves = 0
+ *
+ * Skill Focus:
+ * - Route planning: build a continuous corridor, not just matches anywhere
+ * - Shaping cascades: set up multi-charge segments per move
+ */
 import type { LevelDefinition, PieceType } from '../types';
 import { deriveSeed } from '../rng';
 
@@ -7,29 +21,6 @@ type Args = {
   allowedTypes: PieceType[];
 };
 
-/**
- * Level 03 — FALSE IDENTITY
- *
- * Fantasy/Theme:
- * - "Falsche Identität": Schleuse ID-Keycards ins System ein.
- * - Scanner-Terminals müssen erst "geladen" werden (Charge via adjacent Matches).
- * - Sieg = Setup → Öffnen → Zustellen (nicht kaputtkloppen).
- *
- * Win: beide Terminals haben je 1 Keycard akzeptiert (verified: 2/2)
- * Lose: Moves = 0
- *
- * Gameplay:
- * - 2 Terminals am unteren Rand mit unterschiedlichen ChargeColors
- * - 2 Keycards oben (müssen nach unten zu den Terminals gebracht werden)
- * - Charge Terminal: Match adjacent + Match enthält ChargeColor
- * - Pro Terminal max. +1 Charge pro Zug
- * - Delivery: Keycard in offenes Terminal → verified
- *
- * Skill-Fokus:
- * - Setup-Entscheidung: erst Terminal öffnen vs. erst Keycard positionieren
- * - Board-Lesen: Matches so legen, dass sie adjacent zum Terminal sind UND die richtige Farbe enthalten
- * - Micro-Routing: Keycard sinnvoll "parken", ohne Charge-Aufbau zu blockieren
- */
 export function makeLevel03({ baseSeed, allowedTypes }: Args): LevelDefinition {
   const levelId = 3;
 
@@ -37,78 +28,63 @@ export function makeLevel03({ baseSeed, allowedTypes }: Args): LevelDefinition {
   const height = 8;
 
   // ─────────────────────────────────────────────
-  // Terminal-Positionen: unterer Rand
+  // Point A & Point B (Signal Source & Target)
   // ─────────────────────────────────────────────
-  // Terminal A: (2,7) = index 58, ChargeColor: blue
-  // Terminal B: (5,7) = index 61, ChargeColor: green
-  const terminalNodes = [
-    {
-      index: 2 + 7 * width, // (2,7) = 58
-      id: 0,
-      requiredCharge: 2,
-      chargeColor: 'blue' as PieceType,
-    },
-    {
-      index: 5 + 7 * width, // (5,7) = 61
-      id: 1,
-      requiredCharge: 2,
-      chargeColor: 'green' as PieceType,
-    },
-  ];
-
-  // ─────────────────────────────────────────────
-  // Keycard-Positionen: oben
-  // ─────────────────────────────────────────────
-  // Keycard 1: (2,1) = index 10
-  // Keycard 2: (5,1) = index 13
-  const keycardNodes = [
-    { index: 2 + 1 * width }, // (2,1) = 10
-    { index: 5 + 1 * width }, // (5,1) = 13
-  ];
+  // A (left edge): (0,6) = index 48
+  // B (right edge): (7,1) = index 15
+  const signalSourceNodes = [{ index: 0 + 6 * width, id: 0 }];
+  const signalTargetNodes = [{ index: 7 + 1 * width, id: 0 }];
 
   // ─────────────────────────────────────────────
   // Board Geometry
   // ─────────────────────────────────────────────
-  // Keine zusätzlich geblockten Zellen
-  // (Optional für Harder Mode: 2×2 Ecke bottom-right blocken)
-  const blockedIndices: number[] = [];
+  // Central 2×2 blocked "crater" to force a non-trivial route.
+  // (3,3), (4,3), (3,4), (4,4) = indices 27, 28, 35, 36
+  const blockedIndices = [
+    3 + 3 * width, // 27
+    4 + 3 * width, // 28
+    3 + 4 * width, // 35
+    4 + 4 * width, // 36
+  ];
 
   // ─────────────────────────────────────────────
   // Balancing
   // ─────────────────────────────────────────────
-  // Default: 14 Moves (moderate difficulty)
-  // Leichter: 15-16 Moves oder requiredCharge: 1
-  // Härter: 12-13 Moves oder requiredCharge: 3
-  const moves = 14;
+  // Target feel: exciting, but not overly strict.
+  // - 12 moves gives room for routing + some variance from cascades.
+  const moves = 12;
 
   const seed = deriveSeed(baseSeed, levelId);
-
-  // ─────────────────────────────────────────────
-  // Spawnable Types
-  // ─────────────────────────────────────────────
-  // Filter 'keycard' aus allowedTypes für Refill
-  // Keycards werden NIE random gespawnt, nur im Level-Startstate platziert
-  const spawnableTypes = allowedTypes.filter((t) => t !== 'keycard');
 
   return {
     id: levelId,
     width,
     height,
     moves,
-    allowedTypes: spawnableTypes,
+    allowedTypes,
     blockedIndices,
 
-    // Level 01 mechanics (nicht verwendet in L03)
+    // No Level 01 mechanics
     firewallNodes: [],
     gateIndices: [],
 
-    // Level 02 mechanics (nicht verwendet in L03)
+    // No Level 02 mechanics
     leakNodes: [],
 
-    // Level 03 mechanics
-    terminalNodes,
-    keycardNodes,
+    // No Level 03 terminal/keycard mechanics (this level reuses the slot)
+    terminalNodes: [],
+    keycardNodes: [],
+
+    // No Level 04 mechanics
+    objectiveTerminalNodes: [],
+    sweepEnabled: false,
 
     baseSeed: seed,
+
+    // ─────────────────────────────────────────────
+    // Signal Network (A -> B)
+    // ─────────────────────────────────────────────
+    signalSourceNodes,
+    signalTargetNodes,
   };
 }

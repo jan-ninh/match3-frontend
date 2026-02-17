@@ -1,4 +1,3 @@
-// src/features/grid/ui/cells/cellViewModel.ts
 import type { Cell, PieceType } from '@/gamelogic';
 import { xyOf } from '@/gamelogic';
 
@@ -85,6 +84,29 @@ export type ObjectiveTerminalCellVM = {
   requiredCharge: number;
 };
 
+export type ChargedCellVM = {
+  kind: 'chargedCell';
+  index: number;
+  x: number;
+  y: number;
+};
+
+export type SignalSourceCellVM = {
+  kind: 'signalSource';
+  id: number;
+  index: number;
+  x: number;
+  y: number;
+};
+
+export type SignalTargetCellVM = {
+  kind: 'signalTarget';
+  id: number;
+  index: number;
+  x: number;
+  y: number;
+};
+
 export type BlockedPlainCellVM = {
   kind: 'blockedPlain';
   index: number;
@@ -103,11 +125,20 @@ export type CellVM =
   | SealKitCellVM
   | TerminalCellVM
   | ObjectiveTerminalCellVM
+  | ChargedCellVM
+  | SignalSourceCellVM
+  | SignalTargetCellVM
   | BlockedPlainCellVM;
 
 export function buildCellViewModel(cell: Cell, index: number, width: number): CellVM {
   const { x, y } = xyOf(index, width);
   const obs = cell.obstacle;
+
+  if (obs?.kind === 'chargedCell') return { kind: 'chargedCell', index, x, y };
+
+  if (obs?.kind === 'signalSource') return { kind: 'signalSource', id: obs.id, index, x, y };
+
+  if (obs?.kind === 'signalTarget') return { kind: 'signalTarget', id: obs.id, index, x, y };
 
   if (obs?.kind === 'gate') return { kind: 'gate', index, x, y, open: obs.open };
 

@@ -1,19 +1,14 @@
 // src/features/devtools-host/ui/GameContainer.tsx
 import type { RefObject } from 'react';
 import { useCallback, useEffect, useReducer } from 'react';
-
 import type { EngineState } from '@/gamelogic';
-
 import { useCoreSfxWarmup, useEngineMatchObjectiveSfx } from '@/features/audio';
 import { Grid } from '@/features/grid';
 import type { BombTarget } from '@/features/grid/ui/bomb/typesBomb';
-
 import { useHudInputFromState } from '@/features/devtools-host/lib/useHudInputFromState';
-
 // 🔥 tiles are module-level state -> must force rerender when they change
 import { preloadTiles, setTilesetLevel } from '@/features/grid/ui/tiles';
 import { preloadSpecialTiles, setSpecialTilesetLevel } from '@/features/grid/ui/tilesSpecial';
-
 import { GameStage } from './GameStage';
 import GameplayHud from './GameplayHud';
 

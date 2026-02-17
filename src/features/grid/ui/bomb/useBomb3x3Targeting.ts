@@ -170,7 +170,7 @@ export function useBomb3x3Targeting({
         pendingFxRef.current.delete(requestId);
 
         // SFX: best-effort (file may be missing during setup)
-        playSfx('bombExplosion', { volume: 0.9 });
+        playSfx('bombExplosion', { volume: 1 });
 
         const burst: BombExplosionBurst = {
           id: requestId,

@@ -1,6 +1,9 @@
-// src/features/grid/ui/cells/renderers/CellOverlayRenderer.tsx
 import type { CellVM } from '../cellViewModel';
 import type { ObstacleSpriteStyles } from '../sprites/getObstacleSpriteStyles';
+
+import { ChargedCellOverlay } from './ChargedCellOverlay';
+import { SignalSourceOverlay } from './SignalSourceOverlay';
+import { SignalTargetOverlay } from './SignalTargetOverlay';
 
 import { GateOverlay } from './GateOverlay';
 import { SpikeOverlay } from './SpikeOverlay';
@@ -20,6 +23,15 @@ type Props = {
 
 export function CellOverlayRenderer({ vm, sprites }: Props) {
   switch (vm.kind) {
+    case 'chargedCell':
+      return <ChargedCellOverlay />;
+
+    case 'signalSource':
+      return <SignalSourceOverlay id={vm.id} />;
+
+    case 'signalTarget':
+      return <SignalTargetOverlay id={vm.id} />;
+
     case 'gate':
       return <GateOverlay open={vm.open} />;
 

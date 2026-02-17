@@ -1,9 +1,9 @@
 // src/gamelogic/board/signal/signalPathCheck.ts
 /**
- * Level 05: Signal Network - BFS path check from Source to Target
+ * Signal Network — BFS path check from Source to Target
  *
  * Win condition: orthogonal path of charged cells connects
- * any Source neighbor to any Target neighbor
+ * any Source neighbor to any Target neighbor.
  */
 import type { Cell, EngineState } from '../../types';
 import { getOrthogonalNeighbors } from '../math/neighbors';

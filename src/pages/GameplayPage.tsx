@@ -1,4 +1,6 @@
 // src/pages/GameplayPage.tsx
+// only Composition Root (Layout + Wiring)
+// no "in-game UI"
 import { GameFooter } from '@/components';
 import { DevtoolsHost } from '@/features/devtools-host';
 

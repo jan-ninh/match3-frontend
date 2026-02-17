@@ -47,7 +47,7 @@ export default function MainLayout() {
         </div>{' '}
         <div id="dev-left-lane" className="w-[min(520px,33vw)] max-w-full flex justify-end px-6 pointer-events-auto" style={{ paddingTop: '20px' }} />
         {/* STAGE HOST */}
-        <div className="absolute inset-0 z-10 flex items-center justify-center p-4 overflow-hidden pointer-events-none">
+        <div className="absolute inset-0 z-10 flex items-center justify-center p-4 overflow-hidden pointer-events-none ">
           <div
             id="app-stage"
             className={[
@@ -65,7 +65,7 @@ export default function MainLayout() {
           >
             {/* subtle dim for UI readability */}
             <div className="absolute inset-0 bg-black/15 pointer-events-none" />
-            <div className="relative z-10 h-full min-h-0 overflow-y-auto">
+            <div className="relative z-10 h-full min-h-0 overflow-y-auto ">
               <Outlet />
             </div>
           </div>

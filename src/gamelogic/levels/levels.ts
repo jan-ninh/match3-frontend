@@ -47,13 +47,13 @@ export function getLevelDefinition(levelId: number): LevelDefinition {
     // Level 2: PATCH THE HOLE (Leaks + Contamination)
     case 2:
       return makeLevel02({ baseSeed: BASE_SEED, allowedTypes: DEFAULT_TYPES });
-    // Level 3: FALSE IDENTITY (Terminals + Keycards)
+    // Level 3: TIBERIUM RUN (Build green path A -> B)
     case 3:
       return makeLevel03({ baseSeed: BASE_SEED, allowedTypes: DEFAULT_TYPES });
     // Level 4: FIREWALL SWEEP (Boss - Laser + Objective Terminals)
     case 4:
       return makeLevel04({ baseSeed: BASE_SEED, allowedTypes: DEFAULT_TYPES });
-    // Level 5: SIGNAL HIJACK (Build conductive path from Source to Target)
+    // Level 5: FALSE IDENTITY (Terminals + Keycards)
     case 5:
       return makeLevel05({ baseSeed: BASE_SEED, allowedTypes: DEFAULT_TYPES });
     case 6:
