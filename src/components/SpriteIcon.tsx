@@ -24,8 +24,8 @@ export default function SpriteIcon({
   name,
   spriteJsonUrl = '/icons/Navbar-icons.json',
   spriteImageUrl = '/icons/Navbar-icons.png',
-  width = 64,
-  height = 64,
+  width = 48,
+  height = 48,
   className = '',
   alt = '',
 }: Props) {

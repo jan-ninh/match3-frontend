@@ -15,7 +15,7 @@ createRoot(document.getElementById('root')!).render(
         <AuthProvider>
           <PowerProvider>
             <App />
-            <CyberToaster position="bottom-left" />
+            <CyberToaster position="bottom-center" />
           </PowerProvider>
         </AuthProvider>
       </AudioProvider>
