@@ -1,4 +1,5 @@
 import type { ButtonHTMLAttributes } from 'react';
+import { useAudio } from '@/context/AudioContext';
 
 type ButtonSize = 'xl' | 'md' | 'sm';
 
@@ -13,11 +14,22 @@ const sizeMap: Record<ButtonSize, string> = {
   sm: 'w-auto px-8 h-10 text-sm tracking-wide',
 };
 
-export default function CyberButton({ label, className = '', type = 'button', size = 'xl', ...props }: ButtonProps) {
+export default function CyberButton({ label, className = '', type = 'button', size = 'xl', onClick, ...props }: ButtonProps) {
+  const { playClickSound } = useAudio();
   const hexClip = 'polygon(20% 0%, 80% 0%, 92% 50%, 80% 100%, 20% 100%, 8% 50%)';
 
+  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    playClickSound();
+    onClick?.(e);
+  };
+
   return (
-    <button type={type} className={`group relative transition-transform duration-500 hover:scale-105 ${sizeMap[size]} ${className}`} {...props}>
+    <button
+      type={type}
+      className={`group relative transition-transform duration-500 hover:scale-105 ${sizeMap[size]} ${className}`}
+      onClick={handleClick}
+      {...props}
+    >
       {/* Hex Background */}
       <div
         aria-hidden
