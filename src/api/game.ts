@@ -6,11 +6,18 @@ export type GameStatus = {
   powers: Powers;
 };
 
+export type StartStageResponse = {
+  message: string;
+  stage: string;
+  boosters: Powers;
+  activeStageRun?: unknown;
+};
+
 /**
  * Start a stage with optional selected boosters
  */
 export async function apiStartStage(userId: string, stageNumber: number, stageSelectedBoosters?: Partial<Powers>) {
-  return request(`/api/game/start/${userId}/${stageNumber}`, {
+  return request<StartStageResponse>(`/api/game/start/${userId}/${stageNumber}`, {
     method: 'POST',
     body: JSON.stringify({ stageSelectedBoosters }),
     headers: { 'Content-Type': 'application/json' },

@@ -1,10 +1,8 @@
 import Modal from '@/components/Modal';
-import { usePowers } from '@/context/PowerContext';
 import Lottie from 'lottie-react';
 import confettiAnimation from '@/assets/fx/confetti on transparent background.json';
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import type { PowerKey, Powers } from '@/types';
 import type { PowerId } from './overlayContext';
 import { useAudio } from '@/context/AudioContext';
 type Props = {
@@ -16,12 +14,7 @@ type Props = {
 
 const powerIds: PowerId[] = ['bomb', 'laser', 'extraShuffle'];
 
-function getChoiceBonus(id: PowerId): number {
-  return id === 'bomb' ? 2 : 1;
-}
-
 export default function PowerChoiceModal({ open, title, onClose, onChoose }: Props) {
-  const { powers, setPowers } = usePowers();
   const [showConfetti, setShowConfetti] = useState(false);
   const { playWinSound } = useAudio();
   // Reset confetti
@@ -36,21 +29,10 @@ export default function PowerChoiceModal({ open, title, onClose, onChoose }: Pro
   }, [showConfetti]);
 
   const onPick = (id: PowerId) => {
-    // instant local reward
-    const key = id as unknown as PowerKey;
-    const bonus = getChoiceBonus(id);
-
-    const next: Powers = {
-      ...powers,
-      [key]: ((powers[key] ?? 0) | 0) + bonus,
-    };
-
-    setPowers(next);
-
     // confetti
     setShowConfetti(true);
 
-    // existing flow (likely backend sync / overlay close)
+    // Reward application + backend persistence are handled by DevtoolsHost onChoose.
     onChoose(id);
     playWinSound();
   };
