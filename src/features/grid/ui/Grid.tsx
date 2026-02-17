@@ -214,7 +214,7 @@ export function Grid({
         <BombOverlay indices={bomb.bombOverlayIndices} width={width} zIndex={44} />
 
         {/* Laser Targeting (row highlight) */}
-        <LaserRowOverlay row={laser.hoverRow} height={height} zIndex={46} />
+        <LaserRowOverlay armed={laser.laserArmed} row={laser.hoverRow} height={height} zIndex={46} />
 
         <GridCellsLayer
           width={width}

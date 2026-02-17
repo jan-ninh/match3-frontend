@@ -1,45 +1,43 @@
 // src/features/grid/ui/laser/LaserRowOverlay.tsx
-import { useMemo } from 'react';
+import type { CSSProperties } from 'react';
 
-type Props = {
+export type LaserRowOverlayProps = Readonly<{
+  armed: boolean;
   row: number | null;
   height: number;
   zIndex?: number;
-};
+}>;
 
-export function LaserRowOverlay({ row, height, zIndex = 46 }: Props) {
-  const style = useMemo<React.CSSProperties | null>(() => {
-    if (row == null) return null;
-    if (height <= 0) return null;
+export function LaserRowOverlay({ armed, row, height, zIndex = 0 }: LaserRowOverlayProps) {
+  if (!armed) return null;
 
-    const topPct = (row / height) * 100;
-    const hPct = 100 / height;
+  const rowH = height > 0 ? 100 / height : 0;
+  const top = row != null && height > 0 ? (row / height) * 100 : null;
 
-    return {
-      top: `${topPct}%`,
-      height: `${hPct}%`,
-    };
-  }, [height, row]);
+  const rootStyle: CSSProperties = { zIndex };
 
-  if (!style) return null;
+  const rowStyle: CSSProperties =
+    top == null
+      ? {}
+      : {
+          top: `${top}%`,
+          height: `${rowH}%`,
+        };
 
   return (
-    <div className="absolute inset-0 pointer-events-none" style={{ zIndex }} aria-hidden="true">
-      <div
-        className={[
-          'absolute left-0 right-0',
-          'rounded-[10px]',
-          'border border-cyan-300/35',
-          'bg-cyan-300/10',
-          'shadow-[0_0_22px_rgba(34,211,238,0.28)]',
-          'backdrop-blur-[1px]',
-        ].join(' ')}
-        style={style}
-      />
-      <div
-        className={['absolute left-0 right-0 h-px', 'bg-cyan-200/70', 'shadow-[0_0_12px_rgba(34,211,238,0.42)]'].join(' ')}
-        style={{ top: `calc(${style.top} + (${style.height} / 2))` }}
-      />
+    <div className="absolute inset-0 pointer-events-none select-none" style={rootStyle}>
+      {/* Mode hint: subtle board tint */}
+      <div className="absolute inset-0 bg-rose-500/5" />
+
+      {/* If we have a hovered row, highlight it. Otherwise, show a soft outline so the player knows we're in targeting mode. */}
+      {top == null ? (
+        <div className="absolute inset-0 rounded-md border-2 border-rose-400/30 animate-pulse" />
+      ) : (
+        <div
+          className="absolute left-0 right-0 bg-rose-500/20 border-y border-rose-400/40"
+          style={rowStyle}
+        />
+      )}
     </div>
   );
 }

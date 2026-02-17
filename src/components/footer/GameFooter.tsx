@@ -39,10 +39,16 @@ const noopOpenSettings = (): void => undefined;
  */
 const ICON_PX_ACTIVE_BY_ID: Readonly<Partial<Record<string, number>>> = {
   bomb: ICON_PX_ACTIVE_BOMB,
+
+  // Laser aliases (see footerIdToPowerKey)
   laser: ICON_PX_ACTIVE_LASER,
-  gridlaser: ICON_PX_ACTIVE_LASER, // alias used by some footerAction configs
+  gridlaser: ICON_PX_ACTIVE_LASER,
+  laserRow: ICON_PX_ACTIVE_LASER,
+  laserRowClear: ICON_PX_ACTIVE_LASER,
+
   reshuffle: ICON_PX_ACTIVE_RESHUFFLE,
   extraShuffle: ICON_PX_ACTIVE_RESHUFFLE, // alias: current PowerKey id
+
   item4: ICON_PX_ACTIVE_ITEM4,
 };
 
@@ -51,13 +57,17 @@ function isCounted(item: FooterActionItem): item is FooterActionItem & { count: 
 }
 
 function footerIdToPowerKey(id: FooterActionItem['id']): PowerKey | null {
-  if (id === 'bomb') return 'bomb';
-  if (id === 'laser') return 'laser';
-  if (id === 'gridlaser') return 'laser'; // legacy/alias id (same power)
-  if (id === 'laserRow') return 'laser'; // alias
-  if (id === 'laserRowClear') return 'laser'; // alias
+  const idStr = String(id);
+
+  if (idStr === 'bomb') return 'bomb';
+
+  // Laser button has historically drifted across ids (asset: gridlaser.png, etc.).
+  // Treat known aliases as the same PowerKey.
+  if (idStr === 'laser' || idStr === 'gridlaser' || idStr === 'laserRow' || idStr === 'laserRowClear') return 'laser';
+
   // Some UIs still call the button "reshuffle" while the PowerKey is "extraShuffle".
-  if (id === 'extraShuffle' || id === 'reshuffle') return 'extraShuffle';
+  if (idStr === 'extraShuffle' || idStr === 'reshuffle') return 'extraShuffle';
+
   return null;
 }
 
@@ -290,21 +300,23 @@ export default function GameFooter() {
         setPowers(prev);
       }
     },
-    [armedBomb, armedLaser, disarmAllTargeting, emitArmPower, emitUsePower, powers, setPowers, updatePowers, user],
-  );
+    [armedBomb, armedLaser, disarmAllTargeting, emitArmPower, e        const powerKey = footerIdToPowerKey(item.id);
 
-  const actions = useMemo<FooterActionItem[]>(() => {
-    return footerActions(noopOpenSettings, powers, onUsePower).filter((a) => a.id !== 'settings');
-  }, [powers, onUsePower]);
-
-  return (
-    <div className="flex flex-nowrap justify-center gap-4 p-4 rounded-xl">
-      {actions.map((item) => {
-        // Robust: derive power identity from `item.id` (footerActions can drift / aliases).
-        const powerKey = footerIdToPowerKey(item.id);
         const isBomb = powerKey === 'bomb';
         const isLaser = powerKey === 'laser';
         const isActive = (isBomb && armedBomb) || (isLaser && armedLaser);
+
+        // Derive count/disabled from `powers` ONLY when this key exists in the current build.
+        // If `powers[powerKey]` is missing/undefined (type drift), fall back to footerActions' own count.
+        const rawCount = powerKey ? powers[powerKey] : undefined;
+        const powerCount = typeof rawCount === 'number' ? (rawCount | 0) : null;
+
+b';
+        const isLaser = item.id === 'laser';
+        const isActive = (isBomb && armedBomb) || (isLaser && armedLaser);
+
+        // Robust: derive count/disabled from `powers` for known power-ids (footerActions can drift).
+        const powerKey = footerIdToPowerKey(item.id);
         const powerCount = powerKey ? ((powers[powerKey] ?? 0) | 0) : null;
 
         const counted = isCounted(item);

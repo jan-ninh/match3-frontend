@@ -1,149 +1,149 @@
 // src/features/grid/ui/laser/useLaserRowTargeting.ts
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { PointerEvent as ReactPointerEvent } from 'react';
+import { POWER_ARM_EVENT, POWER_USE_AT_EVENT } from '@/context/powerEvents';
 
-import {
-  POWER_ARM_EVENT,
-  POWER_USE_AT_EVENT,
-  type PowerArmDetail,
-  type PowerUseAtDetail,
-} from '@/context/powerEvents';
-import type { PowerKey } from '@/types';
+type Opts = Readonly<{
+  width: number;
+  height: number;
+  inputLocked: boolean;
+}>;
 
-function isLaserKey(key: PowerKey): key is Extract<PowerKey, 'laser'> {
-  return key === 'laser';
+type ArmDetailLike = Readonly<{
+  key: string;
+  armed: boolean;
+}>;
+
+type UseAtDetail = Readonly<{
+  key: string;
+  index: number;
+  requestId: number;
+}>;
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null;
 }
 
-function clampInt(v: number, min: number, max: number): number {
-  if (v < min) return min;
-  if (v > max) return max;
-  return v;
+function isArmDetailLike(v: unknown): v is ArmDetailLike {
+  if (!isRecord(v)) return false;
+  return typeof v.key === 'string' && typeof v.armed === 'boolean';
+}
+
+function clampInt(n: number, min: number, max: number): number {
+  if (!Number.isFinite(n)) return min;
+  if (n < min) return min;
+  if (n > max) return max;
+  return n | 0;
+}
+
+declare global {
+  interface Window {
+    __match3PowerRequestId?: number;
+  }
 }
 
 function allocPowerRequestId(): number {
   if (typeof window === 'undefined') return 1;
-  const w = window as unknown as { __match3PowerRequestId?: number };
-  const cur = (w.__match3PowerRequestId ?? 1) | 0;
+  const cur = (window.__match3PowerRequestId ?? 1) | 0;
   const next = (cur + 1) | 0;
-  w.__match3PowerRequestId = next <= 0 ? 1 : next;
+  window.__match3PowerRequestId = next <= 0 ? 1 : next;
   return cur <= 0 ? 1 : cur;
 }
 
-type Opts = {
-  width: number;
-  height: number;
-  inputLocked: boolean;
-};
+const LASER_KEYS = new Set<string>(['laser', 'gridlaser', 'laserRow', 'laserRowClear']);
 
-type LaserTargeting = {
-  laserArmed: boolean;
-  hoverRow: number | null;
-  onShellPointerMove: (e: React.PointerEvent<HTMLDivElement>) => void;
-  onShellPointerLeave: () => void;
-  onCellPointerDown: (index: number, e: React.PointerEvent<HTMLButtonElement>) => void;
-};
-
-export function useLaserRowTargeting({ width, height, inputLocked }: Opts): LaserTargeting {
+export function useLaserRowTargeting({ width, height, inputLocked }: Opts) {
   const [laserArmed, setLaserArmed] = useState(false);
   const [hoverRow, setHoverRow] = useState<number | null>(null);
 
-  const armedRef = useRef(laserArmed);
-  useEffect(() => {
-    armedRef.current = laserArmed;
-  }, [laserArmed]);
+  // Remember which key variant armed us, so we can disarm the exact same key.
+  const armedKeyRef = useRef<string>('laser');
 
   const emitArm = useCallback((armed: boolean) => {
     if (typeof window === 'undefined') return;
-    window.dispatchEvent(
-      new CustomEvent<PowerArmDetail>(POWER_ARM_EVENT, {
-        detail: { key: 'laser', armed },
-      }),
-    );
+    const key = armedKeyRef.current;
+    window.dispatchEvent(new CustomEvent(POWER_ARM_EVENT, { detail: { key, armed } }));
   }, []);
 
-  const emitUseAt = useCallback(
-    (index: number) => {
-      if (typeof window === 'undefined') return;
-
-      const x = index % width;
-      const y = (index / width) | 0;
-
-      const requestId = allocPowerRequestId();
-
-      const detail: PowerUseAtDetail = {
-        key: 'laser',
-        target: { x, y },
-        requestId,
-      };
-
-      window.dispatchEvent(new CustomEvent<PowerUseAtDetail>(POWER_USE_AT_EVENT, { detail }));
-    },
-    [width],
-  );
-
-  // Sync local armed-state from global events (footer toggles targeting)
+  // Global arm/disarm sync (Footer emits this).
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
     const onArm = (e: Event) => {
-      const ce = e as CustomEvent<PowerArmDetail>;
+      const ce = e as CustomEvent<unknown>;
       const d = ce.detail;
-      if (!d) return;
-      if (!isLaserKey(d.key)) return;
-      const next = !!d.armed;
-      setLaserArmed(next);
-      if (!next) setHoverRow(null);
+
+      if (!isArmDetailLike(d)) return;
+      if (!LASER_KEYS.has(d.key)) return;
+
+      armedKeyRef.current = d.key;
+      setLaserArmed(!!d.armed);
+      if (!d.armed) setHoverRow(null);
     };
 
     window.addEventListener(POWER_ARM_EVENT, onArm as EventListener);
     return () => window.removeEventListener(POWER_ARM_EVENT, onArm as EventListener);
   }, []);
 
-  // If engine locks input while targeting is active (e.g. animations start), disarm.
+  // Safety: input lock => disarm (prevents stuck targeting).
   useEffect(() => {
-    if (!laserArmed) return;
     if (!inputLocked) return;
+    if (!laserArmed) return;
+
+    setLaserArmed(false);
+    setHoverRow(null);
     emitArm(false);
   }, [emitArm, inputLocked, laserArmed]);
 
   const onShellPointerMove = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => {
-      if (!armedRef.current) return;
-      if (inputLocked) return;
+    (e: ReactPointerEvent<HTMLDivElement>) => {
+      if (!laserArmed) return;
 
-      const el = e.currentTarget;
-      const rect = el.getBoundingClientRect();
-      const relY = e.clientY - rect.top;
-      const row = clampInt(((relY / Math.max(1, rect.height)) * height) | 0, 0, height - 1);
+      const rect = e.currentTarget.getBoundingClientRect();
+      const h = rect.height;
+      if (!(h > 0)) return;
+
+      const y = e.clientY - rect.top;
+      const ratio = y / h;
+
+      const row = clampInt(Math.floor(ratio * height), 0, Math.max(0, height - 1));
       setHoverRow(row);
     },
-    [height, inputLocked],
+    [height, laserArmed],
   );
 
   const onShellPointerLeave = useCallback(() => {
+    if (!laserArmed) return;
     setHoverRow(null);
-  }, []);
+  }, [laserArmed]);
 
   const onCellPointerDown = useCallback(
-    (index: number, e: React.PointerEvent<HTMLButtonElement>) => {
-      if (!armedRef.current) return;
-      if (inputLocked) return;
+    (index: number, e: ReactPointerEvent<HTMLButtonElement>) => {
+      if (!laserArmed) return;
 
       e.preventDefault();
       e.stopPropagation();
 
-      const y = (index / width) | 0;
-      setHoverRow(y);
+      const requestId = allocPowerRequestId();
+      const key = armedKeyRef.current;
+      const detail: UseAtDetail = { key, index, requestId };
 
-      emitUseAt(index);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent(POWER_USE_AT_EVENT, { detail }));
+      }
+
+      // Disarm immediately after confirm (engine-bridge owns acceptance).
+      setLaserArmed(false);
+      setHoverRow(null);
       emitArm(false);
     },
-    [emitArm, emitUseAt, inputLocked, width],
+    [emitArm, laserArmed],
   );
 
   return useMemo(
     () => ({
       laserArmed,
-      hoverRow: laserArmed ? hoverRow : null,
+      hoverRow,
       onShellPointerMove,
       onShellPointerLeave,
       onCellPointerDown,
