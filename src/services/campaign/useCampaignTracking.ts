@@ -10,6 +10,7 @@ import {
   type CampaignId,
   type Outcome,
 } from '@/api/campaign';
+import { CAMPAIGN_DEBUG_EVENT, type CampaignDebugDetail, type CampaignDebugLastSend } from '@/context/campaignEvents';
 
 type SeenRing = {
   set: Set<string>;
@@ -36,7 +37,7 @@ function isHardBoundaryEvent(ev: EngineEvent): ev is HardBoundaryEvent {
 }
 
 function nowMsUnix(): number {
-  // Intentionally wall-clock (debug only). Backend should use server time.
+  // Debug only; backend must use server time for ranking.
   return Date.now();
 }
 
@@ -70,11 +71,9 @@ function createUuid(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
     crypto.getRandomValues(bytes);
   } else {
-    // last resort (should be rare)
     for (let i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
   }
 
-  // eslint wants clarity; avoid bit twiddling in one line.
   bytes[6] = (bytes[6] & 0x0f) | 0x40;
   bytes[8] = (bytes[8] & 0x3f) | 0x80;
 
@@ -91,7 +90,32 @@ type Args = {
   state: Pick<EngineState, 'levelId' | 'movesTotal' | 'movesLeft' | 'phase' | 'events'>;
 };
 
+type DebugState = {
+  campaignId: CampaignId | null;
+  levelIndex: number | null;
+  attemptId: string | null;
+
+  phase: string | null;
+
+  movesTotal: number | null;
+  movesLeft: number | null;
+  movesUsedRaw: number | null;
+
+  sentLevelEnd: boolean;
+  sentLevelAbort: boolean;
+
+  queuedSends: number;
+
+  lastSend: CampaignDebugLastSend | null;
+};
+
+function toMovesUsedRaw(movesTotal: number, movesLeft: number): number {
+  return Math.max(0, (movesTotal | 0) - (movesLeft | 0));
+}
+
 export function useCampaignTracking({ state }: Args): void {
+  const isDev = import.meta.env.DEV;
+
   const campaignIdRef = useRef<CampaignId | null>(null);
   const startInFlightRef = useRef<Promise<CampaignId | null> | null>(null);
 
@@ -110,11 +134,79 @@ export function useCampaignTracking({ state }: Args): void {
     CLIENT_VERSION: getClientVersion(),
   });
 
+  const debugRef = useRef<DebugState>({
+    campaignId: null,
+    levelIndex: null,
+    attemptId: null,
+    phase: null,
+    movesTotal: null,
+    movesLeft: null,
+    movesUsedRaw: null,
+    sentLevelEnd: false,
+    sentLevelAbort: false,
+    queuedSends: 0,
+    lastSend: null,
+  });
+
+  const emitDebug = () => {
+    if (!isDev) return;
+    if (typeof window === 'undefined') return;
+
+    const d = debugRef.current;
+
+    const detail: CampaignDebugDetail = {
+      campaignId: d.campaignId,
+      levelIndex: d.levelIndex,
+      attemptId: d.attemptId,
+      phase: d.phase,
+      movesTotal: d.movesTotal,
+      movesLeft: d.movesLeft,
+      movesUsedRaw: d.movesUsedRaw,
+      sentLevelEnd: d.sentLevelEnd,
+      sentLevelAbort: d.sentLevelAbort,
+      queuedSends: d.queuedSends,
+      lastSend: d.lastSend,
+    };
+
+    window.dispatchEvent(new CustomEvent<CampaignDebugDetail>(CAMPAIGN_DEBUG_EVENT, { detail }));
+  };
+
+  const setLastSend = (lastSend: CampaignDebugLastSend) => {
+    debugRef.current.lastSend = lastSend;
+    emitDebug();
+  };
+
+  const syncDebugFromState = () => {
+    const a = attemptRef.current;
+
+    debugRef.current.campaignId = campaignIdRef.current;
+    debugRef.current.levelIndex = a ? a.levelIndex : null;
+    debugRef.current.attemptId = a ? a.attemptId : null;
+
+    debugRef.current.phase = state.phase ?? null;
+
+    debugRef.current.movesTotal = typeof state.movesTotal === 'number' ? (state.movesTotal | 0) : null;
+    debugRef.current.movesLeft = typeof state.movesLeft === 'number' ? (state.movesLeft | 0) : null;
+
+    if (debugRef.current.movesTotal != null && debugRef.current.movesLeft != null) {
+      debugRef.current.movesUsedRaw = toMovesUsedRaw(debugRef.current.movesTotal, debugRef.current.movesLeft);
+    } else {
+      debugRef.current.movesUsedRaw = null;
+    }
+
+    debugRef.current.queuedSends = pendingSendsRef.current.length;
+
+    emitDebug();
+  };
+
   const flushPending = async () => {
     const cid = campaignIdRef.current;
     if (!cid) return;
 
     const q = pendingSendsRef.current.splice(0);
+    debugRef.current.queuedSends = pendingSendsRef.current.length;
+    emitDebug();
+
     for (const send of q) {
       try {
         await send();
@@ -134,6 +226,8 @@ export function useCampaignTracking({ state }: Args): void {
 
     const p = (async (): Promise<CampaignId | null> => {
       try {
+        setLastSend({ kind: 'campaignStart', ok: true, atMs: nowMsUnix(), message: 'starting' });
+
         const res = await apiStartCampaign({
           PLATFORM: metaRef.current.PLATFORM,
           CLIENT_VERSION: metaRef.current.CLIENT_VERSION,
@@ -143,10 +237,17 @@ export function useCampaignTracking({ state }: Args): void {
         campaignIdRef.current = res.CAMPAIGN_ID;
         startInFlightRef.current = null;
 
+        setLastSend({ kind: 'campaignStart', ok: true, atMs: nowMsUnix() });
+        syncDebugFromState();
+
         await flushPending();
         return res.CAMPAIGN_ID;
       } catch (err) {
         startInFlightRef.current = null;
+
+        const msg = err instanceof Error ? err.message : 'start failed';
+        setLastSend({ kind: 'campaignStart', ok: false, atMs: nowMsUnix(), message: msg });
+
         console.warn('[campaign] start failed', err);
         return null;
       }
@@ -163,6 +264,10 @@ export function useCampaignTracking({ state }: Args): void {
     const created: AttemptCtx = { levelIndex: state.levelId, attemptId: createUuid() };
     attemptRef.current = created;
 
+    debugRef.current.sentLevelEnd = false;
+    debugRef.current.sentLevelAbort = false;
+    syncDebugFromState();
+
     // fire-and-forget: campaign start at latest by first attempt
     void ensureCampaign();
 
@@ -174,8 +279,10 @@ export function useCampaignTracking({ state }: Args): void {
     if (reportedAttemptsRef.current.has(a.attemptId)) return;
 
     reportedAttemptsRef.current.add(a.attemptId);
+    debugRef.current.sentLevelEnd = true;
+    syncDebugFromState();
 
-    const movesUsedRaw = Math.max(0, (state.movesTotal | 0) - (state.movesLeft | 0));
+    const movesUsedRaw = toMovesUsedRaw(state.movesTotal, state.movesLeft);
 
     const payloadBase = {
       LEVEL_INDEX: a.levelIndex,
@@ -191,17 +298,29 @@ export function useCampaignTracking({ state }: Args): void {
     const send = async () => {
       const cid = campaignIdRef.current;
       if (!cid) return;
-      await apiCampaignLevelEnd({ ...payloadBase, CAMPAIGN_ID: cid });
+      try {
+        await apiCampaignLevelEnd({ ...payloadBase, CAMPAIGN_ID: cid });
+        setLastSend({ kind: 'levelEnd', ok: true, atMs: nowMsUnix() });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'levelEnd failed';
+        setLastSend({ kind: 'levelEnd', ok: false, atMs: nowMsUnix(), message: msg });
+        throw err;
+      }
     };
 
     const cid = await ensureCampaign();
     if (cid) {
-      await send();
+      try {
+        await send();
+      } catch (err) {
+        console.warn('[campaign] levelEnd send failed', err);
+      }
       return;
     }
 
     // start failed → queue best-effort
     pendingSendsRef.current.push(send);
+    syncDebugFromState();
   };
 
   const reportAbort = async (reason: AbortReason) => {
@@ -209,8 +328,10 @@ export function useCampaignTracking({ state }: Args): void {
     if (!a) return;
     if (reportedAttemptsRef.current.has(a.attemptId)) return;
 
-    // Don't "report" attempt as ended; abort is a separate signal.
-    const movesUsedAtAbort = Math.max(0, (state.movesTotal | 0) - (state.movesLeft | 0));
+    debugRef.current.sentLevelAbort = true;
+    syncDebugFromState();
+
+    const movesUsedAtAbort = toMovesUsedRaw(state.movesTotal, state.movesLeft);
 
     const payloadBase = {
       LEVEL_INDEX: a.levelIndex,
@@ -225,16 +346,28 @@ export function useCampaignTracking({ state }: Args): void {
     const send = async () => {
       const cid = campaignIdRef.current;
       if (!cid) return;
-      await apiCampaignLevelAbort({ ...payloadBase, CAMPAIGN_ID: cid });
+      try {
+        await apiCampaignLevelAbort({ ...payloadBase, CAMPAIGN_ID: cid });
+        setLastSend({ kind: 'levelAbort', ok: true, atMs: nowMsUnix() });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'levelAbort failed';
+        setLastSend({ kind: 'levelAbort', ok: false, atMs: nowMsUnix(), message: msg });
+        throw err;
+      }
     };
 
     const cid = await ensureCampaign();
     if (cid) {
-      await send();
+      try {
+        await send();
+      } catch (err) {
+        console.warn('[campaign] levelAbort send failed', err);
+      }
       return;
     }
 
     pendingSendsRef.current.push(send);
+    syncDebugFromState();
   };
 
   // 1) Detect initLevel boundaries → new attemptId
@@ -249,12 +382,20 @@ export function useCampaignTracking({ state }: Args): void {
       if (!markSeen(seen, id, 32)) continue;
 
       attemptRef.current = { levelIndex: state.levelId, attemptId: createUuid() };
+      debugRef.current.sentLevelEnd = false;
+      debugRef.current.sentLevelAbort = false;
+      syncDebugFromState();
+
       void ensureCampaign();
     }
 
     // If engine didn't emit hardBoundary for initial render, bootstrap once.
     if (!attemptRef.current) {
       attemptRef.current = { levelIndex: state.levelId, attemptId: createUuid() };
+      debugRef.current.sentLevelEnd = false;
+      debugRef.current.sentLevelAbort = false;
+      syncDebugFromState();
+
       void ensureCampaign();
     }
   }, [state.events, state.levelId]);
@@ -266,7 +407,10 @@ export function useCampaignTracking({ state }: Args): void {
     prevPhaseRef.current = state.phase;
 
     const phase = state.phase;
-    if (phase !== 'win' && phase !== 'lose') return;
+    if (phase !== 'win' && phase !== 'lose') {
+      syncDebugFromState();
+      return;
+    }
 
     // avoid double-fire if already terminal in previous render
     if (prev === phase) return;
