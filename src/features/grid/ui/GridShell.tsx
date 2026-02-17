@@ -1,3 +1,5 @@
+// src\features\grid\ui\GridShell.tsx
+// Das ist der ORT fuer POINTER
 import type { CSSProperties, ReactNode, RefObject } from 'react';
 
 import GridLockoutOverlay from './GridLockoutOverlay';

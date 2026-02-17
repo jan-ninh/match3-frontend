@@ -13,9 +13,9 @@ export type PowerContextValue = {
 //----------------------------------------------------
 // SET INITIAL POWERITEMS
 //----------------------------------------------------
-const INITIAL_BOMBS = 20;
-const INITIAL_LASERS = 20;
-const INITIAL_EXTRA_SHUFFLE = 20;
+const INITIAL_BOMBS = 120;
+const INITIAL_LASERS = 120;
+const INITIAL_EXTRA_SHUFFLE = 120;
 
 export const defaultPowers = Object.freeze({
   bomb: INITIAL_BOMBS,

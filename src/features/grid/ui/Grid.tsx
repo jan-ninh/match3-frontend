@@ -1,4 +1,4 @@
-// src\features\grid\ui\Grid.tsx
+// src/features/grid/ui/Grid.tsx
 import { useMemo } from 'react';
 import type { ComponentProps } from 'react';
 
@@ -65,13 +65,15 @@ export type GridUIProps = {
   onShellPointerLeave: () => void;
 
   // dev
-  debugSnapshot: unknown;
+  debugSnapshot: ComponentProps<typeof GridDevPanels>['debugSnapshot'];
   onToggleShowLockoutHints: () => void;
   onDevPrevLevel: () => void;
   onDevNextLevel: () => void;
   onDevResetBoard: () => void;
   onDevNextTilesPalette: () => void;
 };
+
+type CssVars = React.CSSProperties & Record<`--${string}`, string | number>;
 
 /**
  * GridView = reine Darstellung + lokale Targeting/UI-Orchestrierung.
@@ -122,7 +124,6 @@ export function GridView({
   const laser = useLaserRowTargeting({ width, height, inputLocked });
 
   const effectiveInputLocked = inputLocked || bomb.bombArmed || laser.laserArmed;
-
   const capturePointerMove = bomb.bombArmed || laser.laserArmed;
 
   const cursorClass = useMemo(() => {
@@ -132,7 +133,7 @@ export function GridView({
     return 'cursor-grab';
   }, [bomb.bombArmed, effectiveInputLocked, isDragging, laser.laserArmed, showLockoutHints]);
 
-  const shellStyle = useMemo(() => ({ '--boardDim': 0.35 }), []);
+  const shellStyle = useMemo<CssVars>(() => ({ '--boardDim': 0.35 }), []);
 
   const onShellPointerMoveEffective = (e: React.PointerEvent<HTMLDivElement>) => {
     if (bomb.bombArmed) {
@@ -150,11 +151,6 @@ export function GridView({
     if (bomb.bombArmed) bomb.onShellPointerLeave();
     if (laser.laserArmed) laser.onShellPointerLeave();
     onShellPointerLeave();
-  };
-
-  const onPointerMoveEffective = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (bomb.bombArmed || laser.laserArmed) return;
-    onPointerMove(e);
   };
 
   const onPointerUpEffective = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -182,8 +178,19 @@ export function GridView({
     onCellPointerDown(index, e);
   };
 
-  const isDev = import.meta.env.DEV;
+  // Single pointer-move hook point:
+  // - targeting armed => route to targeting (bomb/laser) via shell-move
+  // - normal => forward to BOTH controller move + shell move
+  const onPointerMoveMerged = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (bomb.bombArmed || laser.laserArmed) {
+      onShellPointerMoveEffective(e);
+      return;
+    }
+    onPointerMove(e);
+    onShellPointerMove(e);
+  };
 
+  const isDev = import.meta.env.DEV;
   const bombFxMode: BombVfxMode = import.meta.env.DEV && isDev && debugEnabled ? bombVfxMode : 'legacyShock';
 
   return (
@@ -211,7 +218,7 @@ export function GridView({
         innerH={innerH}
         boardRef={bomb.boardRef}
         capturePointerMove={capturePointerMove}
-        onPointerMove={onShellPointerMoveEffective}
+        onPointerMove={onPointerMoveMerged}
         onPointerUp={onPointerUpEffective}
         onPointerCancel={onPointerCancelEffective}
         onPointerLeave={onShellPointerLeaveEffective}
@@ -250,9 +257,6 @@ export function GridView({
           shakePieceId={shakePieceId}
           showDebugLabels={showDebugLabels}
           setDraggedEl={setDraggedEl}
-          onPointerMove={onPointerMoveEffective}
-          onPointerUp={onPointerUpEffective}
-          onPointerCancel={onPointerCancelEffective}
         />
 
         {/* Bomb detonation FX (after ACK) */}

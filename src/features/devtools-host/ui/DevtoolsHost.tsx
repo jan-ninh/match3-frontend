@@ -44,14 +44,28 @@ function isPrevStageNotCompleted(err: unknown): boolean {
   return /previous\s+stage\s+not\s+completed/i.test(msg);
 }
 
+function bumpPower(p: Powers, key: PowerKey, add: number): Powers {
+  const bomb = p.bomb ?? 0;
+  const laser = p.laser ?? 0;
+  const extraShuffle = p.extraShuffle ?? 0;
+
+  if (key === 'bomb') return { ...p, bomb: bomb + add };
+  if (key === 'laser') return { ...p, laser: laser + add };
+  return { ...p, extraShuffle: extraShuffle + add };
+}
+
 export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
   const [showLockoutHints, setShowLockoutHints] = useState<boolean>(false);
   const [debugEnabled, setDebugEnabled] = useState<boolean>(false);
-  const [usedPowerInCurrentStage, setUsedPowerInCurrentStage] = useState<string | null>(null);
+
+  // Ref (no state) => avoids "setState synchronously within an effect" + avoids rerenders.
+  const usedPowerInCurrentStageRef = useRef<PowerKey | null>(null);
 
   const { openWin, openLose, openPowerChoice } = useOverlays();
   const { user, updatePowers } = useAuth();
   const { powers, setPowers, selectedPowersForNextStage, setSelectedPowersForNextStage } = usePowers();
+
+  const userId = user?.id ?? null;
 
   const { isDev, state, inputLocked, canSwapAt, onIntent, onDevResetBoard, onDevNextLevel, onDevPrevLevel, onDevSetLevel, events } = useMatch3Engine({
     initialLevelId,
@@ -61,6 +75,11 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
 
   // Guards re-trying the backend-unlock workaround more than once per level.
   const stageStartRetryRef = useRef<Set<number>>(new Set());
+
+  // Reset "used power" when level changes (no render, no cascading effects).
+  useEffect(() => {
+    usedPowerInCurrentStageRef.current = null;
+  }, [state.levelId]);
 
   // Track power consumption during gameplay
   useEffect(() => {
@@ -72,7 +91,9 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
       if (!detail) return;
 
       // Store the power that was used (only first used power per stage)
-      setUsedPowerInCurrentStage((prev) => prev || detail.key);
+      if (usedPowerInCurrentStageRef.current === null) {
+        usedPowerInCurrentStageRef.current = detail.key;
+      }
     };
 
     window.addEventListener(POWER_CONSUME_EVENT, onConsume as EventListener);
@@ -106,19 +127,23 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
 
   const beginWinRewardFlow = useCallback(
     (lvl: number) => {
+      const usedPower: PowerKey | undefined = usedPowerInCurrentStageRef.current ?? undefined;
+
       // Skip power selection for stage 12 (final stage)
       if (lvl === 12) {
         // Report stage completion with used power
-        if (user?.id) {
-          const usedPower = usedPowerInCurrentStage as PowerKey | undefined;
-          apiCompleteStage(user.id, lvl, usedPower).catch((err) => {
+        if (userId) {
+          apiCompleteStage(userId, lvl, usedPower).catch((err) => {
             console.error(`Failed to report stage completion for ${lvl}:`, err);
           });
         }
+
         // Mark level completed locally
         completeLevel(lvl).catch(() => {});
+
         // Clear any previously selected powers
         setSelectedPowersForNextStage(null);
+
         // Show Win overlay directly
         openWin(lvl);
         return;
@@ -130,23 +155,16 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
           const add = powerId === 'bomb' ? 2 : 1;
 
           // 1) Optimistic local powers update (immediate feedback)
-          const nextPowers =
-            powerId === 'bomb'
-              ? { ...powers, bomb: powers.bomb + add }
-              : powerId === 'laser'
-                ? { ...powers, laser: powers.laser + add }
-                : { ...powers, extraShuffle: powers.extraShuffle + add };
-
+          //    (setPowers is not a React.Dispatch in your context -> no functional updater)
+          const nextPowers = bumpPower(powers, powerId, add);
           setPowers(nextPowers);
 
           // 2) Store selected powers for next stage
-          const selectedForNextStage: Partial<Powers> = {
-            [powerId]: add,
-          };
+          const selectedForNextStage: Partial<Powers> = { [powerId]: add };
           setSelectedPowersForNextStage(selectedForNextStage);
 
           // 3) Persist reward for logged-in users (best-effort)
-          if (user?.id) {
+          if (userId) {
             const delta = powerId === 'bomb' ? { bomb: add } : powerId === 'laser' ? { laser: add } : { extraShuffle: add };
 
             try {
@@ -157,10 +175,9 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
           }
 
           // 4) Report stage completion with used power
-          if (user?.id) {
-            const usedPower = usedPowerInCurrentStage as PowerKey | undefined;
+          if (userId) {
             try {
-              await apiCompleteStage(user.id, lvl, usedPower);
+              await apiCompleteStage(userId, lvl, usedPower);
             } catch (err) {
               console.error(`Failed to report stage completion for ${lvl}:`, err);
             }
@@ -178,7 +195,7 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
         },
       });
     },
-    [openPowerChoice, powers, setPowers, user?.id, updatePowers, openWin, setSelectedPowersForNextStage, usedPowerInCurrentStage],
+    [openPowerChoice, openWin, powers, setPowers, setSelectedPowersForNextStage, updatePowers, userId],
   );
 
   const onDevWin = async () => {
@@ -204,19 +221,16 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
 
   // Call apiStartStage with selected powers when a level is loaded
   useEffect(() => {
-    if (!user?.id) return;
+    if (!userId) return;
 
     const lvl = state.levelId;
     if (lvl <= 0) return;
-
-    // Reset used power for new stage
-    setUsedPowerInCurrentStage(null);
 
     let cancelled = false;
 
     const start = async () => {
       try {
-        await apiStartStage(user.id, lvl, selectedPowersForNextStage ?? undefined);
+        await apiStartStage(userId, lvl, selectedPowersForNextStage ?? undefined);
 
         if (cancelled) return;
 
@@ -238,13 +252,13 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
           stageStartRetryRef.current.add(lvl);
 
           try {
-            await apiCompleteStage(user.id, lvl - 1, undefined);
+            await apiCompleteStage(userId, lvl - 1, undefined);
           } catch {
             // ignore: we will still attempt start; worst case we run locally
           }
 
           try {
-            await apiStartStage(user.id, lvl, selectedPowersForNextStage ?? undefined);
+            await apiStartStage(userId, lvl, selectedPowersForNextStage ?? undefined);
 
             if (cancelled) return;
 
@@ -270,7 +284,7 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [user?.id, state.levelId, selectedPowersForNextStage, setSelectedPowersForNextStage]);
+  }, [userId, state.levelId, selectedPowersForNextStage, setSelectedPowersForNextStage]);
 
   useEffect(() => {
     const lvl = state.levelId;

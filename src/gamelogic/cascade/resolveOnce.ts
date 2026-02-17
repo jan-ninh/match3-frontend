@@ -1,3 +1,4 @@
+// src/gamelogic/cascade/resolveOnce.ts
 import type { EngineEvent, EngineState } from '../types';
 import type { ResolveOnceOpts, ResolveOnceResult } from './typesCascade';
 
@@ -9,7 +10,7 @@ import { applyRefill } from './refill';
 import { getCascadeEffectsForState } from './effects/registry';
 import { runPostClearEffects, runPostGravityEffects, runPostRefillEffects, runPreClearEffects } from './effects/runEffects';
 
-type MatchDetectionLike = { clearIndices: number[]; groups: number };
+// type MatchDetectionLike = { clearIndices: number[]; groups: number };
 
 function countClearablePieces(state: EngineState, indices: number[]): number {
   let count = 0;
@@ -43,33 +44,38 @@ export function resolveOnce(state: EngineState, chargedIds: Set<number> = new Se
   // ─────────────────────────────────────────────
   const preSteps = opts?.preSteps ?? [];
   for (const step of preSteps) {
-    if (step.kind === 'itemLaserRowClear') {
-      const clearedCount = countClearablePieces(s, step.indices);
+    switch (step.kind) {
+      case 'itemLaserRowClear': {
+        const clearedCount = countClearablePieces(s, step.indices);
 
-      // NOTE: Item-driven clear must not progress objectives/level mechanics.
-      // Therefore: do NOT run cascade effects here (even if effectsEnabled === true).
-      events.push({ type: 'phase', phase: 'clear' });
-      s = clearCellsAndPieces(s, step.indices);
-      if (clearedCount > 0) events.push({ type: 'cleared', count: clearedCount });
-      events.push({ type: 'cascadeStep', kind: 'itemLaserRowClear', row: step.row, indices: step.indices, cleared: clearedCount });
+        // NOTE: Item-driven clear must not progress objectives/level mechanics.
+        // Therefore: do NOT run cascade effects here (even if effectsEnabled === true).
+        events.push({ type: 'phase', phase: 'clear' });
+        s = clearCellsAndPieces(s, step.indices);
+        if (clearedCount > 0) events.push({ type: 'cleared', count: clearedCount });
+        events.push({ type: 'cascadeStep', kind: 'itemLaserRowClear', row: step.row, indices: step.indices, cleared: clearedCount });
 
-      events.push({ type: 'phase', phase: 'gravity' });
-      s = applyGravity(s);
-      events.push({ type: 'gravity' });
+        events.push({ type: 'phase', phase: 'gravity' });
+        s = applyGravity(s);
+        events.push({ type: 'gravity' });
 
-      events.push({ type: 'phase', phase: 'refill' });
-      const ref = applyRefill(s);
-      s = ref.state;
-      events.push({ type: 'refilled', count: ref.spawned });
+        events.push({ type: 'phase', phase: 'refill' });
+        const ref = applyRefill(s);
+        s = ref.state;
+        events.push({ type: 'refilled', count: ref.spawned });
 
-      events.push({ type: 'phase', phase: 'settle' });
+        events.push({ type: 'phase', phase: 'settle' });
 
-      didSomething = didSomething || clearedCount > 0 || step.indices.length > 0;
-      continue;
+        didSomething = didSomething || clearedCount > 0 || step.indices.length > 0;
+        continue;
+      }
+
+      default: {
+        // Fail-fast: if preSteps includes kinds this resolver doesn't handle yet,
+        // we want a hard signal instead of silently doing the wrong thing.
+        throw new Error(`resolveOnce: unsupported preStep kind: ${step.kind}`);
+      }
     }
-
-    const _exhaustive: never = step;
-    void _exhaustive;
   }
 
   // ─────────────────────────────────────────────
