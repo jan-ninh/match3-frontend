@@ -1,20 +1,4 @@
 // src/gamelogic/levels/level-05.ts
-/**
- * Level 05 — "SIGNAL HIJACK"
- *
- * Fantasy/Theme:
- * - Hack an internal network by building a conductive path
- * - Source (uplink) must connect to Target (relay) via charged cells
- * - Matches charge the cells they occur on
- *
- * Win: Orthogonal path of charged cells connects Source to Target
- * Lose: Moves = 0
- *
- * Skill Focus:
- * - Route planning: not "match anywhere" but lay a corridor trace
- * - Chokepoint building: cells you can repeatedly service
- * - Setup rewards: cascades can charge multiple segments at once
- */
 import type { LevelDefinition, PieceType } from '../types';
 import { deriveSeed } from '../rng';
 
@@ -23,6 +7,24 @@ type Args = {
   allowedTypes: PieceType[];
 };
 
+/**
+ * Level 05 — FALSE IDENTITY
+ *
+ * Fantasy/Theme:
+ * - "Falsche Identität": Schleuse ID-Keycards ins System ein.
+ * - Scanner-Terminals müssen erst "geladen" werden (Charge via adjacent Matches).
+ * - Sieg = Setup → Öffnen → Zustellen (nicht kaputtkloppen).
+ *
+ * Win: beide Terminals haben je 1 Keycard akzeptiert (verified: 2/2)
+ * Lose: Moves = 0
+ *
+ * Gameplay:
+ * - 2 Terminals am unteren Rand mit unterschiedlichen ChargeColors
+ * - 2 Keycards oben (müssen nach unten zu den Terminals gebracht werden)
+ * - Charge Terminal: Match adjacent + Match enthält ChargeColor
+ * - Pro Terminal max. +1 Charge pro Zug
+ * - Delivery: Keycard in offenes Terminal → verified
+ */
 export function makeLevel05({ baseSeed, allowedTypes }: Args): LevelDefinition {
   const levelId = 5;
 
@@ -30,51 +32,73 @@ export function makeLevel05({ baseSeed, allowedTypes }: Args): LevelDefinition {
   const height = 8;
 
   // ─────────────────────────────────────────────
-  // Signal Source & Target Positions
+  // Terminal-Positionen: unterer Rand
   // ─────────────────────────────────────────────
-  // Source (S): (1,6) = index 1 + 6*8 = 49
-  // Target (T): (6,1) = index 6 + 1*8 = 14
-  // Diagonal distance forces creative routing
-  const signalSourceNodes = [{ index: 1 + 6 * width, id: 0 }];
-  const signalTargetNodes = [{ index: 6 + 1 * width, id: 0 }];
+  // Terminal A: (2,7) = index 58, ChargeColor: blue
+  // Terminal B: (5,7) = index 61, ChargeColor: green
+  const terminalNodes = [
+    {
+      index: 2 + 7 * width, // (2,7) = 58
+      id: 0,
+      requiredCharge: 2,
+      chargeColor: 'blue' as PieceType,
+    },
+    {
+      index: 5 + 7 * width, // (5,7) = 61
+      id: 1,
+      requiredCharge: 2,
+      chargeColor: 'green' as PieceType,
+    },
+  ];
 
   // ─────────────────────────────────────────────
-  // Blocked Cells: 2×2 block bottom-right corner
+  // Keycard-Positionen: oben
   // ─────────────────────────────────────────────
-  // (6,6), (7,6), (6,7), (7,7) = indices 54, 55, 62, 63
-  const blockedIndices = [
-    6 + 6 * width, // 54
-    7 + 6 * width, // 55
-    6 + 7 * width, // 62
-    7 + 7 * width, // 63
+  // Keycard 1: (2,1) = index 10
+  // Keycard 2: (5,1) = index 13
+  const keycardNodes = [
+    { index: 2 + 1 * width }, // (2,1) = 10
+    { index: 5 + 1 * width }, // (5,1) = 13
   ];
+
+  // ─────────────────────────────────────────────
+  // Board Geometry
+  // ─────────────────────────────────────────────
+  // Keine zusätzlich geblockten Zellen
+  const blockedIndices: number[] = [];
 
   // ─────────────────────────────────────────────
   // Balancing
   // ─────────────────────────────────────────────
-  // 15 moves: moderate difficulty for building ~10-12 cell path
-  const moves = 15;
+  const moves = 14;
 
   const seed = deriveSeed(baseSeed, levelId);
+
+  // ─────────────────────────────────────────────
+  // Spawnable Types
+  // ─────────────────────────────────────────────
+  // Filter 'keycard' aus allowedTypes für Refill
+  // Keycards werden NIE random gespawnt, nur im Level-Startstate platziert
+  const spawnableTypes = allowedTypes.filter((t) => t !== 'keycard');
 
   return {
     id: levelId,
     width,
     height,
     moves,
-    allowedTypes,
+    allowedTypes: spawnableTypes,
     blockedIndices,
 
-    // No Level 01 mechanics
+    // Level 01 mechanics (nicht verwendet in L05)
     firewallNodes: [],
     gateIndices: [],
 
-    // No Level 02 mechanics
+    // Level 02 mechanics (nicht verwendet in L05)
     leakNodes: [],
 
-    // No Level 03 mechanics
-    terminalNodes: [],
-    keycardNodes: [],
+    // Level 03 mechanics
+    terminalNodes,
+    keycardNodes,
 
     // No Level 04 mechanics
     objectiveTerminalNodes: [],
@@ -82,10 +106,8 @@ export function makeLevel05({ baseSeed, allowedTypes }: Args): LevelDefinition {
 
     baseSeed: seed,
 
-    // ─────────────────────────────────────────────
-    // Level 05 specific: Signal Network
-    // ─────────────────────────────────────────────
-    signalSourceNodes,
-    signalTargetNodes,
+    // No Signal mechanics (Level 03 now owns that slot)
+    signalSourceNodes: [],
+    signalTargetNodes: [],
   };
 }

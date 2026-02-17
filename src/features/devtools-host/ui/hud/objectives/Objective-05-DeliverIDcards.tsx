@@ -1,4 +1,4 @@
-// src/features/devtools-host/ui/hud/objectives/ObjectiveTerminals.tsx
+// src\features\devtools-host\ui\hud\objectives\Objective-05-DeliverIDcards.tsx
 import type { HudObjective } from '../../../lib/hud/typesHud';
 
 type ObjectiveTerminalsLike = Extract<HudObjective, { kind: 'terminals' }>;

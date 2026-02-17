@@ -1,10 +1,10 @@
 // src/features/devtools-host/ui/hud/objectives/ObjectivePanel.tsx
 import type { HudObjective } from '../../../lib/hud/typesHud';
 import { ObjectiveNodes } from './Objective-01-Nodes';
-import { ObjectiveLeaks } from './Objective-02-Leaks';
-import { ObjectiveTerminals } from './Objective-03-Terminals';
+import { ObjectiveLeaks } from './Objective-06-Leaks';
+import { ObjectiveTerminals } from './Objective-05-DeliverIDcards';
 import { ObjectiveActivateTerminals } from './Objective-04-ActivateTerminals';
-import { ObjectiveSignal } from './ObjectiveSignal';
+import { ObjectivePath } from './Objective-03-Path';
 
 type Props = {
   objective: HudObjective;
@@ -29,7 +29,7 @@ export function ObjectivePanel({ objective }: Props) {
       return <ObjectiveActivateTerminals objective={objective} />;
 
     case 'signal':
-      return <ObjectiveSignal objective={objective} />;
+      return <ObjectivePath objective={objective} />;
 
     default: {
       // Runtime safety: never hard-crash the whole game because of a HUD mismatch.

@@ -1,6 +1,6 @@
 // src/features/grid/ui/cells/renderers/SignalTargetOverlay.tsx
 /**
- * Level 05: Signal Target (relay node) overlay
+ * Signal Target (Point B) overlay
  */
 
 type Props = {
@@ -16,9 +16,9 @@ export function SignalTargetOverlay({ id }: Props) {
       <div
         className="absolute inset-1 rounded-lg animate-pulse"
         style={{
-          background: 'radial-gradient(circle, rgba(168,85,247,0.25) 0%, rgba(168,85,247,0.08) 60%, transparent 100%)',
-          boxShadow: '0 0 20px rgba(168,85,247,0.3), inset 0 0 12px rgba(168,85,247,0.15)',
-          animationDuration: '1.5s',
+          background: 'radial-gradient(circle, rgba(140,255,90,0.22) 0%, rgba(20,255,120,0.07) 60%, transparent 100%)',
+          boxShadow: '0 0 22px rgba(140,255,90,0.26), inset 0 0 14px rgba(20,255,120,0.12)',
+          animationDuration: '1.6s',
         }}
       />
 
@@ -26,21 +26,20 @@ export function SignalTargetOverlay({ id }: Props) {
       <div
         className="relative w-10 h-10 rounded-lg flex items-center justify-center"
         style={{
-          background: 'linear-gradient(135deg, rgba(168,85,247,0.4) 0%, rgba(139,92,246,0.5) 100%)',
-          border: '2px solid rgba(168,85,247,0.6)',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.4), 0 0 8px rgba(168,85,247,0.3)',
+          background: 'linear-gradient(135deg, rgba(140,255,90,0.34) 0%, rgba(20,255,120,0.44) 100%)',
+          border: '2px solid rgba(140,255,90,0.55)',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.42), 0 0 10px rgba(140,255,90,0.22)',
         }}
       >
-        {/* "T" for Target or receiver icon */}
-        <span className="text-purple-200 text-lg font-bold drop-shadow-md">T</span>
+        <span className="text-emerald-100 text-lg font-bold drop-shadow-md">B</span>
       </div>
 
       {/* Seeking animation (inward pulse) */}
       <div
         className="absolute inset-2 rounded-lg animate-pulse opacity-30"
         style={{
-          border: '2px dashed rgba(168,85,247,0.5)',
-          animationDuration: '1.8s',
+          border: '2px dashed rgba(140,255,90,0.45)',
+          animationDuration: '1.9s',
         }}
       />
     </div>
