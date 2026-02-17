@@ -50,19 +50,28 @@ function allocPowerRequestId(): number {
   return cur <= 0 ? 1 : cur;
 }
 
-const LASER_KEYS = new Set<string>(['laser', 'gridlaser', 'laserRow', 'laserRowClear']);
+/**
+ * IMPORTANT:
+ * - 'laser' = row-clear power
+ * - 'gridlaser'/'bomb' = different power (old bomb refactor)
+ *
+ * This hook MUST NOT arm when 'gridlaser' or 'bomb' are armed.
+ */
+const LASER_ARM_KEYS = new Set<string>(['laser', 'laserRow', 'laserRowClear']);
+
+function normalizeLaserKey(raw: string): 'laser' | null {
+  if (raw === 'laser') return 'laser';
+  if (raw === 'laserRow' || raw === 'laserRowClear') return 'laser';
+  return null;
+}
 
 export function useLaserRowTargeting({ width, height, inputLocked }: Opts) {
   const [laserArmed, setLaserArmed] = useState(false);
   const [hoverRow, setHoverRow] = useState<number | null>(null);
 
-  // Remember which key variant armed us, so we can disarm the exact same key.
-  const armedKeyRef = useRef<string>('laser');
-
   const emitArm = useCallback((armed: boolean) => {
     if (typeof window === 'undefined') return;
-    const key = armedKeyRef.current;
-    window.dispatchEvent(new CustomEvent(POWER_ARM_EVENT, { detail: { key, armed } }));
+    window.dispatchEvent(new CustomEvent(POWER_ARM_EVENT, { detail: { key: 'laser', armed } }));
   }, []);
 
   // Global arm/disarm sync (Footer emits this).
@@ -74,9 +83,11 @@ export function useLaserRowTargeting({ width, height, inputLocked }: Opts) {
       const d = ce.detail;
 
       if (!isArmDetailLike(d)) return;
-      if (!LASER_KEYS.has(d.key)) return;
+      if (!LASER_ARM_KEYS.has(d.key)) return;
 
-      armedKeyRef.current = d.key;
+      const normalized = normalizeLaserKey(d.key);
+      if (!normalized) return;
+
       setLaserArmed(!!d.armed);
       if (!d.armed) setHoverRow(null);
     };
@@ -125,8 +136,7 @@ export function useLaserRowTargeting({ width, height, inputLocked }: Opts) {
       e.stopPropagation();
 
       const requestId = allocPowerRequestId();
-      const key = armedKeyRef.current;
-      const detail: UseAtDetail = { key, index, requestId };
+      const detail: UseAtDetail = { key: 'laser', index, requestId };
 
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent(POWER_USE_AT_EVENT, { detail }));

@@ -1,30 +1,27 @@
 // src/features/devtools-host/ui/GameContainer.tsx
 import type { RefObject } from 'react';
-import { useCallback, useEffect, useReducer } from 'react';
+import { useCallback, useEffect, useMemo, useReducer } from 'react';
 import type { EngineState } from '@/gamelogic';
 import { useCoreSfxWarmup, useEngineMatchObjectiveSfx } from '@/features/audio';
-import { Grid } from '@/features/grid';
-import type { BombTarget } from '@/features/grid/ui/bomb/typesBomb';
+import { Grid, type InputIntent } from '@/features/grid';
+import { useGridInput } from '@/features/grid/input/useGridInput';
 import { useHudInputFromState } from '@/features/devtools-host/lib/useHudInputFromState';
+
 // 🔥 tiles are module-level state -> must force rerender when they change
 import { preloadTiles, setTilesetLevel } from '@/features/grid/ui/tiles';
 import { preloadSpecialTiles, setSpecialTilesetLevel } from '@/features/grid/ui/tilesSpecial';
+
+import type { BombVfxMode } from '@/features/grid/ui/bomb/fx/BombExplosionFxLayer';
+
 import { GameStage } from './GameStage';
 import GameplayHud from './GameplayHud';
-
-type GridIntent =
-  | { type: 'click'; index: number }
-  | { type: 'swap'; from: number; to: number }
-  // legacy intent still present in input layer; upstream can ignore/convert
-  | { type: 'useBombAt'; index: number }
-  | { type: 'useItemAt'; key: 'bomb3x3'; target: BombTarget };
 
 type Props = {
   state: EngineState;
   inputLocked: boolean;
 
   canSwapAt: (from: number, to: number) => boolean;
-  onIntent: (intent: GridIntent) => void;
+  onIntent: (intent: InputIntent) => void;
 
   // Runtime / environment
   isDev?: boolean;
@@ -46,6 +43,8 @@ type Props = {
   // Triggers re-render on tiles palette changes
   tilesVersion?: number;
 };
+
+const noop = () => undefined;
 
 export default function GameContainer({
   state,
@@ -93,20 +92,79 @@ export default function GameContainer({
   // Derive HUD input from engine state
   const hudInput = useHudInputFromState(state);
 
+  // Grid input / VM wiring (SSOT: useGridInput)
+  const gridInput = useGridInput({
+    state,
+    inputLocked,
+    canSwapAt,
+    onIntent,
+    debugEnabled,
+    swapMs: state.swapMs,
+  });
+
+  const vm = useMemo(
+    () => ({
+      cells: state.cells,
+      pieceList: gridInput.pieceList,
+      selectionPos: null,
+      targetPos: null,
+
+      dragPieceId: gridInput.dragPieceId,
+      isDragging: gridInput.isDragging,
+
+      previewActive: gridInput.previewActive,
+      previewOtherPieceId: gridInput.previewOtherPieceId,
+      previewAxisUI: gridInput.previewAxisUI,
+      previewDirUI: gridInput.previewDirUI,
+
+      shakePieceId: gridInput.shakePieceId,
+      setDraggedEl: gridInput.setDraggedEl,
+    }),
+    [
+      state.cells,
+      gridInput.pieceList,
+      gridInput.dragPieceId,
+      gridInput.isDragging,
+      gridInput.previewActive,
+      gridInput.previewOtherPieceId,
+      gridInput.previewAxisUI,
+      gridInput.previewDirUI,
+      gridInput.shakePieceId,
+      gridInput.setDraggedEl,
+    ],
+  );
+
+  // NOTE: innerW/innerH are still passed by the runtime container in this codebase.
+  // Until we measure the actual inner size, fall back to a stable, non-crashing value.
+  const innerW = state.width;
+  const innerH = state.height;
+
   const gridElement = (
     <Grid
       state={state}
+      width={state.width}
+      height={state.height}
+      swapMs={state.swapMs}
+      debugEnabled={debugEnabled}
+      bombVfxMode={'legacyShock' satisfies BombVfxMode}
+      vm={vm}
       inputLocked={inputLocked}
       showLockoutHints={showLockoutHints}
-      onToggleShowLockoutHints={onToggleShowLockoutHints}
-      canSwapAt={canSwapAt}
-      onIntent={onIntent}
-      debugEnabled={debugEnabled}
-      onDevResetBoard={onDevResetBoard}
-      onDevPrevLevel={onDevPrevLevel}
-      onDevNextLevel={onDevNextLevel}
+      showDebugLabels={debugEnabled}
+      innerW={innerW}
+      innerH={innerH}
+      onPointerMove={gridInput.onPointerMove}
+      onPointerUp={gridInput.onPointerUp}
+      onPointerCancel={gridInput.onPointerCancel}
+      onCellPointerDown={gridInput.onCellPointerDown}
+      onShellPointerMove={gridInput.onPointerMove}
+      onShellPointerLeave={noop}
+      debugSnapshot={gridInput.debugSnapshot}
+      onToggleShowLockoutHints={onToggleShowLockoutHints ?? noop}
+      onDevPrevLevel={onDevPrevLevel ?? noop}
+      onDevNextLevel={onDevNextLevel ?? noop}
+      onDevResetBoard={onDevResetBoard ?? noop}
       onDevNextTilesPalette={handleDevNextTilesPalette}
-      swapMs={state.swapMs}
     />
   );
 
