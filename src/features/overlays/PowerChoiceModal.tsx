@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import type { PowerKey, Powers } from '@/types';
 import type { PowerId } from './overlayContext';
-
+import { useAudio } from '@/context/AudioContext';
 type Props = {
   open: boolean;
   title: string;
@@ -23,7 +23,7 @@ function getChoiceBonus(id: PowerId): number {
 export default function PowerChoiceModal({ open, title, onClose, onChoose }: Props) {
   const { powers, setPowers } = usePowers();
   const [showConfetti, setShowConfetti] = useState(false);
-
+  const { playWinSound } = useAudio();
   // Reset confetti
   useEffect(() => {
     if (showConfetti) {
@@ -52,6 +52,7 @@ export default function PowerChoiceModal({ open, title, onClose, onChoose }: Pro
 
     // existing flow (likely backend sync / overlay close)
     onChoose(id);
+    playWinSound();
   };
 
   return (

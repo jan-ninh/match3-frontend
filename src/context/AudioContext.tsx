@@ -1,7 +1,7 @@
 // src/context/AudioContext.tsx
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import clickSoundFile from '@/assets/sound/CLICK.wav';
-
+import winSoundFile from '@/assets/sound/win.wav';
 type AudioContextType = {
   // Background Music
   musicOn: boolean;
@@ -16,6 +16,7 @@ type AudioContextType = {
   setClickVolume: (value: number) => void;
 
   playClickSound: () => void;
+  playWinSound: () => void;
 };
 
 const AudioContext = createContext<AudioContextType | undefined>(undefined);
@@ -23,7 +24,7 @@ const AudioContext = createContext<AudioContextType | undefined>(undefined);
 export function AudioProvider({ children }: { children: React.ReactNode }) {
   const musicRef = useRef<HTMLAudioElement | null>(null);
   const clickRef = useRef<HTMLAudioElement | null>(null);
-
+  const winRef = useRef<HTMLAudioElement | null>(null);
   const [musicOn, setMusicOn] = useState(true);
   const [musicVolume, setMusicVolume] = useState(70);
 
@@ -102,7 +103,27 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     clickRef.current.currentTime = 0;
     clickRef.current.play().catch(() => {});
   };
+  // 7) init win sound (only once)
+  useEffect(() => {
+    if (!winRef.current) {
+      winRef.current = new Audio(winSoundFile);
+      winRef.current.volume = clickVolume / 100; // uses Effects volume
+    }
+  }, []);
 
+  // 8) keep win volume in sync with effects volume
+  useEffect(() => {
+    if (!winRef.current) return;
+    winRef.current.volume = clickVolume / 100;
+  }, [clickVolume]);
+
+  const playWinSound = () => {
+    if (!winRef.current) return;
+    if (!clickSoundOn || clickVolume <= 0) return;
+
+    winRef.current.currentTime = 0;
+    winRef.current.play().catch(() => {});
+  };
   return (
     <AudioContext.Provider
       value={{
@@ -115,6 +136,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
         clickVolume,
         setClickVolume,
         playClickSound,
+        playWinSound,
       }}
     >
       {children}
