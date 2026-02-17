@@ -92,7 +92,7 @@ export default function ProfileDashboard() {
             <button
               type="button"
               onClick={() => setAvatarModalOpen(true)}
-              className="px-4 h-10 rounded-xl border border-white/10 text-cyan-400 hover:text-white"
+              className="px-4 h-10 rounded-xl border border-white/10 text-cyan-400 hover:text-pink-400 transition-colors duration-200"
             >
               Change avatar
             </button>
