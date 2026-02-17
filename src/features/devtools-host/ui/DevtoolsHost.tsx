@@ -126,12 +126,13 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
         } catch (err) {
           console.error(`Failed to report dev win for ${lvl}:`, err);
         }
-      }
-
-      try {
-        await completeLevel(lvl);
-      } catch {
-        // ignore local progress errors
+      } else {
+        // Guest mode only: local progression cache for stage map rendering.
+        try {
+          await completeLevel(lvl);
+        } catch {
+          // ignore local progress errors
+        }
       }
 
       setSelectedPowersForNextStage(null);
@@ -189,9 +190,10 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
         } catch (err) {
           console.error(`Failed to report dev lose for ${lvl}:`, err);
         }
+      } else {
+        await resetProgress();
       }
 
-      await resetProgress();
       setSelectedPowersForNextStage(null);
       onDevSetLevel(1);
       openLose(lvl);
@@ -299,7 +301,9 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
   };
 
   const onDevResetProgress = async () => {
-    await resetProgress();
+    if (!userId) {
+      await resetProgress();
+    }
   };
 
   // Call apiStartStage with selected powers when a level is loaded
