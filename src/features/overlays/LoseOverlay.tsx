@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+// src/features/overlays/LoseOverlay.tsx
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useAuth } from '@/context/AuthContext';
 import { usePowers } from '@/context/PowerContext';
@@ -7,6 +8,7 @@ import Modal from '@/components/Modal';
 import { motion } from 'framer-motion';
 import type { Powers } from '@/types';
 import { CyberButton } from '@/components';
+import { useAudio } from '@/context/AudioContext'; // ✅ NEW
 
 type Props = {
   open: boolean;
@@ -18,9 +20,23 @@ export default function LoseOverlay({ open, onClose, level: _level = 1 }: Props)
   const navigate = useNavigate();
   const { user } = useAuth();
   const { setPowers } = usePowers();
+  const { playLoseSound } = useAudio(); // ✅ NEW
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [powerReset, setPowerReset] = useState(false);
+
+  // ✅ play lose sound exactly once per open
+  const playedRef = useRef(false);
+  useEffect(() => {
+    if (!open) {
+      playedRef.current = false;
+      return;
+    }
+    if (playedRef.current) return;
+    playedRef.current = true;
+
+    playLoseSound();
+  }, [open, playLoseSound]);
 
   // ✅ Call loss API on server
   useEffect(() => {
@@ -31,7 +47,6 @@ export default function LoseOverlay({ open, onClose, level: _level = 1 }: Props)
       try {
         const result = (await apiLoseGame(user.id)) as { powers?: Powers };
 
-        // ✅ Reset powers to zero/default
         if (result.powers) {
           setPowers(result.powers);
         }
@@ -70,9 +85,7 @@ export default function LoseOverlay({ open, onClose, level: _level = 1 }: Props)
             show: { opacity: 1, y: 0, filter: 'blur(0px)' },
           }}
           transition={{ duration: 0.2, ease: 'easeOut' }}
-          animate={{
-            x: [0, -4, 4, -4, 4, 0],
-          }}
+          animate={{ x: [0, -4, 4, -4, 4, 0] }}
         >
           <div className="text-pink-500">You Lost</div>
         </motion.div>
@@ -98,7 +111,6 @@ export default function LoseOverlay({ open, onClose, level: _level = 1 }: Props)
           style={{ transformOrigin: 'center' }}
         />
 
-        {/* Button */}
         <motion.div
           variants={{
             hidden: { opacity: 0, y: 12 },
