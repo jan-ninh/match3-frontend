@@ -12,13 +12,14 @@ import {
   type PowerUseDetail,
 } from '@/context/powerEvents';
 import type { PowerKey } from '@/types';
+import { useCampaignTracking } from '@/services/campaign/useCampaignTracking';
 
 type Args = {
   initialLevelId?: number;
 };
 
 function isPowerKey(v: unknown): v is PowerKey {
-  return v === 'bomb' || v === 'laser' || v === 'extraShuffle';
+  return v === 'gridlaser' || v === 'bomb' || v === 'laser' || v === 'extraShuffle';
 }
 
 type PowerUsedEvent = Readonly<{
@@ -98,6 +99,9 @@ export function useMatch3Engine({ initialLevelId = 1 }: Args) {
 
   const [state, dispatch] = useReducer(engineReducer, levelId, createInitialState);
 
+  // campaign/run tracking (FE → BE)
+  useCampaignTracking({ state });
+
   // keep Engine timing in sync (Engine is the source of truth)
   const desiredSwapMs = reducedMotion ? 0 : SWAP_MS;
   useLayoutEffect(() => {
@@ -171,17 +175,24 @@ export function useMatch3Engine({ initialLevelId = 1 }: Args) {
     const onUseAt = (e: Event) => {
       const ce = e as CustomEvent<PowerUseAtDetail>;
       const d = ce.detail;
-      if (!d || d.key !== 'bomb') return;
+      if (!d) return;
+
+      // Use runtime string compare to avoid TS "no overlap" if PowerUseAtDetail.key union lags behind.
+      const powerKey = String(d.key);
+
+      let itemKey: 'bomb3x3' | 'laserRow';
+      if (powerKey === 'gridlaser' || powerKey === 'bomb') itemKey = 'bomb3x3';
+      else if (powerKey === 'laser' || powerKey === 'laserRow' || powerKey === 'laserRowClear') itemKey = 'laserRow';
+      else return;
 
       const t = d.target;
       if (!t || typeof t.x !== 'number' || typeof t.y !== 'number') return;
 
       const requestId = allocPowerRequestId(d.requestId);
 
-      // Always route legacy/modern bomb usage through useItemAt
       dispatch({
         type: 'useItemAt',
-        key: 'bomb3x3',
+        key: itemKey,
         target: { x: t.x | 0, y: t.y | 0 },
         requestId,
         nowMs: performance.now(),
