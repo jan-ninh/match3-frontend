@@ -11,6 +11,7 @@ type Props = {
 
 export default function ProfileHeader({ username, level, avatar, actions }: Props) {
   const capitalize = (str: string) => str.charAt(0).toUpperCase() + str.slice(1);
+  const safeLevel = Number.isFinite(level) && level > 0 ? Math.floor(level) : 1;
 
   return (
     <GlassSection className="flex items-center justify-between gap-6">
@@ -22,7 +23,7 @@ export default function ProfileHeader({ username, level, avatar, actions }: Prop
         </CyberTitle>
         {/* <p className={`${S.text.secondary} text-sm mt-0.5`}>Level {level}</p> */}
         <CyberTitle size="sm" className="mt-1 text-cyan-300/80">
-          Level {level}
+          Level {safeLevel}
         </CyberTitle>
         {actions ? <div className="mt-3">{actions}</div> : null}
       </div>

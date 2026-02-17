@@ -2,8 +2,12 @@ import { request } from './http';
 import type { Powers, PowerKey, UserProfile } from '@/types';
 
 export type GameStatus = {
-  profile: UserProfile;
+  profile?: UserProfile;
+  hearts?: number;
+  maxHearts?: number;
   powers: Powers;
+  allowedStage?: number;
+  nextRefillAt?: string | Date | null;
 };
 
 export type StartStageResponse = {

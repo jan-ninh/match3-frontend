@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router';
 
 import { cycleTilesetPalette, preloadTiles } from '@/features/grid/ui/tiles';
 import { cycleSpecialTilesetPalette, preloadSpecialTiles } from '@/features/grid/ui/tilesSpecial';
@@ -55,6 +56,7 @@ function applyPowerReward(base: Powers, powerId: RewardPowerId, amount: number):
 }
 
 export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
+  const navigate = useNavigate();
   const [showLockoutHints, setShowLockoutHints] = useState<boolean>(false);
   const [debugEnabled, setDebugEnabled] = useState<boolean>(false);
   const usedPowerInCurrentStageRef = useRef<PowerKey | null>(null);
@@ -325,12 +327,13 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
         const allowedStage = extractAllowedStage(err);
         if (allowedStage && allowedStage !== lvl) {
           onDevSetLevel(allowedStage);
+          navigate(`/game-map/play-game?level=${allowedStage}`, { replace: true });
           return;
         }
 
         console.error(`Failed to start stage ${lvl}:`, err);
       });
-  }, [onDevSetLevel, setPowers, user?.id, state.levelId, selectedPowersForNextStage, setSelectedPowersForNextStage]);
+  }, [navigate, onDevSetLevel, setPowers, user?.id, state.levelId, selectedPowersForNextStage, setSelectedPowersForNextStage]);
 
   useEffect(() => {
     const lvl = state.levelId;
