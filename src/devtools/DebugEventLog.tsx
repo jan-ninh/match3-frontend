@@ -1,4 +1,3 @@
-// src/devtools/DebugEventLog.tsx
 import { Fragment, useEffect, useMemo, useRef } from 'react';
 import type { EngineEvent } from '@/gamelogic';
 
@@ -73,6 +72,19 @@ function formatEvent(e: EngineEvent): string {
       return `cellCharged(index=${e.index})`;
     case 'signalLinked':
       return 'signalLinked()';
+
+    case 'itemAccepted': {
+      return `itemAccepted(key=${e.key}, target=${e.target.x},${e.target.y}, requestId=${e.requestId})`;
+    }
+
+    case 'cascadeStep': {
+      if (e.kind === 'itemLaserRowClear') {
+        return `cascadeStep(laserRowClear,row=${e.row}, cleared=${e.cleared}, indices=[${fmtList(e.indices)}])`;
+      }
+      const _exhaustive: never = e;
+      return JSON.stringify(_exhaustive);
+    }
+
     case 'powerUsed': {
       const req = typeof e.requestId === 'number' ? e.requestId : 0;
       return `powerUsed(key=${e.key}, requestId=${req})`;
@@ -185,7 +197,11 @@ export default function DebugEventLog({ events, maxLines = DEFAULT_MAX_LINES }: 
         </div>
       </div>
 
-      <div ref={scrollerRef} className="mt-2 h-[min(620px,calc(100svh-260px))] overflow-y-auto overscroll-contain" style={{ scrollbarGutter: 'stable' }}>
+      <div
+        ref={scrollerRef}
+        className="mt-2 h-[min(620px,calc(100svh-260px))] overflow-y-auto overscroll-contain"
+        style={{ scrollbarGutter: 'stable' }}
+      >
         <ul className="space-y-0">
           {lastEventsChrono.map((e, i) => {
             // turnSeparator: render as engine-owned blank line (no inference)

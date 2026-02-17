@@ -5,12 +5,15 @@ import { beginAnim } from '../../anim';
 import { isStableIdle, mkTurnCommitArmedItem, pushEvents } from '../../events';
 import { setPhase } from '../../../phaseState';
 
-import { applyItemEffectAt, getItemEffectPreviewIndices } from '../../../itemeffects';
+import { stabilizeBoard } from '../../../cascade/stabilizeBoard';
+import { applyItemEffectAt, getItemEffectPreSteps, getItemEffectPreviewIndices } from '../../../itemeffects';
 
 function powerKeyForItem(key: UseItemAtAction['key']): 'bomb' | 'laser' | 'extraShuffle' {
   switch (key) {
     case 'bomb3x3':
       return 'bomb';
+    case 'laserRow':
+      return 'laser';
     default: {
       const _exhaustive: never = key;
       return _exhaustive;
@@ -39,6 +42,9 @@ export function handleUseItemAt(state: EngineState, action: UseItemAtAction): En
   // Observability: instrument every pendingTurnCommit arming
   events.push(mkTurnCommitArmedItem(action.key, target, action.requestId));
 
+  // Also: explicit acceptance event (UI/debug can listen without inferring from side-effects)
+  events.push({ type: 'itemAccepted', key: action.key, target, requestId: action.requestId });
+
   // Clear selection for cleanliness
   if (s.selectedIndex !== null) {
     s = { ...s, selectedIndex: null };
@@ -48,10 +54,24 @@ export function handleUseItemAt(state: EngineState, action: UseItemAtAction): En
   // Lock input immediately (phase event must be preserved via same events array)
   s = setPhase(s, 'inputLock', events);
 
-  // Apply effect (clear -> gravity -> refill); keep central event policy (pushEvents only once at the end)
-  const fx = applyItemEffectAt(s, action.key, target);
-  s = fx.state;
-  events.push(...fx.events);
+  // Apply effect
+  // - Some items are modeled as first-class cascade preSteps (processed BEFORE detect).
+  // - If preSteps exist, we apply them via stabilizeBoard with resolve/shuffle disabled (turnEnd pipeline still handles real resolve).
+  const preSteps = getItemEffectPreSteps(s, action.key, target);
+
+  if (preSteps !== undefined) {
+    // Supported as preSteps. If it would be a no-op, ignore (UI should also abort).
+    if (preSteps.length === 0) return state;
+
+    const st = stabilizeBoard(s, { preSteps, maxResolveLoops: 0, maxDeadlockPasses: 0 });
+    s = st.state;
+    events.push(...st.events);
+  } else {
+    // Immediate item effect (clear -> gravity -> refill)
+    const fx = applyItemEffectAt(s, action.key, target);
+    s = fx.state;
+    events.push(...fx.events);
+  }
 
   // Ack for UI consume (only after accept)
   events.push({ type: 'powerUsed', key: powerKeyForItem(action.key), requestId: action.requestId });
