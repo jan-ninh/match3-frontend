@@ -2,6 +2,7 @@ import type { RefObject } from 'react';
 import { useCallback, useEffect, useReducer } from 'react';
 import type { EngineState } from '@/gamelogic';
 import { useCoreSfxWarmup, useEngineMatchObjectiveSfx } from '@/features/audio';
+import { useLaserItemSfx } from '@/features/audio/sfx/useLaserItemSfx';
 import { Grid, type InputIntent } from '@/features/grid';
 import { useHudInputFromState } from '@/features/devtools-host/lib/useHudInputFromState';
 // 🔥 tiles are module-level state -> must force rerender when they change
@@ -52,15 +53,18 @@ export default function GameContainer({
   debugEnabled = false,
   showLockoutHints = false,
   onToggleShowLockoutHints,
+  onDevNextTilesPalette,
   onDevResetBoard,
   onDevPrevLevel,
   onDevNextLevel,
-  onDevNextTilesPalette,
   gridRowRef,
 }: Props) {
   // Audio warmup + engine-event→SFX mapping
   useCoreSfxWarmup();
   useEngineMatchObjectiveSfx(state);
+
+  // Item SFX (ACK-driven)
+  useLaserItemSfx();
 
   // Bump component render when tileset/palette changes (tiles live outside React state)
   const [, bumpTilesRender] = useReducer((n: number) => (n + 1) % 1_000_000_000, 0);

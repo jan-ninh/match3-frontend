@@ -1,4 +1,3 @@
-// src/features/audio/sfx/sfxManifest.ts
 /**
  * Public URL-based SFX manifest.
  * - points to files in /public so missing files won't break builds
@@ -22,7 +21,17 @@ function urls(...paths: readonly string[]): readonly string[] {
 }
 
 export const SFX_URLS = {
-  bombExplosion: urls('audio/sfx/items/bomb/bomb_laserSFX.mp3', 'audio/sfx/items/bomb/bomb_laserSFX.ogg', 'audio/sfx/items/bomb/bomb_laserSFX.m4a'),
+  // Items
+  bombExplosion: urls(
+    'audio/sfx/items/bomb/bomb_laserSFX.mp3',
+    'audio/sfx/items/bomb/bomb_laserSFX.ogg',
+    'audio/sfx/items/bomb/bomb_laserSFX.m4a',
+  ),
+
+  // Laser (Row-Clear Item)
+  // Expected asset location (public/): public/audio/sfx/items/laser/laser.mp3
+  laserRow: urls('audio/sfx/items/laser/laser.mp3', 'audio/sfx/items/laser/laser.ogg', 'audio/sfx/items/laser/laser.m4a'),
+
   reshuffle: urls('audio/sfx/items/reshuffle/reshuffle.mp3', 'audio/sfx/items/reshuffle/reshuffle_SFX.ogg', 'audio/sfx/items/reshuffle/reshuffle_SFX.wav'),
 
   // UI
@@ -48,6 +57,7 @@ export const SFX_SOURCES = SFX_URLS;
 // Single Source of Truth: "critical" SFX you want warmed up ASAP.
 export const CORE_SFX: readonly SfxId[] = [
   'bombExplosion',
+  'laserRow',
   'reshuffle',
   'uiSettingsHover',
   'matchPop01',
