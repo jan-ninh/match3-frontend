@@ -5,3 +5,4 @@ export { default as LevelMapPage } from './LevelMapPage';
 export { default as LeaderboardPage } from './LeaderboardPage';
 export { default as ProfileDashboard } from './ProfileDashboard';
 export { default as LoadingPage } from './LoadingPage';
+export { default as NotFoundPage } from './NotFoundPage';

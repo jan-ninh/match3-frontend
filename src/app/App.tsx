@@ -2,7 +2,7 @@ import { Route, Routes } from 'react-router';
 import MainLayout from '@/app/layouts/MainLayout';
 import GameLayout from '@/app/layouts/GameLayout';
 import { OverlayProvider } from '@/features/overlays';
-import { AboutUs, GameStartPage, GameplayPage, LeaderboardPage, LevelMapPage, LoadingPage, ProfileDashboard } from '@/pages';
+import { AboutUs, GameStartPage, GameplayPage, LeaderboardPage, LevelMapPage, LoadingPage, ProfileDashboard, NotFoundPage } from '@/pages';
 
 export default function App() {
   return (
@@ -19,6 +19,9 @@ export default function App() {
             <Route path="profile" element={<ProfileDashboard />} />
             <Route path="play-game" element={<GameplayPage />} />
           </Route>
+
+          {/* Catch-all route for 404 */}
+          <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>
     </OverlayProvider>

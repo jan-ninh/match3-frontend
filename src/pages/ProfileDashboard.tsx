@@ -15,7 +15,20 @@ export default function ProfileDashboard() {
 
   const [avatarModalOpen, setAvatarModalOpen] = useState(false);
 
+  // Refresh profile when component mounts (e.g., returning from game)
   useEffect(() => {
+    refreshProfile().catch(() => {});
+  }, []);
+
+  // Auto-refresh profile when page regains focus
+  useEffect(() => {
+    const handleFocus = () => {
+      refreshProfile().catch(() => {});
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [refreshProfile]);
     if (!user) return;
     refreshProfile().catch(() => {});
   }, [user, refreshProfile]);
@@ -141,7 +154,14 @@ export default function ProfileDashboard() {
 
       {/* ✅ Back button bottom - flex-shrink-0 */}
       <div className="shrink-0 px-6 mt-4 pb-10 flex justify-center">
-        <CyberButton key={'Back'} label={'Back'} onClick={() => navigate('/game-map')} />
+        <CyberButton
+          key={'Back'}
+          label={'Back'}
+          onClick={async () => {
+            await refreshProfile();
+            navigate('/game-map');
+          }}
+        />
       </div>
 
       {/* Modal */}
