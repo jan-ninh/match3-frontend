@@ -22,7 +22,7 @@ export function CyberTitle({ children, size = 'lg', className = '' }: CyberTitle
         relative font-extrabold uppercase tracking-wider
         bg-linear-to-b from-cyan-600 via-purple-300 to-purple-900
         bg-clip-text text-transparent
-        transition-transform duration-700
+        transition-transform duration-700 
         ${sizeMap[size]}
         ${className}
       `}
