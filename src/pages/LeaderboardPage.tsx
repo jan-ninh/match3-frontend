@@ -8,7 +8,7 @@ import { useAuth } from '@/context/AuthContext';
 
 export default function LeaderboardPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -20,9 +20,10 @@ export default function LeaderboardPage() {
         if (!isMounted) return;
         setUsers(items);
       })
-      .catch((err: any) => {
+      .catch((err: unknown) => {
         if (!isMounted) return;
-        setError(err?.message || 'Failed to load leaderboard');
+        const message = err instanceof Error ? err.message : 'Failed to load leaderboard';
+        setError(message);
       })
       .finally(() => {
         if (!isMounted) return;
@@ -34,15 +35,41 @@ export default function LeaderboardPage() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!user?.id) return;
+    if (profile) return;
+    void refreshProfile().catch(() => {});
+  }, [profile, refreshProfile, user?.id]);
+
   const currentUserId = user?.id;
 
   const sorted = useMemo(() => [...users].sort((a, b) => b.score - a.score), [users]);
   const topThree = sorted.slice(0, 3);
   const restTopTen = sorted.slice(3, 10);
 
-  const currentIndex = currentUserId ? sorted.findIndex((u) => u.id === currentUserId) : -1;
-  const currentUser = currentIndex >= 0 ? sorted[currentIndex] : undefined;
-  const currentRank = currentIndex >= 0 ? currentIndex + 1 : undefined;
+  const currentIndex = useMemo(() => {
+    if (!currentUserId) return -1;
+    return sorted.findIndex((u) => u.id === currentUserId || (!!profile?.username && u.name === profile.username));
+  }, [currentUserId, profile?.username, sorted]);
+
+  const fallbackCurrentUser = useMemo<User | undefined>(() => {
+    if (!currentUserId || !profile) return undefined;
+    return {
+      id: currentUserId,
+      name: profile.username,
+      score: Number.isFinite(profile.totalScore) ? Math.max(0, Math.floor(profile.totalScore)) : 0,
+      avatar: profile.avatar,
+    };
+  }, [currentUserId, profile]);
+
+  const currentUser = currentIndex >= 0 ? sorted[currentIndex] : fallbackCurrentUser;
+
+  const currentRank = useMemo(() => {
+    if (!currentUser) return undefined;
+    if (currentIndex >= 0) return currentIndex + 1;
+    const better = sorted.filter((u) => u.score > currentUser.score).length;
+    return better + 1;
+  }, [currentIndex, currentUser, sorted]);
 
   return (
     <div className="flex flex-col h-full">
@@ -86,7 +113,7 @@ export default function LeaderboardPage() {
                   ))}
                 </div>
 
-                {currentUser && currentRank && currentRank > 10 && (
+                {currentUser && currentRank && (currentRank > 10 || currentIndex < 0) && (
                   <div className="mt-8 pt-4 border-t border-white/10">
                     <YourPositionCard user={currentUser} rank={currentRank} />
                   </div>
