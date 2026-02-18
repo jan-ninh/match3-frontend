@@ -11,6 +11,11 @@ import { cycleSpecialTilesetPalette, preloadSpecialTiles } from '@/features/grid
 import { useOverlays } from '@/features/overlays';
 import { completeLevel, resetProgress } from '@/services/progress/progressActions';
 import type { PowerKey, Powers } from '@/types';
+import { useAuth } from '@/context/AuthContext';
+import { getChoiceBonus, usePowers } from '@/context/PowerContext';
+import { apiStartStage, apiCompleteStage, apiLoseGame } from '@/api/game';
+import type { Powers, PowerKey } from '@/types';
+import { POWER_CONSUME_EVENT, type PowerConsumeDetail } from '@/context/powerEvents';
 
 import { useDevHotkeys } from '../lib/useDevHotkeys';
 import { useDevPanelsTopSync } from '../lib/useDevPanelsTopSync';
@@ -93,15 +98,27 @@ function hasPowersPayload(res: unknown): res is { powers: Powers } {
   if (!res || typeof res !== 'object') return false;
   const rec = res as Record<string, unknown>;
   return typeof rec.powers === 'object' && rec.powers !== null;
+function buildPowerRewardDelta(powerId: RewardPowerId, amount: number): Partial<Powers> {
+  if (powerId === 'bomb') return { bomb: amount };
+  if (powerId === 'laser') return { laser: amount };
+  return { extraShuffle: amount };
+}
+
+function applyPowerReward(base: Powers, powerId: RewardPowerId, amount: number): Powers {
+  if (powerId === 'bomb') return { ...base, bomb: base.bomb + amount };
+  if (powerId === 'laser') return { ...base, laser: base.laser + amount };
+  return { ...base, extraShuffle: base.extraShuffle + amount };
 }
 
 export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
   const navigate = useNavigate();
+  const [showLockoutHints, setShowLockoutHints] = useState<boolean>(false);
+  const [debugEnabled, setDebugEnabled] = useState<boolean>(false);
+  const usedPowerInCurrentStageRef = useRef<PowerKey | null>(null);
 
   const { openWin, openLose, openPowerChoice } = useOverlays();
   const { user, updatePowers } = useAuth();
-  const userId = user?.id ?? null;
-
+  const userId = user?.id;
   const { powers, setPowers, selectedPowersForNextStage, setSelectedPowersForNextStage } = usePowers();
 
   const [showLockoutHints, setShowLockoutHints] = useState(false);
@@ -139,6 +156,8 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
       const ce = e as CustomEvent<PowerConsumeDetail>;
       const detail = ce.detail;
       if (!detail) return;
+      const backendPowerKey = toBackendPowerKey(detail.key);
+      if (!backendPowerKey) return;
 
       const backendPowerKey = toBackendPowerKey(detail.key);
       if (!backendPowerKey) return;
