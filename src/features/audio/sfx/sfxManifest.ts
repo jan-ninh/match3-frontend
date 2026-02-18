@@ -1,3 +1,4 @@
+// src/features/audio/sfx/sfxManifest.ts
 /**
  * Public URL-based SFX manifest.
  * - points to files in /public so missing files won't break builds
@@ -48,6 +49,11 @@ export const SFX_URLS = {
   // TEMP: maps to an existing SFX so hover works immediately.
   // Replace with e.g. audio/sfx/ui/settings_hover_01.* once you add the real asset.
   uiSettingsHover: urls('audio/sfx/matches/match3_pop_02.mp3', 'audio/sfx/ui/settings_hover_01.ogg', 'audio/sfx/ui/settings_hover_01.wav'),
+
+  // UI
+  // TEMP: maps to an existing SFX so hover works immediately.
+  // Replace with e.g. /audio/sfx/ui/settings_hover_01.* once you add the real asset.
+  uiSettingsHover: ['/audio/sfx/matches/match3_pop_02.mp3', '/audio/sfx/ui/settings_hover_01.ogg', '/audio/sfx/ui/settings_hover_01.wav'],
 
   // Match 3+ pops (randomized by the caller for variation)
   matchPop01: urls('audio/sfx/matches/match3_pop_01.mp3', 'audio/sfx/matches/match3_pop_01.ogg', 'audio/sfx/matches/match3_pop_01.wav'),
