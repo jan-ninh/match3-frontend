@@ -61,19 +61,22 @@ export function GridDevPanels({
     ];
   }, [showLockoutHints, onToggleShowLockoutHints]);
 
+  // Presentation-friendly:
+  // - Allow level hopping even while the engine is input-locked (e.g. during init/anim/cascade).
+  // - Keep the other destructive actions locked to avoid weird mid-anim states.
   const devActions: ComponentProps<typeof DebugDevToolsPanel>['actions'] = useMemo(() => {
     return [
       {
         kind: 'action',
         label: 'level: Prev',
         onPress: onDevPrevLevel,
-        disabled: inputLocked,
+        disabled: false,
       },
       {
         kind: 'action',
         label: 'level: Next',
         onPress: onDevNextLevel,
-        disabled: inputLocked,
+        disabled: false,
       },
       {
         kind: 'action',
@@ -114,10 +117,15 @@ export function GridDevPanels({
           </button>
         </div>
 
-        <DebugDevToolsPanel locked={inputLocked} meta={stateMeta} items={devItems} actions={devActions} />
+        {/*
+          NOTE:
+          DebugDevToolsPanel has its own global "locked" behavior.
+          For demos, we keep the panel interactive and rely on per-action `disabled`.
+        */}
+        <DebugDevToolsPanel locked={false} meta={stateMeta} items={devItems} actions={devActions} />
       </div>
     );
-  }, [width, debugSnapshot, inputLocked, stateMeta, devItems, devActions]);
+  }, [width, debugSnapshot, stateMeta, devItems, devActions]);
 
   return useDevPanelsPortal(enabled, panels, { laneId: 'dev-left-lane' });
 }
