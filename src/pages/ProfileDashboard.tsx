@@ -15,16 +15,37 @@ export default function ProfileDashboard() {
   const [avatarModalOpen, setAvatarModalOpen] = useState(false);
 
   useEffect(() => {
-    if (!user || profile) return;
+    if (!user) return;
     refreshProfile().catch(() => {});
-  }, [user, profile, refreshProfile]);
+  }, [user, refreshProfile]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const refresh = () => {
+      void refreshProfile().catch(() => {});
+    };
+
+    const onFocus = () => refresh();
+    const onVisibility = () => {
+      if (!document.hidden) refresh();
+    };
+
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisibility);
+
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [user, refreshProfile]);
 
   const safeTotalScore = useMemo(() => {
-    if (!profile) return 0;
-    const score = Number(profile.totalScore);
+    const raw = profile?.totalScore ?? user?.totalScore ?? 0;
+    const score = Number(raw);
     if (!Number.isFinite(score) || score < 0) return 0;
     return Math.floor(score);
-  }, [profile]);
+  }, [profile?.totalScore, user?.totalScore]);
 
   const highestCompletedStage = useMemo(() => {
     if (!profile) return 0;
@@ -52,7 +73,7 @@ export default function ProfileDashboard() {
       { label: 'Wins', value: profile.gamesWon },
       { label: 'Losses', value: profile.gamesLost },
       { label: 'Games Played', value: profile.gamesPlayed },
-      { label: 'XP', value: safeTotalScore.toLocaleString() },
+      { label: 'Score', value: safeTotalScore.toLocaleString() },
     ];
   }, [profile, safeTotalScore]);
 
@@ -134,9 +155,7 @@ export default function ProfileDashboard() {
         userId={user?.id ?? ''}
         currentAvatar={profile.avatar as any}
         onUpdated={async (newAvatar) => {
-          if (profile) {
-            profile.avatar = newAvatar;
-          }
+          void newAvatar;
           await refreshProfile().catch(() => {});
         }}
       />
