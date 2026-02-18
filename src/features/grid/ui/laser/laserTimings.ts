@@ -1,9 +1,12 @@
+// src/features/grid/ui/laser/laserTimings.ts
+
 /**
- * Laser timings (UI-only).
+ * Laser timings (UI bridge).
  *
- * This controls the delay between confirming a row (click in targeting mode)
- * and dispatching POWER_USE_AT_EVENT to the engine bridge.
+ * Goal:
+ * - SFX should play immediately on confirm (in the same user gesture tick).
+ * - Engine dispatch should be delayed to control when the board effect starts.
  *
  * Units: milliseconds.
  */
-export const LASER_CONFIRM_DELAY_MS = 750;
+export const LASER_ENGINE_DELAY_MS = 700;

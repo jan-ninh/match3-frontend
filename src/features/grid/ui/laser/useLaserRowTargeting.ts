@@ -1,7 +1,11 @@
+// src/features/grid/ui/laser/useLaserRowTargeting.ts
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent, RefObject } from 'react';
+
 import { POWER_ARM_EVENT, POWER_USE_AT_EVENT, type PowerUseAtDetail } from '@/context/powerEvents';
-import { LASER_CONFIRM_DELAY_MS } from './laserTimings';
+import { playSfx } from '@/features/audio/sfx/sfxPlayer';
+
+import { LASER_ENGINE_DELAY_MS } from './laserTimings';
 
 type Opts = Readonly<{
   width: number;
@@ -55,31 +59,22 @@ function normalizeLaserKeyForEngine(key: string): 'laser' | null {
   return LASER_KEYS.has(key) ? 'laser' : null;
 }
 
+type PendingUse = Readonly<{
+  detail: PowerUseAtDetail;
+  confirmRow: number;
+}>;
+
 export function useLaserRowTargeting({ width, height, inputLocked, boardRef }: Opts) {
   const [laserArmed, setLaserArmed] = useState(false);
   const [hoverRow, setHoverRow] = useState<number | null>(null);
 
-  // Keep latest armed-state in a ref so delayed callbacks can reliably detect cancels.
   const laserArmedRef = useRef(false);
   useEffect(() => {
     laserArmedRef.current = laserArmed;
   }, [laserArmed]);
 
-  // If user confirms a row, we keep the targeting overlay "locked" for a short delay,
-  // then dispatch POWER_USE_AT_EVENT. This delay is UI-only and configurable.
-  const [pendingConfirm, setPendingConfirm] = useState(false);
-  const pendingTimerRef = useRef<number | null>(null);
-
   // Remember which key variant armed us, so we can disarm the exact same key.
   const armedKeyRef = useRef<string>('laser');
-
-  const clearPendingTimer = useCallback(() => {
-    if (pendingTimerRef.current !== null && typeof window !== 'undefined') {
-      window.clearTimeout(pendingTimerRef.current);
-    }
-    pendingTimerRef.current = null;
-    setPendingConfirm(false);
-  }, []);
 
   const emitArm = useCallback((armed: boolean) => {
     if (typeof window === 'undefined') return;
@@ -87,8 +82,27 @@ export function useLaserRowTargeting({ width, height, inputLocked, boardRef }: O
     window.dispatchEvent(new CustomEvent(POWER_ARM_EVENT, { detail: { key, armed } }));
   }, []);
 
+  // Pending confirm (engine dispatch is delayed, SFX is immediate).
+  const [pendingConfirm, setPendingConfirm] = useState(false);
+  const pendingRef = useRef<PendingUse | null>(null);
+  const timerRef = useRef<number | null>(null);
+
+  const clearPending = useCallback(() => {
+    pendingRef.current = null;
+    setPendingConfirm(false);
+
+    if (typeof window === 'undefined') {
+      timerRef.current = null;
+      return;
+    }
+
+    const id = timerRef.current;
+    timerRef.current = null;
+    if (id != null) window.clearTimeout(id);
+  }, []);
+
   // Cleanup on unmount.
-  useEffect(() => clearPendingTimer, [clearPendingTimer]);
+  useEffect(() => clearPending, [clearPending]);
 
   // Global arm/disarm sync (Footer emits this).
   useEffect(() => {
@@ -102,33 +116,39 @@ export function useLaserRowTargeting({ width, height, inputLocked, boardRef }: O
       if (!LASER_KEYS.has(d.key)) return;
 
       armedKeyRef.current = d.key;
-      setLaserArmed(!!d.armed);
 
-      if (!d.armed) {
-        clearPendingTimer();
+      const armed = !!d.armed;
+      setLaserArmed(armed);
+
+      if (!armed) {
+        clearPending();
         setHoverRow(null);
       }
     };
 
     window.addEventListener(POWER_ARM_EVENT, onArm as EventListener);
     return () => window.removeEventListener(POWER_ARM_EVENT, onArm as EventListener);
-  }, [clearPendingTimer]);
+  }, [clearPending]);
 
   // Safety: input lock => disarm (prevents stuck targeting).
+  // This also cancels any delayed engine dispatch.
   useEffect(() => {
     if (!inputLocked) return;
     if (!laserArmed) return;
 
-    clearPendingTimer();
+    clearPending();
+
     setLaserArmed(false);
     setHoverRow(null);
     emitArm(false);
-  }, [clearPendingTimer, emitArm, inputLocked, laserArmed]);
+  }, [clearPending, emitArm, inputLocked, laserArmed]);
 
   const onShellPointerMove = useCallback(
     (e: ReactPointerEvent<HTMLDivElement>) => {
       if (!laserArmed) return;
-      if (pendingConfirm) return; // freeze row highlight after confirm
+
+      // While confirm is pending, freeze hover row (visual lockout).
+      if (pendingConfirm) return;
 
       const rect = boardRef?.current?.getBoundingClientRect() ?? e.currentTarget.getBoundingClientRect();
       const h = rect.height;
@@ -151,9 +171,51 @@ export function useLaserRowTargeting({ width, height, inputLocked, boardRef }: O
 
   const onShellPointerLeave = useCallback(() => {
     if (!laserArmed) return;
-    if (pendingConfirm) return; // keep confirmed row visible during delay
+    if (pendingConfirm) return;
     setHoverRow(null);
   }, [laserArmed, pendingConfirm]);
+
+  const scheduleEngineDispatch = useCallback(
+    (p: PendingUse) => {
+      if (typeof window === 'undefined') return;
+
+      clearPending();
+
+      pendingRef.current = p;
+      setPendingConfirm(true);
+
+      const delayMs = clampInt(LASER_ENGINE_DELAY_MS, 0, 60_000);
+
+      // NOTE:
+      // - SFX is already played at confirm-time.
+      // - Engine dispatch happens later (delayed).
+      timerRef.current = window.setTimeout(() => {
+        timerRef.current = null;
+
+        // If we got disarmed/cancelled in the meantime, do nothing.
+        if (!laserArmedRef.current) {
+          clearPending();
+          return;
+        }
+
+        const pending = pendingRef.current;
+        if (!pending) {
+          clearPending();
+          return;
+        }
+
+        // Dispatch to engine bridge.
+        window.dispatchEvent(new CustomEvent<PowerUseAtDetail>(POWER_USE_AT_EVENT, { detail: pending.detail }));
+
+        // After we hand off to engine, disarm immediately (engine owns lock/acceptance).
+        clearPending();
+        setLaserArmed(false);
+        setHoverRow(null);
+        emitArm(false);
+      }, delayMs);
+    },
+    [clearPending, emitArm],
+  );
 
   const onCellPointerDown = useCallback(
     (index: number, e: ReactPointerEvent<HTMLButtonElement>) => {
@@ -162,7 +224,7 @@ export function useLaserRowTargeting({ width, height, inputLocked, boardRef }: O
       e.preventDefault();
       e.stopPropagation();
 
-      // Ignore additional clicks while waiting to dispatch the confirmed request.
+      // If a confirm is already pending, ignore further clicks.
       if (pendingConfirm) return;
 
       const safeW = Math.max(0, width | 0);
@@ -170,7 +232,7 @@ export function useLaserRowTargeting({ width, height, inputLocked, boardRef }: O
 
       // If board dimensions are invalid, disarm without emitting a malformed event.
       if (!(safeW > 0 && safeH > 0)) {
-        clearPendingTimer();
+        clearPending();
         setLaserArmed(false);
         setHoverRow(null);
         emitArm(false);
@@ -184,44 +246,21 @@ export function useLaserRowTargeting({ width, height, inputLocked, boardRef }: O
       const x = clampInt(xRaw, 0, Math.max(0, safeW - 1));
       const y = clampInt(yRaw, 0, Math.max(0, safeH - 1));
 
-      // Freeze the overlay on the confirmed row for the delay duration.
-      setHoverRow(y);
-      setPendingConfirm(true);
-
       const requestId = allocPowerRequestId();
 
       // Engine/bridge expects `target:{x,y}`. For row-clear, `y` selects row; `x` is harmless.
       const key = normalizeLaserKeyForEngine(armedKeyRef.current) ?? 'laser';
       const detail: PowerUseAtDetail = { key, target: { x, y }, requestId };
 
-      const delayMs = clampInt(LASER_CONFIRM_DELAY_MS, 0, 60_000);
+      // 🔊 SFX MUST be immediate (gesture-timed), independent of engine delay.
+      // playSfx('laserRow', { volume: 1 });
 
-      const dispatchUseAt = () => {
-        // If we were disarmed/cancelled during the delay, do nothing.
-        if (!laserArmedRef.current) return;
+      // Freeze highlight on the confirmed row while we wait.
+      setHoverRow(y);
 
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent<PowerUseAtDetail>(POWER_USE_AT_EVENT, { detail }));
-        }
-
-        clearPendingTimer();
-
-        // Disarm after dispatch (engine-bridge owns acceptance).
-        setLaserArmed(false);
-        setHoverRow(null);
-        emitArm(false);
-      };
-
-      if (delayMs <= 0) {
-        dispatchUseAt();
-        return;
-      }
-
-      if (typeof window === 'undefined') return;
-
-      pendingTimerRef.current = window.setTimeout(dispatchUseAt, delayMs);
+      scheduleEngineDispatch({ detail, confirmRow: y });
     },
-    [clearPendingTimer, emitArm, laserArmed, pendingConfirm, width, height],
+    [clearPending, emitArm, laserArmed, pendingConfirm, scheduleEngineDispatch, width, height],
   );
 
   return useMemo(
