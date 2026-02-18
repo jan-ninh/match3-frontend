@@ -1,5 +1,5 @@
 // src/features/grid/ui/Grid.tsx
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ComponentProps } from 'react';
 
 import type { EngineState } from '@/gamelogic/types';
@@ -75,6 +75,23 @@ export type GridUIProps = {
 
 type CssVars = React.CSSProperties & Record<`--${string}`, string | number>;
 
+function isInsideRect(rect: DOMRect, clientX: number, clientY: number) {
+  return clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom;
+}
+
+function clampInt(n: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, n));
+}
+
+function computeRowFromPointer(rect: DOMRect, clientY: number, rows: number) {
+  if (rows <= 0) return null;
+  const relY = clientY - rect.top;
+  const rowH = rect.height / rows;
+  if (rowH <= 0) return null;
+  const row = Math.floor(relY / rowH);
+  return clampInt(row, 0, rows - 1);
+}
+
 /**
  * GridView = reine Darstellung + lokale Targeting/UI-Orchestrierung.
  * Kein Input-Wiring (vm + debugSnapshot kommen von Feature-Wrapper).
@@ -134,7 +151,6 @@ export function GridView({
   }, [bomb.bombArmed, effectiveInputLocked, isDragging, laser.laserArmed, showLockoutHints]);
 
   // While in targeting mode (bomb/laser), force the crosshair cursor globally.
-  // - fixes "cursor disappears" when leaving the grid or hovering elements that set their own cursor.
   useEffect(() => {
     if (typeof document === 'undefined') return;
 
@@ -163,6 +179,46 @@ export function GridView({
     };
   }, [bomb.bombArmed, laser.laserArmed]);
 
+  // Laser row FX:
+  // - pointer leaves grid: keep last row and fade out slowly after a short delay
+  // - pointer outside grid (incl. pointer capture): DO NOT update row (prevents “following” the cursor)
+  const [laserRowDisplay, setLaserRowDisplay] = useState<number | null>(null);
+  const [laserRowVisible, setLaserRowVisible] = useState(false);
+  const laserFadeTimer = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (laserFadeTimer.current != null) {
+      window.clearTimeout(laserFadeTimer.current);
+      laserFadeTimer.current = null;
+    }
+
+    // (Re)enter targeting mode => reset row FX; row appears on first inside-move.
+    setLaserRowDisplay(null);
+    setLaserRowVisible(false);
+
+    return () => {
+      if (laserFadeTimer.current != null) {
+        window.clearTimeout(laserFadeTimer.current);
+        laserFadeTimer.current = null;
+      }
+    };
+  }, [laser.laserArmed]);
+
+  const startLaserFadeOut = () => {
+    if (!laser.laserArmed) return;
+    if (laserRowDisplay == null) return;
+
+    if (laserFadeTimer.current != null) {
+      window.clearTimeout(laserFadeTimer.current);
+      laserFadeTimer.current = null;
+    }
+
+    // Small delay before fading (feels less twitchy).
+    laserFadeTimer.current = window.setTimeout(() => {
+      setLaserRowVisible(false);
+    }, 140);
+  };
+
   const shellStyle = useMemo<CssVars>(() => ({ '--boardDim': 0.35 }), []);
 
   const onShellPointerMoveEffective = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -180,19 +236,15 @@ export function GridView({
   const onShellPointerLeaveEffective = () => {
     if (bomb.bombArmed) bomb.onShellPointerLeave();
     if (laser.laserArmed) laser.onShellPointerLeave();
+    startLaserFadeOut();
     onShellPointerLeave();
   };
 
   const onPointerUpEffective = (e: React.PointerEvent<HTMLDivElement>) => {
-    // IMPORTANT:
-    // While targeting (bomb/laser), we block normal pointer-move / cell-down to prevent swaps,
-    // but we MUST still forward pointer-up / pointer-cancel so the input controller can release
-    // the current pointer sequence (otherwise the grid can get stuck).
     onPointerUp(e);
   };
 
   const onPointerCancelEffective = (e: React.PointerEvent<HTMLDivElement>) => {
-    // See note in onPointerUpEffective.
     onPointerCancel(e);
   };
 
@@ -213,9 +265,36 @@ export function GridView({
   // - normal => forward to BOTH controller move + shell move
   const onPointerMoveMerged = (e: React.PointerEvent<HTMLDivElement>) => {
     if (bomb.bombArmed || laser.laserArmed) {
+      if (laser.laserArmed) {
+        const rect = e.currentTarget.getBoundingClientRect();
+        const inside = isInsideRect(rect, e.clientX, e.clientY);
+
+        if (inside) {
+          if (laserFadeTimer.current != null) {
+            window.clearTimeout(laserFadeTimer.current);
+            laserFadeTimer.current = null;
+          }
+
+          const row = computeRowFromPointer(rect, e.clientY, height);
+          if (row != null) {
+            setLaserRowDisplay((prev) => (prev === row ? prev : row));
+            setLaserRowVisible(true);
+          }
+
+          // Keep existing targeting logic updated while inside.
+          onShellPointerMoveEffective(e);
+          return;
+        }
+
+        // Outside: keep last row (no updates) and fade it out slowly.
+        startLaserFadeOut();
+        return;
+      }
+
       onShellPointerMoveEffective(e);
       return;
     }
+
     onPointerMove(e);
     onShellPointerMove(e);
   };
@@ -267,9 +346,15 @@ export function GridView({
         <BombOverlay indices={bomb.bombOverlayIndices} width={width} zIndex={44} />
 
         {/* Laser Targeting (row highlight) */}
-        <LaserRowOverlay armed={laser.laserArmed} row={laser.hoverRow} height={height} zIndex={46} />
+        <LaserRowOverlay armed={laser.laserArmed} row={laserRowDisplay} rowVisible={laserRowVisible} height={height} zIndex={46} />
 
-        <GridCellsLayer width={width} height={height} cells={cells} onCellPointerDown={onCellPointerDownEffective} showDebugLabels={showDebugLabels} />
+        <GridCellsLayer
+          width={width}
+          height={height}
+          cells={cells}
+          onCellPointerDown={onCellPointerDownEffective}
+          showDebugLabels={showDebugLabels}
+        />
 
         <GridOverlaysLayer selectionPos={selectionPos} targetPos={targetPos} />
 
