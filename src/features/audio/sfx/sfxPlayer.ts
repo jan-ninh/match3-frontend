@@ -1,3 +1,4 @@
+// src\features\audio\sfx\sfxPlayer.ts
 import { addAudioUnlockSubscriber, ensureAudioUnlocked, getAudioContext, primeAudioOutput, resumeAudioContextIfNeeded } from '../core/audioContext';
 import { CORE_SFX, SFX_URLS, type SfxId } from './sfxManifest';
 import { getSfxVolumeMultiplier } from './sfxTuning';
@@ -8,9 +9,89 @@ import { getSfxVolumeMultiplier } from './sfxTuning';
 ensureAudioUnlocked();
 
 export type PlaySfxOptions = Readonly<{
-  volume?: number; // 0..1
+  volume?: number; // 0..1 (per-sfx)
   playbackRate?: number; // 0.25..4
 }>;
+
+type SfxMasterState = Readonly<{
+  enabled: boolean;
+  volume01: number; // 0..1
+}>;
+
+let sfxMasterState: SfxMasterState = { enabled: true, volume01: 1 };
+
+let masterGainNode: GainNode | null = null;
+let masterGainCtx: AudioContext | null = null;
+
+function clampNum(n: number, min: number, max: number): number {
+  if (!Number.isFinite(n)) return min;
+  if (n < min) return min;
+  if (n > max) return max;
+  return n;
+}
+
+function getMasterMul(): number {
+  if (!sfxMasterState.enabled) return 0;
+  return clampNum(sfxMasterState.volume01, 0, 1);
+}
+
+function getMasterOutputNode(ctx: AudioContext): AudioNode {
+  // Keep a single master gain per AudioContext, so volume changes apply immediately.
+  if (masterGainNode && masterGainCtx === ctx) return masterGainNode;
+
+  try {
+    const g = ctx.createGain();
+    g.gain.value = getMasterMul();
+    g.connect(ctx.destination);
+
+    masterGainNode = g;
+    masterGainCtx = ctx;
+
+    return g;
+  } catch {
+    masterGainNode = null;
+    masterGainCtx = null;
+    return ctx.destination;
+  }
+}
+
+type HtmlAudioMeta = Readonly<{ baseVol: number }>;
+const htmlAudioMeta = new WeakMap<HTMLAudioElement, HtmlAudioMeta>();
+
+function syncMasterToOutputs(): void {
+  // WebAudio master gain
+  if (masterGainNode) {
+    try {
+      masterGainNode.gain.value = getMasterMul();
+    } catch {
+      // ignore
+    }
+  }
+
+  // HTMLAudio fallback players
+  const mul = getMasterMul();
+  for (const a of activeHtmlAudio) {
+    const meta = htmlAudioMeta.get(a);
+    if (!meta) continue;
+
+    try {
+      a.volume = clampNum(meta.baseVol * mul, 0, 1);
+    } catch {
+      // ignore
+    }
+  }
+}
+
+// Public setters (wired to the Sound Regler via AudioContext)
+export function setSfxMasterEnabled(enabled: boolean): void {
+  sfxMasterState = { ...sfxMasterState, enabled: !!enabled };
+  syncMasterToOutputs();
+}
+
+export function setSfxMasterVolume01(volume01: number): void {
+  sfxMasterState = { ...sfxMasterState, volume01: clampNum(volume01, 0, 1) };
+  syncMasterToOutputs();
+}
 
 type CachedBuffer = Readonly<{
   buf: AudioBuffer;
@@ -23,21 +104,14 @@ const loadingCache = new Map<SfxId, Promise<CachedBuffer | null>>();
 
 const activeHtmlAudio = new Set<HTMLAudioElement>();
 
-function clampNum(n: number, min: number, max: number): number {
-  if (!Number.isFinite(n)) return min;
-  if (n < min) return min;
-  if (n > max) return max;
-  return n;
-}
-
-function computeTunedVolume(id: SfxId, opts: PlaySfxOptions | undefined): number {
+function computeBaseVolume(id: SfxId, opts: PlaySfxOptions | undefined): number {
   const baseVol = clampNum(opts?.volume ?? 1, 0, 1);
   const mul = clampNum(getSfxVolumeMultiplier(id), 0, 1);
   return clampNum(baseVol * mul, 0, 1);
 }
 
-function withTunedVolume(id: SfxId, opts: PlaySfxOptions | undefined): PlaySfxOptions {
-  const vol = computeTunedVolume(id, opts);
+function withBaseTunedVolume(id: SfxId, opts: PlaySfxOptions | undefined): PlaySfxOptions {
+  const vol = computeBaseVolume(id, opts);
   const rate = opts?.playbackRate;
   return rate === undefined ? { volume: vol } : { volume: vol, playbackRate: rate };
 }
@@ -108,7 +182,7 @@ function playWithWebAudio(buf: AudioBuffer, opts: PlaySfxOptions | undefined): v
   resumeAudioContextIfNeeded();
   primeAudioOutput();
 
-  const vol = clampNum(opts?.volume ?? 1, 0, 1);
+  const perVol = clampNum(opts?.volume ?? 1, 0, 1);
   const rate = clampNum(opts?.playbackRate ?? 1, 0.25, 4);
 
   const src = ctx.createBufferSource();
@@ -116,10 +190,10 @@ function playWithWebAudio(buf: AudioBuffer, opts: PlaySfxOptions | undefined): v
   src.playbackRate.value = rate;
 
   const gain = ctx.createGain();
-  gain.gain.value = vol;
+  gain.gain.value = perVol;
 
   src.connect(gain);
-  gain.connect(ctx.destination);
+  gain.connect(getMasterOutputNode(ctx));
 
   try {
     // Starting slightly in the future avoids edge cases where resume/prime happens in the same tick.
@@ -179,16 +253,19 @@ function playWithHtmlAudio(urls: readonly string[], opts: PlaySfxOptions | undef
 
   ensureAudioUnlocked();
 
-  const vol = clampNum(opts?.volume ?? 1, 0, 1);
+  const baseVol = clampNum(opts?.volume ?? 1, 0, 1);
   const rate = clampNum(opts?.playbackRate ?? 1, 0.25, 4);
+  const mul = getMasterMul();
+  const finalVol = clampNum(baseVol * mul, 0, 1);
 
   const ordered = orderUrlsForHtmlAudio(urls);
 
   const a = new Audio();
   a.preload = 'auto';
-  a.volume = vol;
+  a.volume = finalVol;
   a.playbackRate = rate;
 
+  htmlAudioMeta.set(a, { baseVol });
   activeHtmlAudio.add(a);
 
   const cleanup = () => {
@@ -232,14 +309,16 @@ function playWithHtmlAudio(urls: readonly string[], opts: PlaySfxOptions | undef
 export function playSfx(id: SfxId, opts?: PlaySfxOptions): void {
   ensureAudioUnlocked();
 
-  const tunedVol = computeTunedVolume(id, opts);
-  if (tunedVol <= 0) {
+  const baseVol = computeBaseVolume(id, opts);
+  const finalVol = clampNum(baseVol * getMasterMul(), 0, 1);
+
+  if (finalVol <= 0) {
     // Still warm up in the background so you can re-enable later without a cold-start.
     void preloadSfx(id);
     return;
   }
 
-  const tunedOpts = withTunedVolume(id, opts);
+  const tunedOpts = withBaseTunedVolume(id, opts);
 
   const cached = bufferCache.get(id);
   if (cached) {
@@ -325,6 +404,9 @@ async function warmupCoreSfx(): Promise<void> {
   ensureAudioUnlocked();
   resumeAudioContextIfNeeded();
   primeAudioOutput();
+
+  // Ensure master gain is installed before decoding/playing.
+  void getMasterOutputNode(ctx);
 
   await Promise.all(
     CORE_SFX.map(async (id) => {

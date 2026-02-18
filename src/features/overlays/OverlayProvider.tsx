@@ -1,14 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import OverlayHost from './OverlayHost';
-import {
-  OverlayContext,
-  type OverlayApi,
-  type OverlayContextValue,
-  type OverlayData,
-  type OverlayName,
-  type OpenPowerChoiceOptions
-} from './overlayContext';
+import { OverlayContext, type OverlayApi, type OverlayContextValue, type OverlayData, type OverlayName, type OpenPowerChoiceOptions } from './overlayContext';
 
 export function OverlayProvider({ children }: { children: ReactNode }) {
   const [active, setActive] = useState<OverlayName>(null);
@@ -50,7 +43,7 @@ export function OverlayProvider({ children }: { children: ReactNode }) {
         setActive(null);
         setData({});
         powerChoiceOnChooseRef.current = null;
-      }
+      },
     }),
     [],
   );

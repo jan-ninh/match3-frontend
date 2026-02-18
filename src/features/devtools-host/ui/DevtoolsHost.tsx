@@ -128,8 +128,8 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
     initialLevelId,
   });
 
-  // Demo/presentation mode: when debug UI is on, allow free level-hopping even if backend enforces progression.
-  const allowDevLevelHop = isDev && debugEnabled;
+  // Demo/presentation: in dev builds allow free level hopping even when the debug overlay is closed.
+  const allowDevLevelHop = isDev;
 
   const gridRowRef = useRef<HTMLDivElement | null>(null);
 
@@ -344,10 +344,7 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
           // IMPORTANT:
           // In demo/debug mode, ignore backend progression gating so level hopping works for presentations.
           if (allowDevLevelHop) {
-            console.warn(
-              `Start stage ${lvl} redirected to allowedStage=${allowedStage}. Dev mode: ignoring and running locally.`,
-              err,
-            );
+            console.warn(`Start stage ${lvl} redirected to allowedStage=${allowedStage}. Dev mode: ignoring and running locally.`, err);
             setSelectedPowersForNextStage(null);
             return;
           }
@@ -401,16 +398,7 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [
-    allowDevLevelHop,
-    navigate,
-    onDevSetLevel,
-    selectedPowersForNextStage,
-    setPowers,
-    setSelectedPowersForNextStage,
-    state.levelId,
-    userId,
-  ]);
+  }, [allowDevLevelHop, navigate, onDevSetLevel, selectedPowersForNextStage, setPowers, setSelectedPowersForNextStage, state.levelId, userId]);
 
   // React to engine outcome phases.
   useEffect(() => {
@@ -438,13 +426,7 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
 
   return (
     <div className="w-full h-full">
-      <DevPanels
-        enabled={isDev && debugEnabled}
-        events={events}
-        onDevWin={onDevWin}
-        onDevLose={onDevLose}
-        onDevResetProgress={onDevResetProgress}
-      />
+      <DevPanels enabled={isDev && debugEnabled} events={events} onDevWin={onDevWin} onDevLose={onDevLose} onDevResetProgress={onDevResetProgress} />
 
       <GameContainer
         state={state}

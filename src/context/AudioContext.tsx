@@ -1,8 +1,9 @@
-// src/context/AudioContext.tsx
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import clickSoundFile from '@/assets/sound/CLICK.wav';
 import winSoundFile from '@/assets/sound/win.wav';
 import loseSoundFile from '@/assets/sound/lose.wav'; // ✅ NEW
+
+import { setSfxMasterEnabled, setSfxMasterVolume01 } from '@/features/audio/sfx/sfxPlayer';
 
 type AudioContextType = {
   // Background Music
@@ -35,10 +36,18 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const [musicVolume, setMusicVolume] = useState(0); /////// change to for presentation
 
   const [clickSoundOn, setClickSoundOn] = useState(true);
-  const [clickVolume, setClickVolume] = useState(5); /////// change to for presentation
+  const [clickVolume, setClickVolume] = useState(22); /////// change to for presentation
 
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
   const [showEnableSound, setShowEnableSound] = useState(true);
+
+  // Keep the "SFX system" in sync with the Sound Regler ("Effects" switch + slider).
+  // This makes laser/gridlaser targeting + confirm + explosions respect the same settings.
+  useEffect(() => {
+    const vol01 = Math.max(0, Math.min(1, clickVolume / 100));
+    setSfxMasterEnabled(clickSoundOn);
+    setSfxMasterVolume01(vol01);
+  }, [clickSoundOn, clickVolume]);
 
   // 1) init background music (only once)
   useEffect(() => {

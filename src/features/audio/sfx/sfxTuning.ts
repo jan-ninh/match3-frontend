@@ -12,7 +12,7 @@ function clamp01(n: number): number {
  * - Set smaller to reduce all item sounds.
  * - Set to 0 to mute item sounds completely.
  */
-export const ITEM_SFX_MASTER = 0.05; //0.35
+export const ITEM_SFX_MASTER = 0.85; //0.35
 
 /**
  * Item-related SFX IDs that should be controlled by ITEM_SFX_MASTER.
@@ -28,7 +28,7 @@ const ITEM_SFX_SET = new Set<SfxId>(ITEM_SFX_IDS);
  */
 export const SFX_VOLUME_MULTIPLIERS: Readonly<Partial<Record<SfxId, number>>> = {
   bombExplosion: 1,
-  laserRow: 1,
+  laserRow: 0.5,
   laserTargeting: 1,
   laserConfirm: 1,
   reshuffle: 1,
