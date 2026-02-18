@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router';
 
 import { apiCompleteStage, apiLoseGame, apiStartStage } from '@/api/game';
 import { useAuth } from '@/context/AuthContext';
-import { getChoiceBonus, usePowers } from '@/context/PowerContext';
+import { usePowers } from '@/context/PowerContext';
 import { POWER_CONSUME_EVENT, type PowerConsumeDetail } from '@/context/powerEvents';
 import { cycleTilesetPalette, preloadTiles } from '@/features/grid/ui/tiles';
 import { cycleSpecialTilesetPalette, preloadSpecialTiles } from '@/features/grid/ui/tilesSpecial';
@@ -24,6 +24,7 @@ type Props = {
 };
 
 type RewardPowerId = Extract<PowerKey, 'bomb' | 'laser' | 'extraShuffle'>;
+const WIN_POWER_REWARD_AMOUNT = 2;
 
 function isRewardPowerId(v: unknown): v is RewardPowerId {
   return v === 'bomb' || v === 'laser' || v === 'extraShuffle';
@@ -88,6 +89,12 @@ function buildRewardDelta(powerId: RewardPowerId, amount: number): Partial<Power
   if (powerId === 'bomb') return { bomb: add };
   if (powerId === 'laser') return { laser: add };
   return { extraShuffle: add };
+}
+
+function buildRewardAbsolute(powerId: RewardPowerId, next: Powers): Partial<Powers> {
+  if (powerId === 'bomb') return { bomb: safeInt(next.bomb ?? 0) };
+  if (powerId === 'laser') return { laser: safeInt(next.laser ?? 0) };
+  return { extraShuffle: safeInt(next.extraShuffle ?? 0) };
 }
 
 function extractPowersFromLoseResponse(res: unknown): Powers | null {
@@ -216,7 +223,7 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
             return;
           }
 
-          const rewardAmount = getChoiceBonus(powerId);
+          const rewardAmount = WIN_POWER_REWARD_AMOUNT;
           const rewardDelta = buildRewardDelta(powerId, rewardAmount);
           const rewardedPowers = addReward(powers, powerId, rewardAmount);
 
@@ -226,17 +233,23 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
           // 2) Preserve selected reward for next stage start API call.
           setSelectedPowersForNextStage(rewardDelta);
 
-          // 3) Persist reward on backend (best effort).
+          // 3) Complete stage first (backend + local progress).
+          // Some backends rewrite player state on completeStage; persisting reward after this keeps DB in sync.
+          await completeDevWinStage(lvl, usedPower);
+
+          // 4) Persist reward on backend (+2 guaranteed by business rule).
           if (userId) {
             try {
               await updatePowers(rewardDelta, 'add');
-            } catch {
-              // ignore backend sync failures in dev flow
+            } catch (err) {
+              // Fallback for backends that don't support "add" reliably: set absolute next value.
+              try {
+                await updatePowers(buildRewardAbsolute(powerId, rewardedPowers), 'set');
+              } catch {
+                console.error('Failed to persist win reward powers to backend:', err);
+              }
             }
           }
-
-          // 4) Complete stage (backend + local progress).
-          await completeDevWinStage(lvl, usedPower);
 
           // 5) Show Win overlay (PowerChoice overlay auto-closes right after click).
           openWin(lvl);

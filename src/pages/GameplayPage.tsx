@@ -37,7 +37,13 @@ export default function GameplayPage() {
     const applyGuard = async () => {
       // Guest mode: no backend stage guard available.
       if (!user?.id) {
-        setEffectiveLevel(requestedLevel);
+        const guestLevel = MIN_LEVEL;
+        setEffectiveLevel(guestLevel);
+
+        if (requestedLevel !== guestLevel) {
+          navigate(`/game-map/play-game?level=${guestLevel}`, { replace: true });
+        }
+
         return;
       }
 
