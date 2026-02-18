@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 //
 import ChangeAvatarModal from '@/features/overlays/ChangeAvatarModal';
+const MAX_LEVEL = 12;
 
 export default function ProfileDashboard() {
   const navigate = useNavigate();
@@ -62,10 +63,8 @@ export default function ProfileDashboard() {
 
   const level = useMemo(() => {
     // Profile level should reflect stage progression, not raw score buckets.
-    return Math.min(12, Math.max(1, highestCompletedStage + 1));
+    return Math.min(MAX_LEVEL, Math.max(1, highestCompletedStage + 1));
   }, [highestCompletedStage]);
-
-  const currentStage = useMemo(() => (highestCompletedStage > 0 ? `stage${highestCompletedStage}` : null), [highestCompletedStage]);
 
   const stats = useMemo(() => {
     if (!profile) return [];
@@ -78,11 +77,8 @@ export default function ProfileDashboard() {
   }, [profile, safeTotalScore]);
 
   const progressPercent = useMemo(() => {
-    if (!profile) return 0;
-    const stageNum = currentStage ? parseInt(currentStage.replace('stage', ''), 10) : 1;
-    const expectedPoints = stageNum * 1000;
-    return Math.min((safeTotalScore / expectedPoints) * 100, 100);
-  }, [safeTotalScore, profile, currentStage]);
+    return (level / MAX_LEVEL) * 100;
+  }, [level]);
 
   const achievedBadges = useMemo(() => {
     if (!profile) return badges;
@@ -135,7 +131,7 @@ export default function ProfileDashboard() {
           <GlassSection className="flex flex-col gap-6 p-6 overflow-y-auto scrollbar-cyber flex-1 min-h-0">
             <StatsGrid stats={stats} />
             <GlassSection>
-              <ProgressBar percent={progressPercent} />
+              <ProgressBar percent={progressPercent} currentLevel={level} maxLevel={MAX_LEVEL} />
             </GlassSection>
 
             <BadgeGrid badges={achievedBadges} />
