@@ -23,11 +23,7 @@ function urls(...paths: readonly string[]): readonly string[] {
 
 export const SFX_URLS = {
   // Items
-  bombExplosion: urls(
-    'audio/sfx/items/bomb/bomb_laserSFX.mp3',
-    'audio/sfx/items/bomb/bomb_laserSFX.ogg',
-    'audio/sfx/items/bomb/bomb_laserSFX.m4a',
-  ),
+  bombExplosion: urls('audio/sfx/items/bomb/bomb_laserSFX.mp3', 'audio/sfx/items/bomb/bomb_laserSFX.ogg', 'audio/sfx/items/bomb/bomb_laserSFX.m4a'),
 
   // Laser (Row-Clear Item)
   // NOTE: laserRow is the "legacy" strike sound id (kept for backwards compatibility).
@@ -49,11 +45,6 @@ export const SFX_URLS = {
   // TEMP: maps to an existing SFX so hover works immediately.
   // Replace with e.g. audio/sfx/ui/settings_hover_01.* once you add the real asset.
   uiSettingsHover: urls('audio/sfx/matches/match3_pop_02.mp3', 'audio/sfx/ui/settings_hover_01.ogg', 'audio/sfx/ui/settings_hover_01.wav'),
-
-  // UI
-  // TEMP: maps to an existing SFX so hover works immediately.
-  // Replace with e.g. /audio/sfx/ui/settings_hover_01.* once you add the real asset.
-  uiSettingsHover: ['/audio/sfx/matches/match3_pop_02.mp3', '/audio/sfx/ui/settings_hover_01.ogg', '/audio/sfx/ui/settings_hover_01.wav'],
 
   // Match 3+ pops (randomized by the caller for variation)
   matchPop01: urls('audio/sfx/matches/match3_pop_01.mp3', 'audio/sfx/matches/match3_pop_01.ogg', 'audio/sfx/matches/match3_pop_01.wav'),
