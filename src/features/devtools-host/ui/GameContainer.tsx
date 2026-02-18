@@ -1,30 +1,25 @@
-// src/features/devtools-host/ui/GameContainer.tsx
 import type { RefObject } from 'react';
 import { useCallback, useEffect, useReducer } from 'react';
 import type { EngineState } from '@/gamelogic';
 import { useCoreSfxWarmup, useEngineMatchObjectiveSfx } from '@/features/audio';
-import { Grid } from '@/features/grid';
-import type { BombTarget } from '@/features/grid/ui/bomb/typesBomb';
+import { useLaserItemSfx } from '@/features/audio/sfx/useLaserItemSfx';
+import { Grid, type InputIntent } from '@/features/grid';
 import { useHudInputFromState } from '@/features/devtools-host/lib/useHudInputFromState';
 // 🔥 tiles are module-level state -> must force rerender when they change
 import { preloadTiles, setTilesetLevel } from '@/features/grid/ui/tiles';
 import { preloadSpecialTiles, setSpecialTilesetLevel } from '@/features/grid/ui/tilesSpecial';
+
+import type { BombVfxMode } from '@/features/grid/ui/bomb/fx/BombExplosionFxLayer';
+
 import { GameStage } from './GameStage';
 import GameplayHud from './GameplayHud';
-
-type GridIntent =
-  | { type: 'click'; index: number }
-  | { type: 'swap'; from: number; to: number }
-  // legacy intent still present in input layer; upstream can ignore/convert
-  | { type: 'useBombAt'; index: number }
-  | { type: 'useItemAt'; key: 'bomb3x3'; target: BombTarget };
 
 type Props = {
   state: EngineState;
   inputLocked: boolean;
 
   canSwapAt: (from: number, to: number) => boolean;
-  onIntent: (intent: GridIntent) => void;
+  onIntent: (intent: InputIntent) => void;
 
   // Runtime / environment
   isDev?: boolean;
@@ -47,6 +42,8 @@ type Props = {
   tilesVersion?: number;
 };
 
+const noop = () => undefined;
+
 export default function GameContainer({
   state,
   inputLocked,
@@ -56,15 +53,18 @@ export default function GameContainer({
   debugEnabled = false,
   showLockoutHints = false,
   onToggleShowLockoutHints,
+  onDevNextTilesPalette,
   onDevResetBoard,
   onDevPrevLevel,
   onDevNextLevel,
-  onDevNextTilesPalette,
   gridRowRef,
 }: Props) {
   // Audio warmup + engine-event→SFX mapping
   useCoreSfxWarmup();
   useEngineMatchObjectiveSfx(state);
+
+  // Item SFX (ACK-driven)
+  useLaserItemSfx();
 
   // Bump component render when tileset/palette changes (tiles live outside React state)
   const [, bumpTilesRender] = useReducer((n: number) => (n + 1) % 1_000_000_000, 0);
@@ -97,16 +97,18 @@ export default function GameContainer({
     <Grid
       state={state}
       inputLocked={inputLocked}
-      showLockoutHints={showLockoutHints}
-      onToggleShowLockoutHints={onToggleShowLockoutHints}
       canSwapAt={canSwapAt}
       onIntent={onIntent}
       debugEnabled={debugEnabled}
-      onDevResetBoard={onDevResetBoard}
-      onDevPrevLevel={onDevPrevLevel}
-      onDevNextLevel={onDevNextLevel}
-      onDevNextTilesPalette={handleDevNextTilesPalette}
       swapMs={state.swapMs}
+      bombVfxMode={'legacyShock' satisfies BombVfxMode}
+      showLockoutHints={showLockoutHints}
+      showDebugLabels={debugEnabled}
+      onToggleShowLockoutHints={onToggleShowLockoutHints ?? noop}
+      onDevPrevLevel={onDevPrevLevel ?? noop}
+      onDevNextLevel={onDevNextLevel ?? noop}
+      onDevResetBoard={onDevResetBoard ?? noop}
+      onDevNextTilesPalette={handleDevNextTilesPalette}
     />
   );
 

@@ -1,7 +1,7 @@
 import { createContext } from 'react';
 import type { MutableRefObject } from 'react';
 
-export type PowerId = 'bomb' | 'laser' | 'extraShuffle';
+export type PowerId = 'gridlaser' | 'laser' | 'extraShuffle';
 
 export type OverlayName = 'settings' | 'win' | 'lose' | 'quitConfirm' | 'powerChoice' | 'login' | 'register' | null;
 

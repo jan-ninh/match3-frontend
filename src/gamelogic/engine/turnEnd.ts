@@ -9,6 +9,10 @@ import type { Cell, EngineEvent, EngineState, LaserWarning, Piece, PieceId } fro
 import { countContamination, getOrthogonalNeighbors, getSpreadCandidates } from '../board';
 import { rngNextInt } from '../rng';
 
+import { clearCellsAndPieces } from '../cascade/clear';
+import { applyGravity } from '../cascade/gravity';
+import { applyRefill } from '../cascade/refill';
+
 // ─────────────────────────────────────────────
 // Deterministic RNG for turn effects (hash-based, does NOT advance rngState)
 // ─────────────────────────────────────────────
@@ -124,9 +128,13 @@ function isSweepImmuneCell(cell: Cell): boolean {
 
 /**
  * Execute laser sweep on the warned line.
+ *
+ * IMPORTANT: Use the same clear semantics as the working item laser:
+ * - clear via `clearCellsAndPieces` to ensure pieces are truly removed
+ * - run gravity/refill immediately so cleared tiles actually disappear / settle
  */
 function executeLaserSweep(state: EngineState, events: EngineEvent[]): EngineState {
-  const { laserWarning, width, height, cells, pieces } = state;
+  const { laserWarning, width, height, cells } = state;
 
   const sweepContaminationCount = state.sweepContaminationCount ?? 0;
   const sweepFirewallCount = state.sweepFirewallCount ?? 0;
@@ -135,15 +143,17 @@ function executeLaserSweep(state: EngineState, events: EngineEvent[]): EngineSta
 
   events.push({ type: 'laserSweepStart', kind: laserWarning.kind, index: laserWarning.index });
 
+  // Align with cascade-style phases for UI/VFX scheduling
+  events.push({ type: 'phase', phase: 'clear' });
+
   const lineIndices = getLineIndices(laserWarning, width, height);
 
-  // Step A: Clear pieces on the line (except immune cells)
-  let nextCells = cells.slice();
-  let nextPieces: Record<PieceId, Piece> = { ...pieces };
+  // Step A: Plan indices to clear (skip immune + blocked + obstacles)
+  const indicesToClear: number[] = [];
   const clearedIndices: number[] = [];
 
   for (const idx of lineIndices) {
-    const cell = nextCells[idx];
+    const cell = cells[idx];
     if (!cell) continue;
 
     // Skip immune cells
@@ -153,20 +163,29 @@ function executeLaserSweep(state: EngineState, events: EngineEvent[]): EngineSta
     if (cell.obstacle) continue;
     if (cell.blocked) continue;
 
-    // Clear the piece
-    if (cell.pieceId !== null) {
-      delete nextPieces[cell.pieceId];
-      nextCells[idx] = { ...cell, pieceId: null };
-      clearedIndices.push(idx);
-    }
+    indicesToClear.push(idx);
+    if (cell.pieceId !== null) clearedIndices.push(idx);
   }
 
-  if (clearedIndices.length > 0) {
+  const clearedCount = clearedIndices.length;
+
+  // Step B: Clear pieces on the line using canonical clear helper
+  let s: EngineState = state;
+  if (indicesToClear.length > 0) {
+    s = clearCellsAndPieces(s, indicesToClear);
+  }
+
+  if (clearedCount > 0) {
     events.push({ type: 'laserSweepCleared', indices: clearedIndices });
+    // Also emit the generic cleared signal so UI systems keyed on it react.
+    events.push({ type: 'cleared', count: clearedCount });
   }
 
-  // Step B: Eligible cells for hazard placement
+  // Step C: Eligible cells for hazard placement
   // IMPORTANT: only place hazards on "normal" cells, otherwise it can look like "nothing happened".
+  let nextCells = s.cells.slice();
+  let nextPieces: Record<PieceId, Piece> = { ...s.pieces };
+
   const eligibleForHazard = lineIndices.filter((idx) => {
     const cell = nextCells[idx];
     if (!cell) return false;
@@ -178,7 +197,7 @@ function executeLaserSweep(state: EngineState, events: EngineEvent[]): EngineSta
 
   // Deterministic shuffle for hazard placement (advances rngState)
   const shuffled = eligibleForHazard.slice();
-  let rngState = state.rngState;
+  let rngState = s.rngState;
 
   for (let i = shuffled.length - 1; i > 0; i--) {
     const r = rngNextInt(rngState, i + 1);
@@ -187,7 +206,7 @@ function executeLaserSweep(state: EngineState, events: EngineEvent[]): EngineSta
     [shuffled[i], shuffled[j]] = [shuffled[j]!, shuffled[i]!];
   }
 
-  // Step C: Place hazards
+  // Step D: Place hazards
   const totalHazards = sweepContaminationCount + sweepFirewallCount;
   const hazardIndices = shuffled.slice(0, Math.min(totalHazards, shuffled.length));
 
@@ -225,16 +244,35 @@ function executeLaserSweep(state: EngineState, events: EngineEvent[]): EngineSta
     events.push({ type: 'laserSweepHazards', contaminationIndices, firewallIndices });
   }
 
-  return {
-    ...state,
+  // Step E: Settle immediately (gravity/refill) so the sweep visibly "takes effect"
+  const afterHazards: EngineState = {
+    ...s,
     cells: nextCells,
     pieces: nextPieces,
     rngState,
   };
+
+  events.push({ type: 'phase', phase: 'gravity' });
+  const afterGravity = applyGravity(afterHazards);
+  events.push({ type: 'gravity' });
+
+  events.push({ type: 'phase', phase: 'refill' });
+  const ref = applyRefill(afterGravity);
+  events.push({ type: 'refilled', count: ref.spawned });
+
+  events.push({ type: 'phase', phase: 'settle' });
+  return ref.state;
 }
 
 function lineKey(w: LaserWarning): string {
   return `${w.kind}-${w.index}`;
+}
+
+function pushSweptLineToHistory(state: EngineState, swept: LaserWarning | null): EngineState {
+  if (!swept) return state;
+  const prev = state.lastSweptLines ?? [];
+  const nextLastSwept = [swept, ...prev].slice(0, 2);
+  return { ...state, lastSweptLines: nextLastSwept };
 }
 
 /**
@@ -385,16 +423,42 @@ export function applyTurnEndEffects(state: EngineState): TurnEndResult {
   // Level 04
   // ─────────────────────────────────────────────
   if (s.sweepEnabled) {
-    // Always ensure a warning exists (otherwise sweep can never start)
-    if (!s.laserWarning) {
-      s = selectNextLaserWarning(s, events);
-    } else {
-      const sweepEveryNTurns = Math.max(1, s.sweepEveryNTurns ?? 1);
-      const shouldSweep = sweepEveryNTurns === 1 || nextTurnIndex % sweepEveryNTurns === 0;
+    const n = Math.max(1, s.sweepEveryNTurns ?? 1);
 
-      if (shouldSweep) {
-        s = executeLaserSweep(s, events);
+    // We sweep on this turn-end when nextTurnIndex is a multiple of N (or N=1).
+    const shouldSweepNow = n === 1 || nextTurnIndex % n === 0;
+
+    // We show a warning ONLY during the single turn that immediately precedes the sweep.
+    // That is: after this turn-end, the NEXT turn (nextTurnIndex+1) will be swept.
+    const shouldWarnNow = n === 1 || (nextTurnIndex + 1) % n === 0;
+
+    if (shouldSweepNow) {
+      // Ensure a target line exists (rare: on first sweep if warning wasn't created).
+      if (!s.laserWarning) {
         s = selectNextLaserWarning(s, events);
+      }
+
+      const swept = s.laserWarning ?? null;
+
+      s = executeLaserSweep(s, events);
+
+      // Track recently swept lines even if we don't immediately select a new warning.
+      s = pushSweptLineToHistory(s, swept);
+
+      if (n === 1) {
+        // Sweep every turn: immediately select the next warning line for the next turn.
+        // IMPORTANT: clear warning first so selectNextLaserWarning doesn't double-push history.
+        s = selectNextLaserWarning({ ...s, laserWarning: null }, events);
+      } else {
+        // Hide warning for the non-warning turns.
+        s = { ...s, laserWarning: null };
+      }
+    } else {
+      // Not sweeping now: warning should exist only in the single pre-sweep turn.
+      if (shouldWarnNow) {
+        if (!s.laserWarning) s = selectNextLaserWarning(s, events);
+      } else {
+        if (s.laserWarning) s = { ...s, laserWarning: null };
       }
     }
   }

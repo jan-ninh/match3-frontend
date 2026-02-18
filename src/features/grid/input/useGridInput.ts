@@ -1,3 +1,4 @@
+// src/features/grid/input/useGridInput.ts
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { EngineState, Piece, PieceId } from '@/gamelogic';
@@ -28,6 +29,14 @@ export function useGridInput({ state, inputLocked, canSwapAt, onIntent, debugEna
   const { width, height, cells, pieces } = state;
 
   const pressRef = useRef<PressState | null>(null);
+
+  // Tracks the active pointer sequence for robust release handling.
+  // Needed because some UI layers (targeting, overlays, pointer-capture edge cases) can prevent the normal
+  // onPointerUp/onPointerCancel path from reaching the controller -> stuck "pressed/dragging".
+  const [activePointerId, setActivePointerId] = useState<number | null>(null);
+
+  // Synchronous, capture-phase release fallback (fixes "quick click" race + stopPropagation cases).
+  const releaseCleanupRef = useRef<(() => void) | null>(null);
 
   // rAF transform infra (no React re-render per pointer move)
   const { draggedElRef, dragBasePxRef, dragDxRef, dragDyRef, ensureRafRunning, stopRaf, snapBackDraggedPiece, clearDragRefs } = useRafDragTransform({
@@ -156,11 +165,66 @@ export function useGridInput({ state, inputLocked, canSwapAt, onIntent, debugEna
     controllerRef.current = buildController();
   }, [buildController]);
 
-  const getController = () => {
+  const ensureController = useCallback(() => {
     const c = controllerRef.current ?? buildController();
     controllerRef.current = c;
     return c;
-  };
+  }, [buildController]);
+
+  const clearGlobalRelease = useCallback(() => {
+    const cleanup = releaseCleanupRef.current;
+    if (cleanup) cleanup();
+    releaseCleanupRef.current = null;
+  }, []);
+
+  const installGlobalRelease = useCallback(
+    (pointerId: number) => {
+      if (typeof window === 'undefined') return;
+
+      clearGlobalRelease();
+
+      const onUp = (e: PointerEvent) => {
+        if (e.pointerId !== pointerId) return;
+        ensureController().finishPress(pointerId, false);
+        setActivePointerId((cur) => (cur === pointerId ? null : cur));
+        clearGlobalRelease();
+      };
+
+      const onCancel = (e: PointerEvent) => {
+        if (e.pointerId !== pointerId) return;
+        ensureController().finishPress(pointerId, true);
+        setActivePointerId((cur) => (cur === pointerId ? null : cur));
+        clearGlobalRelease();
+      };
+
+      const onBlur = () => {
+        ensureController().finishPress(pointerId, true);
+        setActivePointerId((cur) => (cur === pointerId ? null : cur));
+        clearGlobalRelease();
+      };
+
+      // capture=true => we see events even if some layer stops propagation
+      window.addEventListener('pointerup', onUp, true);
+      window.addEventListener('pointercancel', onCancel, true);
+      window.addEventListener('blur', onBlur);
+
+      releaseCleanupRef.current = () => {
+        window.removeEventListener('pointerup', onUp, true);
+        window.removeEventListener('pointercancel', onCancel, true);
+        window.removeEventListener('blur', onBlur);
+      };
+    },
+    [ensureController, clearGlobalRelease],
+  );
+
+  // If the engine locks mid-gesture, cancel the active pointer sequence to avoid stuck visuals/state.
+  useEffect(() => {
+    if (!inputLocked) return;
+    if (activePointerId === null) return;
+    ensureController().finishPress(activePointerId, true);
+    setActivePointerId(null);
+    clearGlobalRelease();
+  }, [inputLocked, activePointerId, ensureController, clearGlobalRelease]);
 
   useEffect(() => {
     if (shakePieceId === null) return;
@@ -169,17 +233,58 @@ export function useGridInput({ state, inputLocked, canSwapAt, onIntent, debugEna
   }, [shakePieceId]);
 
   useEffect(() => {
-    return () => stopRaf();
-  }, [stopRaf]);
+    return () => {
+      clearGlobalRelease();
+      stopRaf();
+    };
+  }, [stopRaf, clearGlobalRelease]);
 
   const onCellPointerDown = (index: number, e: React.PointerEvent<HTMLButtonElement>) => {
     if (e.button !== 0) return;
-    getController().startPress(e.pointerId, e.clientX, e.clientY, index, e.currentTarget);
+
+    ensureController().startPress(e.pointerId, e.clientX, e.clientY, index, e.currentTarget);
+
+    // Only mark active if the press actually started (startPress no-ops when locked).
+    if (pressRef.current?.active && pressRef.current.pointerId === e.pointerId) {
+      setActivePointerId(e.pointerId);
+      installGlobalRelease(e.pointerId);
+    }
   };
 
-  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => getController().updatePress(e.pointerId, e.clientX, e.clientY);
-  const onPointerUp = (e: React.PointerEvent<HTMLDivElement>) => getController().finishPress(e.pointerId, false);
-  const onPointerCancel = (e: React.PointerEvent<HTMLDivElement>) => getController().finishPress(e.pointerId, true);
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => ensureController().updatePress(e.pointerId, e.clientX, e.clientY);
+
+  const onPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    ensureController().finishPress(e.pointerId, false);
+    if (activePointerId === e.pointerId) setActivePointerId(null);
+    clearGlobalRelease();
+  };
+
+  const onPointerCancel = (e: React.PointerEvent<HTMLDivElement>) => {
+    ensureController().finishPress(e.pointerId, true);
+    if (activePointerId === e.pointerId) setActivePointerId(null);
+    clearGlobalRelease();
+  };
+
+  // NEW: shell leave should never be able to crash the game. It just clears UI feedback.
+  const onShellPointerLeave = () => {
+    setOverIndexUI(null);
+    setPreviewActive(false);
+    setPreviewOtherPieceId(null);
+    setPreviewAxisUI(null);
+    setPreviewDirUI(0);
+
+    setIsDragging(false);
+    setDragPieceId(null);
+
+    pressRef.current = null;
+    setActivePointerId(null);
+
+    setDebugInactive(debugSnapshotRef, canDebug);
+
+    clearGlobalRelease();
+    stopRaf();
+    clearDragRefs();
+  };
 
   const setDraggedEl = (el: HTMLDivElement | null, basePos: { x: number; y: number }) => {
     draggedElRef.current = el;
@@ -210,6 +315,7 @@ export function useGridInput({ state, inputLocked, canSwapAt, onIntent, debugEna
     onPointerMove,
     onPointerUp,
     onPointerCancel,
+    onShellPointerLeave,
 
     setDraggedEl,
   };

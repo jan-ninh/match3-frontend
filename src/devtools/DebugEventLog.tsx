@@ -271,7 +271,7 @@ export default function DebugEventLog({ events, maxLines = DEFAULT_MAX_LINES }: 
           <div className="text-white/90 font-mono">{campaign?.queuedSends ?? 0}</div>
         </div>
       </div>
-
+      <div ref={scrollerRef} className="mt-2 h-260px))] overflow-y-auto overscroll-contain" style={{ scrollbarGutter: 'stable' }}></div>
       <div ref={scrollerRef} className={`mt-2 ${scrollerMaxH} overflow-y-auto overscroll-contain`} style={{ scrollbarGutter: 'stable' }}>
         <ul className="space-y-0">
           {lastEventsChrono.map((e, i) => {

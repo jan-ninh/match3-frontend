@@ -1,3 +1,4 @@
+// src\features\overlays\PowerChoiceModal.tsx
 import Modal from '@/components/Modal';
 import Lottie from 'lottie-react';
 import confettiAnimation from '@/assets/fx/confetti on transparent background.json';
@@ -12,7 +13,7 @@ type Props = {
   onChoose: (powerId: PowerId) => void;
 };
 
-const powerIds: PowerId[] = ['bomb', 'laser', 'extraShuffle'];
+const powerIds: PowerId[] = ['gridlaser', 'laser', 'extraShuffle'];
 
 export default function PowerChoiceModal({ open, title, onClose, onChoose }: Props) {
   const [showConfetti, setShowConfetti] = useState(false);
@@ -70,7 +71,7 @@ export default function PowerChoiceModal({ open, title, onClose, onChoose }: Pro
                   className="px-3 py-2 rounded-lg text-black hover:bg-yellow-400 flex items-center justify-center"
                   aria-label={`choose ${id}`}
                 >
-                  <img src={`/icons/${id}.svg`} alt={id} className="w-8 h-8" loading="lazy" draggable={false} />
+                  <img src={`/icons/${id}.png`} alt={id} className="w-8 h-8" loading="lazy" draggable={false} />
                 </button>
               ))}
             </div>

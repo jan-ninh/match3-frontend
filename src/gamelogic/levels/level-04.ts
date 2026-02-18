@@ -73,9 +73,9 @@ export function makeLevel04({ baseSeed, allowedTypes }: Args): LevelDefinition {
     sweepEnabled: true,
     sweepContaminationCount: 4, // hazards per sweep
     sweepFirewallCount: 2, // firewalls (hp=1) per sweep
-    sweepEveryNTurns: 1, // sweep every turn
+    sweepEveryNTurns: 3, // sweeps every n turn
 
     // Optional hard-lose threshold
-    contaminationLoseThreshold: 12,
+    contaminationLoseThreshold: 20,
   };
 }

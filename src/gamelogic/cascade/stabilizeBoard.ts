@@ -6,6 +6,7 @@ import { setPhase } from '../phaseState';
 import { assertPhaseInvariants } from '../invariants';
 
 import type { StabilizeOpts } from './typesCascade';
+import type { CascadePreStep } from './typesCascade';
 import { clearCellsAndPieces } from './clear';
 import { applyGravity } from './gravity';
 import { applyRefill } from './refill';
@@ -14,14 +15,86 @@ import { shuffleUntilValid } from './shuffleUntilValid';
 import { getCascadeEffectsForState } from './effects/registry';
 import { runPostClearEffects, runPostGravityEffects, runPostRefillEffects, runPreClearEffects } from './effects/runEffects';
 
+// type MatchDetectionLike = { clearIndices: number[]; groups: number };
+
+function countClearablePieces(state: EngineState, indices: number[]): number {
+  let count = 0;
+
+  for (const idx of indices) {
+    const c = state.cells[idx];
+    if (!c || c.blocked) continue;
+
+    // Obstacles are cleared by their own mechanics
+    // chargedCell is passable and can hold pieces -> must be cleared normally.
+    if (c.obstacle && c.obstacle.kind !== 'chargedCell') continue;
+
+    if (c.pieceId !== null) count++;
+  }
+
+  return count;
+}
+
+function applyPreSteps(
+  s0: EngineState,
+  preSteps: CascadePreStep[],
+  events: EngineEvent[],
+  toPhase: (phase: EnginePhase) => void,
+  devAssert: (tag: string) => void,
+): EngineState {
+  let s = s0;
+
+  for (const step of preSteps) {
+    switch (step.kind) {
+      case 'itemLaserRowClear': {
+        const clearedCount = countClearablePieces(s, step.indices);
+
+        // NOTE: Item-driven clear must not progress objectives/level mechanics.
+        // Therefore: do NOT run cascade effects here (even if enabled for normal matches).
+        toPhase('clear');
+        s = clearCellsAndPieces(s, step.indices);
+        devAssert('preStep:itemLaserRowClear:clearCellsAndPieces');
+        if (clearedCount > 0) events.push({ type: 'cleared', count: clearedCount });
+        events.push({ type: 'cascadeStep', kind: 'itemLaserRowClear', row: step.row, indices: step.indices, cleared: clearedCount });
+
+        toPhase('gravity');
+        s = applyGravity(s);
+        devAssert('preStep:itemLaserRowClear:applyGravity');
+        events.push({ type: 'gravity' });
+
+        toPhase('refill');
+        const ref = applyRefill(s);
+        s = ref.state;
+        devAssert('preStep:itemLaserRowClear:applyRefill');
+        events.push({ type: 'refilled', count: ref.spawned });
+
+        toPhase('settle');
+        continue;
+      }
+
+      default: {
+        // Exhaustiveness guard on the discriminant (robust even if CascadePreStep isn't a union yet)
+        const kind = step.kind;
+        const _exhaustiveKind: never = kind;
+        void _exhaustiveKind;
+
+        throw new Error(`Unhandled CascadePreStep kind: ${String(kind)}`);
+      }
+    }
+  }
+
+  return s;
+}
+
 export function stabilizeBoard(state: EngineState, opts?: StabilizeOpts): { state: EngineState; events: EngineEvent[] } {
   const maxResolveLoops = opts?.maxResolveLoops ?? 64;
   const maxShuffleAttempts = opts?.maxShuffleAttempts ?? 200;
   const maxDeadlockPasses = opts?.maxDeadlockPasses ?? 4;
+  const preSteps = opts?.preSteps ?? [];
 
   let s: EngineState = state;
   const events: EngineEvent[] = [];
 
+  const effectsEnabled = state.cascadeEffectPolicy !== 'noObjectives';
   const effects = getCascadeEffectsForState(s);
 
   // “once per move” charged-set (reset on shuffle)
@@ -46,6 +119,13 @@ export function stabilizeBoard(state: EngineState, opts?: StabilizeOpts): { stat
     devAssert('stabilize:inputLock');
   }
 
+  // ─────────────────────────────────────────────
+  // First-class preSteps (e.g. item clears) BEFORE detect
+  // ─────────────────────────────────────────────
+  if (preSteps.length > 0) {
+    s = applyPreSteps(s, preSteps, events, toPhase, devAssert);
+  }
+
   const resolveLoop = (label: string) => {
     for (let loop = 0; loop < maxResolveLoops; loop++) {
       toPhase('detect');
@@ -54,9 +134,11 @@ export function stabilizeBoard(state: EngineState, opts?: StabilizeOpts): { stat
 
       events.push({ type: 'matchesFound', clears: m.clearIndices.length, groups: m.groups });
 
-      const pre = runPreClearEffects(effects, s, m, ctx, events);
-      s = pre.state;
-      ctx = pre.ctx;
+      if (effectsEnabled) {
+        const pre = runPreClearEffects(effects, s, m, ctx, events);
+        s = pre.state;
+        ctx = pre.ctx;
+      }
 
       toPhase('mark');
       // (future) spawnPlan/specials go here
@@ -66,18 +148,22 @@ export function stabilizeBoard(state: EngineState, opts?: StabilizeOpts): { stat
       devAssert(`${label}:clearCellsAndPieces`);
       events.push({ type: 'cleared', count: m.clearIndices.length });
 
-      const postClear = runPostClearEffects(effects, s, ctx, events);
-      s = postClear.state;
-      ctx = postClear.ctx;
+      if (effectsEnabled) {
+        const postClear = runPostClearEffects(effects, s, ctx, events);
+        s = postClear.state;
+        ctx = postClear.ctx;
+      }
 
       toPhase('gravity');
       s = applyGravity(s);
       devAssert(`${label}:applyGravity`);
       events.push({ type: 'gravity' });
 
-      const postGravity = runPostGravityEffects(effects, s, ctx, events);
-      s = postGravity.state;
-      ctx = postGravity.ctx;
+      if (effectsEnabled) {
+        const postGravity = runPostGravityEffects(effects, s, ctx, events);
+        s = postGravity.state;
+        ctx = postGravity.ctx;
+      }
 
       toPhase('refill');
       const ref = applyRefill(s);
@@ -85,9 +171,11 @@ export function stabilizeBoard(state: EngineState, opts?: StabilizeOpts): { stat
       devAssert(`${label}:applyRefill`);
       events.push({ type: 'refilled', count: ref.spawned });
 
-      const postRefill = runPostRefillEffects(effects, s, ctx, events);
-      s = postRefill.state;
-      ctx = postRefill.ctx;
+      if (effectsEnabled) {
+        const postRefill = runPostRefillEffects(effects, s, ctx, events);
+        s = postRefill.state;
+        ctx = postRefill.ctx;
+      }
 
       toPhase('settle');
       // (instant settle for now)

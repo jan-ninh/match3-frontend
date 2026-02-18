@@ -119,7 +119,11 @@ export function applyFallAnimDone(state: EngineState, token: number, mode: AnimD
     // last resort: full stabilize
     const stabilized = stabilizeBoard(s, { maxShuffleAttempts: 400 });
     const allEvents = [...events, ...stabilized.events];
-    const merged = pushEvents(stabilized.state, allEvents);
+    const stabilizedState =
+      stabilized.state.cascadeEffectPolicy === 'noObjectives'
+        ? { ...stabilized.state, cascadeEffectPolicy: undefined }
+        : stabilized.state;
+    const merged = pushEvents(stabilizedState, allEvents);
 
     if (import.meta.env.DEV) {
       assertBoardIntegrity(merged, 'shuffle->stabilize');
@@ -130,6 +134,7 @@ export function applyFallAnimDone(state: EngineState, token: number, mode: AnimD
   }
 
   // IMPORTANT: do NOT run turn-end here. We just reach idle; engineReducer will run turn-end via pendingTurnCommit.
+  if (s.cascadeEffectPolicy === 'noObjectives') s = { ...s, cascadeEffectPolicy: undefined };
   s = setPhase(s, 'idle', events);
   const final = pushEvents(s, events);
 

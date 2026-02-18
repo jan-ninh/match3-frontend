@@ -1,12 +1,8 @@
 // src/features/overlays/LoseOverlay.tsx
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router';
-import { useAuth } from '@/context/AuthContext';
-import { usePowers } from '@/context/PowerContext';
-import { apiLoseGame } from '@/api/game';
 import Modal from '@/components/Modal';
 import { motion } from 'framer-motion';
-import type { Powers } from '@/types';
 import { CyberButton } from '@/components';
 import { useAudio } from '@/context/AudioContext'; // ✅ NEW
 
@@ -18,12 +14,7 @@ type Props = {
 
 export default function LoseOverlay({ open, onClose, level: _level = 1 }: Props) {
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const { setPowers } = usePowers();
   const { playLoseSound } = useAudio(); // ✅ NEW
-
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [powerReset, setPowerReset] = useState(false);
 
   // ✅ play lose sound exactly once per open
   const playedRef = useRef(false);
@@ -37,29 +28,6 @@ export default function LoseOverlay({ open, onClose, level: _level = 1 }: Props)
 
     playLoseSound();
   }, [open, playLoseSound]);
-
-  // ✅ Call loss API on server
-  useEffect(() => {
-    if (!open || !user?.id || isProcessing || powerReset) return;
-
-    (async () => {
-      setIsProcessing(true);
-      try {
-        const result = (await apiLoseGame(user.id)) as { powers?: Powers };
-
-        if (result.powers) {
-          setPowers(result.powers);
-        }
-
-        setPowerReset(true);
-      } catch (err) {
-        console.error('Failed to process loss:', err);
-        setPowerReset(true);
-      } finally {
-        setIsProcessing(false);
-      }
-    })();
-  }, [open, user?.id, isProcessing, powerReset, setPowers]);
 
   const backToMap = () => {
     onClose();
@@ -118,7 +86,7 @@ export default function LoseOverlay({ open, onClose, level: _level = 1 }: Props)
           }}
           transition={{ duration: 0.18, ease: 'easeOut' }}
         >
-          <CyberButton type="button" onClick={backToMap} label="Return to map" size="md" disabled={isProcessing} />
+          <CyberButton type="button" onClick={backToMap} label="Return to map" size="md" />
         </motion.div>
       </motion.div>
     </Modal>

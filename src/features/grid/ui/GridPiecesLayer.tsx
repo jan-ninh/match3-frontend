@@ -1,3 +1,6 @@
+// src\features\grid\ui\GridPiecesLayer.tsx
+// GridPiecesLayer ist absichtlich KEIN Input-Layer
+// Es hat pointer-events-none am Root → es kann Pointer-Events gar nicht empfangen.
 import { useLayoutEffect, useRef } from 'react';
 
 import type { EnginePhase, Piece, PieceId } from '@/gamelogic';

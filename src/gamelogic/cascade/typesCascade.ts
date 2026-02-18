@@ -1,5 +1,11 @@
-// src/gamelogic/cascade/types.ts
 import type { EngineEvent, EngineState } from '../types';
+
+export type CascadePreStep =
+  | {
+      kind: 'itemLaserRowClear';
+      row: number;
+      indices: number[];
+    };
 
 export type CascadeContext = {
   // “once per move” guard (used by terminal effects)
@@ -20,4 +26,12 @@ export type StabilizeOpts = {
   maxResolveLoops?: number;
   maxShuffleAttempts?: number;
   maxDeadlockPasses?: number;
+
+  // First-class step injection (e.g. item clears) processed BEFORE detect.
+  preSteps?: CascadePreStep[];
+};
+
+export type ResolveOnceOpts = {
+  // First-class step injection (e.g. item clears) processed BEFORE detect.
+  preSteps?: CascadePreStep[];
 };
