@@ -354,7 +354,7 @@ export default function GameFooter() {
   }, [powers, onUsePower]);
 
   return (
-    <div className="flex flex-nowrap justify-center gap-4 p-4 rounded-xl">
+    <div className="flex flex-nowrap justify-center gap-4 p-3 rounded-2xl bg-slate-950/30 backdrop-blur-md border border-white/10 shadow-[0_14px_28px_rgba(0,0,0,0.35)]">
       {actions.map((item) => {
         // Robust: derive power identity from `item.id` (footerActions can drift / aliases).
         const powerKey = footerIdToPowerKey(item.id);
