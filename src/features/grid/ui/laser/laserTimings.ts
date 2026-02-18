@@ -9,4 +9,4 @@
  *
  * Units: milliseconds.
  */
-export const LASER_ENGINE_DELAY_MS = 750;
+export const LASER_ENGINE_DELAY_MS = 650;

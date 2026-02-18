@@ -22,6 +22,7 @@ import { useBomb3x3Targeting } from './bomb/useBomb3x3Targeting';
 import { LaserRowOverlay } from './laser/LaserRowOverlay';
 import { LaserRowStrikeFxLayer, type LaserStrikeBurst } from './laser/fx/LaserRowStrikeFxLayer';
 import { useLaserRowTargeting } from './laser/useLaserRowTargeting';
+import { useLaserTargetingSfx } from './laser/fx/useLaserTargetingSfx';
 
 type GridInputViewModel = Readonly<{
   cells: ComponentProps<typeof GridCellsLayer>['cells'];
@@ -125,6 +126,24 @@ export function GridView({
 
   const bomb = useBomb3x3Targeting({ width, height, swapMs, inputLocked });
   const laser = useLaserRowTargeting({ width, height, inputLocked });
+
+  // -----------------------------
+  // Laser SFX timing knobs (UI-only)
+  // -----------------------------
+  // Targeting "tick" cooldown (ms):
+  // - 0 => play on every row change (can spam/overlap)
+  // - >0 => rate-limited; tweak for feel
+  const LASER_TARGETING_SFX_COOLDOWN_MS = 100;
+
+  // Optional: delay confirm sound to sync with beam FX (default 0 = instant).
+  const LASER_CONFIRM_SFX_DELAY_MS = 0;
+
+  const laserSfx = useLaserTargetingSfx({
+    armed: laser.laserArmed,
+    hoverRow: laser.hoverRow ?? null,
+    cooldownMs: LASER_TARGETING_SFX_COOLDOWN_MS,
+    confirmDelayMs: LASER_CONFIRM_SFX_DELAY_MS,
+  });
 
   // -----------------------------
   // Laser strike FX timing knobs
@@ -329,6 +348,9 @@ export function GridView({
       return;
     }
     if (laser.laserArmed) {
+      // SFX confirm (UI-only): timing controlled via knobs above.
+      laserSfx.playConfirm();
+
       // UI-only: strike beam timing is controlled by the knobs above.
       pushLaserStrike(Math.floor(index / width));
       laser.onCellPointerDown(index, e);

@@ -29,8 +29,18 @@ export const SFX_URLS = {
   ),
 
   // Laser (Row-Clear Item)
-  // Expected asset location (public/): public/audio/sfx/items/laser/laser.mp3
+  // NOTE: laserRow is the "legacy" strike sound id (kept for backwards compatibility).
   laserRow: urls('audio/sfx/items/laser/laser.mp3', 'audio/sfx/items/laser/laser.ogg', 'audio/sfx/items/laser/laser.m4a'),
+
+  // Laser (Targeting + Confirm)
+  // GOAL PIN assets (public/):
+  // - public/audio/sfx/items/laser/laser_targeting.mp3
+  // - public/audio/sfx/items/laser/laser_confirm.mp3
+  //
+  // Only mp3 is referenced here because those files are guaranteed to exist per GOAL PIN.
+  // (You can add .ogg/.m4a later with zero code changes.)
+  laserTargeting: urls('audio/sfx/items/laser/laser_targeting.mp3'),
+  laserConfirm: urls('audio/sfx/items/laser/laser_confirm.mp3'),
 
   reshuffle: urls('audio/sfx/items/reshuffle/reshuffle.mp3', 'audio/sfx/items/reshuffle/reshuffle_SFX.ogg', 'audio/sfx/items/reshuffle/reshuffle_SFX.wav'),
 
@@ -58,6 +68,8 @@ export const SFX_SOURCES = SFX_URLS;
 export const CORE_SFX: readonly SfxId[] = [
   'bombExplosion',
   'laserRow',
+  'laserTargeting',
+  'laserConfirm',
   'reshuffle',
   'uiSettingsHover',
   'matchPop01',
