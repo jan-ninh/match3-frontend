@@ -1,67 +1,106 @@
+// src/components/footer/NeonFooterButton.tsx
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import { forwardRef } from 'react';
 
-type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
+export type NeonFooterButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'> & {
+  /**
+   * Visual-only "armed/active" state.
+   * (Gameplay logic must stay engine-owned.)
+   */
   active?: boolean;
-  children: ReactNode; // icon
-  badge?: ReactNode; // count or small icon
+  /**
+   * Optional badge node (count or small icon).
+   */
+  badge?: ReactNode;
+  children: ReactNode;
 };
 
-export default function NeonFooterButton({ active = false, className = '', children, badge, type = 'button', ...props }: Props) {
-  const isDisabled = !!props.disabled;
+export const NeonFooterButton = forwardRef<HTMLButtonElement, NeonFooterButtonProps>(function NeonFooterButton(
+  { active = false, badge, className, disabled, children, ...rest },
+  ref,
+) {
+  const base =
+    'relative isolate select-none rounded-2xl ' +
+    // size + layout
+    'w-[78px] h-[78px] shrink-0 ' +
+    // glass body
+    'bg-[linear-gradient(180deg,rgba(255,255,255,0.12),rgba(255,255,255,0.03)_42%,rgba(0,0,0,0.20))] ' +
+    'backdrop-blur-md ' +
+    // border + shadow
+    'border border-white/12 shadow-[0_10px_26px_rgba(0,0,0,0.45)] ' +
+    // interactions
+    'transition-[transform,box-shadow,border-color,filter,opacity] duration-150 ' +
+    'hover:brightness-[1.08] active:scale-[0.985] ' +
+    // focus
+    'focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/45';
+
+  const neon =
+    // outer glow layer
+    'before:absolute before:inset-0 before:rounded-2xl before:content-[""] ' +
+    'before:bg-[radial-gradient(110%_90%_at_50%_0%,rgba(34,211,238,0.22),rgba(244,63,94,0.08)_55%,rgba(0,0,0,0)_72%)] ' +
+    'before:opacity-70 before:blur-[0px] ' +
+    // scanline / sheen
+    'after:absolute after:inset-0 after:rounded-2xl after:content-[""] ' +
+    'after:bg-[linear-gradient(135deg,rgba(255,255,255,0.10),rgba(255,255,255,0.00)_35%,rgba(255,255,255,0.06)_70%)] ' +
+    'after:opacity-60 after:mix-blend-overlay';
+
+  const activeStyle =
+    // stronger neon + ring + lifted
+    'border-rose-400/55 shadow-[0_0_22px_rgba(244,63,94,0.20),0_14px_34px_rgba(0,0,0,0.55)] ' +
+    'before:opacity-100 before:bg-[radial-gradient(120%_100%_at_50%_0%,rgba(244,63,94,0.22),rgba(34,211,238,0.12)_60%,rgba(0,0,0,0)_75%)] ' +
+    'ring-1 ring-rose-400/25';
+
+  const disabledStyle = 'opacity-45 cursor-not-allowed hover:brightness-100 active:scale-100';
+
+  const cls = [base, neon, active ? activeStyle : '', disabled ? disabledStyle : '', className ?? '']
+    .filter(Boolean)
+    .join(' ');
 
   return (
-    <button
-      {...props}
-      type={type}
-      aria-pressed={active}
-      className={[
-        // layout (same footprint)
-        'group relative flex-1 min-w-0 aspect-13/10 min-h-12 max-h-20',
-        'flex items-center justify-center rounded-xl overflow-hidden select-none mb-2',
-        'backdrop-blur-md',
+    <button ref={ref} type="button" className={cls} disabled={disabled} {...rest}>
+      {/* inner frame */}
+      <span
+        className={[
+          'absolute inset-[7px] rounded-[16px] border border-white/10',
+          active ? 'border-rose-400/20' : 'border-white/8',
+        ].join(' ')}
+        aria-hidden="true"
+      />
 
-        // ✅(CyberButton vibe)
-
-        'bg-[linear-gradient(135deg,rgba(236,72,153,0.22)_0%,rgba(6,182,212,0.16)_40%,rgba(15,23,42,0.55)_100%)]',
-        'border-2  border-cyan-400/35 ',
-
-        // neon frame layers (keep)
-        "before:content-[''] before:absolute before:inset-0 before:rounded-xl before:pointer-events-none",
-        'before:shadow-[0_0_0_1px_rgba(236,72,153,0.45)]',
-        "after:content-[''] after:absolute after:inset-0.5 after:rounded-[10px] after:pointer-events-none",
-        'after:shadow-[inset_0_0_0_1px_rgba(6,182,212,0.45)]',
-
-        // soft neon glow
-        isDisabled ? '' : 'ring-0',
-        active
-          ? 'before:shadow-[0_0_0_1px_rgba(236,72,153,0.75),0_0_24px_rgba(236,72,153,0.22)] after:shadow-[inset_0_0_0_1px_rgba(6,182,212,0.75),0_0_18px_rgba(6,182,212,0.18)]'
-          : 'before:shadow-[0_0_0_1px_rgba(236,72,153,0.45),0_0_18px_rgba(236,72,153,0.10)] after:shadow-[inset_0_0_0_1px_rgba(6,182,212,0.45)]',
-
-        // subtle scanline (optional, still flat)
-        'bg-[repeating-linear-gradient(90deg,rgba(255,255,255,0.012)_0px,rgba(255,255,255,0.012)_1px,rgba(0,0,0,0)_14px,rgba(0,0,0,0)_28px)]',
-
-        // focus
-        // 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-600/60',
-
-        // interactions
-        isDisabled
-          ? 'opacity-45 saturate-0 cursor-not-allowed'
-          : 'transition duration-150 ease-out hover:-translate-y-0.5 hover:brightness-110 hover:border-pink-400/60 active:translate-y-0 active:scale-[0.98]',
-
-        className,
-      ]
-        .filter(Boolean)
-        .join(' ')}
-    >
       {/* content */}
-      <span className={['relative z-10', active ? 'drop-shadow-[0_0_12px_rgba(236,72,153,0.20)]' : ''].join(' ')}>{children}</span>
+      <span className="relative z-10 flex items-center justify-center w-full h-full">{children}</span>
 
-      {/* badge/count */}
-      {badge && (
-        <span className="absolute bottom-1 right-1 z-20 w-7 h-7 flex items-center justify-center rounded-md bg-black/45 border border-white/15 backdrop-blur text-[11px] font-semibold text-white/90">
+      {/* badge */}
+      {badge != null ? (
+        <span
+          className={[
+            'absolute -top-2 -right-2 z-20 grid place-items-center',
+            'min-w-6 h-6 px-1 rounded-full',
+            'text-[12px] font-semibold leading-none',
+            'bg-slate-950/75 border border-white/12',
+            'shadow-[0_0_14px_rgba(34,211,238,0.18)]',
+            active ? 'border-rose-400/35 shadow-[0_0_14px_rgba(244,63,94,0.18)]' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+        >
           {badge}
         </span>
-      )}
+      ) : null}
+
+      {/* tiny bottom highlight */}
+      <span
+        className={[
+          'absolute left-3 right-3 bottom-2 h-[2px] rounded-full',
+          'bg-[linear-gradient(90deg,rgba(34,211,238,0.00),rgba(34,211,238,0.32),rgba(244,63,94,0.22),rgba(34,211,238,0.00))]',
+          active ? 'opacity-100' : 'opacity-60',
+        ].join(' ')}
+        aria-hidden="true"
+      />
     </button>
   );
-}
+});
+
+NeonFooterButton.displayName = 'NeonFooterButton';
+
+export default NeonFooterButton;

@@ -12,7 +12,7 @@ type Props = {
 export function LaserWarningBadge({ warning }: Props): ReactElement | null {
   if (!warning) return null;
 
-  const label = warning.kind === 'row' ? `ROW ${warning.index + 1}` : `COL ${warning.index + 1}`;
+  // const label = warning.kind === 'row' ? `ROW ${warning.index + 1}` : `COL ${warning.index + 1}`;
 
   return (
     <div
@@ -50,8 +50,8 @@ export function LaserWarningBadge({ warning }: Props): ReactElement | null {
     >
       <span className="text-red-100/90">⚠</span>
       <span className="whitespace-nowrap">NEXT SWEEP</span>
-      <span className="text-red-200/80">/</span>
-      <span className="whitespace-nowrap">{label}</span>
+      {/* <span className="text-red-200/80">/</span> */}
+      {/* <span className="whitespace-nowrap">{label}</span> */}
     </div>
   );
 }

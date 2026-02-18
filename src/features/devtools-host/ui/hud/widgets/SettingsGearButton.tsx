@@ -7,11 +7,31 @@ import { playSfx } from '@/features/audio/sfx/sfxPlayer';
 
 type Props = {
   /**
-   * Vite public asset path (default: /public/icons/settings-gear02.png)
-   * -> runtime URL: /icons/settings-gear02.png
+   * Vite public asset path (typically in /public/icons/...).
+   * IMPORTANT: should respect Vite BASE_URL for sub-path deployments.
+   *
+   * Examples:
+   * - '/icons/settings-gear02.png' (will be resolved against BASE_URL)
+   * - 'icons/settings-gear02.png'  (will be resolved against BASE_URL)
    */
   iconSrc?: string;
 };
+
+function resolvePublicUrl(path: string): string {
+  // Leave fully-qualified / special URLs untouched.
+  if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:') || path.startsWith('blob:') || path.startsWith('//')) {
+    return path;
+  }
+
+  const base = import.meta.env.BASE_URL ?? '/';
+
+  // If caller already provided a BASE_URL-prefixed path, keep it.
+  // (When base === '/', this is also fine: '/icons/..' stays '/icons/..'.)
+  if (base !== '/' && path.startsWith(base)) return path;
+
+  const clean = path.startsWith('/') ? path.slice(1) : path;
+  return base.endsWith('/') ? `${base}${clean}` : `${base}/${clean}`;
+}
 
 function clamp01(n: number): number {
   if (n <= 0) return 0;
@@ -50,6 +70,8 @@ export function SettingsGearButton({ iconSrc = '/icons/settings-gear02.png' }: P
   const imgRef = useRef<HTMLImageElement | null>(null);
   const glowCoreRef = useRef<HTMLSpanElement | null>(null);
   const glowHaloRef = useRef<HTMLSpanElement | null>(null);
+
+  const resolvedIconSrc = resolvePublicUrl(iconSrc);
 
   // Detect Settings overlay presence (DOM heuristic).
   // Long-term "pro" fix would be a dedicated overlay-state signal from the overlays system,
@@ -365,7 +387,7 @@ export function SettingsGearButton({ iconSrc = '/icons/settings-gear02.png' }: P
 
       <img
         ref={imgRef}
-        src={iconSrc}
+        src={resolvedIconSrc}
         alt=""
         aria-hidden="true"
         draggable={false}
