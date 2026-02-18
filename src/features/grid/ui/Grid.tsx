@@ -1,5 +1,5 @@
 // src/features/grid/ui/Grid.tsx
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ComponentProps } from 'react';
 
 import type { EngineState } from '@/gamelogic/types';
@@ -20,6 +20,7 @@ import type { BombVfxMode } from './bomb/fx/BombExplosionFxLayer';
 import { useBomb3x3Targeting } from './bomb/useBomb3x3Targeting';
 
 import { LaserRowOverlay } from './laser/LaserRowOverlay';
+import { LaserRowStrikeFxLayer, type LaserStrikeBurst } from './laser/fx/LaserRowStrikeFxLayer';
 import { useLaserRowTargeting } from './laser/useLaserRowTargeting';
 
 type GridInputViewModel = Readonly<{
@@ -124,6 +125,60 @@ export function GridView({
 
   const bomb = useBomb3x3Targeting({ width, height, swapMs, inputLocked });
   const laser = useLaserRowTargeting({ width, height, inputLocked });
+
+  // -----------------------------
+  // Laser strike FX timing knobs
+  // -----------------------------
+  // A) FX start delay (ms): when the blue beam becomes visible AFTER the confirm click
+  // C) FX lifetime (ms): how long the beam stays visible AFTER it becomes visible
+  //
+  // NOTE: Keep LaserRowStrikeFxLayer's internal duration roughly in sync with LIFE_MS
+  // if you want a clean "ends when removed" feel.
+  const LASER_STRIKE_FX_START_DELAY_MS = 620;
+  const LASER_STRIKE_FX_LIFE_MS = 420;
+
+  // Laser strike FX (UI-only): play a short blue beam on the chosen row.
+  // Triggered when the user confirms a target cell while laser is armed.
+  const [laserStrikes, setLaserStrikes] = useState<readonly LaserStrikeBurst[]>([]);
+  const laserStrikeSeqRef = useRef(0);
+  const laserStrikeTimersRef = useRef<Map<string, number[]>>(new Map());
+
+  const addTimer = (id: string, t: number) => {
+    const arr = laserStrikeTimersRef.current.get(id);
+    if (arr) arr.push(t);
+    else laserStrikeTimersRef.current.set(id, [t]);
+  };
+
+  const pushLaserStrike = (row: number, startDelayMs = LASER_STRIKE_FX_START_DELAY_MS, lifeMs = LASER_STRIKE_FX_LIFE_MS) => {
+    if (typeof window === 'undefined') return;
+
+    const id = `laserStrike-${Date.now()}-${(laserStrikeSeqRef.current += 1)}`;
+
+    // (A) FX start — optionally delayed
+    const tStart = window.setTimeout(() => {
+      setLaserStrikes((prev) => [...prev, { id, row }]);
+
+      // (C) FX end — lifetime counted AFTER it becomes visible
+      const tEnd = window.setTimeout(() => {
+        setLaserStrikes((prev) => prev.filter((b) => b.id !== id));
+        laserStrikeTimersRef.current.delete(id);
+      }, lifeMs);
+
+      addTimer(id, tEnd);
+    }, startDelayMs);
+
+    addTimer(id, tStart);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (typeof window === 'undefined') return;
+      for (const arr of laserStrikeTimersRef.current.values()) {
+        for (const t of arr) window.clearTimeout(t);
+      }
+      laserStrikeTimersRef.current.clear();
+    };
+  }, []);
 
   const effectiveInputLocked = inputLocked || bomb.bombArmed || laser.laserArmed;
   const capturePointerMove = bomb.bombArmed || laser.laserArmed;
@@ -274,6 +329,8 @@ export function GridView({
       return;
     }
     if (laser.laserArmed) {
+      // UI-only: strike beam timing is controlled by the knobs above.
+      pushLaserStrike(Math.floor(index / width));
       laser.onCellPointerDown(index, e);
       return;
     }
@@ -341,13 +398,7 @@ export function GridView({
         {/* Laser Targeting (row highlight) */}
         <LaserRowOverlay armed={laser.laserArmed} row={laser.hoverRow} height={height} zIndex={46} />
 
-        <GridCellsLayer
-          width={width}
-          height={height}
-          cells={cells}
-          onCellPointerDown={onCellPointerDownEffective}
-          showDebugLabels={showDebugLabels}
-        />
+        <GridCellsLayer width={width} height={height} cells={cells} onCellPointerDown={onCellPointerDownEffective} showDebugLabels={showDebugLabels} />
 
         <GridOverlaysLayer selectionPos={selectionPos} targetPos={targetPos} />
 
@@ -366,6 +417,9 @@ export function GridView({
           showDebugLabels={showDebugLabels}
           setDraggedEl={setDraggedEl}
         />
+
+        {/* Laser strike FX (on confirm; UI-only) */}
+        <LaserRowStrikeFxLayer bursts={laserStrikes} height={height} reducedMotionHint={swapMs === 0} zIndex={86} />
 
         {/* Bomb detonation FX (after ACK) */}
         <BombExplosionFxLayer bursts={bomb.bombBursts} width={width} reducedMotionHint={swapMs === 0} zIndex={88} mode={bombFxMode} />

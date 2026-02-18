@@ -22,7 +22,7 @@ type FooterActionItem = ReturnType<typeof footerActions>[number];
 
 type TargetingKey = Extract<PowerKey, 'gridlaser' | 'laser'>;
 
-const DEFAULT_ICON_PX_ACTIVE = 60;
+const DEFAULT_ICON_PX_ACTIVE = 80;
 
 // Set numbers for each Button
 const ICON_PX_ACTIVE_GRIDLASER = 65;
@@ -64,9 +64,9 @@ function normalizeTargetingKey(key: PowerKey): TargetingKey | null {
 }
 
 function getPowerCount(powers: Powers, key: PowerKey): number {
-  if (key === 'gridlaser') return ((powers.gridlaser ?? powers.bomb ?? 0) | 0);
-  if (key === 'bomb') return ((powers.bomb ?? powers.gridlaser ?? 0) | 0);
-  return ((powers[key] ?? 0) | 0);
+  if (key === 'gridlaser') return (powers.gridlaser ?? powers.bomb ?? 0) | 0;
+  if (key === 'bomb') return (powers.bomb ?? powers.gridlaser ?? 0) | 0;
+  return (powers[key] ?? 0) | 0;
 }
 
 function footerIdToPowerKey(id: FooterActionItem['id']): PowerKey | null {
@@ -336,17 +336,7 @@ export default function GameFooter() {
         setPowers(prev);
       }
     },
-    [
-      armedGridlaser,
-      armedLaser,
-      disarmAllTargeting,
-      emitArmPower,
-      emitUsePower,
-      powers,
-      setPowers,
-      updatePowers,
-      user,
-    ],
+    [armedGridlaser, armedLaser, disarmAllTargeting, emitArmPower, emitUsePower, powers, setPowers, updatePowers, user],
   );
 
   const actions = useMemo<FooterActionItem[]>(() => {
@@ -354,7 +344,7 @@ export default function GameFooter() {
   }, [powers, onUsePower]);
 
   return (
-    <div className="flex flex-nowrap justify-center gap-4 p-3 rounded-2xl bg-slate-950/30 backdrop-blur-md border border-white/10 shadow-[0_14px_28px_rgba(0,0,0,0.35)]">
+    <div className="flex flex-nowrap justify-center gap-8 p-3 mb-6 ]">
       {actions.map((item) => {
         // Robust: derive power identity from `item.id` (footerActions can drift / aliases).
         const powerKey = footerIdToPowerKey(item.id);
@@ -377,11 +367,12 @@ export default function GameFooter() {
         const iconPxInactive = iconPxActive - 1;
         const iconPx = isActive ? iconPxActive : iconPxInactive;
 
-        const badge = countToShow != null ? (
-          <span>{countToShow}</span>
-        ) : showBadge ? (
-          <img src={item.badge} alt={item.label} className="w-3 h-3" aria-hidden="true" draggable={false} />
-        ) : null;
+        const badge =
+          countToShow != null ? (
+            <span>{countToShow}</span>
+          ) : showBadge ? (
+            <img src={item.badge} alt={item.label} className="w-3 h-3" aria-hidden="true" draggable={false} />
+          ) : null;
 
         const onClick = () => {
           if (powerKey) {

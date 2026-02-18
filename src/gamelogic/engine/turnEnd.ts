@@ -1,3 +1,4 @@
+// src/gamelogic/engine/turnEnd.ts
 /**
  * Turn-end effects for various level mechanics.
  *
@@ -267,6 +268,13 @@ function lineKey(w: LaserWarning): string {
   return `${w.kind}-${w.index}`;
 }
 
+function pushSweptLineToHistory(state: EngineState, swept: LaserWarning | null): EngineState {
+  if (!swept) return state;
+  const prev = state.lastSweptLines ?? [];
+  const nextLastSwept = [swept, ...prev].slice(0, 2);
+  return { ...state, lastSweptLines: nextLastSwept };
+}
+
 /**
  * Select next laser warning line.
  */
@@ -415,16 +423,42 @@ export function applyTurnEndEffects(state: EngineState): TurnEndResult {
   // Level 04
   // ─────────────────────────────────────────────
   if (s.sweepEnabled) {
-    // Always ensure a warning exists (otherwise sweep can never start)
-    if (!s.laserWarning) {
-      s = selectNextLaserWarning(s, events);
-    } else {
-      const sweepEveryNTurns = Math.max(1, s.sweepEveryNTurns ?? 1);
-      const shouldSweep = sweepEveryNTurns === 1 || nextTurnIndex % sweepEveryNTurns === 0;
+    const n = Math.max(1, s.sweepEveryNTurns ?? 1);
 
-      if (shouldSweep) {
-        s = executeLaserSweep(s, events);
+    // We sweep on this turn-end when nextTurnIndex is a multiple of N (or N=1).
+    const shouldSweepNow = n === 1 || nextTurnIndex % n === 0;
+
+    // We show a warning ONLY during the single turn that immediately precedes the sweep.
+    // That is: after this turn-end, the NEXT turn (nextTurnIndex+1) will be swept.
+    const shouldWarnNow = n === 1 || (nextTurnIndex + 1) % n === 0;
+
+    if (shouldSweepNow) {
+      // Ensure a target line exists (rare: on first sweep if warning wasn't created).
+      if (!s.laserWarning) {
         s = selectNextLaserWarning(s, events);
+      }
+
+      const swept = s.laserWarning ?? null;
+
+      s = executeLaserSweep(s, events);
+
+      // Track recently swept lines even if we don't immediately select a new warning.
+      s = pushSweptLineToHistory(s, swept);
+
+      if (n === 1) {
+        // Sweep every turn: immediately select the next warning line for the next turn.
+        // IMPORTANT: clear warning first so selectNextLaserWarning doesn't double-push history.
+        s = selectNextLaserWarning({ ...s, laserWarning: null }, events);
+      } else {
+        // Hide warning for the non-warning turns.
+        s = { ...s, laserWarning: null };
+      }
+    } else {
+      // Not sweeping now: warning should exist only in the single pre-sweep turn.
+      if (shouldWarnNow) {
+        if (!s.laserWarning) s = selectNextLaserWarning(s, events);
+      } else {
+        if (s.laserWarning) s = { ...s, laserWarning: null };
       }
     }
   }
