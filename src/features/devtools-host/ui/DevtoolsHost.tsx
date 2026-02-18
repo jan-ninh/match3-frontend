@@ -11,11 +11,6 @@ import { cycleSpecialTilesetPalette, preloadSpecialTiles } from '@/features/grid
 import { useOverlays } from '@/features/overlays';
 import { completeLevel, resetProgress } from '@/services/progress/progressActions';
 import type { PowerKey, Powers } from '@/types';
-import { useAuth } from '@/context/AuthContext';
-import { getChoiceBonus, usePowers } from '@/context/PowerContext';
-import { apiStartStage, apiCompleteStage, apiLoseGame } from '@/api/game';
-import type { Powers, PowerKey } from '@/types';
-import { POWER_CONSUME_EVENT, type PowerConsumeDetail } from '@/context/powerEvents';
 
 import { useDevHotkeys } from '../lib/useDevHotkeys';
 import { useDevPanelsTopSync } from '../lib/useDevPanelsTopSync';
@@ -36,27 +31,9 @@ function isRewardPowerId(v: unknown): v is RewardPowerId {
 
 function toBackendPowerKey(key: unknown): PowerKey | null {
   if (key === 'bomb' || key === 'laser' || key === 'extraShuffle') return key;
+  // Legacy alias: old UI used "gridlaser" for the bomb-like 3x3 item.
   if (key === 'gridlaser') return 'bomb';
   return null;
-}
-
-function safeInt(n: number): number {
-  if (!Number.isFinite(n)) return 0;
-  return n | 0;
-}
-
-function addReward(base: Powers, powerId: RewardPowerId, amount: number): Powers {
-  const add = safeInt(amount);
-  if (powerId === 'bomb') return { ...base, bomb: (base.bomb ?? 0) + add };
-  if (powerId === 'laser') return { ...base, laser: (base.laser ?? 0) + add };
-  return { ...base, extraShuffle: (base.extraShuffle ?? 0) + add };
-}
-
-function buildRewardDelta(powerId: RewardPowerId, amount: number): Partial<Powers> {
-  const add = safeInt(amount);
-  if (powerId === 'bomb') return { bomb: add };
-  if (powerId === 'laser') return { laser: add };
-  return { extraShuffle: add };
 }
 
 function getHttpStatus(err: unknown): number | null {
@@ -94,48 +71,49 @@ function extractAllowedStage(err: unknown): number | null {
   return Math.floor(raw);
 }
 
-function hasPowersPayload(res: unknown): res is { powers: Powers } {
-  if (!res || typeof res !== 'object') return false;
-  const rec = res as Record<string, unknown>;
-  return typeof rec.powers === 'object' && rec.powers !== null;
-function buildPowerRewardDelta(powerId: RewardPowerId, amount: number): Partial<Powers> {
-  if (powerId === 'bomb') return { bomb: amount };
-  if (powerId === 'laser') return { laser: amount };
-  return { extraShuffle: amount };
+function safeInt(n: number): number {
+  if (!Number.isFinite(n)) return 0;
+  return n | 0;
 }
 
-function applyPowerReward(base: Powers, powerId: RewardPowerId, amount: number): Powers {
-  if (powerId === 'bomb') return { ...base, bomb: base.bomb + amount };
-  if (powerId === 'laser') return { ...base, laser: base.laser + amount };
-  return { ...base, extraShuffle: base.extraShuffle + amount };
+function addReward(base: Powers, powerId: RewardPowerId, amount: number): Powers {
+  const add = safeInt(amount);
+  if (powerId === 'bomb') return { ...base, bomb: (base.bomb ?? 0) + add };
+  if (powerId === 'laser') return { ...base, laser: (base.laser ?? 0) + add };
+  return { ...base, extraShuffle: (base.extraShuffle ?? 0) + add };
+}
+
+function buildRewardDelta(powerId: RewardPowerId, amount: number): Partial<Powers> {
+  const add = safeInt(amount);
+  if (powerId === 'bomb') return { bomb: add };
+  if (powerId === 'laser') return { laser: add };
+  return { extraShuffle: add };
+}
+
+function extractPowersFromLoseResponse(res: unknown): Powers | null {
+  if (!res || typeof res !== 'object') return null;
+  const rec = res as Record<string, unknown>;
+  const powers = rec.powers;
+  if (!powers || typeof powers !== 'object') return null;
+  return powers as Powers;
 }
 
 export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
   const navigate = useNavigate();
-  const [showLockoutHints, setShowLockoutHints] = useState<boolean>(false);
-  const [debugEnabled, setDebugEnabled] = useState<boolean>(false);
-  const usedPowerInCurrentStageRef = useRef<PowerKey | null>(null);
-
-  const { openWin, openLose, openPowerChoice } = useOverlays();
-  const { user, updatePowers } = useAuth();
-  const userId = user?.id;
-  const { powers, setPowers, selectedPowersForNextStage, setSelectedPowersForNextStage } = usePowers();
 
   const [showLockoutHints, setShowLockoutHints] = useState(false);
   const [debugEnabled, setDebugEnabled] = useState(false);
 
-  // Dev-only: force rerender when changing tiles palette (palette lives in module state)
+  // Dev-only: force rerender when changing tiles palette (palette lives in module state).
   const [tilesVersion, setTilesVersion] = useState(0);
 
   // Ref (no state) => avoids rerenders.
   const usedPowerInCurrentStageRef = useRef<PowerKey | null>(null);
 
-  // Guards re-trying the backend-unlock workaround more than once per level.
-  const stageStartRetryRef = useRef<Set<number>>(new Set());
-
-  // Dedup win/lose handling per level
-  const handledWinLevelRef = useRef<number | null>(null);
-  const handledLoseLevelRef = useRef<number | null>(null);
+  const { openWin, openLose, openPowerChoice } = useOverlays();
+  const { user, updatePowers } = useAuth();
+  const userId = user?.id ?? null;
+  const { powers, setPowers, selectedPowersForNextStage, setSelectedPowersForNextStage } = usePowers();
 
   const { isDev, state, inputLocked, canSwapAt, onIntent, onDevResetBoard, onDevNextLevel, onDevPrevLevel, onDevSetLevel, events } = useMatch3Engine({
     initialLevelId,
@@ -143,12 +121,19 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
 
   const gridRowRef = useRef<HTMLDivElement | null>(null);
 
+  // Guards re-trying the backend-unlock workaround more than once per level.
+  const stageStartRetryRef = useRef<Set<number>>(new Set());
+
+  // Dedup win/lose handling per level.
+  const handledWinLevelRef = useRef<number | null>(null);
+  const handledLoseLevelRef = useRef<number | null>(null);
+
   // Reset "used power" when level changes (no render, no cascading effects).
   useEffect(() => {
     usedPowerInCurrentStageRef.current = null;
   }, [state.levelId]);
 
-  // Track power consumption during gameplay
+  // Track power consumption during gameplay.
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -156,13 +141,11 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
       const ce = e as CustomEvent<PowerConsumeDetail>;
       const detail = ce.detail;
       if (!detail) return;
-      const backendPowerKey = toBackendPowerKey(detail.key);
-      if (!backendPowerKey) return;
 
       const backendPowerKey = toBackendPowerKey(detail.key);
       if (!backendPowerKey) return;
 
-      // Store the power that was used (only first used power per stage)
+      // Store the power that was used (only first used power per stage).
       if (!usedPowerInCurrentStageRef.current) {
         usedPowerInCurrentStageRef.current = backendPowerKey;
       }
@@ -255,7 +238,7 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
           // 4) Complete stage (backend + local progress).
           await completeDevWinStage(lvl, usedPower);
 
-          // 5) Show Win overlay (PowerChoice overlay auto-closes right after click)
+          // 5) Show Win overlay (PowerChoice overlay auto-closes right after click).
           openWin(lvl);
         },
       });
@@ -268,9 +251,8 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
       if (userId) {
         try {
           const result = await apiLoseGame(userId);
-          if (hasPowersPayload(result)) {
-            setPowers(result.powers);
-          }
+          const nextPowers = extractPowersFromLoseResponse(result);
+          if (nextPowers) setPowers(nextPowers);
         } catch (err) {
           console.error(`Failed to report dev lose for ${lvl}:`, err);
         }
@@ -303,13 +285,13 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
   }, [runDevLoseFlow, state.levelId]);
 
   const onDevResetProgress = useCallback(async () => {
-    // Guest mode only
+    // Guest mode only.
     if (!userId) {
       await resetProgress();
     }
   }, [userId]);
 
-  // Call apiStartStage with selected powers when a level is loaded
+  // Backend: start stage with selected boosters whenever a level is loaded.
   useEffect(() => {
     if (!userId) return;
 
@@ -324,16 +306,15 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
 
       try {
         const result = await apiStartStage(userId, lvl, selectedPowersForNextStage ?? undefined);
-
         if (cancelled) return;
 
         // SSOT sync: always trust backend stage-start powers (especially stage1 reset).
         setPowers(result.boosters);
 
-        // Clear selected powers after they've been sent to backend
+        // Clear selected powers after they've been sent to backend.
         setSelectedPowersForNextStage(null);
 
-        // Success => allow future retries for this level (if we come back later)
+        // Success => allow future retries for this level (if we come back later).
         stageStartRetryRef.current.delete(lvl);
         return;
       } catch (err) {
@@ -350,8 +331,8 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
         const status = getHttpStatus(err);
 
         // DEV-friendly recovery:
-        // If the backend blocks stage start because the previous stage isn't completed,
-        // auto-report completion for (lvl-1) once, then retry start once.
+        // If backend blocks stage start because previous stage isn't completed,
+        // auto-report completion for (lvl-1) ONCE, then retry start ONCE.
         if (status === 403 && lvl > 1 && isPrevStageNotCompleted(err) && !stageStartRetryRef.current.has(lvl)) {
           stageStartRetryRef.current.add(lvl);
 
@@ -363,7 +344,6 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
 
           try {
             const result2 = await apiStartStage(userId, lvl, selectedPowersForNextStage ?? undefined);
-
             if (cancelled) return;
 
             setPowers(result2.boosters);
@@ -393,13 +373,13 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
     };
   }, [navigate, onDevSetLevel, selectedPowersForNextStage, setPowers, setSelectedPowersForNextStage, state.levelId, userId]);
 
+  // React to engine outcome phases.
   useEffect(() => {
     const lvl = state.levelId;
 
     if (state.phase === 'win') {
       if (handledWinLevelRef.current === lvl) return;
       handledWinLevelRef.current = lvl;
-
       runDevWinFlowWithRewardChoice(lvl);
       return;
     }
@@ -407,12 +387,11 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
     if (state.phase === 'lose') {
       if (handledLoseLevelRef.current === lvl) return;
       handledLoseLevelRef.current = lvl;
-
       void runDevLoseFlow(lvl);
     }
   }, [runDevLoseFlow, runDevWinFlowWithRewardChoice, state.levelId, state.phase]);
 
-  // defensive: when leaving dev mode, reset the top-offset CSS var
+  // Defensive: when leaving dev mode, reset the top-offset CSS var.
   useEffect(() => {
     if (isDev && debugEnabled) return;
     document.documentElement.style.removeProperty('--dev-panels-top');

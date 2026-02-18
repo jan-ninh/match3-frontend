@@ -1,3 +1,4 @@
+// src\features\overlays\PowerChoiceModal.tsx
 import Modal from '@/components/Modal';
 import Lottie from 'lottie-react';
 import confettiAnimation from '@/assets/fx/confetti on transparent background.json';
