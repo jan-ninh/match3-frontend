@@ -126,7 +126,7 @@ export default function GameFooter() {
         console.error('Failed to load game status:', err);
       }
     })();
-  }, [user?.id, setPowers]);
+  }, [user?.id]);
 
   const emitArmPower = useCallback((key: TargetingKey, armed: boolean) => {
     if (typeof window === 'undefined') return;

@@ -1,13 +1,14 @@
 // src/features/devtools-host/ui/DevtoolsHost.tsx
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router';
 
 import { cycleTilesetPalette, preloadTiles } from '@/features/grid/ui/tiles';
 import { cycleSpecialTilesetPalette, preloadSpecialTiles } from '@/features/grid/ui/tilesSpecial';
 import { useOverlays } from '@/features/overlays';
 import { completeLevel, resetProgress } from '@/services/progress/progressActions';
 import { useAuth } from '@/context/AuthContext';
-import { usePowers } from '@/context/PowerContext';
-import { apiStartStage, apiCompleteStage } from '@/api/game';
+import { getChoiceBonus, usePowers } from '@/context/PowerContext';
+import { apiStartStage, apiCompleteStage, apiLoseGame } from '@/api/game';
 import type { Powers, PowerKey } from '@/types';
 import { POWER_CONSUME_EVENT, type PowerConsumeDetail } from '@/context/powerEvents';
 
@@ -22,39 +23,41 @@ type Props = {
   initialLevelId?: number;
 };
 
-function getHttpStatus(err: unknown): number | null {
-  if (!err || typeof err !== 'object') return null;
-  const rec = err as Record<string, unknown>;
-  const s = rec.status;
-  if (typeof s === 'number' && Number.isFinite(s)) return s | 0;
+type RewardPowerId = 'bomb' | 'laser' | 'extraShuffle';
+
+function toBackendPowerKey(key: unknown): PowerKey | null {
+  if (key === 'bomb' || key === 'laser' || key === 'extraShuffle') return key;
+  if (key === 'gridlaser') return 'bomb';
   return null;
 }
 
-function getHttpMessage(err: unknown): string {
-  if (err instanceof Error) return err.message;
-  if (!err || typeof err !== 'object') return String(err);
-  const rec = err as Record<string, unknown>;
-  const m = rec.message;
-  if (typeof m === 'string') return m;
-  return String(err);
+function extractAllowedStage(err: unknown): number | null {
+  if (!err || typeof err !== 'object') return null;
+
+  const maybePayload = (err as { payload?: unknown }).payload;
+  if (!maybePayload || typeof maybePayload !== 'object') return null;
+
+  const raw = (maybePayload as { allowedStage?: unknown }).allowedStage;
+  if (typeof raw !== 'number') return null;
+  if (!Number.isFinite(raw) || raw < 1) return null;
+
+  return Math.floor(raw);
 }
 
-function isPrevStageNotCompleted(err: unknown): boolean {
-  const msg = getHttpMessage(err);
-  return /previous\s+stage\s+not\s+completed/i.test(msg);
+function buildPowerRewardDelta(powerId: RewardPowerId, amount: number): Partial<Powers> {
+  if (powerId === 'bomb') return { bomb: amount };
+  if (powerId === 'laser') return { laser: amount };
+  return { extraShuffle: amount };
 }
 
-function bumpPower(p: Powers, key: PowerKey, add: number): Powers {
-  const bomb = p.bomb ?? 0;
-  const laser = p.laser ?? 0;
-  const extraShuffle = p.extraShuffle ?? 0;
-
-  if (key === 'bomb') return { ...p, bomb: bomb + add };
-  if (key === 'laser') return { ...p, laser: laser + add };
-  return { ...p, extraShuffle: extraShuffle + add };
+function applyPowerReward(base: Powers, powerId: RewardPowerId, amount: number): Powers {
+  if (powerId === 'bomb') return { ...base, bomb: base.bomb + amount };
+  if (powerId === 'laser') return { ...base, laser: base.laser + amount };
+  return { ...base, extraShuffle: base.extraShuffle + amount };
 }
 
 export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
+  const navigate = useNavigate();
   const [showLockoutHints, setShowLockoutHints] = useState<boolean>(false);
   const [debugEnabled, setDebugEnabled] = useState<boolean>(false);
 
@@ -63,6 +66,7 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
 
   const { openWin, openLose, openPowerChoice } = useOverlays();
   const { user, updatePowers } = useAuth();
+  const userId = user?.id;
   const { powers, setPowers, selectedPowersForNextStage, setSelectedPowersForNextStage } = usePowers();
 
   const userId = user?.id ?? null;
@@ -89,10 +93,12 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
       const ce = e as CustomEvent<PowerConsumeDetail>;
       const detail = ce.detail;
       if (!detail) return;
+      const backendPowerKey = toBackendPowerKey(detail.key);
+      if (!backendPowerKey) return;
 
       // Store the power that was used (only first used power per stage)
-      if (usedPowerInCurrentStageRef.current === null) {
-        usedPowerInCurrentStageRef.current = detail.key;
+      if (!usedPowerInCurrentStageRef.current) {
+        usedPowerInCurrentStageRef.current = backendPowerKey;
       }
     };
 
@@ -124,8 +130,31 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
 
   const handledWinLevelRef = useRef<number | null>(null);
   const handledLoseLevelRef = useRef<number | null>(null);
+  const completeDevWinStage = useCallback(
+    async (lvl: number) => {
+      if (userId) {
+        try {
+          const usedPower = usedPowerInCurrentStageRef.current ?? undefined;
+          await apiCompleteStage(userId, lvl, usedPower);
+        } catch (err) {
+          console.error(`Failed to report dev win for ${lvl}:`, err);
+        }
+      } else {
+        // Guest mode only: local progression cache for stage map rendering.
+        try {
+          await completeLevel(lvl);
+        } catch {
+          // ignore local progress errors
+        }
+      }
 
-  const beginWinRewardFlow = useCallback(
+      setSelectedPowersForNextStage(null);
+      openWin(lvl);
+    },
+    [openWin, setSelectedPowersForNextStage, userId],
+  );
+
+  const runDevWinFlowWithRewardChoice = useCallback(
     (lvl: number) => {
       const usedPower: PowerKey | undefined = usedPowerInCurrentStageRef.current ?? undefined;
 
@@ -152,25 +181,22 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
       openPowerChoice({
         title: 'Choose your Power!',
         onChoose: async (powerId) => {
-          const add = powerId === 'bomb' ? 2 : 1;
+          const selectedPower = powerId as RewardPowerId;
+          const rewardAmount = getChoiceBonus(selectedPower);
+          const rewardDelta = buildPowerRewardDelta(selectedPower, rewardAmount);
+          const rewardedPowers = applyPowerReward(powers, selectedPower, rewardAmount);
 
-          // 1) Optimistic local powers update (immediate feedback)
-          //    (setPowers is not a React.Dispatch in your context -> no functional updater)
-          const nextPowers = bumpPower(powers, powerId, add);
-          setPowers(nextPowers);
+          // 1) Immediate local reward update.
+          setPowers(rewardedPowers);
+          // 2) Preserve selected reward for next stage start API call.
+          setSelectedPowersForNextStage(rewardDelta);
 
-          // 2) Store selected powers for next stage
-          const selectedForNextStage: Partial<Powers> = { [powerId]: add };
-          setSelectedPowersForNextStage(selectedForNextStage);
-
-          // 3) Persist reward for logged-in users (best-effort)
+          // 3) Persist reward on backend (best effort).
           if (userId) {
-            const delta = powerId === 'bomb' ? { bomb: add } : powerId === 'laser' ? { laser: add } : { extraShuffle: add };
-
             try {
-              await updatePowers(delta, 'add');
+              await updatePowers(rewardDelta, 'add');
             } catch {
-              // ignore (offline / backend issues)
+              // ignore backend sync failures in dev flow
             }
           }
 
@@ -195,28 +221,134 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
         },
       });
     },
-    [openPowerChoice, openWin, powers, setPowers, setSelectedPowersForNextStage, updatePowers, userId],
+    [completeDevWinStage, openPowerChoice, powers, setPowers, setSelectedPowersForNextStage, updatePowers, userId],
   );
 
+  const runDevLoseFlow = useCallback(
+    async (lvl: number) => {
+      if (userId) {
+        try {
+          const result = (await apiLoseGame(userId)) as { powers?: Powers };
+          if (result?.powers) {
+            setPowers(result.powers);
+          }
+        } catch (err) {
+          console.error(`Failed to report dev lose for ${lvl}:`, err);
+        }
+      } else {
+        await resetProgress();
+      }
+
+      setSelectedPowersForNextStage(null);
+      onDevSetLevel(1);
+      openLose(lvl);
+    },
+    [onDevSetLevel, openLose, setPowers, setSelectedPowersForNextStage, userId],
+  );
+
+  // const beginWinRewardFlow = useCallback(
+  //   (lvl: number) => {
+  //     // Skip power selection for stage 12 (final stage)
+  //     if (lvl === 12) {
+  //       // Report stage completion with used power
+  //       if (user?.id) {
+  //         const usedPower = usedPowerInCurrentStage as PowerKey | undefined;
+  //         apiCompleteStage(user.id, lvl, usedPower).catch((err) => {
+  //           console.error(`Failed to report stage completion for ${lvl}:`, err);
+  //         });
+  //       }
+  //       // Mark level completed locally
+  //       completeLevel(lvl).catch(() => {});
+  //       // Clear any previously selected powers
+  //       setSelectedPowersForNextStage(null);
+  //       // Show Win overlay directly
+  //       openWin(lvl);
+  //       return;
+  //     }
+
+  //     openPowerChoice({
+  //       title: 'Choose your Power!',
+  //       onChoose: async (powerId) => {
+  //         const add = powerId === 'bomb' ? 2 : 1;
+
+  //         // 1) Optimistic local powers update (immediate feedback)
+  //         const nextPowers =
+  //           powerId === 'bomb'
+  //             ? { ...powers, bomb: powers.bomb + add }
+  //             : powerId === 'laser'
+  //               ? { ...powers, laser: powers.laser + add }
+  //               : { ...powers, extraShuffle: powers.extraShuffle + add };
+
+  //         setPowers(nextPowers);
+
+  //         // 2) Store selected powers for next stage
+  //         const selectedForNextStage: Partial<Powers> = {
+  //           [powerId]: add,
+  //         };
+  //         setSelectedPowersForNextStage(selectedForNextStage);
+
+  //         // 3) Persist reward for logged-in users (best-effort)
+  //         if (user?.id) {
+  //           const delta = powerId === 'bomb' ? { bomb: add } : powerId === 'laser' ? { laser: add } : { extraShuffle: add };
+
+  //           try {
+  //             await updatePowers(delta, 'add');
+  //           } catch {
+  //             // ignore (offline / backend issues)
+  //           }
+  //         }
+
+  //         // 4) Report stage completion with used power
+  //         if (user?.id) {
+  //           const usedPower = usedPowerInCurrentStage as PowerKey | undefined;
+  //           try {
+  //             await apiCompleteStage(user.id, lvl, usedPower);
+  //           } catch (err) {
+  //             console.error(`Failed to report stage completion for ${lvl}:`, err);
+  //           }
+  //         }
+
+  //         // 5) Mark level completed locally (unlocks next level in local map)
+  //         try {
+  //           await completeLevel(lvl);
+  //         } catch {
+  //           // ignore (localStorage)
+  //         }
+
+  //         // 6) Show Win overlay (PowerChoice overlay auto-closes right after click)
+  //         openWin(lvl);
+  //       },
+  //     });
+  //   },
+  //   [openPowerChoice, powers, setPowers, user?.id, updatePowers, openWin, setSelectedPowersForNextStage, usedPowerInCurrentStage],
+  // );
+
   const onDevWin = async () => {
+    // Legacy onDevWin (kept for reference):
     const lvl = state.levelId;
 
     // prevent double-trigger if the engine is already in win phase for this lvl
     handledWinLevelRef.current = lvl;
 
     // IMPORTANT: do NOT openWin directly; go through PowerChoice flow
-    beginWinRewardFlow(lvl);
+    // beginWinRewardFlow(lvl);
+    runDevWinFlowWithRewardChoice(lvl);
   };
 
   const onDevLose = async () => {
+    // Legacy onDevLose (kept for reference):
     const lvl = state.levelId;
-    await resetProgress();
-    onDevSetLevel(1);
-    openLose(lvl);
+    handledLoseLevelRef.current = lvl;
+    // await resetProgress();
+    // onDevSetLevel(1);
+    // openLose(lvl);
+    await runDevLoseFlow(lvl);
   };
 
   const onDevResetProgress = async () => {
-    await resetProgress();
+    if (!userId) {
+      await resetProgress();
+    }
   };
 
   // Call apiStartStage with selected powers when a level is loaded
@@ -226,13 +358,16 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
     const lvl = state.levelId;
     if (lvl <= 0) return;
 
-    let cancelled = false;
+    // Reset used power for new stage
+    usedPowerInCurrentStageRef.current = null;
 
-    const start = async () => {
-      try {
-        await apiStartStage(userId, lvl, selectedPowersForNextStage ?? undefined);
-
-        if (cancelled) return;
+    // Call apiStartStage with selected powers (if any)
+    apiStartStage(user.id, lvl, selectedPowersForNextStage ?? undefined)
+      .then((result) => {
+        // SSOT sync: always trust backend stage-start powers (especially stage1 reset).
+        if (result?.boosters) {
+          setPowers(result.boosters);
+        }
 
         // Clear selected powers after they've been sent to backend
         setSelectedPowersForNextStage(null);
@@ -293,7 +428,8 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
       if (handledWinLevelRef.current === lvl) return;
       handledWinLevelRef.current = lvl;
 
-      beginWinRewardFlow(lvl);
+      // beginWinRewardFlow(lvl);
+      runDevWinFlowWithRewardChoice(lvl);
       return;
     }
 
@@ -302,17 +438,19 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
       handledLoseLevelRef.current = lvl;
 
       void (async () => {
-        try {
-          await resetProgress();
-        } catch {
-          // ignore (localStorage)
-        }
-        openLose(lvl);
+        // try {
+        //   await resetProgress();
+        // } catch {
+        //   // ignore (localStorage)
+        // }
+        // openLose(lvl);
+        runDevLoseFlow(lvl);
       })();
 
       return;
     }
-  }, [state.phase, state.levelId, beginWinRewardFlow, openLose]);
+    // }, [state.phase, state.levelId, beginWinRewardFlow, openLose]);
+  }, [state.phase, state.levelId, runDevWinFlowWithRewardChoice, runDevLoseFlow]);
 
   // defensive: when leaving dev mode, reset the top-offset CSS var
   useEffect(() => {
