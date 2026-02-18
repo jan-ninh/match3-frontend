@@ -12,7 +12,7 @@ type Props = {
 export function LaserWarningBadge({ warning }: Props): ReactElement | null {
   if (!warning) return null;
 
-  const label = warning.kind === 'row' ? `ROW ${warning.index + 1}` : `COL ${warning.index + 1}`;
+  // const label = warning.kind === 'row' ? `ROW ${warning.index + 1}` : `COL ${warning.index + 1}`;
 
   return (
     <div
