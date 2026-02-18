@@ -1,8 +1,10 @@
 // src/features/grid/ui/Grid.tsx
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import type { ComponentProps } from 'react';
 
 import type { EngineState } from '@/gamelogic/types';
+
+import { POWER_ARM_EVENT, type PowerArmDetail } from '@/context/powerEvents';
 
 import { GridShell } from './GridShell';
 import GridOverlaysLayer from './GridOverlaysLayer';
@@ -75,23 +77,6 @@ export type GridUIProps = {
 
 type CssVars = React.CSSProperties & Record<`--${string}`, string | number>;
 
-function isInsideRect(rect: DOMRect, clientX: number, clientY: number) {
-  return clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom;
-}
-
-function clampInt(n: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, n));
-}
-
-function computeRowFromPointer(rect: DOMRect, clientY: number, rows: number) {
-  if (rows <= 0) return null;
-  const relY = clientY - rect.top;
-  const rowH = rect.height / rows;
-  if (rowH <= 0) return null;
-  const row = Math.floor(relY / rowH);
-  return clampInt(row, 0, rows - 1);
-}
-
 /**
  * GridView = reine Darstellung + lokale Targeting/UI-Orchestrierung.
  * Kein Input-Wiring (vm + debugSnapshot kommen von Feature-Wrapper).
@@ -151,6 +136,7 @@ export function GridView({
   }, [bomb.bombArmed, effectiveInputLocked, isDragging, laser.laserArmed, showLockoutHints]);
 
   // While in targeting mode (bomb/laser), force the crosshair cursor globally.
+  // - fixes "cursor disappears" when leaving the grid or hovering elements that set their own cursor.
   useEffect(() => {
     if (typeof document === 'undefined') return;
 
@@ -179,45 +165,68 @@ export function GridView({
     };
   }, [bomb.bombArmed, laser.laserArmed]);
 
-  // Laser row FX:
-  // - pointer leaves grid: keep last row and fade out slowly after a short delay
-  // - pointer outside grid (incl. pointer capture): DO NOT update row (prevents “following” the cursor)
-  const [laserRowDisplay, setLaserRowDisplay] = useState<number | null>(null);
-  const [laserRowVisible, setLaserRowVisible] = useState(false);
-  const laserFadeTimer = useRef<number | null>(null);
-
+  // While in LASER targeting mode, allow quick cancel:
+  // - Right mouse button (anywhere)
+  // - Click outside the grid board
+  // This only DISARMS (no inventory spend).
+  //
+  // IMPORTANT BUGFIX:
+  // RMB inside the grid must NOT trigger the laser "use-at" handler.
+  // So we swallow RMB at the global capture listener (and also guard in cell handler).
   useEffect(() => {
-    if (laserFadeTimer.current != null) {
-      window.clearTimeout(laserFadeTimer.current);
-      laserFadeTimer.current = null;
-    }
+    if (!laser.laserArmed) return;
+    if (typeof window === 'undefined') return;
 
-    // (Re)enter targeting mode => reset row FX; row appears on first inside-move.
-    setLaserRowDisplay(null);
-    setLaserRowVisible(false);
+    const emitDisarmLaser = () => {
+      const ev = new CustomEvent<PowerArmDetail>(POWER_ARM_EVENT, {
+        detail: { key: 'laser', armed: false },
+      });
+      window.dispatchEvent(ev);
+    };
 
-    return () => {
-      if (laserFadeTimer.current != null) {
-        window.clearTimeout(laserFadeTimer.current);
-        laserFadeTimer.current = null;
+    const onGlobalContextMenu = (e: Event) => {
+      // Right-click => cancel targeting.
+      // Prevent the browser context menu while targeting to avoid accidental UI interruptions.
+      if (e instanceof MouseEvent) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+      }
+      emitDisarmLaser();
+    };
+
+    const onGlobalPointerDown = (e: Event) => {
+      if (!(e instanceof PointerEvent)) return;
+
+      // RMB => cancel + swallow so Grid cell handlers do not fire.
+      if (e.button === 2) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        emitDisarmLaser();
+        return;
+      }
+
+      // Left click outside board => cancel (do NOT swallow; user may want the click to go through).
+      if (e.button !== 0) return;
+
+      const boardEl = bomb.boardRef.current;
+      if (!boardEl) return;
+
+      const t = e.target;
+      if (t instanceof Node && !boardEl.contains(t)) {
+        emitDisarmLaser();
       }
     };
-  }, [laser.laserArmed]);
 
-  const startLaserFadeOut = () => {
-    if (!laser.laserArmed) return;
-    if (laserRowDisplay == null) return;
+    window.addEventListener('contextmenu', onGlobalContextMenu, { capture: true });
+    window.addEventListener('pointerdown', onGlobalPointerDown, { capture: true });
 
-    if (laserFadeTimer.current != null) {
-      window.clearTimeout(laserFadeTimer.current);
-      laserFadeTimer.current = null;
-    }
-
-    // Small delay before fading (feels less twitchy).
-    laserFadeTimer.current = window.setTimeout(() => {
-      setLaserRowVisible(false);
-    }, 140);
-  };
+    return () => {
+      window.removeEventListener('contextmenu', onGlobalContextMenu, true);
+      window.removeEventListener('pointerdown', onGlobalPointerDown, true);
+    };
+  }, [bomb.boardRef, laser.laserArmed]);
 
   const shellStyle = useMemo<CssVars>(() => ({ '--boardDim': 0.35 }), []);
 
@@ -236,19 +245,30 @@ export function GridView({
   const onShellPointerLeaveEffective = () => {
     if (bomb.bombArmed) bomb.onShellPointerLeave();
     if (laser.laserArmed) laser.onShellPointerLeave();
-    startLaserFadeOut();
     onShellPointerLeave();
   };
 
   const onPointerUpEffective = (e: React.PointerEvent<HTMLDivElement>) => {
+    // IMPORTANT:
+    // While targeting (bomb/laser), we block normal pointer-move / cell-down to prevent swaps,
+    // but we MUST still forward pointer-up / pointer-cancel so the input controller can release
+    // the current pointer sequence (otherwise the grid can get stuck).
     onPointerUp(e);
   };
 
   const onPointerCancelEffective = (e: React.PointerEvent<HTMLDivElement>) => {
+    // See note in onPointerUpEffective.
     onPointerCancel(e);
   };
 
   const onCellPointerDownEffective = (index: number, e: React.PointerEvent<HTMLButtonElement>) => {
+    // Guard: RMB should never trigger targeting "use-at" inside grid.
+    if (e.button === 2) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+
     if (bomb.bombArmed) {
       bomb.onCellPointerDown(index, e);
       return;
@@ -265,36 +285,9 @@ export function GridView({
   // - normal => forward to BOTH controller move + shell move
   const onPointerMoveMerged = (e: React.PointerEvent<HTMLDivElement>) => {
     if (bomb.bombArmed || laser.laserArmed) {
-      if (laser.laserArmed) {
-        const rect = e.currentTarget.getBoundingClientRect();
-        const inside = isInsideRect(rect, e.clientX, e.clientY);
-
-        if (inside) {
-          if (laserFadeTimer.current != null) {
-            window.clearTimeout(laserFadeTimer.current);
-            laserFadeTimer.current = null;
-          }
-
-          const row = computeRowFromPointer(rect, e.clientY, height);
-          if (row != null) {
-            setLaserRowDisplay((prev) => (prev === row ? prev : row));
-            setLaserRowVisible(true);
-          }
-
-          // Keep existing targeting logic updated while inside.
-          onShellPointerMoveEffective(e);
-          return;
-        }
-
-        // Outside: keep last row (no updates) and fade it out slowly.
-        startLaserFadeOut();
-        return;
-      }
-
       onShellPointerMoveEffective(e);
       return;
     }
-
     onPointerMove(e);
     onShellPointerMove(e);
   };
@@ -346,7 +339,7 @@ export function GridView({
         <BombOverlay indices={bomb.bombOverlayIndices} width={width} zIndex={44} />
 
         {/* Laser Targeting (row highlight) */}
-        <LaserRowOverlay armed={laser.laserArmed} row={laserRowDisplay} rowVisible={laserRowVisible} height={height} zIndex={46} />
+        <LaserRowOverlay armed={laser.laserArmed} row={laser.hoverRow} height={height} zIndex={46} />
 
         <GridCellsLayer
           width={width}
