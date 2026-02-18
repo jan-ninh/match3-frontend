@@ -1,9 +1,9 @@
 // src/context/PowerProvider.tsx
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { PowerKey, Powers } from '@/types';
 
-import { PowerContext, defaultPowers } from './PowerContext';
+import { getChoiceBonus, PowerContext, defaultPowers } from './PowerContext';
 import { POWER_CONSUME_EVENT, POWER_GRANT_EVENT, type PowerConsumeDetail, type PowerGrantDetail } from './powerEvents';
 
 const POWERS_GRANT_MANY_EVENT = 'match3:powersGrantMany' as const;
@@ -124,16 +124,16 @@ export function PowerProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener(POWER_CONSUME_EVENT, onConsume as EventListener);
   }, []);
 
-  const setPowers = (next: Powers) => {
+  const setPowers = useCallback((next: Powers) => {
     setPowersState(next);
-  };
+  }, []);
 
   // NOTE:
   // This may be called AFTER the UI already granted the bonus (e.g. Modal adds +2 immediately).
   // To prevent double-counting, we keep the higher of:
   // - prev[selected] (current UI state)
   // - backend[selected] + bonus (expected post-choice value if backend is "base")
-  const setFromBackendAndSelect = (backendPowers: Powers, selected: PowerKey) => {
+  const setFromBackendAndSelect = useCallback((backendPowers: Powers, selected: PowerKey) => {
     setPowersState((prev) => {
       const next: Powers = {
         bomb: backendPowers.bomb ?? 0,
@@ -142,17 +142,17 @@ export function PowerProvider({ children }: { children: ReactNode }) {
       };
 
       const prevCount = (prev[selected] ?? 0) | 0;
-      const candidate = (next[selected] ?? 0) | 0;
+      const candidate = ((next[selected] ?? 0) | 0) + getChoiceBonus(selected);
 
       next[selected] = Math.max(prevCount, candidate);
 
       return next;
     });
-  };
+  }, []);
 
   const value = useMemo(
     () => ({ powers, setFromBackendAndSelect, setPowers, selectedPowersForNextStage, setSelectedPowersForNextStage: setSelectedPowersForNextStageState }),
-    [powers, selectedPowersForNextStage],
+    [powers, selectedPowersForNextStage, setFromBackendAndSelect, setPowers],
   );
 
   return <PowerContext.Provider value={value}>{children}</PowerContext.Provider>;

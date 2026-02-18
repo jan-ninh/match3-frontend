@@ -19,40 +19,49 @@ export default function ProfileDashboard() {
     refreshProfile().catch(() => {});
   }, [user, profile, refreshProfile]);
 
+  const safeTotalScore = useMemo(() => {
+    if (!profile) return 0;
+    const score = Number(profile.totalScore);
+    if (!Number.isFinite(score) || score < 0) return 0;
+    return Math.floor(score);
+  }, [profile]);
+
+  const highestCompletedStage = useMemo(() => {
+    if (!profile) return 0;
+
+    let highest = 0;
+    for (const [key, data] of Object.entries(profile.progress || {})) {
+      if (!data?.completed) continue;
+      const n = Number.parseInt(key.replace('stage', ''), 10);
+      if (Number.isFinite(n) && n > highest) highest = n;
+    }
+
+    return highest;
+  }, [profile]);
+
+  const level = useMemo(() => {
+    // Profile level should reflect stage progression, not raw score buckets.
+    return Math.min(12, Math.max(1, highestCompletedStage + 1));
+  }, [highestCompletedStage]);
+
+  const currentStage = useMemo(() => (highestCompletedStage > 0 ? `stage${highestCompletedStage}` : null), [highestCompletedStage]);
+
   const stats = useMemo(() => {
     if (!profile) return [];
     return [
       { label: 'Wins', value: profile.gamesWon },
       { label: 'Losses', value: profile.gamesLost },
       { label: 'Games Played', value: profile.gamesPlayed },
-      { label: 'XP', value: profile.totalScore.toLocaleString() },
+      { label: 'XP', value: safeTotalScore.toLocaleString() },
     ];
-  }, [profile]);
-
-  const level = useMemo(() => {
-    if (!profile) return 1;
-    return Math.floor(profile.totalScore / 1000) + 1;
-  }, [profile]);
-
-  const currentStage = useMemo(() => {
-    if (!profile) return null;
-    return (
-      Object.entries(profile.progress)
-        .sort(([a], [b]) => {
-          const numA = parseInt(a.replace('stage', ''), 10);
-          const numB = parseInt(b.replace('stage', ''), 10);
-          return numB - numA;
-        })
-        .find(([, data]) => data.completed)?.[0] || null
-    );
-  }, [profile]);
+  }, [profile, safeTotalScore]);
 
   const progressPercent = useMemo(() => {
     if (!profile) return 0;
     const stageNum = currentStage ? parseInt(currentStage.replace('stage', ''), 10) : 1;
     const expectedPoints = stageNum * 1000;
-    return Math.min((profile.totalScore / expectedPoints) * 100, 100);
-  }, [profile, currentStage]);
+    return Math.min((safeTotalScore / expectedPoints) * 100, 100);
+  }, [safeTotalScore, profile, currentStage]);
 
   const achievedBadges = useMemo(() => {
     if (!profile) return badges;
