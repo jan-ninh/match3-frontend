@@ -28,7 +28,7 @@ const DEFAULT_ICON_PX_ACTIVE = 80;
 const ICON_PX_ACTIVE_GRIDLASER = 65;
 const ICON_PX_ACTIVE_LASER = 80;
 const ICON_PX_ACTIVE_RESHUFFLE = 60;
-const ICON_PX_ACTIVE_ITEM4 = 60;
+const ICON_PX_ACTIVE_ITEM4 = 90;
 
 const noopOpenSettings = (): void => undefined;
 
