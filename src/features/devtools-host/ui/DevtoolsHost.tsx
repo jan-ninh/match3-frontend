@@ -23,11 +23,14 @@ type Props = {
   initialLevelId?: number;
 };
 
-type RewardPowerId = Extract<PowerKey, 'bomb' | 'laser' | 'extraShuffle'>;
+type BackendRewardPowerId = Extract<PowerKey, 'bomb' | 'laser' | 'extraShuffle'>;
 const WIN_POWER_REWARD_AMOUNT = 2;
 
-function isRewardPowerId(v: unknown): v is RewardPowerId {
-  return v === 'bomb' || v === 'laser' || v === 'extraShuffle';
+function toBackendRewardPowerId(v: unknown): BackendRewardPowerId | null {
+  if (v === 'bomb' || v === 'laser' || v === 'extraShuffle') return v;
+  // UI alias (newer overlay): gridlaser reward should map to backend bomb inventory.
+  if (v === 'gridlaser') return 'bomb';
+  return null;
 }
 
 function toBackendPowerKey(key: unknown): PowerKey | null {
@@ -77,21 +80,21 @@ function safeInt(n: number): number {
   return n | 0;
 }
 
-function addReward(base: Powers, powerId: RewardPowerId, amount: number): Powers {
+function addReward(base: Powers, powerId: BackendRewardPowerId, amount: number): Powers {
   const add = safeInt(amount);
   if (powerId === 'bomb') return { ...base, bomb: (base.bomb ?? 0) + add };
   if (powerId === 'laser') return { ...base, laser: (base.laser ?? 0) + add };
   return { ...base, extraShuffle: (base.extraShuffle ?? 0) + add };
 }
 
-function buildRewardDelta(powerId: RewardPowerId, amount: number): Partial<Powers> {
+function buildRewardDelta(powerId: BackendRewardPowerId, amount: number): Partial<Powers> {
   const add = safeInt(amount);
   if (powerId === 'bomb') return { bomb: add };
   if (powerId === 'laser') return { laser: add };
   return { extraShuffle: add };
 }
 
-function buildRewardAbsolute(powerId: RewardPowerId, next: Powers): Partial<Powers> {
+function buildRewardAbsolute(powerId: BackendRewardPowerId, next: Powers): Partial<Powers> {
   if (powerId === 'bomb') return { bomb: safeInt(next.bomb ?? 0) };
   if (powerId === 'laser') return { laser: safeInt(next.laser ?? 0) };
   return { extraShuffle: safeInt(next.extraShuffle ?? 0) };
@@ -218,14 +221,15 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
       openPowerChoice({
         title: 'Choose your Power!',
         onChoose: async (powerId) => {
-          if (!isRewardPowerId(powerId)) {
+          const backendPowerId = toBackendRewardPowerId(powerId);
+          if (!backendPowerId) {
             console.warn(`Unexpected reward power id: ${String(powerId)}`);
             return;
           }
 
           const rewardAmount = WIN_POWER_REWARD_AMOUNT;
-          const rewardDelta = buildRewardDelta(powerId, rewardAmount);
-          const rewardedPowers = addReward(powers, powerId, rewardAmount);
+          const rewardDelta = buildRewardDelta(backendPowerId, rewardAmount);
+          const rewardedPowers = addReward(powers, backendPowerId, rewardAmount);
 
           // 1) Immediate local reward update.
           setPowers(rewardedPowers);
@@ -244,7 +248,7 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
             } catch (err) {
               // Fallback for backends that don't support "add" reliably: set absolute next value.
               try {
-                await updatePowers(buildRewardAbsolute(powerId, rewardedPowers), 'set');
+                await updatePowers(buildRewardAbsolute(backendPowerId, rewardedPowers), 'set');
               } catch {
                 console.error('Failed to persist win reward powers to backend:', err);
               }
