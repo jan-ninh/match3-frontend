@@ -9,7 +9,7 @@ type CyberTitleProps = {
 };
 
 const sizeMap: Record<TitleSize, string> = {
-  sm: 'text-xl md:text-xl',
+  sm: 'text-xs md:text-sm',
   md: 'text-3xl md:text-4xl',
   lg: 'text-4xl md:text-5xl',
   xl: 'text-5xl md:text-6xl',

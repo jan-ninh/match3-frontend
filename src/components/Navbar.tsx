@@ -86,7 +86,7 @@ export default function Navbar() {
                 {isUrl(item.icon) ? (
                   <img src={item.icon} alt={item.label} className=" object-contain" />
                 ) : (
-                  <SpriteIcon name={item.icon} width={48} height={48} className="" alt={item.label} />
+                  <SpriteIcon name={item.icon} width={38} height={38} className="" alt={item.label} />
                 )}
               </Link>
             ) : (
@@ -100,7 +100,7 @@ export default function Navbar() {
                 {isUrl(item.icon) ? (
                   <img src={item.icon} alt={item.label} className=" object-contain" />
                 ) : (
-                  <SpriteIcon name={item.icon} width={48} height={48} className="" alt={item.label} />
+                  <SpriteIcon name={item.icon} width={38} height={38} className="" alt={item.label} />
                 )}
               </button>
             )}
