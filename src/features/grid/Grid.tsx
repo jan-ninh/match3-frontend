@@ -9,7 +9,7 @@ import { useGridInput } from './input/useGridInput';
 
 import type { BombVfxMode } from './ui/bomb/fx/BombExplosionFxLayer';
 import { GridView } from './ui/Grid';
-import { cellPixelXY } from './lib/math';
+import { boardInnerSizePx, cellPixelXY } from './lib/math';
 
 export type GridProps = {
   state: EngineState;
@@ -116,11 +116,11 @@ export function Grid({
     ],
   );
 
-  // NOTE: If you later want this pixel-perfect, measure the grid root (ResizeObserver)
-  // and feed real px sizes to LaserWarningOverlay.
-  const CELL_PX_GUESS = 64;
-  const innerW = width * CELL_PX_GUESS;
-  const innerH = height * CELL_PX_GUESS;
+  // IMPORTANT:
+  // `innerW/innerH` must match the real rendered board content size.
+  // If we overshoot (e.g. "CELL_PX_GUESS"), the grid content (cells/pieces) will sit top-left
+  // inside a larger board container → looks "off-center" even though transforms are correct.
+  const { w: innerW, h: innerH } = boardInnerSizePx(width, height);
 
   const debugLabels = showDebugLabels ?? debugEnabled;
 
