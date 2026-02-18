@@ -15,44 +15,30 @@ export default function ProfileDashboard() {
 
   const [avatarModalOpen, setAvatarModalOpen] = useState(false);
 
-  // Refresh profile when component mounts (e.g., returning from game)
+  // Refresh profile on mount and when visibility/focus changes
   useEffect(() => {
-    refreshProfile().catch(() => {});
-  }, []);
-
-  // Auto-refresh profile when page regains focus
-  useEffect(() => {
-    const handleFocus = () => {
-      refreshProfile().catch(() => {});
-    };
-
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
-  }, [refreshProfile]);
-    if (!user) return;
-    refreshProfile().catch(() => {});
-  }, [user, refreshProfile]);
-
-  useEffect(() => {
-    if (!user) return;
-
     const refresh = () => {
       void refreshProfile().catch(() => {});
     };
 
+    // Initial refresh on mount
+    refresh();
+
+    // Refresh when window regains focus
     const onFocus = () => refresh();
+    window.addEventListener('focus', onFocus);
+
+    // Refresh when tab becomes visible
     const onVisibility = () => {
       if (!document.hidden) refresh();
     };
-
-    window.addEventListener('focus', onFocus);
     document.addEventListener('visibilitychange', onVisibility);
 
     return () => {
       window.removeEventListener('focus', onFocus);
       document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, [user, refreshProfile]);
+  }, [refreshProfile]);
 
   const safeTotalScore = useMemo(() => {
     const raw = profile?.totalScore ?? user?.totalScore ?? 0;
