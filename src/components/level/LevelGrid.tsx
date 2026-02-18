@@ -10,22 +10,27 @@ type Props = {
 const TOTAL_LEVELS = 12;
 
 export default function LevelGrid({ progress, onSelect }: Props) {
-  const unlockedSet = new Set(progress.unlockedLevels);
   const completedSet = new Set(progress.completedLevels);
+  const highestCompleted = progress.completedLevels.length ? Math.max(...progress.completedLevels) : 0;
+  const currentStage = Math.min(TOTAL_LEVELS, Math.max(1, highestCompleted + 1));
 
   return (
     <div className={`${levelTheme.container} ${levelTheme.grid}`}>
       {Array.from({ length: TOTAL_LEVELS }, (_, index) => {
         const level = (index + 1) as LevelId;
-        const isUnlocked = level === 1 || unlockedSet.has(level) || completedSet.has(level - 1);
+        const isCompleted = completedSet.has(level);
+        const isCurrentStage = level === currentStage;
+        const isFutureLocked = level > currentStage;
 
         return (
           <LevelCard
             key={level}
             level={level}
-            isLocked={!isUnlocked}
+            isCompleted={isCompleted && !isCurrentStage}
+            isFutureLocked={isFutureLocked}
+            isSelectable={isCurrentStage}
             onClick={() => {
-              if (isUnlocked) onSelect(level);
+              if (isCurrentStage) onSelect(level);
             }}
           />
         );
