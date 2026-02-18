@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 //
 import ChangeAvatarModal from '@/features/overlays/ChangeAvatarModal';
+const MAX_LEVEL = 12;
 
 export default function ProfileDashboard() {
   const navigate = useNavigate();
@@ -15,16 +16,37 @@ export default function ProfileDashboard() {
   const [avatarModalOpen, setAvatarModalOpen] = useState(false);
 
   useEffect(() => {
-    if (!user || profile) return;
+    if (!user) return;
     refreshProfile().catch(() => {});
-  }, [user, profile, refreshProfile]);
+  }, [user, refreshProfile]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const refresh = () => {
+      void refreshProfile().catch(() => {});
+    };
+
+    const onFocus = () => refresh();
+    const onVisibility = () => {
+      if (!document.hidden) refresh();
+    };
+
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisibility);
+
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [user, refreshProfile]);
 
   const safeTotalScore = useMemo(() => {
-    if (!profile) return 0;
-    const score = Number(profile.totalScore);
+    const raw = profile?.totalScore ?? user?.totalScore ?? 0;
+    const score = Number(raw);
     if (!Number.isFinite(score) || score < 0) return 0;
     return Math.floor(score);
-  }, [profile]);
+  }, [profile?.totalScore, user?.totalScore]);
 
   const highestCompletedStage = useMemo(() => {
     if (!profile) return 0;
@@ -41,10 +63,8 @@ export default function ProfileDashboard() {
 
   const level = useMemo(() => {
     // Profile level should reflect stage progression, not raw score buckets.
-    return Math.min(12, Math.max(1, highestCompletedStage + 1));
+    return Math.min(MAX_LEVEL, Math.max(1, highestCompletedStage + 1));
   }, [highestCompletedStage]);
-
-  const currentStage = useMemo(() => (highestCompletedStage > 0 ? `stage${highestCompletedStage}` : null), [highestCompletedStage]);
 
   const stats = useMemo(() => {
     if (!profile) return [];
@@ -52,16 +72,13 @@ export default function ProfileDashboard() {
       { label: 'Wins', value: profile.gamesWon },
       { label: 'Losses', value: profile.gamesLost },
       { label: 'Games Played', value: profile.gamesPlayed },
-      { label: 'XP', value: safeTotalScore.toLocaleString() },
+      { label: 'Score', value: safeTotalScore.toLocaleString() },
     ];
   }, [profile, safeTotalScore]);
 
   const progressPercent = useMemo(() => {
-    if (!profile) return 0;
-    const stageNum = currentStage ? parseInt(currentStage.replace('stage', ''), 10) : 1;
-    const expectedPoints = stageNum * 1000;
-    return Math.min((safeTotalScore / expectedPoints) * 100, 100);
-  }, [safeTotalScore, profile, currentStage]);
+    return (level / MAX_LEVEL) * 100;
+  }, [level]);
 
   const achievedBadges = useMemo(() => {
     if (!profile) return badges;
@@ -114,7 +131,7 @@ export default function ProfileDashboard() {
           <GlassSection className="flex flex-col gap-6 p-6 overflow-y-auto scrollbar-cyber flex-1 min-h-0">
             <StatsGrid stats={stats} />
             <GlassSection>
-              <ProgressBar percent={progressPercent} />
+              <ProgressBar percent={progressPercent} currentLevel={level} maxLevel={MAX_LEVEL} />
             </GlassSection>
 
             <BadgeGrid badges={achievedBadges} />
@@ -134,9 +151,7 @@ export default function ProfileDashboard() {
         userId={user?.id ?? ''}
         currentAvatar={profile.avatar as any}
         onUpdated={async (newAvatar) => {
-          if (profile) {
-            profile.avatar = newAvatar;
-          }
+          void newAvatar;
           await refreshProfile().catch(() => {});
         }}
       />

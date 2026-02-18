@@ -17,7 +17,7 @@ export async function apiLeaderboardTop10(): Promise<User[]> {
   const list = Array.isArray(data.top10) ? data.top10 : [];
 
   return list.map((entry) => ({
-    id: entry.userId as string,
+    id: String(entry.userId ?? entry._id ?? entry.username),
     name: entry.username,
     score: entry.totalScore,
     avatar: entry.avatar || 'default.png',
