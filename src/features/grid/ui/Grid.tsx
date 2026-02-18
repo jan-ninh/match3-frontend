@@ -23,6 +23,7 @@ import { LaserRowOverlay } from './laser/LaserRowOverlay';
 import { LaserRowStrikeFxLayer, type LaserStrikeBurst } from './laser/fx/LaserRowStrikeFxLayer';
 import { useLaserRowTargeting } from './laser/useLaserRowTargeting';
 import { useLaserTargetingSfx } from './laser/fx/useLaserTargetingSfx';
+import { useTargetingTickSfx } from './fx/useTargetingTickSfx';
 
 type GridInputViewModel = Readonly<{
   cells: ComponentProps<typeof GridCellsLayer>['cells'];
@@ -133,7 +134,7 @@ export function GridView({
   // Targeting "tick" cooldown (ms):
   // - 0 => play on every row change (can spam/overlap)
   // - >0 => rate-limited; tweak for feel
-  const LASER_TARGETING_SFX_COOLDOWN_MS = 100;
+  const LASER_TARGETING_SFX_COOLDOWN_MS = 110;
 
   // Optional: delay confirm sound to sync with beam FX (default 0 = instant).
   const LASER_CONFIRM_SFX_DELAY_MS = 0;
@@ -143,6 +144,28 @@ export function GridView({
     hoverRow: laser.hoverRow ?? null,
     cooldownMs: LASER_TARGETING_SFX_COOLDOWN_MS,
     confirmDelayMs: LASER_CONFIRM_SFX_DELAY_MS,
+  });
+
+  // -----------------------------
+  // 3x3gridlaser targeting SFX (UI-only)
+  // -----------------------------
+  // Assumption: "3x3gridlaser" uses the existing 3×3 targeting hook (currently named bomb).
+  // This plays the SAME targeting asset as the row-laser (laser_targeting.mp3) when the 3×3 target changes.
+  // No confirm sound here by request.
+  const GRIDLASER_3X3_TARGETING_SFX_COOLDOWN_MS = 130;
+
+  const gridLaser3x3TargetKey = useMemo(() => {
+    if (!bomb.bombArmed) return null;
+    const arr = bomb.bombOverlayIndices;
+    if (arr.length === 0) return null;
+    return arr.join(',');
+  }, [bomb.bombArmed, bomb.bombOverlayIndices]);
+
+  useTargetingTickSfx({
+    armed: bomb.bombArmed,
+    targetKey: gridLaser3x3TargetKey,
+    cooldownMs: GRIDLASER_3X3_TARGETING_SFX_COOLDOWN_MS,
+    sfxId: 'laserTargeting',
   });
 
   // -----------------------------
@@ -344,11 +367,12 @@ export function GridView({
     }
 
     if (bomb.bombArmed) {
+      // 3x3gridlaser: NO confirm SFX (by request).
       bomb.onCellPointerDown(index, e);
       return;
     }
     if (laser.laserArmed) {
-      // SFX confirm (UI-only): timing controlled via knobs above.
+      // Row-laser confirm SFX (by original laser goal).
       laserSfx.playConfirm();
 
       // UI-only: strike beam timing is controlled by the knobs above.
