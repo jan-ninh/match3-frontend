@@ -1,6 +1,6 @@
-// src/features/audio/sfx/sfxPlayer.ts
 import { addAudioUnlockSubscriber, ensureAudioUnlocked, getAudioContext, primeAudioOutput, resumeAudioContextIfNeeded } from '../core/audioContext';
 import { CORE_SFX, SFX_URLS, type SfxId } from './sfxManifest';
+import { getSfxVolumeMultiplier } from './sfxTuning';
 
 // Ensure the unlock capture listeners are installed as early as possible.
 // This matters because many SFX are triggered *after* the initial click (e.g. engine ACK in an effect),
@@ -28,6 +28,18 @@ function clampNum(n: number, min: number, max: number): number {
   if (n < min) return min;
   if (n > max) return max;
   return n;
+}
+
+function computeTunedVolume(id: SfxId, opts: PlaySfxOptions | undefined): number {
+  const baseVol = clampNum(opts?.volume ?? 1, 0, 1);
+  const mul = clampNum(getSfxVolumeMultiplier(id), 0, 1);
+  return clampNum(baseVol * mul, 0, 1);
+}
+
+function withTunedVolume(id: SfxId, opts: PlaySfxOptions | undefined): PlaySfxOptions {
+  const vol = computeTunedVolume(id, opts);
+  const rate = opts?.playbackRate;
+  return rate === undefined ? { volume: vol } : { volume: vol, playbackRate: rate };
 }
 
 function urlsForId(id: SfxId): readonly string[] {
@@ -220,9 +232,18 @@ function playWithHtmlAudio(urls: readonly string[], opts: PlaySfxOptions | undef
 export function playSfx(id: SfxId, opts?: PlaySfxOptions): void {
   ensureAudioUnlocked();
 
+  const tunedVol = computeTunedVolume(id, opts);
+  if (tunedVol <= 0) {
+    // Still warm up in the background so you can re-enable later without a cold-start.
+    void preloadSfx(id);
+    return;
+  }
+
+  const tunedOpts = withTunedVolume(id, opts);
+
   const cached = bufferCache.get(id);
   if (cached) {
-    playWithWebAudio(cached.buf, opts);
+    playWithWebAudio(cached.buf, tunedOpts);
     return;
   }
 
@@ -234,7 +255,7 @@ export function playSfx(id: SfxId, opts?: PlaySfxOptions): void {
   const ordered = preferred ? [preferred, ...urls.filter((u) => u !== preferred)] : urls;
 
   // no buffer yet -> immediate fallback
-  playWithHtmlAudio(ordered, opts);
+  playWithHtmlAudio(ordered, tunedOpts);
 
   // warm up for future plays
   void preloadSfx(id);

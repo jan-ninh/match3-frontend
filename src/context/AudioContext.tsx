@@ -32,10 +32,10 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const loseRef = useRef<HTMLAudioElement | null>(null); // ✅ NEW
 
   const [musicOn, setMusicOn] = useState(true);
-  const [musicVolume, setMusicVolume] = useState(70);
+  const [musicVolume, setMusicVolume] = useState(0); /////// change to for presentation
 
   const [clickSoundOn, setClickSoundOn] = useState(true);
-  const [clickVolume, setClickVolume] = useState(70);
+  const [clickVolume, setClickVolume] = useState(5); /////// change to for presentation
 
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
   const [showEnableSound, setShowEnableSound] = useState(true);
