@@ -50,7 +50,10 @@ export const SFX_URLS = {
   matchPop01: urls('audio/sfx/matches/match3_pop_01.mp3', 'audio/sfx/matches/match3_pop_01.ogg', 'audio/sfx/matches/match3_pop_01.wav'),
   matchPop02: urls('audio/sfx/matches/match3_pop_02.mp3', 'audio/sfx/matches/match3_pop_02.ogg', 'audio/sfx/matches/match3_pop_02.wav'),
 
-  // Match 4/5 rewards (single-shot, not randomized)
+  // Match 4/5 reward stingers
+  // GOAL PIN assets (public/):
+  // - public/audio/sfx/matches/match4_chime.mp3
+  // - public/audio/sfx/matches/match5_sting.mp3
   match4Chime: urls('audio/sfx/matches/match4_chime.mp3'),
   match5Sting: urls('audio/sfx/matches/match5_sting.mp3'),
 
