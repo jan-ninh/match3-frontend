@@ -1,4 +1,3 @@
-// src/features/devtools-host/ui/DevtoolsHost.tsx
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 
@@ -128,6 +127,9 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
   const { isDev, state, inputLocked, canSwapAt, onIntent, onDevResetBoard, onDevNextLevel, onDevPrevLevel, onDevSetLevel, events } = useMatch3Engine({
     initialLevelId,
   });
+
+  // Demo/presentation: in dev builds allow free level hopping even when the debug overlay is closed.
+  const allowDevLevelHop = isDev;
 
   const gridRowRef = useRef<HTMLDivElement | null>(null);
 
@@ -339,6 +341,14 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
 
         const allowedStage = extractAllowedStage(err);
         if (allowedStage && allowedStage !== lvl) {
+          // IMPORTANT:
+          // In demo/debug mode, ignore backend progression gating so level hopping works for presentations.
+          if (allowDevLevelHop) {
+            console.warn(`Start stage ${lvl} redirected to allowedStage=${allowedStage}. Dev mode: ignoring and running locally.`, err);
+            setSelectedPowersForNextStage(null);
+            return;
+          }
+
           setSelectedPowersForNextStage(null);
           onDevSetLevel(allowedStage);
           navigate(`/game-map/play-game?level=${allowedStage}`, { replace: true });
@@ -388,7 +398,7 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [navigate, onDevSetLevel, selectedPowersForNextStage, setPowers, setSelectedPowersForNextStage, state.levelId, userId]);
+  }, [allowDevLevelHop, navigate, onDevSetLevel, selectedPowersForNextStage, setPowers, setSelectedPowersForNextStage, state.levelId, userId]);
 
   // React to engine outcome phases.
   useEffect(() => {

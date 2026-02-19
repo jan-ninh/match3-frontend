@@ -1,4 +1,3 @@
-// src/features/grid/ui/GridDevPanels.tsx
 import { useMemo } from 'react';
 import type { ComponentProps } from 'react';
 
@@ -61,20 +60,11 @@ export function GridDevPanels({
     ];
   }, [showLockoutHints, onToggleShowLockoutHints]);
 
+  // Presentation-friendly:
+  // - Allow level hopping even while the engine is input-locked (e.g. during init/anim/cascade).
+  // - Keep the other destructive actions locked to avoid weird mid-anim states.
   const devActions: ComponentProps<typeof DebugDevToolsPanel>['actions'] = useMemo(() => {
     return [
-      {
-        kind: 'action',
-        label: 'level: Prev',
-        onPress: onDevPrevLevel,
-        disabled: inputLocked,
-      },
-      {
-        kind: 'action',
-        label: 'level: Next',
-        onPress: onDevNextLevel,
-        disabled: inputLocked,
-      },
       {
         kind: 'action',
         label: 'reset: Board',
@@ -88,7 +78,7 @@ export function GridDevPanels({
         disabled: inputLocked,
       },
     ];
-  }, [onDevPrevLevel, onDevNextLevel, onDevResetBoard, onDevNextTilesPalette, inputLocked]);
+  }, [onDevResetBoard, onDevNextTilesPalette, inputLocked]);
 
   const panels = useMemo(() => {
     const onCheatItems = () => {
@@ -99,9 +89,37 @@ export function GridDevPanels({
       window.dispatchEvent(new CustomEvent(POWERS_GRANT_MANY_EVENT, { detail: { grants } }));
     };
 
+    const onPrev = () => onDevPrevLevel?.();
+    const onNext = () => onDevNextLevel?.();
+
     return (
       <div className="flex flex-col gap-3">
         <DebugInputPanel width={width} snapshot={debugSnapshot} hz={DEBUG_OVERLAY_HZ} />
+
+        {/* Level hopping (demo-friendly) */}
+        <div className="rounded-xl border border-white/10 bg-black/35 backdrop-blur p-3">
+          <div className="text-xs tracking-widest text-white/60 uppercase mb-2">Level</div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={onPrev}
+              aria-label="Previous level"
+              className="w-full h-10 rounded-lg border border-slate-200/15 bg-slate-500/15 hover:bg-slate-500/25 active:bg-slate-500/30 text-slate-100/90 transition-colors select-none"
+            >
+              <span className="text-lg leading-none">←</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={onNext}
+              aria-label="Next level"
+              className="w-full h-10 rounded-lg border border-slate-200/15 bg-slate-500/15 hover:bg-slate-500/25 active:bg-slate-500/30 text-slate-100/90 transition-colors select-none"
+            >
+              <span className="text-lg leading-none">→</span>
+            </button>
+          </div>
+        </div>
 
         <div className="rounded-xl border border-white/10 bg-black/35 backdrop-blur p-3">
           <div className="text-xs tracking-widest text-white/60 uppercase mb-2">Cheats</div>
@@ -114,10 +132,15 @@ export function GridDevPanels({
           </button>
         </div>
 
-        <DebugDevToolsPanel locked={inputLocked} meta={stateMeta} items={devItems} actions={devActions} />
+        {/*
+          NOTE:
+          DebugDevToolsPanel has its own global "locked" behavior.
+          For demos, we keep the panel interactive and rely on per-action `disabled`.
+        */}
+        <DebugDevToolsPanel locked={false} meta={stateMeta} items={devItems} actions={devActions} />
       </div>
     );
-  }, [width, debugSnapshot, inputLocked, stateMeta, devItems, devActions]);
+  }, [width, debugSnapshot, stateMeta, devItems, devActions, onDevPrevLevel, onDevNextLevel]);
 
   return useDevPanelsPortal(enabled, panels, { laneId: 'dev-left-lane' });
 }

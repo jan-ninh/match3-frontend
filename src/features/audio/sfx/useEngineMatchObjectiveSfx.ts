@@ -1,3 +1,4 @@
+// src/features/audio/sfx/useEngineMatchObjectiveSfx.ts
 import { useEffect, useRef } from 'react';
 
 import type { EngineEvent, EngineState } from '@/gamelogic/types';
@@ -100,6 +101,181 @@ function computeNewEvents(prev: readonly EngineEvent[] | null, next: readonly En
   return [...next];
 }
 
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null;
+}
+
+function readFiniteInt(v: unknown): number | null {
+  if (typeof v !== 'number') return null;
+  if (!Number.isFinite(v)) return null;
+  return v | 0;
+}
+
+function maxFromNumberArray(v: unknown): number | null {
+  if (!Array.isArray(v) || v.length === 0) return null;
+  let best: number | null = null;
+  for (const x of v) {
+    const n = readFiniteInt(x);
+    if (n === null) continue;
+    best = best === null ? n : Math.max(best, n);
+  }
+  return best;
+}
+
+function isCellLike(v: unknown): boolean {
+  if (!isRecord(v)) return false;
+  const x = v.x;
+  const y = v.y;
+  return typeof x === 'number' && Number.isFinite(x) && typeof y === 'number' && Number.isFinite(y);
+}
+
+function maxFromGroupArrays(v: unknown): number | null {
+  if (!Array.isArray(v) || v.length === 0) return null;
+
+  // Expect array of arrays, where each inner array is a group of cells/indices.
+  let best: number | null = null;
+
+  for (const g of v) {
+    if (!Array.isArray(g)) continue;
+    if (g.length === 0) continue;
+
+    // avoid false positives: group elements should look like numbers or {x,y}
+    const sample = g[0];
+    const ok = typeof sample === 'number' || isCellLike(sample);
+    if (!ok) continue;
+
+    best = best === null ? g.length : Math.max(best, g.length);
+  }
+
+  return best;
+}
+
+function maxFromGroupObjects(v: unknown): number | null {
+  if (!Array.isArray(v) || v.length === 0) return null;
+
+  // Expect array of objects, each with a length-ish field.
+  const sizeKeys: readonly string[] = ['len', 'length', 'size', 'count', 'n', 'cells', 'indices'];
+  let best: number | null = null;
+
+  for (const g of v) {
+    if (!isRecord(g)) continue;
+
+    for (const k of sizeKeys) {
+      const raw = g[k];
+      const n = readFiniteInt(raw);
+      if (n !== null) best = best === null ? n : Math.max(best, n);
+
+      // arrays like cells/indices
+      if (Array.isArray(raw)) {
+        best = best === null ? raw.length : Math.max(best, raw.length);
+      }
+    }
+  }
+
+  return best;
+}
+
+function extractMatchLenLike(e: EngineEvent): number | null {
+  // We only try to infer "len" for match-ish events to avoid random false positives.
+  const t = String(e.type);
+  if (t !== 'matchesFound' && !t.toLowerCase().includes('match')) return null;
+
+  if (!isRecord(e)) return null;
+  const rec = e as Record<string, unknown>;
+
+  // 1) Common explicit numeric fields
+  const numKeys: readonly string[] = [
+    'maxLen',
+    'bestLen',
+    'maxMatchLen',
+    'bestMatchLen',
+    'maxGroupLen',
+    'bestGroupLen',
+    'longest',
+    'longestLen',
+    'matchLen',
+    'matchSize',
+    'size',
+    'len',
+    'length',
+    'count',
+  ];
+
+  for (const k of numKeys) {
+    const n = readFiniteInt(rec[k]);
+    if (n !== null && n > 0) return n;
+  }
+
+  // 2) Arrays of lengths/sizes
+  const arrKeys: readonly string[] = ['groupLens', 'groupSizes', 'lens', 'lengths', 'sizes'];
+  for (const k of arrKeys) {
+    const best = maxFromNumberArray(rec[k]);
+    if (best !== null && best > 0) return best;
+  }
+
+  // 3) Arrays of groups (arrays)
+  const groupArrayKeys: readonly string[] = ['matches', 'groups', 'matchGroups', 'groupCells', 'cellsByGroup', 'groupsCells'];
+  for (const k of groupArrayKeys) {
+    const best = maxFromGroupArrays(rec[k]);
+    if (best !== null && best > 0) return best;
+
+    const bestObj = maxFromGroupObjects(rec[k]);
+    if (bestObj !== null && bestObj > 0) return bestObj;
+  }
+
+  // 4) Nested "match" / "matches" objects
+  const nestedKeys: readonly string[] = ['match', 'matches', 'group'];
+  for (const k of nestedKeys) {
+    const v = rec[k];
+    if (!isRecord(v)) continue;
+
+    for (const nk of numKeys) {
+      const n = readFiniteInt(v[nk]);
+      if (n !== null && n > 0) return n;
+    }
+
+    for (const nk of arrKeys) {
+      const best = maxFromNumberArray(v[nk]);
+      if (best !== null && best > 0) return best;
+    }
+
+    for (const nk of groupArrayKeys) {
+      const best = maxFromGroupArrays(v[nk]);
+      if (best !== null && best > 0) return best;
+
+      const bestObj = maxFromGroupObjects(v[nk]);
+      if (bestObj !== null && bestObj > 0) return bestObj;
+    }
+  }
+
+  // 5) Last-ditch: common group arrays under very generic keys
+  const genericGroupKeys: readonly string[] = ['cells', 'indices', 'indexes', 'tiles', 'positions', 'coords', 'points'];
+  for (const k of genericGroupKeys) {
+    const v = rec[k];
+    if (!Array.isArray(v) || v.length <= 0) continue;
+
+    const sample = v[0];
+    const ok = typeof sample === 'number' || isCellLike(sample);
+    if (!ok) continue;
+
+    return v.length;
+  }
+
+  return null;
+}
+
+function bestMatchLenInRange(events: readonly EngineEvent[], start: number, end: number): number {
+  let best = 0;
+
+  for (let i = start; i < end; i++) {
+    const n = extractMatchLenLike(events[i]);
+    if (n === null) continue;
+    if (n > best) best = n;
+  }
+
+  return best;
+}
+
 export function useEngineMatchObjectiveSfx(state: Pick<EngineState, 'events'>): void {
   const isBootstrappedRef = useRef(false);
   const prevEventsRef = useRef<readonly EngineEvent[] | null>(null);
@@ -138,7 +314,12 @@ export function useEngineMatchObjectiveSfx(state: Pick<EngineState, 'events'>): 
       // 1) Pop (always for any match3+)
       playSfx(pickRandom(MATCH_POP_SFX));
 
-      // 2) Optional objective stinger (if any objective progress occurred in this segment)
+      // 2) Optional match4/match5 reward (best match length inside this resolve segment)
+      const bestLen = bestMatchLenInRange(newEvents, start, end);
+      if (bestLen >= 5) playSfx('match5Sting');
+      else if (bestLen === 4) playSfx('match4Chime');
+
+      // 3) Optional objective stinger (if any objective progress occurred in this segment)
       let hitObjective = false;
       for (let i = start; i < end; i++) {
         if (isObjectiveProgressEvent(newEvents[i])) {

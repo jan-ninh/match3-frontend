@@ -50,6 +50,13 @@ export const SFX_URLS = {
   matchPop01: urls('audio/sfx/matches/match3_pop_01.mp3', 'audio/sfx/matches/match3_pop_01.ogg', 'audio/sfx/matches/match3_pop_01.wav'),
   matchPop02: urls('audio/sfx/matches/match3_pop_02.mp3', 'audio/sfx/matches/match3_pop_02.ogg', 'audio/sfx/matches/match3_pop_02.wav'),
 
+  // Match 4/5 reward stingers
+  // GOAL PIN assets (public/):
+  // - public/audio/sfx/matches/match4_chime.mp3
+  // - public/audio/sfx/matches/match5_sting.mp3
+  match4Chime: urls('audio/sfx/matches/match4_chime.mp3'),
+  match5Sting: urls('audio/sfx/matches/match5_sting.mp3'),
+
   // Objective hit “stinger” (randomized by the caller)
   // NOTE: GOAL PIN lists match_objective_01 twice; keep both entries mapped to the same file for now.
   matchObjective01: urls('audio/sfx/matches/match_objective_01.mp3', 'audio/sfx/matches/match_objective_01.ogg', 'audio/sfx/matches/match_objective_01.wav'),
@@ -71,6 +78,8 @@ export const CORE_SFX: readonly SfxId[] = [
   'uiSettingsHover',
   'matchPop01',
   'matchPop02',
+  'match4Chime',
+  'match5Sting',
   'matchObjective01',
   'matchObjective02',
 ] as const;

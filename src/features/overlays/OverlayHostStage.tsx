@@ -1,4 +1,3 @@
-// src/features/overlays/OverlayHostStage.tsx
 import { useContext } from 'react';
 
 import { OverlayContext } from './overlayContext';
@@ -36,8 +35,10 @@ export default function OverlayHostStage() {
         title={data.powerChoiceTitle ?? 'Choose your Power!'}
         onClose={noop}
         onChoose={(powerId) => {
-          powerChoiceOnChooseRef.current?.(powerId);
+          // Capture handler BEFORE close() clears the ref.
+          const onChoose = powerChoiceOnChooseRef.current;
           api.close();
+          onChoose?.(powerId);
         }}
       />
     </>
