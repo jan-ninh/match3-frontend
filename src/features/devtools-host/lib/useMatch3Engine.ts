@@ -270,6 +270,17 @@ export function useMatch3Engine({ initialLevelId = 1 }: Args) {
     if (typeof window === 'undefined') return;
 
     const seen = seenPowerUsedRef.current;
+    // // TEMP DEBUG (remove after)
+    // for (let i = 0; i < state.events.length; i += 1) {
+    //   const ev = state.events[i];
+    //   if (!ev || typeof ev !== 'object') continue;
+    //   const rec = ev as Record<string, unknown>;
+    //   const t = rec.type;
+    //   if (typeof t === 'string') {
+    //     // eslint-disable-next-line no-console
+    //     console.log('[engine event]', t, rec);
+    //   }
+    // }
 
     for (const ev of state.events) {
       if (!isPowerUsedEvent(ev)) continue;
