@@ -1,6 +1,15 @@
+// src/features/devtools-host/lib/hud/typesHud.ts
 // src/features/devtools-host/lib/hud/types.ts
 
-export type HudObjectiveKind = 'spikes' | 'nodes' | 'leaks' | 'terminals' | 'objectiveTerminals' | 'signal' | 'none';
+export type HudObjectiveKind =
+  | 'spikes'
+  | 'nodes'
+  | 'leaks'
+  | 'terminals'
+  | 'objectiveTerminals'
+  | 'signal'
+  | 'matchRush'
+  | 'none';
 
 export type HudLaserWarning = {
   kind: 'row' | 'col';
@@ -24,6 +33,7 @@ export type HudObjectiveTerminalState = {
 
 export type HudObjective =
   | { kind: 'none' }
+  | { kind: 'matchRush' }
   | { kind: 'spikes' | 'nodes'; breachDone: number; breachTotal: number; gateOpen: boolean }
   | {
       kind: 'leaks';

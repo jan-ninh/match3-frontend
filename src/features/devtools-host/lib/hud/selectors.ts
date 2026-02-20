@@ -7,6 +7,9 @@ function buildObjective(input: GameplayHudInput): HudObjective {
   const k = input.objectiveKind;
 
   switch (k) {
+    case 'matchRush':
+      return { kind: 'matchRush' };
+
     case 'spikes':
     case 'nodes':
       return {

@@ -1,3 +1,4 @@
+// src/features/devtools-host/ui/hud/sections/HudCenter.tsx
 import type { HudModel } from '../../../lib/hud/typesHud';
 import { ObjectivePanel } from '../objectives/ObjectivePanel';
 import { LaserWarningBadge } from '../widgets/LaserWarningBadge';

@@ -5,6 +5,7 @@ import { ObjectiveLeaks } from './Objective-06-Leaks';
 import { ObjectiveTerminals } from './Objective-05-DeliverIDcards';
 import { ObjectiveActivateTerminals } from './Objective-04-ActivateTerminals';
 import { ObjectivePath } from './Objective-03-Path';
+import { ObjectiveMatchRush } from './Objective-07-MatchRush';
 
 type Props = {
   objective: HudObjective;
@@ -14,6 +15,9 @@ export function ObjectivePanel({ objective }: Props) {
   switch (objective.kind) {
     case 'none':
       return null;
+
+    case 'matchRush':
+      return <ObjectiveMatchRush objective={objective} />;
 
     case 'spikes':
     case 'nodes':

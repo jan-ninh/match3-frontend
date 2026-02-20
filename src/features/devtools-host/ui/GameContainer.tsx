@@ -1,3 +1,4 @@
+// src/features/devtools-host/ui/GameContainer.tsx
 import type { RefObject } from 'react';
 import { useCallback, useEffect, useReducer, useRef } from 'react';
 import type { EngineState } from '@/gamelogic';
@@ -144,8 +145,6 @@ export default function GameContainer({
 
     for (let i = 0; i < state.events.length; i += 1) {
       const ev = state.events[i];
-      if (!ev) continue;
-
       if (ev.type !== 'matchesFound') continue;
 
       const clears = Math.max(0, (ev.clears ?? 0) | 0);

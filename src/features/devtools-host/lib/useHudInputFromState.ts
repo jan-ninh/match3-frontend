@@ -18,7 +18,7 @@ type ObjectiveTerminalHudState = {
   required: number;
 };
 
-type ObjectiveKind = 'spikes' | 'nodes' | 'leaks' | 'terminals' | 'objectiveTerminals' | 'signal' | 'none';
+type ObjectiveKind = GameplayHudInput['objectiveKind'];
 
 function countContamination(cells: EngineState['cells']): number {
   let n = 0;
@@ -37,6 +37,7 @@ function countChargedCells(cells: EngineState['cells']): number {
 }
 
 function deriveObjectiveKind(args: {
+  levelId: number;
   signalSourcesTotal: number;
   signalTargetsTotal: number;
   objectiveTerminalsTotal: number;
@@ -44,7 +45,10 @@ function deriveObjectiveKind(args: {
   leaksTotal: number;
   cells: EngineState['cells'];
 }): ObjectiveKind {
-  const { signalSourcesTotal, signalTargetsTotal, objectiveTerminalsTotal, terminalsTotal, leaksTotal, cells } = args;
+  const { levelId, signalSourcesTotal, signalTargetsTotal, objectiveTerminalsTotal, terminalsTotal, leaksTotal, cells } = args;
+
+  // Level 07: Match Rush (UI-only objective panel)
+  if (levelId === 7) return 'matchRush';
 
   // Level 05: Signal Network takes priority
   if (signalSourcesTotal > 0 && signalTargetsTotal > 0) return 'signal';
@@ -139,6 +143,7 @@ export function useHudInputFromState(state: EngineState): GameplayHudInput {
     const actualChargedCount = countChargedCells(cells);
 
     const objectiveKind = deriveObjectiveKind({
+      levelId,
       signalSourcesTotal: signalSourcesTotal ?? 0,
       signalTargetsTotal: signalTargetsTotal ?? 0,
       objectiveTerminalsTotal: objectiveTerminalsTotal ?? 0,
