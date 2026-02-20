@@ -1,4 +1,5 @@
 // src/features/grid/input/useGridInput.ts
+// src/features/grid/input/useGridInput.ts
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { EngineState, Piece, PieceId } from '@/gamelogic';
@@ -39,17 +40,7 @@ export function useGridInput({ state, inputLocked, canSwapAt, onIntent, debugEna
   const releaseCleanupRef = useRef<(() => void) | null>(null);
 
   // rAF transform infra (no React re-render per pointer move)
-  const {
-    draggedElRef,
-    dragBasePxRef,
-    dragDxRef,
-    dragDyRef,
-    ensureRafRunning,
-    stopRaf,
-    snapBackDraggedPiece,
-    resetDraggedPieceInstant,
-    clearDragRefs,
-  } = useRafDragTransform({
+  const { draggedElRef, dragBasePxRef, dragDxRef, dragDyRef, ensureRafRunning, stopRaf, snapBackDraggedPiece, resetDraggedPieceInstant, clearDragRefs } = useRafDragTransform({
     swapMs,
     easing: EASING,
     getShouldContinue: () => !!(pressRef.current?.active && pressRef.current?.hasExceededThreshold),
@@ -121,17 +112,7 @@ export function useGridInput({ state, inputLocked, canSwapAt, onIntent, debugEna
       resetDraggedPieceInstant,
       clearDragRefs,
     }),
-    [
-      ensureRafRunning,
-      stopRaf,
-      snapBackDraggedPiece,
-      resetDraggedPieceInstant,
-      clearDragRefs,
-      dragDxRef,
-      dragDyRef,
-      dragBasePxRef,
-      draggedElRef,
-    ],
+    [ensureRafRunning, stopRaf, snapBackDraggedPiece, resetDraggedPieceInstant, clearDragRefs, dragDxRef, dragDyRef, dragBasePxRef, draggedElRef],
   );
 
   const controllerRef = useRef<ReturnType<typeof createGridInputController> | null>(null);
@@ -286,17 +267,24 @@ export function useGridInput({ state, inputLocked, canSwapAt, onIntent, debugEna
     clearGlobalRelease();
   };
 
-  // Shell leave should never be able to crash the game. It just clears UI feedback.
-  // But if we're mid-drag, rAF may have mutated el.style.transform; React might not overwrite it
-  // if the render-time transform value stayed the same. So we hard-reset the dragged element.
+  // PointerLeave happens easily during fast drags (leaving the shell bounds) even while the button is still held.
+  // Never treat that as a release: keep the active press running and only clear *hover-like* UI.
   const onShellPointerLeave = () => {
-    resetDraggedPieceInstant();
+    const isActivePress = !!pressRef.current?.active;
 
+    // Clear hover feedback always (safe).
     setOverIndexUI(null);
     setPreviewActive(false);
     setPreviewOtherPieceId(null);
     setPreviewAxisUI(null);
     setPreviewDirUI(0);
+
+    // If a press is active, do NOT stop dragging or clear rAF refs.
+    // Release will be handled by pointerup/pointercancel/blur (global listeners).
+    if (isActivePress) return;
+
+    // Hard reset in case a previous rAF transform was left on the dragged element.
+    resetDraggedPieceInstant();
 
     setIsDragging(false);
     setDragPieceId(null);
