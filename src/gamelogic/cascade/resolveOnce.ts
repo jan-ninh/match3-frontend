@@ -1,4 +1,4 @@
-// src/gamelogic/cascade/resolveOnce.ts
+// src\gamelogic\cascade\resolveOnce.ts
 import type { EngineEvent, EngineState } from '../types';
 import type { ResolveOnceOpts, ResolveOnceResult } from './typesCascade';
 
@@ -48,21 +48,44 @@ export function resolveOnce(state: EngineState, chargedIds: Set<number> = new Se
       case 'itemLaserRowClear': {
         const clearedCount = countClearablePieces(s, step.indices);
 
-        // NOTE: Item-driven clear must not progress objectives/level mechanics.
-        // Therefore: do NOT run cascade effects here (even if effectsEnabled === true).
+        if (effectsEnabled) {
+          const match = { clearIndices: step.indices, groups: 1 };
+          const pre = runPreClearEffects(effects, s, match, ctx, events);
+          s = pre.state;
+          ctx = pre.ctx;
+        }
+
         events.push({ type: 'phase', phase: 'clear' });
         s = clearCellsAndPieces(s, step.indices);
         if (clearedCount > 0) events.push({ type: 'cleared', count: clearedCount });
         events.push({ type: 'cascadeStep', kind: 'itemLaserRowClear', row: step.row, indices: step.indices, cleared: clearedCount });
 
+        if (effectsEnabled) {
+          const postClear = runPostClearEffects(effects, s, ctx, events);
+          s = postClear.state;
+          ctx = postClear.ctx;
+        }
+
         events.push({ type: 'phase', phase: 'gravity' });
         s = applyGravity(s);
         events.push({ type: 'gravity' });
+
+        if (effectsEnabled) {
+          const postGravity = runPostGravityEffects(effects, s, ctx, events);
+          s = postGravity.state;
+          ctx = postGravity.ctx;
+        }
 
         events.push({ type: 'phase', phase: 'refill' });
         const ref = applyRefill(s);
         s = ref.state;
         events.push({ type: 'refilled', count: ref.spawned });
+
+        if (effectsEnabled) {
+          const postRefill = runPostRefillEffects(effects, s, ctx, events);
+          s = postRefill.state;
+          ctx = postRefill.ctx;
+        }
 
         events.push({ type: 'phase', phase: 'settle' });
 
@@ -73,8 +96,13 @@ export function resolveOnce(state: EngineState, chargedIds: Set<number> = new Se
       case 'itemBomb3x3Blast': {
         const clearedCount = countClearablePieces(s, step.indices);
 
-        // NOTE: Item-driven clear must not progress objectives/level mechanics.
-        // Therefore: do NOT run cascade effects here (even if effectsEnabled === true).
+        if (effectsEnabled) {
+          const match = { clearIndices: step.indices, groups: 1 };
+          const pre = runPreClearEffects(effects, s, match, ctx, events);
+          s = pre.state;
+          ctx = pre.ctx;
+        }
+
         events.push({ type: 'phase', phase: 'clear' });
         s = clearCellsAndPieces(s, step.indices);
         if (clearedCount > 0) events.push({ type: 'cleared', count: clearedCount });
@@ -86,14 +114,32 @@ export function resolveOnce(state: EngineState, chargedIds: Set<number> = new Se
           cleared: clearedCount,
         });
 
+        if (effectsEnabled) {
+          const postClear = runPostClearEffects(effects, s, ctx, events);
+          s = postClear.state;
+          ctx = postClear.ctx;
+        }
+
         events.push({ type: 'phase', phase: 'gravity' });
         s = applyGravity(s);
         events.push({ type: 'gravity' });
+
+        if (effectsEnabled) {
+          const postGravity = runPostGravityEffects(effects, s, ctx, events);
+          s = postGravity.state;
+          ctx = postGravity.ctx;
+        }
 
         events.push({ type: 'phase', phase: 'refill' });
         const ref = applyRefill(s);
         s = ref.state;
         events.push({ type: 'refilled', count: ref.spawned });
+
+        if (effectsEnabled) {
+          const postRefill = runPostRefillEffects(effects, s, ctx, events);
+          s = postRefill.state;
+          ctx = postRefill.ctx;
+        }
 
         events.push({ type: 'phase', phase: 'settle' });
 

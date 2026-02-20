@@ -1,4 +1,3 @@
-// src/gamelogic/types.ts
 import type { EnginePhase } from './phases';
 import type { RngState } from './rng';
 
@@ -7,6 +6,12 @@ export type LevelId = number;
 export type PieceType = 'red' | 'blue' | 'green' | 'purple' | 'orange' | 'cyan' | 'pink' | 'yellow' | 'keycard';
 
 export type PieceId = number;
+
+// ─────────────────────────────────────────────
+// Item objective policy (Level-configurable)
+// ─────────────────────────────────────────────
+
+export type ItemObjectivesPolicy = 'noObjectives' | 'allowObjectives';
 
 // ─────────────────────────────────────────────
 // Terminal State (Level 03+)
@@ -209,6 +214,16 @@ export type LevelDefinition = {
   contaminationLoseThreshold?: number;
   spreadPerTurn?: number;
   spreadEveryNTurns?: number;
+
+  /**
+   * Item objective policy (optional).
+   * Default (if omitted): items do NOT affect objectives/level mechanics.
+   *
+   * - itemObjectivesDefault: default for both items
+   * - itemObjectives: per-item overrides
+   */
+  itemObjectivesDefault?: ItemObjectivesPolicy;
+  itemObjectives?: Partial<Record<ItemEffectKeyForEvent, ItemObjectivesPolicy>>;
 };
 
 // ─────────────────────────────────────────────
@@ -350,6 +365,9 @@ export type EngineState = {
   // cached level rules
   allowedTypes: PieceType[];
 
+  // per-level item objective policy (resolved at init/reset; stable throughout the level)
+  itemObjectives: Record<ItemEffectKeyForEvent, ItemObjectivesPolicy>;
+
   movesTotal: number;
   movesLeft: number;
 
@@ -425,9 +443,10 @@ export type EngineState = {
   pendingTurnCommit: PendingTurnCommit | null;
 
   /**
-   * When set, cascade effects (objectives / level mechanics) are disabled for the current resolve chain.
-   * Used by items like laserRow to ensure item-driven clears do not progress objectives.
-   * Cleared when we reach idle.
+   * Transient cascade policy override for the current resolve chain.
+   * Used by items like laserRow/bomb3x3 depending on per-level `itemObjectives`.
+   *
+   * Reset rule: automatically cleared when we enter idle.
    */
   cascadeEffectPolicy?: 'noObjectives';
 };

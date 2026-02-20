@@ -10,6 +10,11 @@ export function setPhase(state: EngineState, phase: EnginePhase, events?: Engine
 
   const base: EngineState = { ...state, phase, inputLocked: isInputLocked(phase) };
 
+  // Clear transient cascade policy when we return to idle.
+  if (phase === 'idle' && base.cascadeEffectPolicy !== undefined) {
+    return { ...base, cascadeEffectPolicy: undefined };
+  }
+
   // Token invalidation on restart-like phases (prevents stale UI Done from ever matching future anims).
   // Shuffle is a hard "new board arrangement" boundary.
   if (phase === 'shuffle') {

@@ -1,4 +1,3 @@
-// src/gamelogic/cascade/stabilizeBoard.ts
 import type { EngineEvent, EngineState } from '../types';
 import type { EnginePhase } from '../phases';
 import { detectMatches, hasAnyMoves } from '../match';
@@ -32,89 +31,6 @@ function countClearablePieces(state: EngineState, indices: number[]): number {
   }
 
   return count;
-}
-
-function applyPreSteps(
-  s0: EngineState,
-  preSteps: CascadePreStep[],
-  events: EngineEvent[],
-  toPhase: (phase: EnginePhase) => void,
-  devAssert: (tag: string) => void,
-): EngineState {
-  let s = s0;
-
-  for (const step of preSteps) {
-    switch (step.kind) {
-      case 'itemLaserRowClear': {
-        const clearedCount = countClearablePieces(s, step.indices);
-
-        // NOTE: Item-driven clear must not progress objectives/level mechanics.
-        // Therefore: do NOT run cascade effects here (even if enabled for normal matches).
-        toPhase('clear');
-        s = clearCellsAndPieces(s, step.indices);
-        devAssert('preStep:itemLaserRowClear:clearCellsAndPieces');
-        if (clearedCount > 0) events.push({ type: 'cleared', count: clearedCount });
-        events.push({ type: 'cascadeStep', kind: 'itemLaserRowClear', row: step.row, indices: step.indices, cleared: clearedCount });
-
-        toPhase('gravity');
-        s = applyGravity(s);
-        devAssert('preStep:itemLaserRowClear:applyGravity');
-        events.push({ type: 'gravity' });
-
-        toPhase('refill');
-        const ref = applyRefill(s);
-        s = ref.state;
-        devAssert('preStep:itemLaserRowClear:applyRefill');
-        events.push({ type: 'refilled', count: ref.spawned });
-
-        toPhase('settle');
-        continue;
-      }
-
-      case 'itemBomb3x3Blast': {
-        const clearedCount = countClearablePieces(s, step.indices);
-
-        // NOTE: Item-driven clear must not progress objectives/level mechanics.
-        // Therefore: do NOT run cascade effects here (even if enabled for normal matches).
-        toPhase('clear');
-        s = clearCellsAndPieces(s, step.indices);
-        devAssert('preStep:itemBomb3x3Blast:clearCellsAndPieces');
-        if (clearedCount > 0) events.push({ type: 'cleared', count: clearedCount });
-        events.push({
-          type: 'cascadeStep',
-          kind: 'itemBomb3x3Blast',
-          center: step.center,
-          indices: step.indices,
-          cleared: clearedCount,
-        });
-
-        toPhase('gravity');
-        s = applyGravity(s);
-        devAssert('preStep:itemBomb3x3Blast:applyGravity');
-        events.push({ type: 'gravity' });
-
-        toPhase('refill');
-        const ref = applyRefill(s);
-        s = ref.state;
-        devAssert('preStep:itemBomb3x3Blast:applyRefill');
-        events.push({ type: 'refilled', count: ref.spawned });
-
-        toPhase('settle');
-        continue;
-      }
-
-      default: {
-        // Exhaustiveness guard on the discriminant (robust even if CascadePreStep isn't a union yet)
-        const kind = step.kind;
-        const _exhaustiveKind: never = kind;
-        void _exhaustiveKind;
-
-        throw new Error(`Unhandled CascadePreStep kind: ${String(kind)}`);
-      }
-    }
-  }
-
-  return s;
 }
 
 export function stabilizeBoard(state: EngineState, opts?: StabilizeOpts): { state: EngineState; events: EngineEvent[] } {
@@ -155,7 +71,121 @@ export function stabilizeBoard(state: EngineState, opts?: StabilizeOpts): { stat
   // First-class preSteps (e.g. item clears) BEFORE detect
   // ─────────────────────────────────────────────
   if (preSteps.length > 0) {
-    s = applyPreSteps(s, preSteps, events, toPhase, devAssert);
+    for (const step of preSteps as CascadePreStep[]) {
+      switch (step.kind) {
+        case 'itemLaserRowClear': {
+          const clearedCount = countClearablePieces(s, step.indices);
+
+          if (effectsEnabled) {
+            const match = { clearIndices: step.indices, groups: 1 };
+            const pre = runPreClearEffects(effects, s, match, ctx, events);
+            s = pre.state;
+            ctx = pre.ctx;
+          }
+
+          toPhase('clear');
+          s = clearCellsAndPieces(s, step.indices);
+          devAssert('preStep:itemLaserRowClear:clearCellsAndPieces');
+          if (clearedCount > 0) events.push({ type: 'cleared', count: clearedCount });
+          events.push({ type: 'cascadeStep', kind: 'itemLaserRowClear', row: step.row, indices: step.indices, cleared: clearedCount });
+
+          if (effectsEnabled) {
+            const postClear = runPostClearEffects(effects, s, ctx, events);
+            s = postClear.state;
+            ctx = postClear.ctx;
+          }
+
+          toPhase('gravity');
+          s = applyGravity(s);
+          devAssert('preStep:itemLaserRowClear:applyGravity');
+          events.push({ type: 'gravity' });
+
+          if (effectsEnabled) {
+            const postGravity = runPostGravityEffects(effects, s, ctx, events);
+            s = postGravity.state;
+            ctx = postGravity.ctx;
+          }
+
+          toPhase('refill');
+          const ref = applyRefill(s);
+          s = ref.state;
+          devAssert('preStep:itemLaserRowClear:applyRefill');
+          events.push({ type: 'refilled', count: ref.spawned });
+
+          if (effectsEnabled) {
+            const postRefill = runPostRefillEffects(effects, s, ctx, events);
+            s = postRefill.state;
+            ctx = postRefill.ctx;
+          }
+
+          toPhase('settle');
+          continue;
+        }
+
+        case 'itemBomb3x3Blast': {
+          const clearedCount = countClearablePieces(s, step.indices);
+
+          if (effectsEnabled) {
+            const match = { clearIndices: step.indices, groups: 1 };
+            const pre = runPreClearEffects(effects, s, match, ctx, events);
+            s = pre.state;
+            ctx = pre.ctx;
+          }
+
+          toPhase('clear');
+          s = clearCellsAndPieces(s, step.indices);
+          devAssert('preStep:itemBomb3x3Blast:clearCellsAndPieces');
+          if (clearedCount > 0) events.push({ type: 'cleared', count: clearedCount });
+          events.push({
+            type: 'cascadeStep',
+            kind: 'itemBomb3x3Blast',
+            center: step.center,
+            indices: step.indices,
+            cleared: clearedCount,
+          });
+
+          if (effectsEnabled) {
+            const postClear = runPostClearEffects(effects, s, ctx, events);
+            s = postClear.state;
+            ctx = postClear.ctx;
+          }
+
+          toPhase('gravity');
+          s = applyGravity(s);
+          devAssert('preStep:itemBomb3x3Blast:applyGravity');
+          events.push({ type: 'gravity' });
+
+          if (effectsEnabled) {
+            const postGravity = runPostGravityEffects(effects, s, ctx, events);
+            s = postGravity.state;
+            ctx = postGravity.ctx;
+          }
+
+          toPhase('refill');
+          const ref = applyRefill(s);
+          s = ref.state;
+          devAssert('preStep:itemBomb3x3Blast:applyRefill');
+          events.push({ type: 'refilled', count: ref.spawned });
+
+          if (effectsEnabled) {
+            const postRefill = runPostRefillEffects(effects, s, ctx, events);
+            s = postRefill.state;
+            ctx = postRefill.ctx;
+          }
+
+          toPhase('settle');
+          continue;
+        }
+
+        default: {
+          const kind = step.kind;
+          const _exhaustiveKind: never = kind;
+          void _exhaustiveKind;
+
+          throw new Error(`Unhandled CascadePreStep kind: ${String(kind)}`);
+        }
+      }
+    }
   }
 
   const resolveLoop = (label: string) => {

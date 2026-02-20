@@ -1,5 +1,14 @@
 // src/gamelogic/engine/state.ts
-import type { EngineEvent, EngineState, LaserWarning, LevelId, PieceId } from '../types';
+import type {
+  EngineEvent,
+  EngineState,
+  ItemEffectKeyForEvent,
+  ItemObjectivesPolicy,
+  LaserWarning,
+  LevelDefinition,
+  LevelId,
+  PieceId,
+} from '../types';
 import { getLevelDefinition } from '../levels';
 import { buildInitialBoard } from '../board';
 import { stabilizeBoard } from '../cascade';
@@ -22,6 +31,21 @@ function selectInitialLaserWarning(seed: number, width: number, height: number):
     return { kind: 'row', index: pick };
   }
   return { kind: 'col', index: pick - height };
+}
+
+function resolveItemObjectives(level: LevelDefinition): Record<ItemEffectKeyForEvent, ItemObjectivesPolicy> {
+  const def: ItemObjectivesPolicy = level.itemObjectivesDefault ?? 'noObjectives';
+
+  const out: Record<ItemEffectKeyForEvent, ItemObjectivesPolicy> = {
+    bomb3x3: def,
+    laserRow: def,
+  };
+
+  const o = level.itemObjectives;
+  if (o?.bomb3x3) out.bomb3x3 = o.bomb3x3;
+  if (o?.laserRow) out.laserRow = o.laserRow;
+
+  return out;
 }
 
 export function createState(
@@ -191,6 +215,8 @@ export function createState(
     initialEvents.push({ type: 'laserWarningSet', kind: laserWarning.kind, index: laserWarning.index });
   }
 
+  const itemObjectives = resolveItemObjectives(level);
+
   // ─────────────────────────────────────────────
   // Build initial state
   // ─────────────────────────────────────────────
@@ -202,6 +228,9 @@ export function createState(
     seed,
     rngState,
     allowedTypes: level.allowedTypes,
+
+    itemObjectives,
+
     movesTotal: level.moves,
     movesLeft: level.moves,
 
