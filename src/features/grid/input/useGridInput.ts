@@ -286,7 +286,7 @@ export function useGridInput({ state, inputLocked, canSwapAt, onIntent, debugEna
     clearGlobalRelease();
   };
 
-  // NEW: shell leave should never be able to crash the game. It just clears UI feedback.
+  // Shell leave should never be able to crash the game. It just clears UI feedback.
   // But if we're mid-drag, rAF may have mutated el.style.transform; React might not overwrite it
   // if the render-time transform value stayed the same. So we hard-reset the dragged element.
   const onShellPointerLeave = () => {

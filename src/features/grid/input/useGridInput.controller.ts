@@ -11,6 +11,7 @@ import { DRAG_THRESHOLD, PREVIEW_LOCK_RATIO, PREVIEW_RELEASE_RATIO, SMOOTHING, t
 import { computeMagnetTarget, decideAxisIfNeeded } from './useGridInput.axis';
 import type { PreviewUiSetters } from './useGridInput.preview';
 import { clearPreviewVisuals, latchPreview, unlatchPreview } from './useGridInput.preview';
+import { dispatchGridUiDebugEvent } from './uiDebugEvents';
 
 type SetState<T> = Dispatch<SetStateAction<T>>;
 
@@ -231,6 +232,11 @@ export function createGridInputController({ width, height, cells, pieces, inputL
         raf.setDragBasePx(cellPixelXY(currentPiece.cellIndex, width));
       }
 
+      // DEV: input observability
+      if (import.meta.env.DEV && p.pieceId !== null) {
+        dispatchGridUiDebugEvent({ type: 'uiDragStart', pointerId, pieceId: p.pieceId, fromIndex: p.fromIndex });
+      }
+
       raf.ensureRafRunning();
     }
 
@@ -328,7 +334,16 @@ export function createGridInputController({ width, height, cells, pieces, inputL
     const fromIndex = p.fromIndex;
     const draggable = p.draggable;
 
+    const canLogDrag = import.meta.env.DEV && draggable && p.hasExceededThreshold && p.pieceId !== null;
+
+    const logDragEnd = (outcome: 'swap' | 'snapBack' | 'invalidSwap' | 'cancel', toIndex: number | null) => {
+      if (!canLogDrag || p.pieceId === null) return;
+      dispatchGridUiDebugEvent({ type: 'uiDragEnd', pointerId, pieceId: p.pieceId, fromIndex, toIndex, outcome });
+    };
+
     if (cancelled || !draggable || !p.hasExceededThreshold) {
+      if (cancelled && draggable && p.hasExceededThreshold) logDragEnd('cancel', null);
+
       // CANCEL EDGE-CASE:
       // rAF mutates el.style.transform, while React keeps render-time transform at basePos for the dragged piece.
       // On cancel/blur/lock, React may not overwrite the DOM transform (because the prop value didn't change),
@@ -343,18 +358,21 @@ export function createGridInputController({ width, height, cells, pieces, inputL
     const toIndex = p.previewLatched ? p.previewToIndex : null;
 
     if (toIndex === null) {
+      logDragEnd('snapBack', null);
       raf.snapBackDraggedPiece();
       clearPressVisuals();
       return;
     }
 
     if (!canSwapAt(fromIndex, toIndex)) {
+      logDragEnd('invalidSwap', toIndex);
       raf.snapBackDraggedPiece();
       clearPressVisuals();
       if (p.pieceId !== null) ui.setShakePieceId(p.pieceId);
       return;
     }
 
+    logDragEnd('swap', toIndex);
     clearPressVisuals();
     onIntent({ type: 'swap', from: fromIndex, to: toIndex });
   };

@@ -1,6 +1,8 @@
+// src/devtools/DebugEventLog.tsx
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import type { EngineEvent } from '@/gamelogic';
 import { CAMPAIGN_DEBUG_EVENT, type CampaignDebugDetail } from '@/context/campaignEvents';
+import { GRID_UI_DEBUG_EVENT, isGridUiDebugEvent, type GridUiDebugEvent } from '@/features/grid/input/uiDebugEvents';
 
 function fmtNum(n: number): string {
   return Number.isFinite(n) ? n.toFixed(1) : 'NaN';
@@ -28,8 +30,23 @@ function fmtSend(s: CampaignDebugDetail['lastSend'] | null | undefined): string 
   return `${s.kind} ${ok}${msg}`;
 }
 
-function formatEvent(e: EngineEvent): string {
+type DebugLogEvent = EngineEvent | GridUiDebugEvent;
+
+function formatEvent(e: DebugLogEvent): string {
   switch (e.type) {
+    // ─────────────────────────────────
+    // UI Input debug (DEV-only)
+    // ─────────────────────────────────
+    case 'uiDragStart':
+      return `uiDragStart(pointerId=${e.pointerId}, pieceId=${e.pieceId}, from=${e.fromIndex})`;
+    case 'uiDragEnd': {
+      const to = e.toIndex === null ? 'null' : String(e.toIndex);
+      return `uiDragEnd(pointerId=${e.pointerId}, pieceId=${e.pieceId}, from=${e.fromIndex}, to=${to}, outcome=${e.outcome})`;
+    }
+
+    // ─────────────────────────────────
+    // Engine events
+    // ─────────────────────────────────
     case 'seededInit':
       return `seededInit(level=${e.levelId}, ${e.width}x${e.height}, seed=${e.seed})`;
     case 'reset':
@@ -188,22 +205,51 @@ type Props = {
 };
 
 const DEFAULT_MAX_LINES = 80;
+const MAX_UI_EVENTS = 60;
 
 export default function DebugEventLog({ events, maxLines = DEFAULT_MAX_LINES }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [campaign, setCampaign] = useState<CampaignDebugDetail | null>(null);
+  const [uiEvents, setUiEvents] = useState<GridUiDebugEvent[]>([]);
 
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const bottomRef = useRef<HTMLLIElement | null>(null);
 
+  // Clear UI events on fresh init/reset so the log stays readable per level.
+  useEffect(() => {
+    if (!events.length) return;
+    const last = events[events.length - 1];
+    if (last.type === 'seededInit' || last.type === 'reset') setUiEvents([]);
+  }, [events]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const onUi = (e: Event) => {
+      const ce = e as CustomEvent<unknown>;
+      if (!isGridUiDebugEvent(ce.detail)) return;
+
+      setUiEvents((prev) => {
+        const next = [...prev, ce.detail];
+        return next.length > MAX_UI_EVENTS ? next.slice(next.length - MAX_UI_EVENTS) : next;
+      });
+    };
+
+    window.addEventListener(GRID_UI_DEBUG_EVENT, onUi as EventListener);
+    return () => window.removeEventListener(GRID_UI_DEBUG_EVENT, onUi as EventListener);
+  }, []);
+
+  const totalCount = events.length + uiEvents.length;
+
   const lastEventsChrono = useMemo(() => {
-    if (!Number.isFinite(maxLines) || maxLines <= 0) return events;
-    return events.slice(-maxLines);
-  }, [events, maxLines]);
+    const merged: DebugLogEvent[] = [...events, ...uiEvents];
+    if (!Number.isFinite(maxLines) || maxLines <= 0) return merged;
+    return merged.slice(-maxLines);
+  }, [events, uiEvents, maxLines]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-  }, [events.length]);
+  }, [events.length, uiEvents.length]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -226,7 +272,7 @@ export default function DebugEventLog({ events, maxLines = DEFAULT_MAX_LINES }: 
 
         <div className="flex items-center gap-3">
           <div className="text-white/50 text-xs">
-            {lastEventsChrono.length} / {events.length}
+            {lastEventsChrono.length} / {totalCount}
           </div>
 
           <button
@@ -271,7 +317,7 @@ export default function DebugEventLog({ events, maxLines = DEFAULT_MAX_LINES }: 
           <div className="text-white/90 font-mono">{campaign?.queuedSends ?? 0}</div>
         </div>
       </div>
-      <div ref={scrollerRef} className="mt-2 h-260px))] overflow-y-auto overscroll-contain" style={{ scrollbarGutter: 'stable' }}></div>
+
       <div ref={scrollerRef} className={`mt-2 ${scrollerMaxH} overflow-y-auto overscroll-contain`} style={{ scrollbarGutter: 'stable' }}>
         <ul className="space-y-0">
           {lastEventsChrono.map((e, i) => {
