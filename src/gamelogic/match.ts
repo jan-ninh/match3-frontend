@@ -1,4 +1,3 @@
-// src/gamelogic/match.ts
 import type { EngineState, PieceType } from './types';
 import { inBounds, xyOf } from './coords';
 
@@ -61,15 +60,28 @@ function countDir(
 // Match Detection
 // ─────────────────────────────────────────────
 
+export type MatchAxis = 'h' | 'v';
+
+export type MatchRun = {
+  axis: MatchAxis;
+  indices: number[];
+  len: number;
+};
+
 export type MatchDetection = {
   clearIndices: number[];
   groups: number;
+  /**
+   * Optional, but when present allows consumers (HUD/SFX) to know the exact match run sizes.
+   * Kept optional for backward-compat in code that only cares about clears/groups.
+   */
+  runs?: MatchRun[];
 };
 
 export function detectMatches(board: BoardView): MatchDetection {
   const { width, height } = board;
   const clear = new Set<number>();
-  let groups = 0;
+  const runs: MatchRun[] = [];
 
   // horizontal
   for (let y = 0; y < height; y++) {
@@ -91,8 +103,13 @@ export function detectMatches(board: BoardView): MatchDetection {
       }
 
       if (run >= 3) {
-        groups++;
-        for (let k = 0; k < run; k++) clear.add(y * width + (x + k));
+        const indices: number[] = [];
+        for (let k = 0; k < run; k++) {
+          const i = y * width + (x + k);
+          indices.push(i);
+          clear.add(i);
+        }
+        runs.push({ axis: 'h', indices, len: run });
       }
 
       x += run;
@@ -119,8 +136,13 @@ export function detectMatches(board: BoardView): MatchDetection {
       }
 
       if (run >= 3) {
-        groups++;
-        for (let k = 0; k < run; k++) clear.add((y + k) * width + x);
+        const indices: number[] = [];
+        for (let k = 0; k < run; k++) {
+          const i = (y + k) * width + x;
+          indices.push(i);
+          clear.add(i);
+        }
+        runs.push({ axis: 'v', indices, len: run });
       }
 
       y += run;
@@ -128,7 +150,7 @@ export function detectMatches(board: BoardView): MatchDetection {
   }
 
   const clearIndices = Array.from(clear).sort((a, b) => a - b);
-  return { clearIndices, groups };
+  return { clearIndices, groups: runs.length, runs };
 }
 
 // ─────────────────────────────────────────────

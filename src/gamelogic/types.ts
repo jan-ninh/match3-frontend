@@ -8,12 +8,6 @@ export type PieceType = 'red' | 'blue' | 'green' | 'purple' | 'orange' | 'cyan' 
 export type PieceId = number;
 
 // ─────────────────────────────────────────────
-// Item objective policy (Level-configurable)
-// ─────────────────────────────────────────────
-
-export type ItemObjectivesPolicy = 'noObjectives' | 'allowObjectives';
-
-// ─────────────────────────────────────────────
 // Terminal State (Level 03+)
 // ─────────────────────────────────────────────
 
@@ -214,16 +208,6 @@ export type LevelDefinition = {
   contaminationLoseThreshold?: number;
   spreadPerTurn?: number;
   spreadEveryNTurns?: number;
-
-  /**
-   * Item objective policy (optional).
-   * Default (if omitted): items do NOT affect objectives/level mechanics.
-   *
-   * - itemObjectivesDefault: default for both items
-   * - itemObjectives: per-item overrides
-   */
-  itemObjectivesDefault?: ItemObjectivesPolicy;
-  itemObjectives?: Partial<Record<ItemEffectKeyForEvent, ItemObjectivesPolicy>>;
 };
 
 // ─────────────────────────────────────────────
@@ -296,6 +280,7 @@ export type EngineEvent =
   | { type: 'animDoneIgnored'; kind: EngineAnimKind; token: number; reason: AnimDoneIgnoreReason }
   | { type: 'swapRejected'; from: number; to: number; reason: SwapRejectReason }
   | { type: 'matchesFound'; clears: number; groups: number }
+  | { type: 'matchGroup'; id: string; axis: 'h' | 'v'; len: number; indices: number[] }
   | { type: 'cleared'; count: number }
   | { type: 'gravity' }
   | { type: 'refilled'; count: number }
@@ -337,7 +322,6 @@ export type EngineEvent =
   | { type: 'itemAccepted'; key: ItemEffectKeyForEvent; target: { x: number; y: number }; requestId: number }
   // First-class cascade observability (e.g. item preSteps)
   | { type: 'cascadeStep'; kind: 'itemLaserRowClear'; row: number; indices: number[]; cleared: number }
-  | { type: 'cascadeStep'; kind: 'itemBomb3x3Blast'; center: { x: number; y: number }; indices: number[]; cleared: number }
   // Power/Item consumption ack (UI consumes only after this)
   | { type: 'powerUsed'; key: 'gridlaser' | 'bomb' | 'laser' | 'extraShuffle'; requestId: number }
   // ─── Pre-Falling Guardrails: Observability events ───
@@ -364,9 +348,6 @@ export type EngineState = {
 
   // cached level rules
   allowedTypes: PieceType[];
-
-  // per-level item objective policy (resolved at init/reset; stable throughout the level)
-  itemObjectives: Record<ItemEffectKeyForEvent, ItemObjectivesPolicy>;
 
   movesTotal: number;
   movesLeft: number;
@@ -443,10 +424,9 @@ export type EngineState = {
   pendingTurnCommit: PendingTurnCommit | null;
 
   /**
-   * Transient cascade policy override for the current resolve chain.
-   * Used by items like laserRow/bomb3x3 depending on per-level `itemObjectives`.
-   *
-   * Reset rule: automatically cleared when we enter idle.
+   * When set, cascade effects (objectives / level mechanics) are disabled for the current resolve chain.
+   * Used by items like laserRow to ensure item-driven clears do not progress objectives.
+   * Cleared when we reach idle.
    */
   cascadeEffectPolicy?: 'noObjectives';
 };

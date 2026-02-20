@@ -1,4 +1,3 @@
-// src/devtools/DebugEventLog.tsx
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import type { EngineEvent } from '@/gamelogic';
 import { CAMPAIGN_DEBUG_EVENT, type CampaignDebugDetail } from '@/context/campaignEvents';
@@ -73,6 +72,8 @@ function formatEvent(e: DebugLogEvent): string {
       return `swapRejected(from=${e.from}, to=${e.to}, reason=${e.reason})`;
     case 'matchesFound':
       return `matchesFound(clears=${e.clears}, groups=${e.groups})`;
+    case 'matchGroup':
+      return `matchGroup(id=${fmtIdShort(e.id)}, axis=${e.axis}, len=${e.len}, indices=[${fmtList(e.indices)}])`;
     case 'cleared':
       return `cleared(count=${e.count})`;
     case 'gravity':
