@@ -2,6 +2,7 @@
 import type { RefObject } from 'react';
 import { useCallback, useEffect, useReducer, useRef } from 'react';
 import type { EngineState } from '@/gamelogic';
+import { LEVEL07_TUNING } from '@/gamelogic/levels/level-07';
 import { useCoreSfxWarmup, useEngineMatchObjectiveSfx } from '@/features/audio';
 import { useLaserItemSfx } from '@/features/audio/sfx/useLaserItemSfx';
 import { Grid, type InputIntent } from '@/features/grid';
@@ -72,9 +73,107 @@ function clamp(n: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, n));
 }
 
-// UI-only tuning: how many cleared tiles (from matchesFound.clears) correspond to 100%.
-const MATCH_RUSH_TARGET_CLEARS_FOR_FULL = 500;
-const MATCH_RUSH_TIME_LIMIT_SEC = 120;
+function clampInt(n: number, min: number, max: number): number {
+  if (!Number.isFinite(n)) return min;
+  const i = Math.floor(n);
+  return Math.max(min, Math.min(max, i));
+}
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return !!v && typeof v === 'object';
+}
+
+/**
+ * Best-effort extraction of match group length from engine events.
+ * (This mirrors existing SFX logic in useMatch3Engine.ts.)
+ */
+function extractMatchLen(ev: unknown): number | null {
+  if (!isRecord(ev)) return null;
+
+  const t = ev.type;
+  if (typeof t !== 'string') return null;
+
+  // Keep this conservative to avoid false positives.
+  if (!/match/i.test(t)) return null;
+
+  const numKeys: readonly string[] = ['len', 'size', 'count', 'matchLen', 'matchSize'] as const;
+  for (const k of numKeys) {
+    const v = ev[k];
+    if (typeof v === 'number' && Number.isFinite(v)) return Math.max(0, Math.floor(v));
+  }
+
+  const arrKeys: readonly string[] = ['cells', 'indices', 'indexes', 'tiles', 'positions', 'coords', 'points', 'group'] as const;
+  for (const k of arrKeys) {
+    const v = ev[k];
+    if (Array.isArray(v)) return v.length;
+  }
+
+  // Some events may carry a single match group under a nested key.
+  const g = ev.match;
+  if (Array.isArray(g)) return g.length;
+
+  return null;
+}
+
+function extractMatchEventId(ev: unknown, matchLen: number, fallbackIndex: number): string | null {
+  if (!isRecord(ev)) return null;
+
+  const t = ev.type;
+  if (typeof t !== 'string' || t.length === 0) return null;
+
+  const idKeys: readonly string[] = ['id', 'eventId', 'seq', 'token'] as const;
+  for (const k of idKeys) {
+    const v = ev[k];
+    if (typeof v === 'number' && Number.isFinite(v)) return `${t}:${k}:${Math.floor(v)}`;
+    if (typeof v === 'string' && v.length > 0) return `${t}:${k}:${v}`;
+  }
+
+  const at = ev.atMs ?? ev.nowMs ?? ev.timeMs;
+  if (typeof at === 'number' && Number.isFinite(at)) return `${t}:at:${Math.floor(at)}:len:${matchLen}`;
+
+  // Last resort: stable-ish fingerprint (best-effort).
+  try {
+    const s = JSON.stringify(ev);
+    if (typeof s === 'string' && s.length > 0) return `${t}:len:${matchLen}:json:${s.slice(0, 180)}`;
+  } catch {
+    // ignore
+  }
+
+  return `${t}:len:${matchLen}:i:${fallbackIndex}`;
+}
+
+function toScaledUnits(baseUnits: number): number {
+  const m = LEVEL07_TUNING.globalMultiplier;
+  if (typeof m !== 'number' || !Number.isFinite(m)) return baseUnits;
+  return baseUnits * m;
+}
+
+function unitsForMatchLen(matchLen: number): number {
+  const len = clampInt(matchLen, 0, 99);
+  if (len < 3) return 0;
+
+  const u = LEVEL07_TUNING.matchUnits;
+  const base = len >= 5 ? u.match5 : len === 4 ? u.match4 : u.match3;
+  return toScaledUnits(base);
+}
+
+function unitsForPowerUsedKey(key: string): number {
+  const u = LEVEL07_TUNING.itemUnits;
+
+  // 3x3 item (new UI key 'gridlaser', legacy key 'bomb')
+  if (key === 'gridlaser' || key === 'bomb') return toScaledUnits(u.gridlaser3x3);
+
+  // row-laser
+  if (key === 'laser') return toScaledUnits(u.laserRow);
+
+  return 0;
+}
+
+function getTargetUnits(): number {
+  const raw = LEVEL07_TUNING.targetUnits;
+  if (typeof raw !== 'number' || !Number.isFinite(raw)) return 1;
+  return Math.max(1, Math.floor(raw));
+}
 
 export default function GameContainer({
   state,
@@ -127,51 +226,111 @@ export default function GameContainer({
   // Level 07: UI-only Match Rush progress (display only)
   // ─────────────────────────────────────────────────────────────
 
-  const matchRushRef = useRef<{ percent: number; seen: SeenRing }>({
-    percent: 0,
-    seen: { set: new Set<string>(), order: [] },
+  const matchRushRef = useRef<{
+    units: number;
+    seenMatch: SeenRing;
+    seenFallback: SeenRing;
+    seenPower: SeenRing;
+  }>({
+    units: 0,
+    seenMatch: { set: new Set<string>(), order: [] },
+    seenFallback: { set: new Set<string>(), order: [] },
+    seenPower: { set: new Set<string>(), order: [] },
   });
 
   // Reset progress whenever we leave/enter the level.
   useEffect(() => {
-    matchRushRef.current.percent = 0;
-    matchRushRef.current.seen = { set: new Set<string>(), order: [] };
+    matchRushRef.current.units = 0;
+    matchRushRef.current.seenMatch = { set: new Set<string>(), order: [] };
+    matchRushRef.current.seenFallback = { set: new Set<string>(), order: [] };
+    matchRushRef.current.seenPower = { set: new Set<string>(), order: [] };
 
     // Only Level 07 shows the bar, but we reset to 0 globally so stale UI never leaks.
     setMatchRushPercent(0);
   }, [state.levelId]);
 
-  // Increment progress whenever new match events appear.
+  // Increment progress whenever new match/item events appear.
   useEffect(() => {
     if (state.levelId !== 7) return;
 
-    const seen = matchRushRef.current.seen;
+    const target = getTargetUnits();
 
-    let addPercent = 0;
+    const seenMatch = matchRushRef.current.seenMatch;
+    const seenFallback = matchRushRef.current.seenFallback;
+    const seenPower = matchRushRef.current.seenPower;
+
+    let addUnits = 0;
+    let sawGroupMatch = false;
 
     for (let i = 0; i < state.events.length; i += 1) {
       const ev = state.events[i];
-      if (ev.type !== 'matchesFound') continue;
 
-      const clears = Math.max(0, (ev.clears ?? 0) | 0);
-      const groups = Math.max(0, (ev.groups ?? 0) | 0);
+      // 1) Match group events (preferred: supports match3/4/5 weights)
+      const len = extractMatchLen(ev);
+      if (len != null && len >= 3) {
+        sawGroupMatch = true;
 
-      // Dedupe: stable per-turn, per-index fingerprint.
-      const id = `t:${state.turnIndex | 0}:i:${i}:c:${clears}:g:${groups}`;
-      if (!markSeen(seen, id, 512)) continue;
+        const id = extractMatchEventId(ev, len, i);
+        if (!id) continue;
+        if (!markSeen(seenMatch, id, 1024)) continue;
 
-      if (clears <= 0) continue;
+        addUnits += unitsForMatchLen(len);
+        continue;
+      }
 
-      addPercent += (clears / MATCH_RUSH_TARGET_CLEARS_FOR_FULL) * 100;
+      // 2) Item usage (gridlaser / row-laser)
+      if (ev && typeof ev === 'object') {
+        const rec = ev as Record<string, unknown>;
+        if (rec.type === 'powerUsed') {
+          const key = rec.key;
+          const requestId = rec.requestId;
+
+          if (typeof key !== 'string') continue;
+          if (typeof requestId !== 'number' || !Number.isFinite(requestId)) continue;
+
+          const id = `${key}:${Math.floor(requestId)}`;
+          if (!markSeen(seenPower, id, 512)) continue;
+
+          addUnits += unitsForPowerUsedKey(key);
+        }
+      }
     }
 
-    if (addPercent <= 0) return;
+    // 3) Fallback: if we didn't see any match-group events, use matchesFound.groups as match3.
+    // This keeps the bar moving even if detailed match events aren't emitted.
+    if (!sawGroupMatch) {
+      for (let i = 0; i < state.events.length; i += 1) {
+        const ev = state.events[i];
+        if (!ev || typeof ev !== 'object') continue;
 
-    const next = clamp(matchRushRef.current.percent + addPercent, 0, 100);
-    if (Object.is(next, matchRushRef.current.percent)) return;
+        const rec = ev as Record<string, unknown>;
+        if (rec.type !== 'matchesFound') continue;
 
-    matchRushRef.current.percent = next;
-    setMatchRushPercent(next);
+        const clears = rec.clears;
+        const groups = rec.groups;
+
+        if (typeof groups !== 'number' || !Number.isFinite(groups)) continue;
+
+        // Dedupe: stable per-turn, per-index fingerprint.
+        const id = `t:${state.turnIndex | 0}:i:${i}:c:${typeof clears === 'number' ? Math.floor(clears) : -1}:g:${Math.floor(groups)}`;
+        if (!markSeen(seenFallback, id, 512)) continue;
+
+        const g = Math.max(0, Math.floor(groups));
+        if (g <= 0) continue;
+
+        addUnits += toScaledUnits(LEVEL07_TUNING.matchUnits.match3) * g;
+      }
+    }
+
+    if (addUnits <= 0) return;
+
+    const nextUnits = clamp(matchRushRef.current.units + addUnits, 0, target);
+    if (Object.is(nextUnits, matchRushRef.current.units)) return;
+
+    matchRushRef.current.units = nextUnits;
+
+    const nextPercent = clamp((nextUnits / target) * 100, 0, 100);
+    setMatchRushPercent(nextPercent);
   }, [state.levelId, state.turnIndex, state.events]);
 
   // ─────────────────────────────────────────────────────────────
@@ -191,8 +350,9 @@ export default function GameContainer({
     timeRef.current.didExpire = false;
 
     if (state.levelId === 7) {
-      setMatchRushTimeLeftSec(MATCH_RUSH_TIME_LIMIT_SEC);
-      timeRef.current.lastShownSec = MATCH_RUSH_TIME_LIMIT_SEC;
+      const limit = clampInt(LEVEL07_TUNING.timeLimitSec, 1, 60 * 60);
+      setMatchRushTimeLeftSec(limit);
+      timeRef.current.lastShownSec = limit;
       return;
     }
 
@@ -207,10 +367,12 @@ export default function GameContainer({
     // Stop ticking once the run is already resolved.
     if (state.phase === 'win' || state.phase === 'lose') return;
 
+    const limit = clampInt(LEVEL07_TUNING.timeLimitSec, 1, 60 * 60);
+
     const tick = () => {
       const elapsedMs = Math.max(0, performance.now() - timeRef.current.startedAtMs);
       const elapsedSec = Math.floor(elapsedMs / 1000);
-      const left = Math.max(0, MATCH_RUSH_TIME_LIMIT_SEC - elapsedSec);
+      const left = Math.max(0, limit - elapsedSec);
 
       if (left !== timeRef.current.lastShownSec) {
         timeRef.current.lastShownSec = left;
