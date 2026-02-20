@@ -39,7 +39,17 @@ export function useGridInput({ state, inputLocked, canSwapAt, onIntent, debugEna
   const releaseCleanupRef = useRef<(() => void) | null>(null);
 
   // rAF transform infra (no React re-render per pointer move)
-  const { draggedElRef, dragBasePxRef, dragDxRef, dragDyRef, ensureRafRunning, stopRaf, snapBackDraggedPiece, clearDragRefs } = useRafDragTransform({
+  const {
+    draggedElRef,
+    dragBasePxRef,
+    dragDxRef,
+    dragDyRef,
+    ensureRafRunning,
+    stopRaf,
+    snapBackDraggedPiece,
+    resetDraggedPieceInstant,
+    clearDragRefs,
+  } = useRafDragTransform({
     swapMs,
     easing: EASING,
     getShouldContinue: () => !!(pressRef.current?.active && pressRef.current?.hasExceededThreshold),
@@ -108,9 +118,20 @@ export function useGridInput({ state, inputLocked, canSwapAt, onIntent, debugEna
       ensureRafRunning,
       stopRaf,
       snapBackDraggedPiece,
+      resetDraggedPieceInstant,
       clearDragRefs,
     }),
-    [ensureRafRunning, stopRaf, snapBackDraggedPiece, clearDragRefs, dragDxRef, dragDyRef, dragBasePxRef, draggedElRef],
+    [
+      ensureRafRunning,
+      stopRaf,
+      snapBackDraggedPiece,
+      resetDraggedPieceInstant,
+      clearDragRefs,
+      dragDxRef,
+      dragDyRef,
+      dragBasePxRef,
+      draggedElRef,
+    ],
   );
 
   const controllerRef = useRef<ReturnType<typeof createGridInputController> | null>(null);
@@ -266,7 +287,11 @@ export function useGridInput({ state, inputLocked, canSwapAt, onIntent, debugEna
   };
 
   // NEW: shell leave should never be able to crash the game. It just clears UI feedback.
+  // But if we're mid-drag, rAF may have mutated el.style.transform; React might not overwrite it
+  // if the render-time transform value stayed the same. So we hard-reset the dragged element.
   const onShellPointerLeave = () => {
+    resetDraggedPieceInstant();
+
     setOverIndexUI(null);
     setPreviewActive(false);
     setPreviewOtherPieceId(null);

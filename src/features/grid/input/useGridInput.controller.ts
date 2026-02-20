@@ -34,6 +34,7 @@ type RafApi = {
   ensureRafRunning: () => void;
   stopRaf: () => void;
   snapBackDraggedPiece: () => void;
+  resetDraggedPieceInstant: () => void;
   clearDragRefs: () => void;
 };
 
@@ -328,6 +329,12 @@ export function createGridInputController({ width, height, cells, pieces, inputL
     const draggable = p.draggable;
 
     if (cancelled || !draggable || !p.hasExceededThreshold) {
+      // CANCEL EDGE-CASE:
+      // rAF mutates el.style.transform, while React keeps render-time transform at basePos for the dragged piece.
+      // On cancel/blur/lock, React may not overwrite the DOM transform (because the prop value didn't change),
+      // so we must force-reset the element before clearing refs/state.
+      if (cancelled && p.hasExceededThreshold) raf.resetDraggedPieceInstant();
+
       clearPressVisuals();
       if (!cancelled) onIntent({ type: 'click', index: fromIndex });
       return;
