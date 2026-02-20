@@ -1,9 +1,15 @@
+// src/gamelogic/cascade/typesCascade.ts
 import type { EngineEvent, EngineState } from '../types';
 
 export type CascadePreStep =
   | {
       kind: 'itemLaserRowClear';
       row: number;
+      indices: number[];
+    }
+  | {
+      kind: 'itemBomb3x3Blast';
+      center: { x: number; y: number };
       indices: number[];
     };
 

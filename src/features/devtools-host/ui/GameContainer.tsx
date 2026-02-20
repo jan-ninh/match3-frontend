@@ -7,6 +7,7 @@ import { useLaserItemSfx } from '@/features/audio/sfx/useLaserItemSfx';
 import { Grid, type InputIntent } from '@/features/grid';
 import { useHudInputFromState } from '@/features/devtools-host/lib/useHudInputFromState';
 import { setMatchRushPercent } from '@/features/devtools-host/ui/hud/level07/matchRushProgressStore';
+import { setMatchRushTimeLeftSec } from '@/features/devtools-host/ui/hud/level07/matchRushTimeStore';
 // 🔥 tiles are module-level state -> must force rerender when they change
 import { preloadTiles, setTilesetLevel } from '@/features/grid/ui/tiles';
 import { preloadSpecialTiles, setSpecialTilesetLevel } from '@/features/grid/ui/tilesSpecial';
@@ -36,6 +37,9 @@ type Props = {
   onDevPrevLevel?: () => void;
   onDevNextLevel?: () => void;
   onDevNextTilesPalette?: () => void;
+
+  // Level 07: time expiry (UI-driven lose)
+  onTimeExpired?: () => void;
 
   // Ref injection for devtools panel sync
   gridRowRef?: RefObject<HTMLDivElement | null>;
@@ -70,6 +74,7 @@ function clamp(n: number, min: number, max: number): number {
 
 // UI-only tuning: how many cleared tiles (from matchesFound.clears) correspond to 100%.
 const MATCH_RUSH_TARGET_CLEARS_FOR_FULL = 500;
+const MATCH_RUSH_TIME_LIMIT_SEC = 120;
 
 export default function GameContainer({
   state,
@@ -84,6 +89,7 @@ export default function GameContainer({
   onDevResetBoard,
   onDevPrevLevel,
   onDevNextLevel,
+  onTimeExpired,
   gridRowRef,
 }: Props) {
   // Audio warmup + engine-event→SFX mapping
@@ -167,6 +173,61 @@ export default function GameContainer({
     matchRushRef.current.percent = next;
     setMatchRushPercent(next);
   }, [state.levelId, state.turnIndex, state.events]);
+
+  // ─────────────────────────────────────────────────────────────
+  // Level 07: UI-only countdown (display + lose trigger)
+  // ─────────────────────────────────────────────────────────────
+
+  const timeRef = useRef<{ startedAtMs: number; lastShownSec: number; didExpire: boolean }>({
+    startedAtMs: 0,
+    lastShownSec: -1,
+    didExpire: false,
+  });
+
+  // Reset timer whenever level changes.
+  useEffect(() => {
+    timeRef.current.startedAtMs = performance.now();
+    timeRef.current.lastShownSec = -1;
+    timeRef.current.didExpire = false;
+
+    if (state.levelId === 7) {
+      setMatchRushTimeLeftSec(MATCH_RUSH_TIME_LIMIT_SEC);
+      timeRef.current.lastShownSec = MATCH_RUSH_TIME_LIMIT_SEC;
+      return;
+    }
+
+    // For other levels: keep at 0 so the widget never shows stale state.
+    setMatchRushTimeLeftSec(0);
+  }, [state.levelId]);
+
+  // Run countdown even when player doesn't act.
+  useEffect(() => {
+    if (state.levelId !== 7) return;
+
+    // Stop ticking once the run is already resolved.
+    if (state.phase === 'win' || state.phase === 'lose') return;
+
+    const tick = () => {
+      const elapsedMs = Math.max(0, performance.now() - timeRef.current.startedAtMs);
+      const elapsedSec = Math.floor(elapsedMs / 1000);
+      const left = Math.max(0, MATCH_RUSH_TIME_LIMIT_SEC - elapsedSec);
+
+      if (left !== timeRef.current.lastShownSec) {
+        timeRef.current.lastShownSec = left;
+        setMatchRushTimeLeftSec(left);
+      }
+
+      if (left <= 0 && !timeRef.current.didExpire) {
+        timeRef.current.didExpire = true;
+        onTimeExpired?.();
+      }
+    };
+
+    tick();
+
+    const id = window.setInterval(tick, 250);
+    return () => window.clearInterval(id);
+  }, [onTimeExpired, state.levelId, state.phase]);
 
   // Derive HUD input from engine state
   const hudInput = useHudInputFromState(state);

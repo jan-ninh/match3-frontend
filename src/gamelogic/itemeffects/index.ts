@@ -1,8 +1,9 @@
+// src/gamelogic/itemeffects/index.ts
 import type { EngineEvent, EngineState } from '../types';
 import type { CascadePreStep } from '../cascade/typesCascade';
 
 import type { BombTarget } from './bomb';
-import { applyBomb3x3, getBomb3x3IndicesFromTarget } from './bomb';
+import { applyBomb3x3, getBomb3x3IndicesFromTarget, getBomb3x3PreSteps } from './bomb';
 import type { LaserTarget } from './laser';
 import { applyLaserRow, getLaserRowIndicesFromTarget, getLaserRowPreSteps } from './laser';
 
@@ -36,6 +37,8 @@ export function getItemEffectPreviewIndices(key: ItemEffectKey, target: ItemTarg
  */
 export function getItemEffectPreSteps(state: EngineState, key: ItemEffectKey, target: ItemTarget): CascadePreStep[] | undefined {
   switch (key) {
+    case 'bomb3x3':
+      return getBomb3x3PreSteps(state, target);
     case 'laserRow':
       return getLaserRowPreSteps(state, target);
     default:

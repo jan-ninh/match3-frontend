@@ -70,10 +70,45 @@ export function resolveOnce(state: EngineState, chargedIds: Set<number> = new Se
         continue;
       }
 
+      case 'itemBomb3x3Blast': {
+        const clearedCount = countClearablePieces(s, step.indices);
+
+        // NOTE: Item-driven clear must not progress objectives/level mechanics.
+        // Therefore: do NOT run cascade effects here (even if effectsEnabled === true).
+        events.push({ type: 'phase', phase: 'clear' });
+        s = clearCellsAndPieces(s, step.indices);
+        if (clearedCount > 0) events.push({ type: 'cleared', count: clearedCount });
+        events.push({
+          type: 'cascadeStep',
+          kind: 'itemBomb3x3Blast',
+          center: step.center,
+          indices: step.indices,
+          cleared: clearedCount,
+        });
+
+        events.push({ type: 'phase', phase: 'gravity' });
+        s = applyGravity(s);
+        events.push({ type: 'gravity' });
+
+        events.push({ type: 'phase', phase: 'refill' });
+        const ref = applyRefill(s);
+        s = ref.state;
+        events.push({ type: 'refilled', count: ref.spawned });
+
+        events.push({ type: 'phase', phase: 'settle' });
+
+        didSomething = didSomething || clearedCount > 0 || step.indices.length > 0;
+        continue;
+      }
+
       default: {
         // Fail-fast: if preSteps includes kinds this resolver doesn't handle yet,
         // we want a hard signal instead of silently doing the wrong thing.
-        throw new Error(`resolveOnce: unsupported preStep kind: ${step.kind}`);
+        const kind = step.kind;
+        const _exhaustive: never = kind;
+        void _exhaustive;
+
+        throw new Error(`resolveOnce: unsupported preStep kind: ${String(kind)}`);
       }
     }
   }

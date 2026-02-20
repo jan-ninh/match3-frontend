@@ -1,3 +1,4 @@
+// src/gamelogic/types.ts
 import type { EnginePhase } from './phases';
 import type { RngState } from './rng';
 
@@ -321,6 +322,7 @@ export type EngineEvent =
   | { type: 'itemAccepted'; key: ItemEffectKeyForEvent; target: { x: number; y: number }; requestId: number }
   // First-class cascade observability (e.g. item preSteps)
   | { type: 'cascadeStep'; kind: 'itemLaserRowClear'; row: number; indices: number[]; cleared: number }
+  | { type: 'cascadeStep'; kind: 'itemBomb3x3Blast'; center: { x: number; y: number }; indices: number[]; cleared: number }
   // Power/Item consumption ack (UI consumes only after this)
   | { type: 'powerUsed'; key: 'gridlaser' | 'bomb' | 'laser' | 'extraShuffle'; requestId: number }
   // ─── Pre-Falling Guardrails: Observability events ───

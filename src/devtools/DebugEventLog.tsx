@@ -112,6 +112,9 @@ function formatEvent(e: DebugLogEvent): string {
       if (e.kind === 'itemLaserRowClear') {
         return `cascadeStep(laserRowClear,row=${e.row}, cleared=${e.cleared}, indices=[${fmtList(e.indices)}])`;
       }
+      if (e.kind === 'itemBomb3x3Blast') {
+        return `cascadeStep(bomb3x3Blast,center=${e.center.x},${e.center.y}, cleared=${e.cleared}, indices=[${fmtList(e.indices)}])`;
+      }
       const _exhaustive: never = e;
       return JSON.stringify(_exhaustive);
     }

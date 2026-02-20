@@ -73,12 +73,15 @@ Empfehlung (Merge-Freundlichkeit)
 
 - `src/types/index.ts`
 
-### HUD Sections (Exception Touchpoint)
+### HUD Sections (Exception Touchpoints)
 
-> Begründung: Level 07 benötigt die Progress-Bar **direkt unter den Objective-Hints** im Center-Stack.  
-> Das ist ohne minimalen Insert in `HudCenter.tsx` nicht robust/responsive umsetzbar.
+> Begründung: Level‑07 benötigt (a) die Progress‑Bar **direkt unter** dem Objective‑Block im Center und
+> (b) einen symmetrischen TIME‑Panel‑Slot links auf exakt gleicher Höhe wie der MOVE‑Panel‑Slot rechts.
+> Das ist ohne minimalen Edit in den stabilen HUD‑Section‑Files nicht sauber/responsiv umsetzbar.
 
 - `src/features/devtools-host/ui/hud/sections/HudCenter.tsx`
+- `src/features/devtools-host/ui/hud/sections/HudLeft.tsx`
+- `src/features/devtools-host/ui/hud/sections/HudRight.tsx`
 
 ---
 

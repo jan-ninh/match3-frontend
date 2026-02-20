@@ -71,6 +71,38 @@ function applyPreSteps(
         continue;
       }
 
+      case 'itemBomb3x3Blast': {
+        const clearedCount = countClearablePieces(s, step.indices);
+
+        // NOTE: Item-driven clear must not progress objectives/level mechanics.
+        // Therefore: do NOT run cascade effects here (even if enabled for normal matches).
+        toPhase('clear');
+        s = clearCellsAndPieces(s, step.indices);
+        devAssert('preStep:itemBomb3x3Blast:clearCellsAndPieces');
+        if (clearedCount > 0) events.push({ type: 'cleared', count: clearedCount });
+        events.push({
+          type: 'cascadeStep',
+          kind: 'itemBomb3x3Blast',
+          center: step.center,
+          indices: step.indices,
+          cleared: clearedCount,
+        });
+
+        toPhase('gravity');
+        s = applyGravity(s);
+        devAssert('preStep:itemBomb3x3Blast:applyGravity');
+        events.push({ type: 'gravity' });
+
+        toPhase('refill');
+        const ref = applyRefill(s);
+        s = ref.state;
+        devAssert('preStep:itemBomb3x3Blast:applyRefill');
+        events.push({ type: 'refilled', count: ref.spawned });
+
+        toPhase('settle');
+        continue;
+      }
+
       default: {
         // Exhaustiveness guard on the discriminant (robust even if CascadePreStep isn't a union yet)
         const kind = step.kind;

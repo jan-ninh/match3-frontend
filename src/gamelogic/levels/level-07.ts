@@ -9,8 +9,12 @@ type Args = {
 
 /**
  * Level-07 placeholder.
- * For now: same rules/objective as Level-01 (clean-room template).
+ * For now: Level-01-like board/rules, but with 100 moves (HUD uses this for MOVE panel).
  */
 export function makeLevel07({ baseSeed, allowedTypes }: Args): LevelDefinition {
-  return makeLevelLike01({ levelId: 7, baseSeed, allowedTypes });
+  const base = makeLevelLike01({ levelId: 7, baseSeed, allowedTypes });
+  return {
+    ...base,
+    moves: 100,
+  };
 }

@@ -441,6 +441,7 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
         onDevPrevLevel={onDevPrevLevel}
         onDevNextLevel={onDevNextLevel}
         onDevNextTilesPalette={onDevNextTilesPalette}
+        onTimeExpired={onDevLose}
         gridRowRef={gridRowRef}
         tilesVersion={tilesVersion}
       />
