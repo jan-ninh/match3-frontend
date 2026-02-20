@@ -1,10 +1,11 @@
 import type { RefObject } from 'react';
-import { useCallback, useEffect, useReducer } from 'react';
+import { useCallback, useEffect, useReducer, useRef } from 'react';
 import type { EngineState } from '@/gamelogic';
 import { useCoreSfxWarmup, useEngineMatchObjectiveSfx } from '@/features/audio';
 import { useLaserItemSfx } from '@/features/audio/sfx/useLaserItemSfx';
 import { Grid, type InputIntent } from '@/features/grid';
 import { useHudInputFromState } from '@/features/devtools-host/lib/useHudInputFromState';
+import { setMatchRushPercent } from '@/features/devtools-host/ui/hud/level07/matchRushProgressStore';
 // 🔥 tiles are module-level state -> must force rerender when they change
 import { preloadTiles, setTilesetLevel } from '@/features/grid/ui/tiles';
 import { preloadSpecialTiles, setSpecialTilesetLevel } from '@/features/grid/ui/tilesSpecial';
@@ -43,6 +44,31 @@ type Props = {
 };
 
 const noop = () => undefined;
+
+type SeenRing = {
+  set: Set<string>;
+  order: string[];
+};
+
+function markSeen(seen: SeenRing, id: string, max: number): boolean {
+  if (seen.set.has(id)) return false;
+  seen.set.add(id);
+  seen.order.push(id);
+
+  while (seen.order.length > max) {
+    const oldest = seen.order.shift();
+    if (oldest) seen.set.delete(oldest);
+  }
+
+  return true;
+}
+
+function clamp(n: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, n));
+}
+
+// UI-only tuning: how many cleared tiles (from matchesFound.clears) correspond to 100%.
+const MATCH_RUSH_TARGET_CLEARS_FOR_FULL = 500;
 
 export default function GameContainer({
   state,
@@ -89,6 +115,59 @@ export default function GameContainer({
     preloadSpecialTiles();
     bumpTilesRender();
   }, [onDevNextTilesPalette]);
+
+  // ─────────────────────────────────────────────────────────────
+  // Level 07: UI-only Match Rush progress (display only)
+  // ─────────────────────────────────────────────────────────────
+
+  const matchRushRef = useRef<{ percent: number; seen: SeenRing }>({
+    percent: 0,
+    seen: { set: new Set<string>(), order: [] },
+  });
+
+  // Reset progress whenever we leave/enter the level.
+  useEffect(() => {
+    matchRushRef.current.percent = 0;
+    matchRushRef.current.seen = { set: new Set<string>(), order: [] };
+
+    // Only Level 07 shows the bar, but we reset to 0 globally so stale UI never leaks.
+    setMatchRushPercent(0);
+  }, [state.levelId]);
+
+  // Increment progress whenever new match events appear.
+  useEffect(() => {
+    if (state.levelId !== 7) return;
+
+    const seen = matchRushRef.current.seen;
+
+    let addPercent = 0;
+
+    for (let i = 0; i < state.events.length; i += 1) {
+      const ev = state.events[i];
+      if (!ev) continue;
+
+      if (ev.type !== 'matchesFound') continue;
+
+      const clears = Math.max(0, (ev.clears ?? 0) | 0);
+      const groups = Math.max(0, (ev.groups ?? 0) | 0);
+
+      // Dedupe: stable per-turn, per-index fingerprint.
+      const id = `t:${state.turnIndex | 0}:i:${i}:c:${clears}:g:${groups}`;
+      if (!markSeen(seen, id, 512)) continue;
+
+      if (clears <= 0) continue;
+
+      addPercent += (clears / MATCH_RUSH_TARGET_CLEARS_FOR_FULL) * 100;
+    }
+
+    if (addPercent <= 0) return;
+
+    const next = clamp(matchRushRef.current.percent + addPercent, 0, 100);
+    if (Object.is(next, matchRushRef.current.percent)) return;
+
+    matchRushRef.current.percent = next;
+    setMatchRushPercent(next);
+  }, [state.levelId, state.turnIndex, state.events]);
 
   // Derive HUD input from engine state
   const hudInput = useHudInputFromState(state);
