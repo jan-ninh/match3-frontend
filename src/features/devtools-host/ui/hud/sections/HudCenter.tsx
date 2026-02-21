@@ -1,16 +1,15 @@
-// src/features/devtools-host/ui/hud/sections/HudCenter.tsx
+// src\features\devtools-host\ui\hud\sections\HudCenter.tsx
 import type { HudModel } from '../../../lib/hud/typesHud';
 import { ObjectivePanel } from '../objectives/ObjectivePanel';
 import { LaserWarningBadge } from '../widgets/LaserWarningBadge';
 import { MatchRushProgressBar } from '../widgets/MatchRushProgressBar';
-import { useMatchRushPercent } from '../level07/matchRushProgressStore';
 
 type Props = {
   model: HudModel;
 };
 
 export function HudCenter({ model }: Props) {
-  const matchRushPercent = useMatchRushPercent();
+  const matchRushPercent = model.matchRushPercent;
 
   return (
     <div className="min-w-0 flex justify-center">
