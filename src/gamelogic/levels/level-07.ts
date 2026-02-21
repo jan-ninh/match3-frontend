@@ -1,4 +1,3 @@
-// src/gamelogic/levels/level-07.ts
 import type { LevelDefinition, PieceType } from '../types';
 import { makeLevelLike01 } from './level-01';
 
@@ -12,7 +11,7 @@ type Args = {
  *
  * Goal: keep all "important knobs" for this level in ONE place.
  * - moves/time affect HUD + time-based lose (currently UI-driven)
- * - progress points are UI-driven and convert to % via targetUnits
+ * - progress points are engine-owned and convert to % via targetUnits
  *
  * Notes:
  * - globalMultiplier scales ALL point sources (matches + items).
@@ -50,8 +49,12 @@ export const LEVEL07_TUNING = {
 
 export function makeLevel07({ baseSeed, allowedTypes }: Args): LevelDefinition {
   const base = makeLevelLike01({ levelId: 7, baseSeed, allowedTypes });
+
   return {
     ...base,
     moves: LEVEL07_TUNING.moves,
+
+    // Engine-owned Match Rush win condition (resolveOutcome.ts)
+    matchRushTargetUnits: LEVEL07_TUNING.targetUnits,
   };
 }

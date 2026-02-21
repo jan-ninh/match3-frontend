@@ -1,4 +1,3 @@
-// src/features/devtools-host/lib/hud/useGameplayHudModel.ts
 import { useMemo } from 'react';
 import type { GameplayHudInput, HudModel } from './typesHud';
 import { toHudModel } from './selectors';
@@ -34,6 +33,15 @@ export function useGameplayHudModel(input: GameplayHudInput): HudModel {
       input.objectiveTerminalsActivated,
       input.objectiveTerminalsTotal,
       input.objectiveTerminalStates,
+
+      input.signalLinked,
+      input.chargedCellCount,
+      input.signalSourcesTotal,
+      input.signalTargetsTotal,
+
+      input.matchRushUnits,
+      input.matchRushTargetUnits,
+      input.matchRushPercent,
     ],
   );
 }

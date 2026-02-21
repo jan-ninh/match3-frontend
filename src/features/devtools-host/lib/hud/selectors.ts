@@ -1,4 +1,3 @@
-// src/features/devtools-host/lib/hud/selectors.ts
 import type { GameplayHudInput, HudModel, HudObjective } from './typesHud';
 import { assertNever } from './typesHud';
 import { formatMovesLeft } from './format';
@@ -67,5 +66,9 @@ export function toHudModel(input: GameplayHudInput): HudModel {
     isLose: input.isLose,
     laserWarning: input.laserWarning,
     objective: buildObjective(input),
+
+    matchRushUnits: input.matchRushUnits,
+    matchRushTargetUnits: input.matchRushTargetUnits,
+    matchRushPercent: input.matchRushPercent,
   };
 }

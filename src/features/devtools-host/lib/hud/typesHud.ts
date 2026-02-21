@@ -1,4 +1,3 @@
-// src/features/devtools-host/lib/hud/typesHud.ts
 // src/features/devtools-host/lib/hud/types.ts
 
 export type HudObjectiveKind =
@@ -67,6 +66,11 @@ export type HudModel = {
   isLose: boolean;
   laserWarning: HudLaserWarning | null;
   objective: HudObjective;
+
+  // Level 07: Match Rush (engine-owned progress)
+  matchRushUnits: number;
+  matchRushTargetUnits: number;
+  matchRushPercent: number; // 0..100 (clamped)
 };
 
 export type GameplayHudInput = {
@@ -96,6 +100,11 @@ export type GameplayHudInput = {
   chargedCellCount: number;
   signalSourcesTotal: number;
   signalTargetsTotal: number;
+
+  // Level 07: Match Rush (engine-owned)
+  matchRushUnits: number;
+  matchRushTargetUnits: number;
+  matchRushPercent: number; // 0..100 (clamped)
 
   laserWarning: HudLaserWarning | null;
 

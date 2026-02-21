@@ -8,12 +8,27 @@ import { setPhase } from '../../../phaseState';
 import { stabilizeBoard } from '../../../cascade/stabilizeBoard';
 import { applyItemEffectAt, getItemEffectPreSteps, getItemEffectPreviewIndices } from '../../../itemeffects';
 
+import { LEVEL07_TUNING } from '../../../levels/level-07';
+
 function powerKeyForItem(key: UseItemAtAction['key']): 'gridlaser' | 'laser' | 'extraShuffle' {
   switch (key) {
     case 'bomb3x3':
       return 'gridlaser';
     case 'laserRow':
       return 'laser';
+    default: {
+      const _exhaustive: never = key;
+      return _exhaustive;
+    }
+  }
+}
+
+function matchRushItemBaseUnits(key: UseItemAtAction['key']): number {
+  switch (key) {
+    case 'bomb3x3':
+      return LEVEL07_TUNING.itemUnits.gridlaser3x3;
+    case 'laserRow':
+      return LEVEL07_TUNING.itemUnits.laserRow;
     default: {
       const _exhaustive: never = key;
       return _exhaustive;
@@ -75,6 +90,19 @@ export function handleUseItemAt(state: EngineState, action: UseItemAtAction): En
     const fx = applyItemEffectAt(s, action.key, target);
     s = fx.state;
     events.push(...fx.events);
+  }
+
+  // Level 07: Match Rush progress is engine-owned.
+  // Count power usage as units (independent of objective-policy for clears).
+  if ((s.matchRushTargetUnits | 0) > 0 && s.phase !== 'init') {
+    const baseUnits = matchRushItemBaseUnits(action.key);
+    const gained = baseUnits * LEVEL07_TUNING.globalMultiplier;
+    if (gained > 0) {
+      s = {
+        ...s,
+        matchRushUnits: (s.matchRushUnits | 0) + gained,
+      };
+    }
   }
 
   // Ack for UI consume (only after accept)

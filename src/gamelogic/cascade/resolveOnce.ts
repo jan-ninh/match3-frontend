@@ -11,6 +11,8 @@ import { runPostClearEffects, runPostGravityEffects, runPostRefillEffects, runPr
 
 import { applyStoneTileDamageAtIndices } from '../board/obstacles/stoneTile';
 
+import { LEVEL07_TUNING } from '../levels/level-07';
+
 // type MatchDetectionLike = { clearIndices: number[]; groups: number };
 
 function countClearablePieces(state: EngineState, indices: number[]): number {
@@ -34,6 +36,34 @@ function clampInt(n: number, min: number, max: number): number {
   if (!Number.isFinite(n)) return min;
   const i = Math.floor(n);
   return Math.max(min, Math.min(max, i));
+}
+
+function matchRushUnitsForRunLen(len: number): number {
+  const l = clampInt(len, 0, 99);
+  if (l >= 5) return LEVEL07_TUNING.matchUnits.match5;
+  if (l === 4) return LEVEL07_TUNING.matchUnits.match4;
+  if (l === 3) return LEVEL07_TUNING.matchUnits.match3;
+  return 0;
+}
+
+function addMatchRushUnitsFromRuns(state: EngineState, runs: ReadonlyArray<{ len: number }> | undefined): EngineState {
+  if ((state.matchRushTargetUnits | 0) <= 0) return state;
+  if (state.phase === 'init') return state;
+  if (!runs || runs.length === 0) return state;
+
+  let baseUnits = 0;
+  for (const r of runs) {
+    baseUnits += matchRushUnitsForRunLen(r.len);
+  }
+  if (baseUnits <= 0) return state;
+
+  const gained = baseUnits * LEVEL07_TUNING.globalMultiplier;
+  if (gained <= 0) return state;
+
+  return {
+    ...state,
+    matchRushUnits: (state.matchRushUnits | 0) + gained,
+  };
 }
 
 export function resolveOnce(state: EngineState, chargedIds: Set<number> = new Set(), opts?: ResolveOnceOpts): ResolveOnceResult {
@@ -141,6 +171,10 @@ export function resolveOnce(state: EngineState, chargedIds: Set<number> = new Se
   }
 
   didSomething = true;
+
+  // Level 07: Match Rush progress is engine-owned.
+  // Count match groups by size and apply global multiplier.
+  s = addMatchRushUnitsFromRuns(s, m.runs);
 
   events.push({ type: 'matchesFound', clears: m.clearIndices.length, groups: m.groups });
 

@@ -1,4 +1,3 @@
-// src/features/devtools-host/lib/useHudInputFromState.ts
 import { useMemo } from 'react';
 import type { EngineState } from '@/gamelogic';
 import type { GameplayHudInput } from '@/features/devtools-host/lib/hud/typesHud';
@@ -36,6 +35,21 @@ function countChargedCells(cells: EngineState['cells']): number {
   return n;
 }
 
+function clampInt(n: number, min: number, max: number): number {
+  if (!Number.isFinite(n)) return min;
+  const i = Math.floor(n);
+  return Math.max(min, Math.min(max, i));
+}
+
+function calcMatchRushPercent(units: number, targetUnits: number): number {
+  const t = targetUnits | 0;
+  if (t <= 0) return 0;
+
+  const u = units | 0;
+  const pct = Math.floor((u / t) * 100);
+  return clampInt(pct, 0, 100);
+}
+
 function deriveObjectiveKind(args: {
   levelId: number;
   signalSourcesTotal: number;
@@ -47,7 +61,7 @@ function deriveObjectiveKind(args: {
 }): ObjectiveKind {
   const { levelId, signalSourcesTotal, signalTargetsTotal, objectiveTerminalsTotal, terminalsTotal, leaksTotal, cells } = args;
 
-  // Level 07: Match Rush (UI-only objective panel)
+  // Level 07: Match Rush
   if (levelId === 7) return 'matchRush';
 
   // Level 05: Signal Network takes priority
@@ -126,6 +140,8 @@ export function useHudInputFromState(state: EngineState): GameplayHudInput {
     laserWarning,
     movesLeft,
     phase,
+    matchRushUnits,
+    matchRushTargetUnits,
   } = state;
 
   return useMemo(() => {
@@ -158,6 +174,10 @@ export function useHudInputFromState(state: EngineState): GameplayHudInput {
     const isWin = phase === 'win';
     const isLose = phase === 'lose';
 
+    const mrUnits = matchRushUnits | 0;
+    const mrTarget = matchRushTargetUnits | 0;
+    const mrPct = calcMatchRushPercent(mrUnits, mrTarget);
+
     return {
       levelId,
       gateOpen,
@@ -177,6 +197,11 @@ export function useHudInputFromState(state: EngineState): GameplayHudInput {
       chargedCellCount: chargedCellCount ?? actualChargedCount,
       signalSourcesTotal: signalSourcesTotal ?? 0,
       signalTargetsTotal: signalTargetsTotal ?? 0,
+
+      matchRushUnits: mrUnits,
+      matchRushTargetUnits: mrTarget,
+      matchRushPercent: mrPct,
+
       laserWarning,
       movesLeft: movesLeft ?? '—',
       isWin,
@@ -203,5 +228,7 @@ export function useHudInputFromState(state: EngineState): GameplayHudInput {
     laserWarning,
     movesLeft,
     phase,
+    matchRushUnits,
+    matchRushTargetUnits,
   ]);
 }
