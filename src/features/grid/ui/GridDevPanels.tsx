@@ -30,6 +30,7 @@ type Props = {
   onDevResetBoard?: () => void;
   onDevPrevLevel?: () => void;
   onDevNextLevel?: () => void;
+  onDevSetLevel?: (levelId: number) => void;
   onDevNextTilesPalette?: () => void;
 
   debugSnapshot: ComponentProps<typeof DebugInputPanel>['snapshot'];
@@ -44,6 +45,7 @@ export function GridDevPanels({
   onToggleShowLockoutHints,
   onDevPrevLevel,
   onDevNextLevel,
+  onDevSetLevel,
   onDevResetBoard,
   onDevNextTilesPalette,
   debugSnapshot,
@@ -92,6 +94,9 @@ export function GridDevPanels({
     const onPrev = () => onDevPrevLevel?.();
     const onNext = () => onDevNextLevel?.();
 
+    const current = stateMeta.levelId | 0;
+    const quickLevels = Array.from({ length: 12 }, (_, i) => i + 1);
+
     return (
       <div className="flex flex-col gap-3">
         <DebugInputPanel width={width} snapshot={debugSnapshot} hz={DEBUG_OVERLAY_HZ} />
@@ -119,6 +124,25 @@ export function GridDevPanels({
               <span className="text-lg leading-none">→</span>
             </button>
           </div>
+
+          {/* QUICK JUMP LEVEL GRID 1–12 */}
+          <div className="mt-2 grid [grid-template-columns:repeat(6,auto)] justify-center gap-1">
+            {quickLevels.map((lvl) => {
+              const disabled = !onDevSetLevel || lvl === current;
+
+              const cls = [
+                'h-8 w-8 rounded-md border text-xs font-mono transition-colors select-none',
+                disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-500/25 active:bg-slate-500/30',
+                lvl === current ? 'bg-emerald-500/15 border-emerald-300/25 text-emerald-100/90' : 'bg-slate-500/15 border-slate-200/15 text-slate-100/90',
+              ].join(' ');
+
+              return (
+                <button key={lvl} type="button" onClick={() => onDevSetLevel?.(lvl)} disabled={disabled} aria-label={`Jump to level ${lvl}`} className={cls}>
+                  {lvl}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <div className="rounded-xl border border-white/10 bg-black/35 backdrop-blur p-3">
@@ -140,7 +164,7 @@ export function GridDevPanels({
         <DebugDevToolsPanel locked={false} meta={stateMeta} items={devItems} actions={devActions} />
       </div>
     );
-  }, [width, debugSnapshot, stateMeta, devItems, devActions, onDevPrevLevel, onDevNextLevel]);
+  }, [width, debugSnapshot, stateMeta, devItems, devActions, onDevPrevLevel, onDevNextLevel, onDevSetLevel]);
 
   return useDevPanelsPortal(enabled, panels, { laneId: 'dev-left-lane' });
 }

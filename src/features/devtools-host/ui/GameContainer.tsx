@@ -1,4 +1,3 @@
-// src/features/devtools-host/ui/GameContainer.tsx
 import type { RefObject } from 'react';
 import { useCallback, useEffect, useReducer, useRef } from 'react';
 import type { EngineState } from '@/gamelogic';
@@ -37,6 +36,7 @@ type Props = {
   onDevResetBoard?: () => void;
   onDevPrevLevel?: () => void;
   onDevNextLevel?: () => void;
+  onDevSetLevel?: (levelId: number) => void;
   onDevNextTilesPalette?: () => void;
 
   // Level 07: time expiry (UI-driven lose)
@@ -50,6 +50,7 @@ type Props = {
 };
 
 const noop = () => undefined;
+const noopSetLevel = (_levelId: number) => undefined;
 
 type SeenRing = {
   set: Set<string>;
@@ -188,6 +189,7 @@ export default function GameContainer({
   onDevResetBoard,
   onDevPrevLevel,
   onDevNextLevel,
+  onDevSetLevel,
   onTimeExpired,
   gridRowRef,
 }: Props) {
@@ -408,6 +410,7 @@ export default function GameContainer({
       onToggleShowLockoutHints={onToggleShowLockoutHints ?? noop}
       onDevPrevLevel={onDevPrevLevel ?? noop}
       onDevNextLevel={onDevNextLevel ?? noop}
+      onDevSetLevel={onDevSetLevel ?? noopSetLevel}
       onDevResetBoard={onDevResetBoard ?? noop}
       onDevNextTilesPalette={handleDevNextTilesPalette}
     />

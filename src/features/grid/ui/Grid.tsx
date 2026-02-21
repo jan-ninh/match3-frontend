@@ -1,4 +1,3 @@
-// src/features/grid/ui/Grid.tsx
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ComponentProps } from 'react';
 
@@ -74,6 +73,7 @@ export type GridUIProps = {
   onToggleShowLockoutHints: () => void;
   onDevPrevLevel: () => void;
   onDevNextLevel: () => void;
+  onDevSetLevel: (levelId: number) => void;
   onDevResetBoard: () => void;
   onDevNextTilesPalette: () => void;
 };
@@ -107,6 +107,7 @@ export function GridView({
   onToggleShowLockoutHints,
   onDevPrevLevel,
   onDevNextLevel,
+  onDevSetLevel,
   onDevResetBoard,
   onDevNextTilesPalette,
 }: GridUIProps) {
@@ -408,6 +409,7 @@ export function GridView({
         onToggleShowLockoutHints={onToggleShowLockoutHints}
         onDevPrevLevel={onDevPrevLevel}
         onDevNextLevel={onDevNextLevel}
+        onDevSetLevel={onDevSetLevel}
         onDevResetBoard={onDevResetBoard}
         onDevNextTilesPalette={onDevNextTilesPalette}
         debugSnapshot={debugSnapshot}

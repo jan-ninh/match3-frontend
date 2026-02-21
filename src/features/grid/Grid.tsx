@@ -33,9 +33,13 @@ export type GridProps = {
   onToggleShowLockoutHints?: () => void;
   onDevPrevLevel?: () => void;
   onDevNextLevel?: () => void;
+  onDevSetLevel?: (levelId: number) => void;
   onDevResetBoard?: () => void;
   onDevNextTilesPalette?: () => void;
 };
+
+const noop = () => {};
+const noopSetLevel = (_levelId: number) => {};
 
 /**
  * Feature wrapper:
@@ -56,6 +60,7 @@ export function Grid({
   onToggleShowLockoutHints,
   onDevPrevLevel,
   onDevNextLevel,
+  onDevSetLevel,
   onDevResetBoard,
   onDevNextTilesPalette,
 }: GridProps) {
@@ -145,11 +150,12 @@ export function Grid({
       onShellPointerMove={input.onPointerMove}
       onShellPointerLeave={input.onShellPointerLeave}
       debugSnapshot={input.debugSnapshot}
-      onToggleShowLockoutHints={onToggleShowLockoutHints ?? (() => {})}
-      onDevPrevLevel={onDevPrevLevel ?? (() => {})}
-      onDevNextLevel={onDevNextLevel ?? (() => {})}
-      onDevResetBoard={onDevResetBoard ?? (() => {})}
-      onDevNextTilesPalette={onDevNextTilesPalette ?? (() => {})}
+      onToggleShowLockoutHints={onToggleShowLockoutHints ?? noop}
+      onDevPrevLevel={onDevPrevLevel ?? noop}
+      onDevNextLevel={onDevNextLevel ?? noop}
+      onDevSetLevel={onDevSetLevel ?? noopSetLevel}
+      onDevResetBoard={onDevResetBoard ?? noop}
+      onDevNextTilesPalette={onDevNextTilesPalette ?? noop}
     />
   );
 }
