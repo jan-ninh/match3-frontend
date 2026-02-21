@@ -1,10 +1,10 @@
-// src/gamelogic/itemeffects/bomb/bomb3x3.ts
 import type { EngineEvent, EngineState } from '../../types';
 import type { CascadePreStep } from '../../cascade/typesCascade';
 
 import { clearCellsAndPieces } from '../../cascade/clear';
 import { applyGravity } from '../../cascade/gravity';
 import { applyRefill } from '../../cascade/refill';
+import { applyStoneTileDamageAtIndices } from '../../board/obstacles/stoneTile';
 
 export type BombTarget = { x: number; y: number };
 
@@ -85,9 +85,15 @@ export function applyBomb3x3(state: EngineState, center: BombTarget): Bomb3x3Res
 
   if (indices.length === 0) return { state, events: [], clearedIndices: [] };
 
-  const clearedCount = countClearablePieces(state, indices);
+  // 3x3 blast damages stone tiles
+  let next = state;
+  if ((next.stoneTilesTotal | 0) > 0) {
+    next = applyStoneTileDamageAtIndices(next, indices, 3);
+  }
 
-  let next = clearCellsAndPieces(state, indices);
+  const clearedCount = countClearablePieces(next, indices);
+
+  next = clearCellsAndPieces(next, indices);
   next = applyGravity(next);
 
   const refill = applyRefill(next);

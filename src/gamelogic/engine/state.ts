@@ -1,4 +1,3 @@
-// src/gamelogic/engine/state.ts
 import type {
   EngineEvent,
   EngineState,
@@ -204,6 +203,33 @@ export function createState(
   }
 
   // ─────────────────────────────────────────────
+  // Level 08: Place stone tiles (blocked, not swappable, HP hidden)
+  // ─────────────────────────────────────────────
+  if (level.stoneTileNodes && level.stoneTileNodes.length > 0) {
+    if (cells === built.cells) cells = cells.slice();
+    if (pieces === built.pieces) pieces = { ...pieces };
+
+    for (const node of level.stoneTileNodes) {
+      const idx = node.index | 0;
+      if (idx < 0 || idx >= cells.length) continue;
+
+      const existingPid = cells[idx]?.pieceId;
+      if (existingPid !== null && existingPid !== undefined) {
+        delete pieces[existingPid];
+      }
+
+      const maxHp = 15;
+      const hp = 15;
+
+      cells[idx] = {
+        blocked: true,
+        pieceId: null,
+        obstacle: { kind: 'stoneTile', hp, maxHp },
+      };
+    }
+  }
+
+  // ─────────────────────────────────────────────
   // Level 04+: Initialize laser warning (fair: shown before turn 0)
   // ─────────────────────────────────────────────
   const sweepEnabled = level.sweepEnabled ?? false;
@@ -220,6 +246,8 @@ export function createState(
   // ─────────────────────────────────────────────
   // Build initial state
   // ─────────────────────────────────────────────
+  const stoneTotal = level.stoneTileNodes?.length ?? 0;
+
   const base: EngineState = {
     levelId,
     width: level.width,
@@ -236,6 +264,10 @@ export function createState(
 
     // Turn counter (0-based)
     turnIndex: 0,
+
+    // Level 07: Match Rush (units to win; 0=disabled)
+    matchRushTargetUnits: level.matchRushTargetUnits ?? 0,
+    matchRushUnits: 0,
 
     // Level 01: Firewall/Gate mechanics
     breachesTotal: level.firewallNodes.length,
@@ -276,6 +308,10 @@ export function createState(
     signalTargetsTotal: level.signalTargetNodes?.length ?? 0,
     signalLinked: false,
     chargedCellCount: 0,
+
+    // Level 08: Stone Tiles
+    stoneTilesTotal: stoneTotal,
+    stoneTilesRemaining: stoneTotal,
 
     cells,
     pieces,

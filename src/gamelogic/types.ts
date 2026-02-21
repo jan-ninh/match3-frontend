@@ -8,6 +8,12 @@ export type PieceType = 'red' | 'blue' | 'green' | 'purple' | 'orange' | 'cyan' 
 export type PieceId = number;
 
 // ─────────────────────────────────────────────
+// Item objective policy (Level-configurable)
+// ─────────────────────────────────────────────
+
+export type ItemObjectivesPolicy = 'noObjectives' | 'allowObjectives';
+
+// ─────────────────────────────────────────────
 // Terminal State (Level 03+)
 // ─────────────────────────────────────────────
 
@@ -50,7 +56,8 @@ export type CellObstacle =
   | { kind: 'objectiveTerminal'; id: number; state: ObjectiveTerminalState; charge: number; requiredCharge: number }
   | { kind: 'signalSource'; id: number }
   | { kind: 'signalTarget'; id: number }
-  | { kind: 'chargedCell' };
+  | { kind: 'chargedCell' }
+  | { kind: 'stoneTile'; hp: number; maxHp: number };
 
 export type Cell = {
   blocked: boolean;
@@ -170,6 +177,11 @@ export type SignalTargetNodeDef = {
   id: number;
 };
 
+// Level 08: Stone Tiles
+export type StoneTileNodeDef = {
+  index: number;
+};
+
 export type LevelDefinition = {
   id: LevelId;
   width: number;
@@ -178,6 +190,16 @@ export type LevelDefinition = {
 
   moves: number;
   allowedTypes: PieceType[];
+
+  // Optional non-hint objective title (UI may choose to display it).
+  objectiveTitle?: string;
+
+  // Item objective policy (Level-configurable)
+  itemObjectivesDefault?: ItemObjectivesPolicy;
+  itemObjectives?: Partial<Record<ItemEffectKeyForEvent, ItemObjectivesPolicy>>;
+
+  // Level 07: Match Rush (units to win; 0/undefined = disabled)
+  matchRushTargetUnits?: number;
 
   blockedIndices: number[];
   firewallNodes: FirewallNodeDef[];
@@ -202,6 +224,9 @@ export type LevelDefinition = {
   // Level 05+: Signal Network mechanics
   signalSourceNodes?: SignalSourceNodeDef[];
   signalTargetNodes?: SignalTargetNodeDef[];
+
+  // Level 08+: Stone Tiles
+  stoneTileNodes?: StoneTileNodeDef[];
 
   // Balancing knobs (optional)
   maxSealKitsOnBoard?: number;
@@ -322,6 +347,7 @@ export type EngineEvent =
   | { type: 'itemAccepted'; key: ItemEffectKeyForEvent; target: { x: number; y: number }; requestId: number }
   // First-class cascade observability (e.g. item preSteps)
   | { type: 'cascadeStep'; kind: 'itemLaserRowClear'; row: number; indices: number[]; cleared: number }
+  | { type: 'cascadeStep'; kind: 'itemBomb3x3Blast'; center: { x: number; y: number }; indices: number[]; cleared: number }
   // Power/Item consumption ack (UI consumes only after this)
   | { type: 'powerUsed'; key: 'gridlaser' | 'bomb' | 'laser' | 'extraShuffle'; requestId: number }
   // ─── Pre-Falling Guardrails: Observability events ───
@@ -349,11 +375,18 @@ export type EngineState = {
   // cached level rules
   allowedTypes: PieceType[];
 
+  // item objective policy (per effect key)
+  itemObjectives: Record<ItemEffectKeyForEvent, ItemObjectivesPolicy>;
+
   movesTotal: number;
   movesLeft: number;
 
   // turn counter (0-based, increments after each complete player turn)
   turnIndex: number;
+
+  // Level 07: Match Rush
+  matchRushTargetUnits: number;
+  matchRushUnits: number;
 
   // Level 01: Firewall/Gate mechanics
   breachesTotal: number;
@@ -394,6 +427,10 @@ export type EngineState = {
   signalTargetsTotal: number;
   signalLinked: boolean; // true when Source connected to Target via charged cells
   chargedCellCount: number; // for HUD display
+
+  // Level 08+: Stone Tiles
+  stoneTilesTotal: number;
+  stoneTilesRemaining: number;
 
   // Board state
   cells: Cell[];

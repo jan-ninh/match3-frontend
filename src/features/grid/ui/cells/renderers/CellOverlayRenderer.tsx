@@ -15,6 +15,7 @@ import { SealKitOverlay } from './SealKitOverlay';
 import { TerminalOverlay } from './TerminalOverlay';
 import { ObjectiveTerminalOverlay } from './ObjectiveTerminalOverlay';
 import { BlockedPlainOverlay } from './BlockedPlainOverlay';
+import { StoneTileOverlay } from './StoneTileOverlay';
 
 type Props = {
   vm: CellVM;
@@ -43,6 +44,9 @@ export function CellOverlayRenderer({ vm, sprites }: Props) {
 
     case 'firewallNode':
       return <FirewallNodeOverlay hp={vm.hp} maxHp={vm.maxHp} />;
+
+    case 'stoneTile':
+      return <StoneTileOverlay stage={vm.stage} />;
 
     case 'leak':
       return (

@@ -1,14 +1,23 @@
-// src/gamelogic/engine/reducer/post/resolveOutcome.ts
 import type { EngineEvent, EngineState } from '../../../types';
 
 import { setPhase } from '../../../phaseState';
 import { pushEvents } from '../../events';
 import { isSignalLinked } from '../../../board/signal/signalPathCheck';
 
-type WinReason = 'gate' | 'leaks' | 'terminals' | 'objectiveTerminals' | 'signal';
+type WinReason = 'matchRush' | 'stoneTiles' | 'gate' | 'leaks' | 'terminals' | 'objectiveTerminals' | 'signal';
 type LoseReason = 'moves' | 'contamination';
 
 function checkWinConditions(state: EngineState): WinReason | null {
+  // Level 07: MatchRush win
+  if ((state.matchRushTargetUnits | 0) > 0 && (state.matchRushUnits | 0) >= (state.matchRushTargetUnits | 0)) {
+    return 'matchRush';
+  }
+
+  // Level 08: Stone Tiles win (all destroyed)
+  if ((state.stoneTilesTotal | 0) > 0 && (state.stoneTilesRemaining | 0) <= 0) {
+    return 'stoneTiles';
+  }
+
   // Level 01: Gate win (all firewalls breached)
   if (state.breachesRemaining <= 0 && state.gateOpen && state.breachesTotal > 0) {
     return 'gate';

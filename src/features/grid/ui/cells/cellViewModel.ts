@@ -39,6 +39,14 @@ export type FirewallNodeCellVM = {
   maxHp: number;
 };
 
+export type StoneTileCellVM = {
+  kind: 'stoneTile';
+  index: number;
+  x: number;
+  y: number;
+  stage: 'intact' | 'cracked' | 'fractured';
+};
+
 export type LeakCellVM = {
   kind: 'leak';
   index: number;
@@ -120,6 +128,7 @@ export type CellVM =
   | SpikeCellVM
   | SweepFirewallCellVM
   | FirewallNodeCellVM
+  | StoneTileCellVM
   | LeakCellVM
   | ContaminationCellVM
   | SealKitCellVM
@@ -153,6 +162,15 @@ export function buildCellViewModel(cell: Cell, index: number, width: number): Ce
     if (isSpike) return { kind: 'spike', index, x, y };
 
     return { kind: 'firewallNode', index, x, y, hp: obs.hp, maxHp: obs.maxHp };
+  }
+
+  if (obs?.kind === 'stoneTile') {
+    const max = Math.max(1, obs.maxHp | 0);
+    const hp = Math.max(0, obs.hp | 0);
+    const r = hp / max;
+
+    const stage: StoneTileCellVM['stage'] = r > 0.66 ? 'intact' : r > 0.33 ? 'cracked' : 'fractured';
+    return { kind: 'stoneTile', index, x, y, stage };
   }
 
   if (obs?.kind === 'leak') {

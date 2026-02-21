@@ -9,6 +9,8 @@ import { applyRefill } from './refill';
 import { getCascadeEffectsForState } from './effects/registry';
 import { runPostClearEffects, runPostGravityEffects, runPostRefillEffects, runPreClearEffects } from './effects/runEffects';
 
+import { applyStoneTileDamageAtIndices } from '../board/obstacles/stoneTile';
+
 // type MatchDetectionLike = { clearIndices: number[]; groups: number };
 
 function countClearablePieces(state: EngineState, indices: number[]): number {
@@ -51,6 +53,11 @@ export function resolveOnce(state: EngineState, chargedIds: Set<number> = new Se
   for (const step of preSteps) {
     switch (step.kind) {
       case 'itemLaserRowClear': {
+        // Level 08: laser damages stone tiles even though item clears skip objectives/effects.
+        if ((s.stoneTilesTotal | 0) > 0) {
+          s = applyStoneTileDamageAtIndices(s, step.indices, 2);
+        }
+
         const clearedCount = countClearablePieces(s, step.indices);
 
         // NOTE: Item-driven clear must not progress objectives/level mechanics.
@@ -76,6 +83,11 @@ export function resolveOnce(state: EngineState, chargedIds: Set<number> = new Se
       }
 
       case 'itemBomb3x3Blast': {
+        // Level 08: 3x3 (gridlaser/bomb) damages stone tiles even though item clears skip objectives/effects.
+        if ((s.stoneTilesTotal | 0) > 0) {
+          s = applyStoneTileDamageAtIndices(s, step.indices, 3);
+        }
+
         const clearedCount = countClearablePieces(s, step.indices);
 
         // NOTE: Item-driven clear must not progress objectives/level mechanics.
