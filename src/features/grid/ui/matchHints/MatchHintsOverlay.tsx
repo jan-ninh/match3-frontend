@@ -1,3 +1,4 @@
+// src/features/grid/ui/matchHints/MatchHintsOverlay.tsx
 import { useMemo } from 'react';
 
 import type { PossibleMatchSwap } from '@/gamelogic/match';
@@ -26,16 +27,6 @@ function inferPitch(width: number, height: number): Pitch {
   return { w: dx, h: dy };
 }
 
-function hueForGroup(i: number): number {
-  // Prime-ish step => spreads colors even for many swaps.
-  return (i * 67) % 360;
-}
-
-function hsla(hue: number, alpha: number): string {
-  const a = Math.max(0, Math.min(1, alpha));
-  return `hsla(${hue}, 95%, 62%, ${a})`;
-}
-
 type CellPos = Readonly<{ x: number; y: number }>;
 
 function cellTopLeft(index: number, width: number): CellPos {
@@ -43,64 +34,119 @@ function cellTopLeft(index: number, width: number): CellPos {
   return { x: p.x, y: p.y };
 }
 
-export default function MatchHintsOverlay({ swaps, width, height, zIndex = 52 }: Props) {
+type SizePx = Readonly<{ w: number; h: number }>;
+
+function inferBoardSize(width: number, height: number, pitch: Pitch): SizePx {
+  if (width <= 0 || height <= 0) return { w: 1, h: 1 };
+
+  const lastX = Math.max(0, width - 1);
+  const lastY = Math.max(0, height - 1);
+
+  const i00 = 0;
+  const iTR = lastX;
+  const iBL = lastY * width;
+  const iBR = lastY * width + lastX;
+
+  const corners = [i00, iTR, iBL, iBR];
+
+  let maxX = 0;
+  let maxY = 0;
+
+  for (const idx of corners) {
+    const p = cellTopLeft(idx, width);
+    if (p.x > maxX) maxX = p.x;
+    if (p.y > maxY) maxY = p.y;
+  }
+
+  // include the tile size itself
+  const w = Math.max(1, Math.ceil(maxX + pitch.w));
+  const h = Math.max(1, Math.ceil(maxY + pitch.h));
+  return { w, h };
+}
+
+type Point = Readonly<{ x: number; y: number }>;
+
+function cellCenter(index: number, width: number, pitch: Pitch): Point {
+  const p = cellTopLeft(index, width);
+  return { x: p.x + pitch.w / 2, y: p.y + pitch.h / 2 };
+}
+
+export default function MatchHintsOverlay({ swaps, width, height, zIndex = 80 }: Props) {
   const pitch = useMemo(() => inferPitch(width, height), [width, height]);
-  const dot = 10;
+  const boardSize = useMemo(() => inferBoardSize(width, height, pitch), [width, height, pitch]);
+
+  // One strong, consistent color for fast scanning.
+  const CORE = 'rgba(200, 255, 0, 0.96)';
+  const OUTLINE = 'rgba(0, 0, 0, 0.78)';
+  const GLOW = 'rgba(200, 255, 0, 0.35)';
+
+  const strokeOutline = 7;
+  const strokeCore = 4;
+
+  const dotR = 4.5;
 
   return (
     <div className="absolute left-0 top-0 pointer-events-none select-none" style={{ zIndex }}>
-      {swaps.map((swap, gi) => {
-        const hue = hueForGroup(gi);
+      <svg width={boardSize.w} height={boardSize.h} viewBox={`0 0 ${boardSize.w} ${boardSize.h}`} className="absolute left-0 top-0" aria-hidden="true">
+        <defs>
+          <filter id="mh-glow" x="-30%" y="-30%" width="160%" height="160%">
+            <feDropShadow dx="0" dy="0" stdDeviation="2" floodColor={GLOW} floodOpacity="1" />
+            <feDropShadow dx="0" dy="0" stdDeviation="6" floodColor={GLOW} floodOpacity="0.55" />
+          </filter>
 
-        const strokeStrong = hsla(hue, 0.9);
-        const fillStrong = hsla(hue, 0.10);
+          <marker id="mh-arrow-head-outline" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto" markerUnits="userSpaceOnUse">
+            <path d="M0,0 L14,7 L0,14 L3,7 Z" fill={OUTLINE} />
+          </marker>
 
-        const dotFill = hsla(hue, 0.7);
-        const dotGlow = hsla(hue, 0.35);
+          <marker id="mh-arrow-head-core" markerWidth="12" markerHeight="12" refX="10.5" refY="6" orient="auto" markerUnits="userSpaceOnUse">
+            <path d="M0,0 L12,6 L0,12 L2.6,6 Z" fill={CORE} />
+          </marker>
+        </defs>
 
-        const from = cellTopLeft(swap.from, width);
-        const to = cellTopLeft(swap.to, width);
+        {swaps.map((swap) => {
+          const a = cellCenter(swap.from, width, pitch);
+          const b = cellCenter(swap.to, width, pitch);
 
-        const tileStyleBase = {
-          width: pitch.w,
-          height: pitch.h,
-          borderRadius: 10,
-          border: `2px solid ${strokeStrong}`,
-          background: fillStrong,
-          boxShadow: `0 0 0 1px ${hsla(hue, 0.25)}, 0 0 18px ${hsla(hue, 0.18)}`,
-        } as const;
+          // small trim so the arrowhead doesn't fully cover the destination center-dot zone
+          const dx = b.x - a.x;
+          const dy = b.y - a.y;
+          const len = Math.max(1, Math.hypot(dx, dy));
+          const trim = 6; // px
+          const x2 = b.x - (dx / len) * trim;
+          const y2 = b.y - (dy / len) * trim;
 
-        return (
-          <div key={`swap-${swap.from}-${swap.to}`} className="absolute left-0 top-0">
-            {/* Swap tiles (strong) */}
-            <div className="absolute" style={{ left: from.x, top: from.y, ...tileStyleBase }} />
-            <div className="absolute" style={{ left: to.x, top: to.y, ...tileStyleBase }} />
+          return (
+            <g key={`swap-${swap.from}-${swap.to}`}>
+              {/* Outline */}
+              <line
+                x1={a.x}
+                y1={a.y}
+                x2={x2}
+                y2={y2}
+                stroke={OUTLINE}
+                strokeWidth={strokeOutline}
+                strokeLinecap="round"
+                markerEnd="url(#mh-arrow-head-outline)"
+              />
+              {/* Core */}
+              <line
+                x1={a.x}
+                y1={a.y}
+                x2={x2}
+                y2={y2}
+                stroke={CORE}
+                strokeWidth={strokeCore}
+                strokeLinecap="round"
+                markerEnd="url(#mh-arrow-head-core)"
+                filter="url(#mh-glow)"
+              />
 
-            {/* Resulting match tiles (light / dot) */}
-            {swap.clearIndices.map((idx) => {
-              const p = cellTopLeft(idx, width);
-
-              const cx = p.x + pitch.w / 2 - dot / 2;
-              const cy = p.y + pitch.h / 2 - dot / 2;
-
-              return (
-                <div
-                  key={`m-${swap.from}-${swap.to}-${idx}`}
-                  className="absolute rounded-full"
-                  style={{
-                    left: cx,
-                    top: cy,
-                    width: dot,
-                    height: dot,
-                    background: dotFill,
-                    boxShadow: `0 0 0 2px ${hsla(hue, 0.18)}, 0 0 14px ${dotGlow}`,
-                  }}
-                />
-              );
-            })}
-          </div>
-        );
-      })}
+              {/* Start dot (indicates “move this tile”) */}
+              <circle cx={a.x} cy={a.y} r={dotR} fill={CORE} stroke={OUTLINE} strokeWidth={2} filter="url(#mh-glow)" />
+            </g>
+          );
+        })}
+      </svg>
     </div>
   );
 }

@@ -424,6 +424,7 @@ export function GridView({
 
   const isDev = import.meta.env.DEV;
   const bombFxMode: BombVfxMode = import.meta.env.DEV && isDev && debugEnabled ? bombVfxMode : 'legacyShock';
+  const showMatchHints = import.meta.env.DEV && isDev && debugEnabled && showMatches && matchSwaps.length > 0;
 
   return (
     <>
@@ -476,11 +477,6 @@ export function GridView({
         {/* Laser Targeting (row highlight) */}
         <LaserRowOverlay armed={laser.laserArmed} row={laser.hoverRow} height={height} zIndex={46} />
 
-        {/* DevTools: possible-match overlay (read-only) */}
-        {import.meta.env.DEV && isDev && debugEnabled && showMatches && matchSwaps.length > 0 ? (
-          <MatchHintsOverlay swaps={matchSwaps} width={width} height={height} zIndex={52} />
-        ) : null}
-
         <GridCellsLayer width={width} height={height} cells={cells} onCellPointerDown={onCellPointerDownEffective} showDebugLabels={showDebugLabels} />
 
         <GridOverlaysLayer selectionPos={selectionPos} targetPos={targetPos} />
@@ -500,6 +496,9 @@ export function GridView({
           showDebugLabels={showDebugLabels}
           setDraggedEl={setDraggedEl}
         />
+
+        {/* DevTools: possible-match overlay (read-only) — above pieces, under FX */}
+        {showMatchHints ? <MatchHintsOverlay swaps={matchSwaps} width={width} height={height} zIndex={80} /> : null}
 
         {/* Laser strike FX (on confirm; UI-only) */}
         <LaserRowStrikeFxLayer bursts={laserStrikes} height={height} reducedMotionHint={swapMs === 0} zIndex={86} />
