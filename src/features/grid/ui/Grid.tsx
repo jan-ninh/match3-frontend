@@ -1,3 +1,4 @@
+// src/features/grid/ui/Grid.tsx
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ComponentProps } from 'react';
 
@@ -141,6 +142,9 @@ export function GridView({
   const bomb = useBomb3x3Targeting({ width, height, swapMs, inputLocked });
   const laser = useLaserRowTargeting({ width, height, inputLocked });
 
+  // Patch-Delta (Datei 2): Level09 "no manual swaps / no dragging"
+  const isLevel09 = state.levelId === 9;
+
   // -----------------------------
   // Laser SFX timing knobs (UI-only)
   // -----------------------------
@@ -238,12 +242,14 @@ export function GridView({
   const effectiveInputLocked = inputLocked || bomb.bombArmed || laser.laserArmed;
   const capturePointerMove = bomb.bombArmed || laser.laserArmed;
 
+  // Patch-Delta (Datei 2): Prioritäten angepasst + Level09 not-allowed
   const cursorClass = useMemo(() => {
-    if (effectiveInputLocked && showLockoutHints) return 'cursor-not-allowed';
     if (bomb.bombArmed || laser.laserArmed) return 'cursor-crosshair';
+    if (effectiveInputLocked && showLockoutHints) return 'cursor-not-allowed';
+    if (isLevel09) return 'cursor-not-allowed';
     if (isDragging) return 'cursor-grabbing';
     return 'cursor-grab';
-  }, [bomb.bombArmed, effectiveInputLocked, isDragging, laser.laserArmed, showLockoutHints]);
+  }, [bomb.bombArmed, effectiveInputLocked, isDragging, isLevel09, laser.laserArmed, showLockoutHints]);
 
   // While in targeting mode (bomb/laser), force the crosshair cursor globally.
   // - fixes "cursor disappears" when leaving the grid or hovering elements that set their own cursor.
@@ -393,6 +399,14 @@ export function GridView({
       laser.onCellPointerDown(index, e);
       return;
     }
+
+    // Patch-Delta (Datei 2): Level 09 => no manual swaps / no dragging
+    if (isLevel09) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+
     onCellPointerDown(index, e);
   };
 
@@ -434,6 +448,7 @@ export function GridView({
       <GridShell
         shellStyle={shellStyle}
         cursorClass={cursorClass}
+        levelId={state.levelId}
         inputLocked={inputLocked}
         showLockoutHints={showLockoutHints}
         innerW={innerW}

@@ -120,3 +120,78 @@ body {
   scrollbar-width: thin;
   scrollbar-color: rgba(34, 211, 238, 0.75) rgba(255, 255, 255, 0.08);
 }
+
+/* ─────────────────────────────────────────────
+   Level 09: "Signal Jam" look (no manual swaps)
+   - Dezent, performant, lesbar.
+   - Scoped über data-match3-level am Board + data-match3-tile am Tile-Root.
+   ───────────────────────────────────────────── */
+
+@keyframes match3-jam-scan {
+  0% {
+    transform: translateY(-6%);
+    opacity: 0.52;
+  }
+  50% {
+    transform: translateY(6%);
+    opacity: 0.72;
+  }
+  100% {
+    transform: translateY(-6%);
+    opacity: 0.52;
+  }
+}
+
+[data-match3-level='9'] button {
+  cursor: not-allowed;
+}
+
+/* Base: slightly "wrong" color grading + faint chroma bleed */
+[data-match3-level='9'] [data-match3-tile] {
+  position: relative;
+  filter: saturate(0.68) contrast(1.08) brightness(0.92);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35), 0 0 14px rgba(34, 211, 238, 0.1), 0 0 10px rgba(244, 63, 94, 0.08);
+}
+
+/* Scanlines + interference wash */
+[data-match3-level='9'] [data-match3-tile]::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+
+  background:
+    repeating-linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.00) 0px,
+      rgba(255, 255, 255, 0.03) 1px,
+      rgba(0, 0, 0, 0.00) 3px
+    ),
+    radial-gradient(120% 120% at 28% 18%, rgba(34, 211, 238, 0.16), rgba(0, 0, 0, 0) 60%),
+    radial-gradient(120% 120% at 72% 84%, rgba(244, 63, 94, 0.12), rgba(0, 0, 0, 0) 55%);
+
+  mix-blend-mode: overlay;
+  animation: match3-jam-scan 3.8s linear infinite;
+}
+
+/* Diagonal glitch sheen (subtle) */
+[data-match3-level='9'] [data-match3-tile]::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+
+  background: linear-gradient(
+    135deg,
+    rgba(34, 211, 238, 0.00) 0%,
+    rgba(34, 211, 238, 0.08) 22%,
+    rgba(244, 63, 94, 0.10) 52%,
+    rgba(244, 63, 94, 0.00) 72%,
+    rgba(34, 211, 238, 0.00) 100%
+  );
+
+  opacity: 0.35;
+}
+

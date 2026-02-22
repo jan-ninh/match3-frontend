@@ -1,4 +1,3 @@
-// src/features/grid/ui/Tile.tsx
 import type { CSSProperties } from 'react';
 
 import type { PieceType } from '@/gamelogic';
@@ -44,6 +43,7 @@ export default function Tile({ type, dragging, preview, locked, shaking, classNa
   if (isKeycard && !sprite) {
     return (
       <div
+        data-match3-tile=""
         className={outerCls}
         style={{
           background: 'linear-gradient(135deg, rgba(251,191,36,0.4) 0%, rgba(245,158,11,0.5) 100%)',
@@ -62,6 +62,7 @@ export default function Tile({ type, dragging, preview, locked, shaking, classNa
   if (!sprite) {
     return (
       <div
+        data-match3-tile=""
         className={outerCls}
         style={{
           backgroundColor: 'rgba(255,255,255,0.06)',
@@ -81,7 +82,7 @@ export default function Tile({ type, dragging, preview, locked, shaking, classNa
   };
 
   return (
-    <div className={outerCls} style={{ boxShadow: '0 6px 16px rgba(0,0,0,0.35)' }}>
+    <div data-match3-tile="" className={outerCls} style={{ boxShadow: '0 6px 16px rgba(0,0,0,0.35)' }}>
       <div className="w-full h-full select-none pointer-events-none" style={spriteStyle} />
     </div>
   );

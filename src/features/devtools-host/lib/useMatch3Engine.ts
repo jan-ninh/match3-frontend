@@ -1,4 +1,3 @@
-// src/features/devtools-host/lib/useMatch3Engine.ts
 import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react';
 
 import type { EngineAction } from '@/gamelogic';
@@ -14,6 +13,7 @@ import {
 } from '@/context/powerEvents';
 import type { PowerKey } from '@/types';
 import { useCampaignTracking } from '@/services/campaign/useCampaignTracking';
+import { setRuntimeLevelId } from '@/context/levelRuntime';
 
 type Args = {
   initialLevelId?: number;
@@ -162,6 +162,11 @@ export function useMatch3Engine({ initialLevelId = 1 }: Args) {
   // campaign/run tracking (FE → BE)
   useCampaignTracking({ state });
 
+  // Mirror current engine level to a tiny runtime signal for UI-only policies.
+  useEffect(() => {
+    setRuntimeLevelId(state.levelId);
+  }, [state.levelId]);
+
   // keep Engine timing in sync (Engine is the source of truth)
   const desiredSwapMs = reducedMotion ? 0 : SWAP_MS;
   useLayoutEffect(() => {
@@ -270,31 +275,21 @@ export function useMatch3Engine({ initialLevelId = 1 }: Args) {
     if (typeof window === 'undefined') return;
 
     const seen = seenPowerUsedRef.current;
-    // // TEMP DEBUG (remove after)
-    // for (let i = 0; i < state.events.length; i += 1) {
-    //   const ev = state.events[i];
-    //   if (!ev || typeof ev !== 'object') continue;
-    //   const rec = ev as Record<string, unknown>;
-    //   const t = rec.type;
-    //   if (typeof t === 'string') {
-    //     // eslint-disable-next-line no-console
-    //     console.log('[engine event]', t, rec);
-    //   }
-    // }
 
     for (const ev of state.events) {
       if (!isPowerUsedEvent(ev)) continue;
 
-      const id = `${ev.key}:${ev.requestId}`;
+      // include levelId to avoid cross-level requestId collisions
+      const id = `${state.levelId}:${ev.key}:${ev.requestId}`;
       if (!markSeen(seen, id, 256)) continue;
 
-      window.dispatchEvent(
+            window.dispatchEvent(
         new CustomEvent<PowerConsumeDetail>(POWER_CONSUME_EVENT, {
           detail: { key: ev.key, amount: 1, requestId: ev.requestId },
         }),
       );
     }
-  }, [state.events]);
+  }, [state.events, state.levelId]);
 
   // Match4/5 reward SFX (event-driven, deduped)
   const seenMatchSfxRef = useRef<SeenRing>({ set: new Set<string>(), order: [] });

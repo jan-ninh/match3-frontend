@@ -1,9 +1,9 @@
-// src/context/PowerProvider.tsx
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { PowerKey, Powers } from '@/types';
 
 import { getChoiceBonus, PowerContext, defaultPowers } from './PowerContext';
+import { getRuntimeLevelId } from '@/context/levelRuntime';
 import { POWER_CONSUME_EVENT, POWER_GRANT_EVENT, type PowerConsumeDetail, type PowerGrantDetail } from './powerEvents';
 
 const POWERS_GRANT_MANY_EVENT = 'match3:powersGrantMany' as const;
@@ -105,6 +105,9 @@ export function PowerProvider({ children }: { children: ReactNode }) {
       const ce = e as CustomEvent<PowerConsumeDetail>;
       const d = ce.detail;
       if (!d) return;
+
+      // Level 09: items are infinite (ACK is still needed for SFX/VFX elsewhere).
+      if (getRuntimeLevelId() === 9) return;
 
       const key = d.key;
       if (!isPowerKey(key)) return;
