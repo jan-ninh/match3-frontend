@@ -1,4 +1,3 @@
-// src/features/grid/ui/matchHints/model.ts
 import type { PossibleMatchSwap } from '@/gamelogic/match';
 
 export type ClearHit = Readonly<{ idx: number; hits: number }>;
@@ -48,7 +47,36 @@ export function toSwapDots(status: Map<number, boolean>): readonly SwapDot[] {
   return out;
 }
 
-export type MoverAnchor = Readonly<{ mover: number; anchor: number }>;
+export type MatchTier = 'm3' | 'm4' | 'm5p';
+
+function tierOfLen(len: number): MatchTier {
+  if (len >= 5) return 'm5p';
+  if (len === 4) return 'm4';
+  return 'm3';
+}
+
+function tierRank(t: MatchTier): number {
+  switch (t) {
+    case 'm5p':
+      return 3;
+    case 'm4':
+      return 2;
+    case 'm3':
+      return 1;
+  }
+}
+
+function maxTier(a: MatchTier, b: MatchTier): MatchTier {
+  return tierRank(a) >= tierRank(b) ? a : b;
+}
+
+function deriveSwapTier(s: PossibleMatchSwap): MatchTier {
+  let mx = 3;
+  for (const r of s.runs) if (r.len > mx) mx = r.len;
+  return tierOfLen(mx);
+}
+
+export type MoverAnchor = Readonly<{ mover: number; anchor: number; tier: MatchTier }>;
 
 /**
  * TERMINOLOGY (SSOT)
@@ -62,16 +90,22 @@ export type MoverAnchor = Readonly<{ mover: number; anchor: number }>;
  *   then Anchor = that endpoint, and Mover = the other endpoint.
  * - If both endpoints are in `clearIndices`, draw both directions (no arbitrary choice).
  * - If neither endpoint is in `clearIndices`, skip (can't derive a match anchor).
+ *
+ * Color rule:
+ * - Tier is derived from `max(s.runs[].len)` (SSOT).
+ * - If multiple swaps produce the same arrow (mover->anchor), keep the highest tier.
  */
 export function buildMoverToAnchors(swaps: readonly PossibleMatchSwap[]): readonly MoverAnchor[] {
-  const seen = new Set<string>();
-  const out: MoverAnchor[] = [];
+  const byPair = new Map<string, MoverAnchor>();
 
-  const pushPair = (mover: number, anchor: number) => {
+  const upsertPair = (mover: number, anchor: number, tier: MatchTier) => {
     const k = `${mover}->${anchor}`;
-    if (seen.has(k)) return;
-    seen.add(k);
-    out.push({ mover, anchor });
+    const prev = byPair.get(k);
+    if (!prev) {
+      byPair.set(k, { mover, anchor, tier });
+      return;
+    }
+    byPair.set(k, { mover, anchor, tier: maxTier(prev.tier, tier) });
   };
 
   for (const s of swaps) {
@@ -81,19 +115,22 @@ export function buildMoverToAnchors(swaps: readonly PossibleMatchSwap[]): readon
 
     if (!fromCleared && !toCleared) continue;
 
+    const tier = deriveSwapTier(s);
+
     if (fromCleared && !toCleared) {
-      pushPair(s.to, s.from);
+      upsertPair(s.to, s.from, tier);
       continue;
     }
     if (!fromCleared && toCleared) {
-      pushPair(s.from, s.to);
+      upsertPair(s.from, s.to, tier);
       continue;
     }
 
-    pushPair(s.from, s.to);
-    pushPair(s.to, s.from);
+    upsertPair(s.from, s.to, tier);
+    upsertPair(s.to, s.from, tier);
   }
 
+  const out = Array.from(byPair.values());
   out.sort((a, b) => a.mover - b.mover || a.anchor - b.anchor);
   return out;
 }

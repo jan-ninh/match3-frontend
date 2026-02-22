@@ -1,9 +1,8 @@
-// src/features/grid/ui/matchHints/MatchHintsSvg.tsx
 import type { ReactElement } from 'react';
 
 import { cellCenter, cellTopLeft, type Pitch, type SizePx } from './geometry';
 import { arrowPolygon } from './geometry';
-import type { ClearHit, MoverAnchor, SwapDot } from './model';
+import type { ClearHit, MatchTier, MoverAnchor, SwapDot } from './model';
 import type { MatchHintsColors, MatchHintsDefIds } from './stylesSvg';
 
 type Props = {
@@ -87,9 +86,20 @@ export function MatchHintsSvg({
     </>
   );
 
+  const arrowVisualsForTier = (tier: MatchTier): Readonly<{ fill: string; filterId: string }> => {
+    switch (tier) {
+      case 'm5p':
+        return { fill: colors.red, filterId: defIds.redGlowId };
+      case 'm4':
+        return { fill: colors.yellow, filterId: defIds.yellowGlowId };
+      case 'm3':
+        return { fill: colors.core, filterId: defIds.glowId };
+    }
+  };
+
   const MoverArrowLayer = () => (
     <>
-      {moverToAnchors.map(({ mover, anchor }) => {
+      {moverToAnchors.map(({ mover, anchor, tier }) => {
         const from = cellCenter(mover, width, pitch);
         const to = cellCenter(anchor, width, pitch);
 
@@ -109,10 +119,12 @@ export function MatchHintsSvg({
           headWidth: arrow.headWidth + arrow.outlineHeadWidthExtra,
         });
 
+        const vis = arrowVisualsForTier(tier);
+
         return (
           <g key={`mh-m2a-${mover}-${anchor}`}>
             <polygon points={outline.points} fill={colors.black} fillOpacity={0.9} />
-            <polygon points={core.points} fill={colors.core} filter={`url(#${defIds.glowId})`} />
+            <polygon points={core.points} fill={vis.fill} filter={`url(#${vis.filterId})`} />
           </g>
         );
       })}

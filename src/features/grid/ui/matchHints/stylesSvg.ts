@@ -1,10 +1,10 @@
-// src/features/grid/ui/matchHints/stylesSvg.ts
 import { createElement, Fragment, type ReactElement } from 'react';
 
-export type MatchHintsColors = Readonly<{ core: string; red: string; black: string }>;
+export type MatchHintsColors = Readonly<{ core: string; yellow: string; red: string; black: string }>;
 
 export const COLORS: MatchHintsColors = {
   core: 'rgb(0 240 255)',
+  yellow: 'rgb(255 230 0)',
   red: 'rgb(255 70 90)',
   black: 'rgb(0 0 0)',
 };
@@ -22,6 +22,7 @@ export const ARROW = {
 
 export type MatchHintsDefIds = Readonly<{
   glowId: string;
+  yellowGlowId: string;
   redGlowId: string;
   tileGlowId: string;
 }>;
@@ -33,6 +34,7 @@ export type MatchHintsDefs = Readonly<{
 
 export function makeMatchHintsDefs(uid: string, colors: MatchHintsColors = COLORS): MatchHintsDefs {
   const glowId = `mh-glow-${uid}`;
+  const yellowGlowId = `mh-glow-yellow-${uid}`;
   const redGlowId = `mh-glow-red-${uid}`;
   const tileGlowId = `mh-tile-glow-${uid}`;
 
@@ -56,6 +58,12 @@ export function makeMatchHintsDefs(uid: string, colors: MatchHintsColors = COLOR
       ),
       createElement(
         'filter',
+        { id: yellowGlowId, x: '-35%', y: '-35%', width: '170%', height: '170%' },
+        createElement('feDropShadow', { dx: '0', dy: '0', stdDeviation: '2.5', floodColor: colors.yellow, floodOpacity: '1' }),
+        createElement('feDropShadow', { dx: '0', dy: '0', stdDeviation: '8.5', floodColor: colors.yellow, floodOpacity: '0.55' }),
+      ),
+      createElement(
+        'filter',
         { id: redGlowId, x: '-35%', y: '-35%', width: '170%', height: '170%' },
         createElement('feDropShadow', { dx: '0', dy: '0', stdDeviation: '2.5', floodColor: colors.red, floodOpacity: '1' }),
         createElement('feDropShadow', { dx: '0', dy: '0', stdDeviation: '8.5', floodColor: colors.red, floodOpacity: '0.55' }),
@@ -63,5 +71,5 @@ export function makeMatchHintsDefs(uid: string, colors: MatchHintsColors = COLOR
     ),
   );
 
-  return { ids: { glowId, redGlowId, tileGlowId }, defsJsx };
+  return { ids: { glowId, yellowGlowId, redGlowId, tileGlowId }, defsJsx };
 }
