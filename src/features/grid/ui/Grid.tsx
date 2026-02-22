@@ -1,11 +1,9 @@
-// src/features/grid/ui/Grid.tsx
-import { useEffect, useMemo, useRef, useState } from 'react';
+// src\features\grid\ui\Grid.tsx
+import { useMemo } from 'react';
 import type { ComponentProps } from 'react';
 
 import type { EngineState } from '@/gamelogic/types';
 import type { PossibleMatchSwap } from '@/gamelogic/match';
-
-import { POWER_ARM_EVENT, type PowerArmDetail } from '@/context/powerEvents';
 
 import { GridShell } from './GridShell';
 import GridOverlaysLayer from './GridOverlaysLayer';
@@ -21,10 +19,20 @@ import type { BombVfxMode } from './bomb/fx/BombExplosionFxLayer';
 import { useBomb3x3Targeting } from './bomb/useBomb3x3Targeting';
 
 import { LaserRowOverlay } from './laser/LaserRowOverlay';
-import { LaserRowStrikeFxLayer, type LaserStrikeBurst } from './laser/fx/LaserRowStrikeFxLayer';
+import { LaserRowStrikeFxLayer } from './laser/fx/LaserRowStrikeFxLayer';
 import { useLaserRowTargeting } from './laser/useLaserRowTargeting';
 import { useLaserTargetingSfx } from './laser/fx/useLaserTargetingSfx';
 import { useTargetingTickSfx } from './fx/useTargetingTickSfx';
+import { useLaserStrikeBursts } from './laser/useLaserStrikeBursts';
+import { useTargetingCursor } from './hooks/useTargetingCursor';
+import { useLaserCancel } from './hooks/useLaserCancel';
+import {
+  GRIDLASER_3X3_TARGETING_SFX_COOLDOWN_MS,
+  LASER_CONFIRM_SFX_DELAY_MS,
+  LASER_STRIKE_FX_LIFE_MS,
+  LASER_STRIKE_FX_START_DELAY_MS,
+  LASER_TARGETING_SFX_COOLDOWN_MS,
+} from './laser/laserTimings';
 
 import MatchHintsOverlay from './matchHints/MatchHintsOverlay';
 
@@ -145,31 +153,12 @@ export function GridView({
   // Patch-Delta (Datei 2): Level09 "no manual swaps / no dragging"
   const isLevel09 = state.levelId === 9;
 
-  // -----------------------------
-  // Laser SFX timing knobs (UI-only)
-  // -----------------------------
-  // Targeting "tick" cooldown (ms):
-  // - 0 => play on every row change (can spam/overlap)
-  // - >0 => rate-limited; tweak for feel
-  const LASER_TARGETING_SFX_COOLDOWN_MS = 110;
-
-  // Optional: delay confirm sound to sync with beam FX (default 0 = instant).
-  const LASER_CONFIRM_SFX_DELAY_MS = 0;
-
   const laserSfx = useLaserTargetingSfx({
     armed: laser.laserArmed,
     hoverRow: laser.hoverRow ?? null,
     cooldownMs: LASER_TARGETING_SFX_COOLDOWN_MS,
     confirmDelayMs: LASER_CONFIRM_SFX_DELAY_MS,
   });
-
-  // -----------------------------
-  // 3x3gridlaser targeting SFX (UI-only)
-  // -----------------------------
-  // Assumption: "3x3gridlaser" uses the existing 3×3 targeting hook (currently named bomb).
-  // This plays the SAME targeting asset as the row-laser (laser_targeting.mp3) when the 3×3 target changes.
-  // No confirm sound here by request.
-  const GRIDLASER_3X3_TARGETING_SFX_COOLDOWN_MS = 130;
 
   const gridLaser3x3TargetKey = useMemo(() => {
     if (!bomb.bombArmed) return null;
@@ -185,59 +174,10 @@ export function GridView({
     sfxId: 'laserTargeting',
   });
 
-  // -----------------------------
-  // Laser strike FX timing knobs
-  // -----------------------------
-  // A) FX start delay (ms): when the blue beam becomes visible AFTER the confirm click
-  // C) FX lifetime (ms): how long the beam stays visible AFTER it becomes visible
-  //
-  // NOTE: Keep LaserRowStrikeFxLayer's internal duration roughly in sync with LIFE_MS
-  // if you want a clean "ends when removed" feel.
-  const LASER_STRIKE_FX_START_DELAY_MS = 620;
-  const LASER_STRIKE_FX_LIFE_MS = 420;
-
-  // Laser strike FX (UI-only): play a short blue beam on the chosen row.
-  // Triggered when the user confirms a target cell while laser is armed.
-  const [laserStrikes, setLaserStrikes] = useState<readonly LaserStrikeBurst[]>([]);
-  const laserStrikeSeqRef = useRef(0);
-  const laserStrikeTimersRef = useRef<Map<string, number[]>>(new Map());
-
-  const addTimer = (id: string, t: number) => {
-    const arr = laserStrikeTimersRef.current.get(id);
-    if (arr) arr.push(t);
-    else laserStrikeTimersRef.current.set(id, [t]);
-  };
-
-  const pushLaserStrike = (row: number, startDelayMs = LASER_STRIKE_FX_START_DELAY_MS, lifeMs = LASER_STRIKE_FX_LIFE_MS) => {
-    if (typeof window === 'undefined') return;
-
-    const id = `laserStrike-${Date.now()}-${(laserStrikeSeqRef.current += 1)}`;
-
-    // (A) FX start — optionally delayed
-    const tStart = window.setTimeout(() => {
-      setLaserStrikes((prev) => [...prev, { id, row }]);
-
-      // (C) FX end — lifetime counted AFTER it becomes visible
-      const tEnd = window.setTimeout(() => {
-        setLaserStrikes((prev) => prev.filter((b) => b.id !== id));
-        laserStrikeTimersRef.current.delete(id);
-      }, lifeMs);
-
-      addTimer(id, tEnd);
-    }, startDelayMs);
-
-    addTimer(id, tStart);
-  };
-
-  useEffect(() => {
-    return () => {
-      if (typeof window === 'undefined') return;
-      for (const arr of laserStrikeTimersRef.current.values()) {
-        for (const t of arr) window.clearTimeout(t);
-      }
-      laserStrikeTimersRef.current.clear();
-    };
-  }, []);
+  const { laserStrikes, pushLaserStrike } = useLaserStrikeBursts({
+    defaultStartDelayMs: LASER_STRIKE_FX_START_DELAY_MS,
+    defaultLifeMs: LASER_STRIKE_FX_LIFE_MS,
+  });
 
   const effectiveInputLocked = inputLocked || bomb.bombArmed || laser.laserArmed;
   const capturePointerMove = bomb.bombArmed || laser.laserArmed;
@@ -251,98 +191,9 @@ export function GridView({
     return 'cursor-grab';
   }, [bomb.bombArmed, effectiveInputLocked, isDragging, isLevel09, laser.laserArmed, showLockoutHints]);
 
-  // While in targeting mode (bomb/laser), force the crosshair cursor globally.
-  // - fixes "cursor disappears" when leaving the grid or hovering elements that set their own cursor.
-  useEffect(() => {
-    if (typeof document === 'undefined') return;
+  useTargetingCursor({ targeting: bomb.bombArmed || laser.laserArmed });
 
-    const cls = 'match3-targeting-cursor';
-    const root = document.documentElement;
-
-    const styleId = 'match3-targeting-cursor-style';
-    if (!document.getElementById(styleId)) {
-      const el = document.createElement('style');
-      el.id = styleId;
-      el.textContent = `
-.${cls},
-.${cls} * {
-  cursor: crosshair !important;
-}
-`.trim();
-      document.head.appendChild(el);
-    }
-
-    const targeting = bomb.bombArmed || laser.laserArmed;
-    if (targeting) root.classList.add(cls);
-    else root.classList.remove(cls);
-
-    return () => {
-      root.classList.remove(cls);
-    };
-  }, [bomb.bombArmed, laser.laserArmed]);
-
-  // While in LASER targeting mode, allow quick cancel:
-  // - Right mouse button (anywhere)
-  // - Click outside the grid board
-  // This only DISARMS (no inventory spend).
-  //
-  // IMPORTANT BUGFIX:
-  // RMB inside the grid must NOT trigger the laser "use-at" handler.
-  // So we swallow RMB at the global capture listener (and also guard in cell handler).
-  useEffect(() => {
-    if (!laser.laserArmed) return;
-    if (typeof window === 'undefined') return;
-
-    const emitDisarmLaser = () => {
-      const ev = new CustomEvent<PowerArmDetail>(POWER_ARM_EVENT, {
-        detail: { key: 'laser', armed: false },
-      });
-      window.dispatchEvent(ev);
-    };
-
-    const onGlobalContextMenu = (e: Event) => {
-      // Right-click => cancel targeting.
-      // Prevent the browser context menu while targeting to avoid accidental UI interruptions.
-      if (e instanceof MouseEvent) {
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-      }
-      emitDisarmLaser();
-    };
-
-    const onGlobalPointerDown = (e: Event) => {
-      if (!(e instanceof PointerEvent)) return;
-
-      // RMB => cancel + swallow so Grid cell handlers do not fire.
-      if (e.button === 2) {
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-        emitDisarmLaser();
-        return;
-      }
-
-      // Left click outside board => cancel (do NOT swallow; user may want the click to go through).
-      if (e.button !== 0) return;
-
-      const boardEl = bomb.boardRef.current;
-      if (!boardEl) return;
-
-      const t = e.target;
-      if (t instanceof Node && !boardEl.contains(t)) {
-        emitDisarmLaser();
-      }
-    };
-
-    window.addEventListener('contextmenu', onGlobalContextMenu, { capture: true });
-    window.addEventListener('pointerdown', onGlobalPointerDown, { capture: true });
-
-    return () => {
-      window.removeEventListener('contextmenu', onGlobalContextMenu, true);
-      window.removeEventListener('pointerdown', onGlobalPointerDown, true);
-    };
-  }, [bomb.boardRef, laser.laserArmed]);
+  useLaserCancel({ enabled: laser.laserArmed, boardRef: bomb.boardRef });
 
   const shellStyle = useMemo<CssVars>(() => ({ '--boardDim': 0.35 }), []);
 
