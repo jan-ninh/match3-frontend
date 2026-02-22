@@ -54,7 +54,13 @@ export function handleUseItemAt(state: EngineState, action: UseItemAtAction): En
   // Accept => arm turn commit (engine-owned)
   let s: EngineState = {
     ...state,
-    pendingTurnCommit: { kind: 'item', spendMove: false },
+    pendingTurnCommit: {
+      kind: 'item',
+      spendMove: false,
+      key: action.key,
+      requestId: action.requestId,
+      matchOutcomeEmitted: false,
+    },
     cascadeEffectPolicy,
   };
 
@@ -114,3 +120,4 @@ export function handleUseItemAt(state: EngineState, action: UseItemAtAction): En
 
   return pushEvents(s, events);
 }
+

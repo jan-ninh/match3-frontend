@@ -259,10 +259,18 @@ export type PendingSwap = {
 // Pending Turn Commit (turn-end must be engine-owned)
 // ─────────────────────────────────────────────
 
-export type PendingTurnCommit = {
-  kind: 'swap' | 'item';
-  spendMove: boolean;
-};
+export type PendingTurnCommit =
+  | { kind: 'swap'; spendMove: boolean }
+  | {
+      kind: 'item';
+      spendMove: boolean;
+      /** Item key is required for itemCausedMatch attribution. */
+      key?: ItemEffectKeyForEvent;
+      /** RequestId from UI/intent; used for cross-event correlation. */
+      requestId?: number;
+      /** Guardrail: emit itemCausedMatch at most once per item commit. */
+      matchOutcomeEmitted?: boolean;
+    };
 
 // ─────────────────────────────────────────────
 // Swap Rejection
@@ -332,6 +340,20 @@ export type EngineEvent =
   | { type: 'swapRejected'; from: number; to: number; reason: SwapRejectReason }
   | { type: 'matchesFound'; clears: number; groups: number }
   | { type: 'matchGroup'; id: string; axis: 'h' | 'v'; len: number; indices: number[] }
+  | {
+      type: 'itemCausedMatch';
+      key: ItemEffectKeyForEvent;
+      requestId: number;
+      /** Largest run length in the first detected wave (3/4/5/6+). */
+      maxLen: number;
+      /** Histogram for first detected wave. */
+      len3: number;
+      len4: number;
+      len5: number;
+      len6Plus: number;
+      /** MatchGroup IDs (same turn/axis/endpoints/len scheme as matchGroup). */
+      matchGroupIds: string[];
+    }
   | { type: 'cleared'; count: number }
   | { type: 'gravity' }
   | { type: 'refilled'; count: number }

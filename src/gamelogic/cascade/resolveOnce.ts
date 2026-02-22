@@ -142,10 +142,20 @@ export function resolveOnce(state: EngineState, chargedIds: Set<number> = new Se
 
   events.push({ type: 'matchesFound', clears: m.clearIndices.length, groups: m.groups });
 
+
   // NEW: Emit per-match-group observability so UI/SFX can distinguish match3/match4/match5.
   // This is deterministic and engine-owned (no UI inference needed).
+  const itemCommit = s.pendingTurnCommit && s.pendingTurnCommit.kind === 'item' ? s.pendingTurnCommit : null;
+
   if (m.runs && m.runs.length > 0) {
     const turn = clampInt(s.turnIndex, 0, 1_000_000_000);
+
+    const matchGroupIds: string[] = [];
+    let maxLen = 0;
+    let len3 = 0;
+    let len4 = 0;
+    let len5 = 0;
+    let len6Plus = 0;
 
     for (const r of m.runs) {
       const len = clampInt(r.len, 0, 99);
@@ -157,6 +167,14 @@ export function resolveOnce(state: EngineState, chargedIds: Set<number> = new Se
       // Include turn + axis + endpoints so dedupe IDs won't collide across turns.
       const id = `t${turn}:a${r.axis}:s${first}:e${last}:l${len}`;
 
+      matchGroupIds.push(id);
+      maxLen = Math.max(maxLen, len);
+
+      if (len === 3) len3 += 1;
+      else if (len === 4) len4 += 1;
+      else if (len === 5) len5 += 1;
+      else if (len >= 6) len6Plus += 1;
+
       events.push({
         type: 'matchGroup',
         id,
@@ -165,7 +183,27 @@ export function resolveOnce(state: EngineState, chargedIds: Set<number> = new Se
         indices,
       });
     }
+
+    // NEW: Summary event for Level goals / analytics to avoid per-consumer inference.
+    // Policy: emit at most once per *item* turn commit (first detected wave only).
+    if (itemCommit && itemCommit.matchOutcomeEmitted !== true && itemCommit.key !== undefined && itemCommit.requestId !== undefined) {
+      // Persist guardrail in state so repeated resolveOnce calls in the same commit won't double-emit.
+      s = { ...s, pendingTurnCommit: { ...itemCommit, matchOutcomeEmitted: true } };
+
+      events.push({
+        type: 'itemCausedMatch',
+        key: itemCommit.key,
+        requestId: itemCommit.requestId,
+        maxLen,
+        len3,
+        len4,
+        len5,
+        len6Plus,
+        matchGroupIds,
+      });
+    }
   }
+
 
   // pre-clear effects (level mechanics)
   if (effectsEnabled) {
@@ -209,3 +247,4 @@ export function resolveOnce(state: EngineState, chargedIds: Set<number> = new Se
 
   return { state: s, events, didResolve: didSomething, chargedIds: ctx.chargedIds };
 }
+
