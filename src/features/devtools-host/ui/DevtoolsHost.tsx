@@ -1,3 +1,4 @@
+// src/features/devtools-host/ui/DevtoolsHost.tsx
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 
@@ -139,7 +140,6 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
     return findPossibleMatchSwaps(state);
   }, [debugEnabled, isDev, state.cells, state.height, state.pieces, state.width]);
 
-
   // Demo/presentation: in dev builds allow free level hopping even when the debug overlay is closed.
   const allowDevLevelHop = isDev;
 
@@ -181,7 +181,14 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
 
   useDevHotkeys({
     enabled: isDev,
-    onToggle: () => setDebugEnabled((v) => !v),
+    onToggle: () => {
+      // Toggle DevTools overlay (debugEnabled). When opening, auto-enable match hints.
+      setDebugEnabled((prev) => {
+        const next = !prev;
+        if (next) setShowMatches(true);
+        return next;
+      });
+    },
   });
 
   // When DevTools closes, also close the match overlay (keeps UI consistent).
@@ -444,13 +451,7 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
 
   return (
     <div className="w-full h-full">
-      <DevPanels
-        enabled={isDev && debugEnabled}
-        events={events}
-        onDevWin={onDevWin}
-        onDevLose={onDevLose}
-        onDevResetProgress={onDevResetProgress}
-      />
+      <DevPanels enabled={isDev && debugEnabled} events={events} onDevWin={onDevWin} onDevLose={onDevLose} onDevResetProgress={onDevResetProgress} />
 
       <GameContainer
         state={state}
