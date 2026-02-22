@@ -4,13 +4,18 @@ import { setPhase } from '../../../phaseState';
 import { pushEvents } from '../../events';
 import { isSignalLinked } from '../../../board/signal/signalPathCheck';
 
-type WinReason = 'matchRush' | 'stoneTiles' | 'gate' | 'leaks' | 'terminals' | 'objectiveTerminals' | 'signal';
+type WinReason = 'matchRush' | 'laserRowMatch4' | 'stoneTiles' | 'gate' | 'leaks' | 'terminals' | 'objectiveTerminals' | 'signal';
 type LoseReason = 'moves' | 'contamination';
 
 function checkWinConditions(state: EngineState): WinReason | null {
   // Level 07: MatchRush win
   if ((state.matchRushTargetUnits | 0) > 0 && (state.matchRushUnits | 0) >= (state.matchRushTargetUnits | 0)) {
     return 'matchRush';
+  }
+
+  // Level 09: LaserRow -> Match4+ (engine-owned countdown)
+  if ((state.laserRowMatch4Target | 0) > 0 && (state.laserRowMatch4Remaining | 0) <= 0) {
+    return 'laserRowMatch4';
   }
 
   // Level 08: Stone Tiles win (all destroyed)

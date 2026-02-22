@@ -210,6 +210,9 @@ export type LevelDefinition = {
   // Level 07: Match Rush (units to win; 0/undefined = disabled)
   matchRushTargetUnits?: number;
 
+  // Level 09: LaserRow -> Match4+ (countdowns to win; 0/undefined = disabled)
+  laserRowMatch4Target?: number;
+
   blockedIndices: number[];
   firewallNodes: FirewallNodeDef[];
   gateIndices: number[];
@@ -438,6 +441,10 @@ export type EngineState = {
   // Level 07: Match Rush
   matchRushTargetUnits: number;
   matchRushUnits: number;
+
+  // Level 09: LaserRow -> Match4+ (engine-owned)
+  laserRowMatch4Target: number;
+  laserRowMatch4Remaining: number;
 
   // Level 01: Firewall/Gate mechanics
   breachesTotal: number;

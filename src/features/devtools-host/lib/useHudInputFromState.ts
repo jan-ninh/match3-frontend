@@ -57,12 +57,25 @@ function deriveObjectiveKind(args: {
   objectiveTerminalsTotal: number;
   terminalsTotal: number;
   leaksTotal: number;
+  laserRowMatch4Target: number;
   cells: EngineState['cells'];
 }): ObjectiveKind {
-  const { levelId, signalSourcesTotal, signalTargetsTotal, objectiveTerminalsTotal, terminalsTotal, leaksTotal, cells } = args;
+  const {
+    levelId,
+    signalSourcesTotal,
+    signalTargetsTotal,
+    objectiveTerminalsTotal,
+    terminalsTotal,
+    leaksTotal,
+    laserRowMatch4Target,
+    cells,
+  } = args;
 
   // Level 07: Match Rush
   if (levelId === 7) return 'matchRush';
+
+  // Level 09+: LaserRow -> Match4+ objective (engine-owned)
+  if ((laserRowMatch4Target | 0) > 0) return 'laserRowMatch4';
 
   // Level 05: Signal Network takes priority
   if (signalSourcesTotal > 0 && signalTargetsTotal > 0) return 'signal';
@@ -142,6 +155,8 @@ export function useHudInputFromState(state: EngineState): GameplayHudInput {
     phase,
     matchRushUnits,
     matchRushTargetUnits,
+    laserRowMatch4Remaining,
+    laserRowMatch4Target,
   } = state;
 
   return useMemo(() => {
@@ -165,6 +180,7 @@ export function useHudInputFromState(state: EngineState): GameplayHudInput {
       objectiveTerminalsTotal: objectiveTerminalsTotal ?? 0,
       terminalsTotal: terminalsTotal ?? 0,
       leaksTotal: leaksT,
+      laserRowMatch4Target: laserRowMatch4Target ?? 0,
       cells,
     });
 
@@ -202,6 +218,9 @@ export function useHudInputFromState(state: EngineState): GameplayHudInput {
       matchRushTargetUnits: mrTarget,
       matchRushPercent: mrPct,
 
+      laserRowMatch4Remaining: laserRowMatch4Remaining | 0,
+      laserRowMatch4Target: laserRowMatch4Target | 0,
+
       laserWarning,
       movesLeft: movesLeft ?? '—',
       isWin,
@@ -230,5 +249,7 @@ export function useHudInputFromState(state: EngineState): GameplayHudInput {
     phase,
     matchRushUnits,
     matchRushTargetUnits,
+    laserRowMatch4Remaining,
+    laserRowMatch4Target,
   ]);
 }

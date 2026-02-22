@@ -9,6 +9,13 @@ function buildObjective(input: GameplayHudInput): HudObjective {
     case 'matchRush':
       return { kind: 'matchRush' };
 
+    case 'laserRowMatch4':
+      return {
+        kind: 'laserRowMatch4',
+        remaining: input.laserRowMatch4Remaining,
+        target: input.laserRowMatch4Target,
+      };
+
     case 'spikes':
     case 'nodes':
       return {

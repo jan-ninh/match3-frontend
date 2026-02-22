@@ -42,6 +42,9 @@ export function useGameplayHudModel(input: GameplayHudInput): HudModel {
       input.matchRushUnits,
       input.matchRushTargetUnits,
       input.matchRushPercent,
+
+      input.laserRowMatch4Remaining,
+      input.laserRowMatch4Target,
     ],
   );
 }

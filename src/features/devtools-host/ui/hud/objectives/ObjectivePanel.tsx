@@ -6,6 +6,7 @@ import { ObjectiveTerminals } from './Objective-05-DeliverIDcards';
 import { ObjectiveActivateTerminals } from './Objective-04-ActivateTerminals';
 import { ObjectivePath } from './Objective-03-Path';
 import { ObjectiveMatchRush } from './Objective-07-MatchRush';
+import { ObjectiveLaserRowMatch4 } from './Objective-09-LaserRowMatch4';
 
 type Props = {
   objective: HudObjective;
@@ -18,6 +19,9 @@ export function ObjectivePanel({ objective }: Props) {
 
     case 'matchRush':
       return <ObjectiveMatchRush objective={objective} />;
+
+    case 'laserRowMatch4':
+      return <ObjectiveLaserRowMatch4 objective={objective} />;
 
     case 'spikes':
     case 'nodes':

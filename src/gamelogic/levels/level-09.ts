@@ -1,6 +1,5 @@
 // src/gamelogic/levels/level-09.ts
 import type { LevelDefinition, PieceType } from '../types';
-import { makeLevelLike01 } from './level-01';
 
 type Args = {
   baseSeed: number;
@@ -8,9 +7,32 @@ type Args = {
 };
 
 /**
- * Level-09 placeholder.
- * For now: same rules/objective as Level-01 (clean-room template).
+ * Level 09: Laser setup.
+ * Goal: 3× create a Match4+ as a cascade effect after using Row-Laser.
  */
 export function makeLevel09({ baseSeed, allowedTypes }: Args): LevelDefinition {
-  return makeLevelLike01({ levelId: 9, baseSeed, allowedTypes });
+  const width = 8;
+  const height = 8;
+  const moves = 14;
+
+  return {
+    id: 9,
+    width,
+    height,
+    baseSeed,
+
+    moves,
+    allowedTypes,
+
+    objectiveTitle: '3× Match4+ after Row Laser',
+    laserRowMatch4Target: 3,
+
+    blockedIndices: [],
+    firewallNodes: [],
+    gateIndices: [],
+
+    leakNodes: [],
+    terminalNodes: [],
+    keycardNodes: [],
+  };
 }

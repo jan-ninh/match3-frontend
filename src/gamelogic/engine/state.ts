@@ -270,6 +270,8 @@ export function createState(
   // ─────────────────────────────────────────────
   const stoneTotal = level.stoneTileNodes?.length ?? 0;
 
+  const lrMatch4Target = level.laserRowMatch4Target ?? 0;
+
   const base: EngineState = {
     levelId,
     width: level.width,
@@ -291,6 +293,10 @@ export function createState(
     // Level 07: Match Rush (units to win; 0=disabled)
     matchRushTargetUnits: level.matchRushTargetUnits ?? 0,
     matchRushUnits: 0,
+
+    // Level 09: LaserRow -> Match4+ (engine-owned)
+    laserRowMatch4Target: lrMatch4Target,
+    laserRowMatch4Remaining: lrMatch4Target,
 
     // Level 01: Firewall/Gate mechanics
     breachesTotal: level.firewallNodes.length,

@@ -8,6 +8,7 @@ export type HudObjectiveKind =
   | 'objectiveTerminals'
   | 'signal'
   | 'matchRush'
+  | 'laserRowMatch4'
   | 'none';
 
 export type HudLaserWarning = {
@@ -33,6 +34,7 @@ export type HudObjectiveTerminalState = {
 export type HudObjective =
   | { kind: 'none' }
   | { kind: 'matchRush' }
+  | { kind: 'laserRowMatch4'; remaining: number; target: number }
   | { kind: 'spikes' | 'nodes'; breachDone: number; breachTotal: number; gateOpen: boolean }
   | {
       kind: 'leaks';
@@ -105,6 +107,10 @@ export type GameplayHudInput = {
   matchRushUnits: number;
   matchRushTargetUnits: number;
   matchRushPercent: number; // 0..100 (clamped)
+
+  // Level 09: LaserRow -> Match4+ (engine-owned)
+  laserRowMatch4Remaining: number;
+  laserRowMatch4Target: number;
 
   laserWarning: HudLaserWarning | null;
 

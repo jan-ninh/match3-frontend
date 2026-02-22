@@ -142,7 +142,6 @@ export function resolveOnce(state: EngineState, chargedIds: Set<number> = new Se
 
   events.push({ type: 'matchesFound', clears: m.clearIndices.length, groups: m.groups });
 
-
   // NEW: Emit per-match-group observability so UI/SFX can distinguish match3/match4/match5.
   // This is deterministic and engine-owned (no UI inference needed).
   const itemCommit = s.pendingTurnCommit && s.pendingTurnCommit.kind === 'item' ? s.pendingTurnCommit : null;
@@ -188,7 +187,18 @@ export function resolveOnce(state: EngineState, chargedIds: Set<number> = new Se
     // Policy: emit at most once per *item* turn commit (first detected wave only).
     if (itemCommit && itemCommit.matchOutcomeEmitted !== true && itemCommit.key !== undefined && itemCommit.requestId !== undefined) {
       // Persist guardrail in state so repeated resolveOnce calls in the same commit won't double-emit.
-      s = { ...s, pendingTurnCommit: { ...itemCommit, matchOutcomeEmitted: true } };
+      const nextItemCommit = { ...itemCommit, matchOutcomeEmitted: true };
+      let nextState: EngineState = { ...s, pendingTurnCommit: nextItemCommit };
+
+      // Level 09: decrement countdown once per qualifying RowLaser item commit (Match4+).
+      if (itemCommit.key === 'laserRow' && maxLen >= 4 && (s.laserRowMatch4Target | 0) > 0) {
+        const prevRemaining = s.laserRowMatch4Remaining | 0;
+        if (prevRemaining > 0) {
+          nextState = { ...nextState, laserRowMatch4Remaining: prevRemaining - 1 };
+        }
+      }
+
+      s = nextState;
 
       events.push({
         type: 'itemCausedMatch',
@@ -203,7 +213,6 @@ export function resolveOnce(state: EngineState, chargedIds: Set<number> = new Se
       });
     }
   }
-
 
   // pre-clear effects (level mechanics)
   if (effectsEnabled) {
@@ -247,4 +256,3 @@ export function resolveOnce(state: EngineState, chargedIds: Set<number> = new Se
 
   return { state: s, events, didResolve: didSomething, chargedIds: ctx.chargedIds };
 }
-
