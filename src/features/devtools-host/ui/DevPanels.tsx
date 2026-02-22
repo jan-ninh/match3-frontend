@@ -1,4 +1,3 @@
-// src\features\devtools-host\ui\DevPanels.tsx
 import { createPortal } from 'react-dom';
 
 import type { EngineEvent } from '@/gamelogic';

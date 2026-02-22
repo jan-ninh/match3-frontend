@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ComponentProps } from 'react';
 
 import type { EngineState } from '@/gamelogic/types';
+import type { PossibleMatchSwap } from '@/gamelogic/match';
 
 import { POWER_ARM_EVENT, type PowerArmDetail } from '@/context/powerEvents';
 
@@ -23,6 +24,8 @@ import { LaserRowStrikeFxLayer, type LaserStrikeBurst } from './laser/fx/LaserRo
 import { useLaserRowTargeting } from './laser/useLaserRowTargeting';
 import { useLaserTargetingSfx } from './laser/fx/useLaserTargetingSfx';
 import { useTargetingTickSfx } from './fx/useTargetingTickSfx';
+
+import MatchHintsOverlay from './matchHints/MatchHintsOverlay';
 
 type GridInputViewModel = Readonly<{
   cells: ComponentProps<typeof GridCellsLayer>['cells'];
@@ -49,6 +52,12 @@ export type GridUIProps = {
   swapMs: number;
   debugEnabled: boolean;
   bombVfxMode: BombVfxMode;
+
+  // Dev-only overlays
+  showMatches?: boolean;
+  matchSwaps?: readonly PossibleMatchSwap[];
+
+  onToggleShowMatches?: () => void;
 
   // SSOT for input visuals (drag/hover/selection, etc.)
   vm: GridInputViewModel;
@@ -90,6 +99,9 @@ export function GridView({
   height,
   swapMs,
   debugEnabled,
+  showMatches = false,
+  matchSwaps = [],
+  onToggleShowMatches,
   bombVfxMode,
   vm,
   inputLocked,
@@ -406,6 +418,9 @@ export function GridView({
         width={width}
         inputLocked={inputLocked}
         showLockoutHints={showLockoutHints}
+        showMatches={showMatches}
+        matchCount={matchSwaps.length}
+        onToggleShowMatches={onToggleShowMatches}
         onToggleShowLockoutHints={onToggleShowLockoutHints}
         onDevPrevLevel={onDevPrevLevel}
         onDevNextLevel={onDevNextLevel}
@@ -445,6 +460,11 @@ export function GridView({
 
         {/* Laser Targeting (row highlight) */}
         <LaserRowOverlay armed={laser.laserArmed} row={laser.hoverRow} height={height} zIndex={46} />
+
+        {/* DevTools: possible-match overlay (read-only) */}
+        {import.meta.env.DEV && isDev && debugEnabled && showMatches && matchSwaps.length > 0 ? (
+          <MatchHintsOverlay swaps={matchSwaps} width={width} height={height} zIndex={52} />
+        ) : null}
 
         <GridCellsLayer width={width} height={height} cells={cells} onCellPointerDown={onCellPointerDownEffective} showDebugLabels={showDebugLabels} />
 

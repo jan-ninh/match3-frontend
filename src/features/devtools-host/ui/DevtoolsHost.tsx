@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 
 import { apiCompleteStage, apiLoseGame, apiStartStage } from '@/api/game';
@@ -10,6 +10,8 @@ import { cycleSpecialTilesetPalette, preloadSpecialTiles } from '@/features/grid
 import { useOverlays } from '@/features/overlays';
 import { completeLevel, resetProgress } from '@/services/progress/progressActions';
 import type { PowerKey, Powers } from '@/types';
+import { findPossibleMatchSwaps } from '@/gamelogic/match';
+import type { PossibleMatchSwap } from '@/gamelogic/match';
 
 import { useDevHotkeys } from '../lib/useDevHotkeys';
 import { useDevPanelsTopSync } from '../lib/useDevPanelsTopSync';
@@ -113,6 +115,9 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
   const [showLockoutHints, setShowLockoutHints] = useState(false);
   const [debugEnabled, setDebugEnabled] = useState(false);
 
+  // DevTools: match hints overlay toggle
+  const [showMatches, setShowMatches] = useState(false);
+
   // Dev-only: force rerender when changing tiles palette (palette lives in module state).
   const [tilesVersion, setTilesVersion] = useState(0);
 
@@ -127,6 +132,13 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
   const { isDev, state, inputLocked, canSwapAt, onIntent, onDevResetBoard, onDevNextLevel, onDevPrevLevel, onDevSetLevel, events } = useMatch3Engine({
     initialLevelId,
   });
+
+  // DevTools-only: compute match swaps (read-only)
+  const matchSwaps = useMemo<readonly PossibleMatchSwap[]>(() => {
+    if (!isDev || !debugEnabled) return [];
+    return findPossibleMatchSwaps(state);
+  }, [debugEnabled, isDev, state.cells, state.height, state.pieces, state.width]);
+
 
   // Demo/presentation: in dev builds allow free level hopping even when the debug overlay is closed.
   const allowDevLevelHop = isDev;
@@ -171,6 +183,12 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
     enabled: isDev,
     onToggle: () => setDebugEnabled((v) => !v),
   });
+
+  // When DevTools closes, also close the match overlay (keeps UI consistent).
+  useEffect(() => {
+    if (debugEnabled) return;
+    setShowMatches(false);
+  }, [debugEnabled]);
 
   useDevPanelsTopSync({
     enabled: isDev && debugEnabled,
@@ -426,7 +444,13 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
 
   return (
     <div className="w-full h-full">
-      <DevPanels enabled={isDev && debugEnabled} events={events} onDevWin={onDevWin} onDevLose={onDevLose} onDevResetProgress={onDevResetProgress} />
+      <DevPanels
+        enabled={isDev && debugEnabled}
+        events={events}
+        onDevWin={onDevWin}
+        onDevLose={onDevLose}
+        onDevResetProgress={onDevResetProgress}
+      />
 
       <GameContainer
         state={state}
@@ -436,6 +460,9 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
         isDev={isDev}
         debugEnabled={debugEnabled}
         showLockoutHints={showLockoutHints}
+        showMatches={showMatches}
+        matchSwaps={matchSwaps}
+        onToggleShowMatches={() => setShowMatches((v) => !v)}
         onToggleShowLockoutHints={() => setShowLockoutHints((v) => !v)}
         onDevResetBoard={onDevResetBoard}
         onDevPrevLevel={onDevPrevLevel}

@@ -1,6 +1,7 @@
 import type { RefObject } from 'react';
 import { useCallback, useEffect, useReducer, useRef } from 'react';
 import type { EngineState } from '@/gamelogic';
+import type { PossibleMatchSwap } from '@/gamelogic/match';
 import { LEVEL07_TUNING } from '@/gamelogic/levels/level-07';
 import { useCoreSfxWarmup, useEngineMatchObjectiveSfx } from '@/features/audio';
 import { useLaserItemSfx } from '@/features/audio/sfx/useLaserItemSfx';
@@ -31,6 +32,12 @@ type Props = {
   // Dev-only visuals
   showLockoutHints?: boolean;
   onToggleShowLockoutHints?: () => void;
+
+  // Dev: match hints (read-only overlay)
+  showMatches?: boolean;
+  matchSwaps?: readonly PossibleMatchSwap[];
+
+  onToggleShowMatches?: () => void;
 
   // Dev actions
   onDevResetBoard?: () => void;
@@ -185,6 +192,9 @@ export default function GameContainer({
   debugEnabled = false,
   showLockoutHints = false,
   onToggleShowLockoutHints,
+  showMatches = false,
+  matchSwaps = [],
+  onToggleShowMatches,
   onDevNextTilesPalette,
   onDevResetBoard,
   onDevPrevLevel,
@@ -403,6 +413,9 @@ export default function GameContainer({
       canSwapAt={canSwapAt}
       onIntent={onIntent}
       debugEnabled={debugEnabled}
+      showMatches={showMatches}
+      matchSwaps={matchSwaps}
+      onToggleShowMatches={onToggleShowMatches ?? noop}
       swapMs={state.swapMs}
       bombVfxMode={'legacyShock' satisfies BombVfxMode}
       showLockoutHints={showLockoutHints}

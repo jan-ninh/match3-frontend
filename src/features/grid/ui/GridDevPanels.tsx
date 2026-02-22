@@ -27,6 +27,11 @@ type Props = {
   showLockoutHints: boolean;
   onToggleShowLockoutHints?: () => void;
 
+  // Match hints (DevTools only)
+  showMatches?: boolean;
+  matchCount?: number;
+  onToggleShowMatches?: () => void;
+
   onDevResetBoard?: () => void;
   onDevPrevLevel?: () => void;
   onDevNextLevel?: () => void;
@@ -37,12 +42,20 @@ type Props = {
   stateMeta: DevtoolsMeta;
 };
 
+function toIntOrZero(n: unknown): number {
+  if (typeof n !== 'number' || !Number.isFinite(n)) return 0;
+  return Math.max(0, Math.floor(n));
+}
+
 export function GridDevPanels({
   enabled,
   width,
   inputLocked,
   showLockoutHints,
   onToggleShowLockoutHints,
+  showMatches = false,
+  matchCount,
+  onToggleShowMatches,
   onDevPrevLevel,
   onDevNextLevel,
   onDevSetLevel,
@@ -96,6 +109,13 @@ export function GridDevPanels({
 
     const current = stateMeta.levelId | 0;
     const quickLevels = Array.from({ length: 12 }, (_, i) => i + 1);
+
+    const matchCountSafe = toIntOrZero(matchCount);
+    const matchToggleDisabled = !onToggleShowMatches;
+
+    const matchBtnClass = showMatches
+      ? 'w-full px-3 py-2 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/20 border border-cyan-300/25 text-cyan-100/90'
+      : 'w-full px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 border border-white/10 text-white/80';
 
     return (
       <div className="flex flex-col gap-3">
@@ -156,15 +176,33 @@ export function GridDevPanels({
           </button>
         </div>
 
-        {/*
-          NOTE:
-          DebugDevToolsPanel has its own global "locked" behavior.
-          For demos, we keep the panel interactive and rely on per-action `disabled`.
-        */}
-        <DebugDevToolsPanel locked={false} meta={stateMeta} items={devItems} actions={devActions} />
+        <div className="flex flex-nowrap gap-3">
+          <div className="min-w-[280px] flex-1">
+            {/*
+              NOTE:
+              DebugDevToolsPanel has its own global "locked" behavior.
+              For demos, we keep the panel interactive and rely on per-action `disabled`.
+            */}
+            <DebugDevToolsPanel locked={false} meta={stateMeta} items={devItems} actions={devActions} />
+          </div>
+
+          {/* Match hints — own panel, positioned right of Dev tools panel */}
+          <div className="w-[200px] shrink-0 rounded-xl border border-white/10 bg-black/35 backdrop-blur p-3">
+            <div className="text-xs tracking-widest text-white/60 uppercase mb-2">Matches</div>
+            <button
+              type="button"
+              onClick={onToggleShowMatches}
+              disabled={matchToggleDisabled}
+              aria-pressed={showMatches}
+              className={[matchBtnClass, matchToggleDisabled ? 'opacity-50 cursor-not-allowed' : ''].join(' ')}
+            >
+              Show matches: {matchCountSafe}
+            </button>
+          </div>
+        </div>
       </div>
     );
-  }, [width, debugSnapshot, stateMeta, devItems, devActions, onDevPrevLevel, onDevNextLevel, onDevSetLevel]);
+  }, [width, debugSnapshot, stateMeta, devItems, devActions, onDevPrevLevel, onDevNextLevel, onDevSetLevel, matchCount, onToggleShowMatches, showMatches]);
 
   return useDevPanelsPortal(enabled, panels, { laneId: 'dev-left-lane' });
 }

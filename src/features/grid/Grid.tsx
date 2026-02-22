@@ -1,8 +1,8 @@
-// src/features/grid/Grid.tsx
 import type { ComponentProps } from 'react';
 import { useMemo } from 'react';
 
 import type { EngineState } from '@/gamelogic';
+import type { PossibleMatchSwap } from '@/gamelogic/match';
 
 import type { InputIntent } from './input/typesInput';
 import { useGridInput } from './input/useGridInput';
@@ -22,6 +22,12 @@ export type GridProps = {
   debugEnabled?: boolean;
   showLockoutHints?: boolean;
   showDebugLabels?: boolean;
+
+  // Dev-only overlays
+  showMatches?: boolean;
+  matchSwaps?: readonly PossibleMatchSwap[];
+
+  onToggleShowMatches?: () => void;
 
   // animation timing
   swapMs?: number;
@@ -55,6 +61,9 @@ export function Grid({
   debugEnabled = false,
   showLockoutHints = false,
   showDebugLabels,
+  showMatches = false,
+  matchSwaps = [],
+  onToggleShowMatches,
   swapMs,
   bombVfxMode = 'legacyShock',
   onToggleShowLockoutHints,
@@ -136,6 +145,9 @@ export function Grid({
       height={height}
       swapMs={swapMsEffective}
       debugEnabled={debugEnabled}
+      showMatches={showMatches}
+      matchSwaps={matchSwaps}
+      onToggleShowMatches={onToggleShowMatches ?? noop}
       bombVfxMode={bombVfxMode}
       vm={vm}
       inputLocked={inputLocked}
