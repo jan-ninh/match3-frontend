@@ -7,6 +7,7 @@ import { sealKitsEffect } from './level02/sealKits';
 import { terminalsChargeEffect } from './level03_04/terminals';
 import { sweepFirewallClearEffect } from './level04/sweepFirewallClear';
 import { signalChargeEffect } from './level05/signalCharge';
+import { matchRushProgressEffect } from './level07/matchRushProgress';
 import { stoneTileDamageEffect } from './level08/stoneTileDamage';
 
 export function getCascadeEffectsForState(state: EngineState): readonly CascadeEffect[] {
@@ -35,6 +36,11 @@ export function getCascadeEffectsForState(state: EngineState): readonly CascadeE
   // Level 05: Signal Network charge effect
   if (state.signalSourcesTotal > 0 || state.signalTargetsTotal > 0) {
     effects.push(signalChargeEffect);
+  }
+
+  // Level 07: Match Rush progress (static toggle via matchRushTargetUnits)
+  if ((state.matchRushTargetUnits | 0) > 0) {
+    effects.push(matchRushProgressEffect);
   }
 
   // Level 08: Stone Tiles (match-adjacent damage)
