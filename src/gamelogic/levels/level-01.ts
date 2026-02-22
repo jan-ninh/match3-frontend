@@ -84,6 +84,7 @@ export function makeLevel01({ baseSeed, allowedTypes }: Args): LevelDefinition {
     leakNodes: [],
     terminalNodes: [],
     keycardNodes: [],
+    itemObjectivesDefault: 'allowObjectives',
     baseSeed: seed,
   };
 }

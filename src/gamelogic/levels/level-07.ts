@@ -24,7 +24,7 @@ export const LEVEL07_TUNING = {
   moves: 100,
 
   // Time limit for the run (seconds). UI countdown uses this.
-  timeLimitSec: 90,
+  timeLimitSec: 60,
 
   // Multiplies ALL point sources (matches + items). 1 = neutral.
   globalMultiplier: 30,

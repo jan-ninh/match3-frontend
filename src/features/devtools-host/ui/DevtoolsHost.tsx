@@ -221,7 +221,7 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
       }
 
       openPowerChoice({
-        title: 'Choose your Power!',
+        title: 'Choose your Reward!',
         onChoose: async (powerId) => {
           const backendPowerId = toBackendRewardPowerId(powerId);
           if (!backendPowerId) {
