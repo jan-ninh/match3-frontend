@@ -1,4 +1,3 @@
-// src/gamelogic/levels/level-01.ts
 import type { LevelDefinition, PieceType } from '../types';
 import { deriveSeed } from '../rng';
 
@@ -84,7 +83,12 @@ export function makeLevel01({ baseSeed, allowedTypes }: Args): LevelDefinition {
     leakNodes: [],
     terminalNodes: [],
     keycardNodes: [],
-    itemObjectivesDefault: 'allowObjectives',
     baseSeed: seed,
+    // Items damage
+    // (mode: 'direct') or (mode: 'adjacent')
+    itemObstacleDamage: {
+      laserRow: { firewall: { mode: 'direct', damage: 1 } }, // prettier-ignore
+      bomb3x3:  { firewall: { mode: 'direct', damage: 1 } }, // prettier-ignore
+    },
   };
 }

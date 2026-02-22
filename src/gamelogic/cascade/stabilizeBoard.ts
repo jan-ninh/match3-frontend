@@ -14,6 +14,8 @@ import { shuffleUntilValid } from './shuffleUntilValid';
 import { getCascadeEffectsForState } from './effects/registry';
 import { runPostClearEffects, runPostGravityEffects, runPostRefillEffects, runPreClearEffects } from './effects/runEffects';
 
+import { applyItemObstacleDamageAtIndices } from '../board/obstacles/itemObstacleDamage';
+
 // type MatchDetectionLike = { clearIndices: number[]; groups: number };
 
 function countClearablePieces(state: EngineState, indices: number[]): number {
@@ -74,14 +76,11 @@ export function stabilizeBoard(state: EngineState, opts?: StabilizeOpts): { stat
     for (const step of preSteps as CascadePreStep[]) {
       switch (step.kind) {
         case 'itemLaserRowClear': {
-          const clearedCount = countClearablePieces(s, step.indices);
+          // Item-driven clear must not progress level mechanics via cascade effects.
+          // Instead, apply explicit item obstacle damage rules (per-level config).
+          s = applyItemObstacleDamageAtIndices(s, 'laserRow', step.indices, events);
 
-          if (effectsEnabled) {
-            const match = { clearIndices: step.indices, groups: 1 };
-            const pre = runPreClearEffects(effects, s, match, ctx, events);
-            s = pre.state;
-            ctx = pre.ctx;
-          }
+          const clearedCount = countClearablePieces(s, step.indices);
 
           toPhase('clear');
           s = clearCellsAndPieces(s, step.indices);
@@ -89,22 +88,10 @@ export function stabilizeBoard(state: EngineState, opts?: StabilizeOpts): { stat
           if (clearedCount > 0) events.push({ type: 'cleared', count: clearedCount });
           events.push({ type: 'cascadeStep', kind: 'itemLaserRowClear', row: step.row, indices: step.indices, cleared: clearedCount });
 
-          if (effectsEnabled) {
-            const postClear = runPostClearEffects(effects, s, ctx, events);
-            s = postClear.state;
-            ctx = postClear.ctx;
-          }
-
           toPhase('gravity');
           s = applyGravity(s);
           devAssert('preStep:itemLaserRowClear:applyGravity');
           events.push({ type: 'gravity' });
-
-          if (effectsEnabled) {
-            const postGravity = runPostGravityEffects(effects, s, ctx, events);
-            s = postGravity.state;
-            ctx = postGravity.ctx;
-          }
 
           toPhase('refill');
           const ref = applyRefill(s);
@@ -112,25 +99,16 @@ export function stabilizeBoard(state: EngineState, opts?: StabilizeOpts): { stat
           devAssert('preStep:itemLaserRowClear:applyRefill');
           events.push({ type: 'refilled', count: ref.spawned });
 
-          if (effectsEnabled) {
-            const postRefill = runPostRefillEffects(effects, s, ctx, events);
-            s = postRefill.state;
-            ctx = postRefill.ctx;
-          }
-
           toPhase('settle');
           continue;
         }
 
         case 'itemBomb3x3Blast': {
-          const clearedCount = countClearablePieces(s, step.indices);
+          // Item-driven clear must not progress level mechanics via cascade effects.
+          // Instead, apply explicit item obstacle damage rules (per-level config).
+          s = applyItemObstacleDamageAtIndices(s, 'bomb3x3', step.indices, events);
 
-          if (effectsEnabled) {
-            const match = { clearIndices: step.indices, groups: 1 };
-            const pre = runPreClearEffects(effects, s, match, ctx, events);
-            s = pre.state;
-            ctx = pre.ctx;
-          }
+          const clearedCount = countClearablePieces(s, step.indices);
 
           toPhase('clear');
           s = clearCellsAndPieces(s, step.indices);
@@ -144,34 +122,16 @@ export function stabilizeBoard(state: EngineState, opts?: StabilizeOpts): { stat
             cleared: clearedCount,
           });
 
-          if (effectsEnabled) {
-            const postClear = runPostClearEffects(effects, s, ctx, events);
-            s = postClear.state;
-            ctx = postClear.ctx;
-          }
-
           toPhase('gravity');
           s = applyGravity(s);
           devAssert('preStep:itemBomb3x3Blast:applyGravity');
           events.push({ type: 'gravity' });
-
-          if (effectsEnabled) {
-            const postGravity = runPostGravityEffects(effects, s, ctx, events);
-            s = postGravity.state;
-            ctx = postGravity.ctx;
-          }
 
           toPhase('refill');
           const ref = applyRefill(s);
           s = ref.state;
           devAssert('preStep:itemBomb3x3Blast:applyRefill');
           events.push({ type: 'refilled', count: ref.spawned });
-
-          if (effectsEnabled) {
-            const postRefill = runPostRefillEffects(effects, s, ctx, events);
-            s = postRefill.state;
-            ctx = postRefill.ctx;
-          }
 
           toPhase('settle');
           continue;

@@ -14,6 +14,12 @@ export type PieceId = number;
 export type ItemObjectivesPolicy = 'noObjectives' | 'allowObjectives';
 
 // ─────────────────────────────────────────────
+// Clear Source (Match vs Item)
+// ─────────────────────────────────────────────
+
+export type ClearSource = 'match' | 'item';
+
+// ─────────────────────────────────────────────
 // Terminal State (Level 03+)
 // ─────────────────────────────────────────────
 
@@ -198,6 +204,9 @@ export type LevelDefinition = {
   itemObjectivesDefault?: ItemObjectivesPolicy;
   itemObjectives?: Partial<Record<ItemEffectKeyForEvent, ItemObjectivesPolicy>>;
 
+  // Per-level item obstacle damage rules (engine-owned, applied on item hit area).
+  itemObstacleDamage?: ItemObstacleDamageConfig;
+
   // Level 07: Match Rush (units to win; 0/undefined = disabled)
   matchRushTargetUnits?: number;
 
@@ -286,6 +295,23 @@ export type HardBoundaryKind = 'initLevel' | 'resetBoard';
 // ─────────────────────────────────────────────
 
 export type ItemEffectKeyForEvent = 'bomb3x3' | 'laserRow';
+
+// ─────────────────────────────────────────────
+// Item Obstacle Damage (per-level config)
+// ─────────────────────────────────────────────
+
+export type ItemObstacleHitMode = 'direct' | 'adjacent';
+
+export type ItemObstacleDamageRule = {
+  mode: ItemObstacleHitMode;
+  damage: number;
+};
+
+export type ItemObstacleDamageByKind = Partial<Record<CellObstacle['kind'], ItemObstacleDamageRule>>;
+
+export type ItemObstacleDamageConfig = Partial<Record<ItemEffectKeyForEvent, ItemObstacleDamageByKind>>;
+
+export type ResolvedItemObstacleDamageConfig = Record<ItemEffectKeyForEvent, ItemObstacleDamageByKind>;
 
 // ─────────────────────────────────────────────
 // Engine Events
@@ -377,6 +403,9 @@ export type EngineState = {
 
   // item objective policy (per effect key)
   itemObjectives: Record<ItemEffectKeyForEvent, ItemObjectivesPolicy>;
+
+  // item obstacle damage rules (resolved)
+  itemObstacleDamage: ResolvedItemObstacleDamageConfig;
 
   movesTotal: number;
   movesLeft: number;

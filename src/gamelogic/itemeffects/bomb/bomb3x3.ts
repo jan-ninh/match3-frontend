@@ -4,7 +4,7 @@ import type { CascadePreStep } from '../../cascade/typesCascade';
 import { clearCellsAndPieces } from '../../cascade/clear';
 import { applyGravity } from '../../cascade/gravity';
 import { applyRefill } from '../../cascade/refill';
-import { applyStoneTileDamageAtIndices } from '../../board/obstacles/stoneTile';
+import { applyItemObstacleDamageAtIndices } from '../../board/obstacles/itemObstacleDamage';
 
 export type BombTarget = { x: number; y: number };
 
@@ -85,11 +85,10 @@ export function applyBomb3x3(state: EngineState, center: BombTarget): Bomb3x3Res
 
   if (indices.length === 0) return { state, events: [], clearedIndices: [] };
 
-  // 3x3 blast damages stone tiles
-  let next = state;
-  if ((next.stoneTilesTotal | 0) > 0) {
-    next = applyStoneTileDamageAtIndices(next, indices, 3);
-  }
+  const events: EngineEvent[] = [];
+
+  // Item obstacle damage is engine-owned and per-level configurable.
+  let next = applyItemObstacleDamageAtIndices(state, 'bomb3x3', indices, events);
 
   const clearedCount = countClearablePieces(next, indices);
 
@@ -98,7 +97,6 @@ export function applyBomb3x3(state: EngineState, center: BombTarget): Bomb3x3Res
 
   const refill = applyRefill(next);
 
-  const events: EngineEvent[] = [];
   if (clearedCount > 0) events.push({ type: 'cleared', count: clearedCount });
 
   // Parity: even in direct-apply mode, emit first-class observability event.

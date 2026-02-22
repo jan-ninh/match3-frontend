@@ -7,6 +7,7 @@ import type {
   LevelDefinition,
   LevelId,
   PieceId,
+  ResolvedItemObstacleDamageConfig,
 } from '../types';
 import { getLevelDefinition } from '../levels';
 import { buildInitialBoard } from '../board';
@@ -43,6 +44,26 @@ function resolveItemObjectives(level: LevelDefinition): Record<ItemEffectKeyForE
   const o = level.itemObjectives;
   if (o?.bomb3x3) out.bomb3x3 = o.bomb3x3;
   if (o?.laserRow) out.laserRow = o.laserRow;
+
+  return out;
+}
+
+function resolveItemObstacleDamage(level: LevelDefinition): ResolvedItemObstacleDamageConfig {
+  const out: ResolvedItemObstacleDamageConfig = {
+    bomb3x3: {},
+    laserRow: {},
+  };
+
+  // Default parity: preserve legacy stoneTile item damage when a level uses stone tiles.
+  const hasStone = (level.stoneTileNodes?.length ?? 0) > 0;
+  if (hasStone) {
+    out.laserRow = { ...out.laserRow, stoneTile: { mode: 'direct', damage: 2 } };
+    out.bomb3x3 = { ...out.bomb3x3, stoneTile: { mode: 'direct', damage: 3 } };
+  }
+
+  const cfg = level.itemObstacleDamage;
+  if (cfg?.laserRow) out.laserRow = { ...out.laserRow, ...cfg.laserRow };
+  if (cfg?.bomb3x3) out.bomb3x3 = { ...out.bomb3x3, ...cfg.bomb3x3 };
 
   return out;
 }
@@ -242,6 +263,7 @@ export function createState(
   }
 
   const itemObjectives = resolveItemObjectives(level);
+  const itemObstacleDamage = resolveItemObstacleDamage(level);
 
   // ─────────────────────────────────────────────
   // Build initial state
@@ -258,6 +280,7 @@ export function createState(
     allowedTypes: level.allowedTypes,
 
     itemObjectives,
+    itemObstacleDamage,
 
     movesTotal: level.moves,
     movesLeft: level.moves,
