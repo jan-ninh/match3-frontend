@@ -1,3 +1,4 @@
+// src/gamelogic/cascade/stabilizeBoard.ts
 import type { EngineEvent, EngineState } from '../types';
 import type { EnginePhase } from '../phases';
 import { detectMatches, hasAnyMoves } from '../match';
@@ -48,6 +49,9 @@ export function stabilizeBoard(state: EngineState, opts?: StabilizeOpts): { stat
   const effectsEnabled = state.cascadeEffectPolicy !== 'noObjectives';
   const effects = getCascadeEffectsForState(s);
 
+  // Item-driven charged overlay is ONLY for Level 11
+  const itemChargingEnabled = state.levelId === 11;
+
   // “once per move” charged-set (reset on shuffle)
   let chargedIds = new Set<number>();
   let ctx = { chargedIds };
@@ -87,8 +91,10 @@ export function stabilizeBoard(state: EngineState, opts?: StabilizeOpts): { stat
           s = clearCellsAndPieces(s, step.indices);
           devAssert('preStep:itemLaserRowClear:clearCellsAndPieces');
 
-          // Level 03/11: allow item clears to contribute to chargedCell overlay.
-          s = chargeCellsAtIndices(s, step.indices, events);
+          // Level 11 only: allow item clears to contribute to chargedCell overlay.
+          if (itemChargingEnabled) {
+            s = chargeCellsAtIndices(s, step.indices, events);
+          }
 
           if (clearedCount > 0) events.push({ type: 'cleared', count: clearedCount });
           events.push({ type: 'cascadeStep', kind: 'itemLaserRowClear', row: step.row, indices: step.indices, cleared: clearedCount });
@@ -119,8 +125,10 @@ export function stabilizeBoard(state: EngineState, opts?: StabilizeOpts): { stat
           s = clearCellsAndPieces(s, step.indices);
           devAssert('preStep:itemBomb3x3Blast:clearCellsAndPieces');
 
-          // Level 03/11: allow item clears to contribute to chargedCell overlay.
-          s = chargeCellsAtIndices(s, step.indices, events);
+          // Level 11 only: allow item clears to contribute to chargedCell overlay.
+          if (itemChargingEnabled) {
+            s = chargeCellsAtIndices(s, step.indices, events);
+          }
 
           if (clearedCount > 0) events.push({ type: 'cleared', count: clearedCount });
           events.push({
