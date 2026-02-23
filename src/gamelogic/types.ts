@@ -1,3 +1,4 @@
+// src/gamelogic/types.ts
 import type { EnginePhase } from './phases';
 import type { RngState } from './rng';
 
@@ -218,11 +219,6 @@ export type LevelDefinition = {
   // Per-level item obstacle damage rules (engine-owned, applied on item hit area).
   itemObstacleDamage?: ItemObstacleDamageConfig;
 
-  // Level/Mode policies (engine-owned; resolved into EngineState cached toggles)
-  chargedFloorFromItems?: boolean;
-  enemyTurnEnabled?: boolean;
-  enemyTurnEveryMs?: number;
-
   // Level 07: Match Rush (units to win; 0/undefined = disabled)
   matchRushTargetUnits?: number;
 
@@ -236,7 +232,6 @@ export type LevelDefinition = {
   // Move policy knobs (engine-owned; UI may hide/repurpose moves)
   movesLoseEnabled?: boolean; // default: true
   swapSpendsMove?: boolean; // default: true
-
 
   blockedIndices: number[];
   firewallNodes: FirewallNodeDef[];
@@ -284,16 +279,6 @@ export type PendingSwap = {
 };
 
 // ─────────────────────────────────────────────
-// Pending Item Execution (engine-owned; delayed effects)
-// ─────────────────────────────────────────────
-
-export type PendingLaserRow = Readonly<{
-  executeAtMs: number;
-  target: Readonly<{ x: number; y: number }>;
-  requestId: number;
-}>;
-
-// ─────────────────────────────────────────────
 // Pending Turn Commit (turn-end must be engine-owned)
 // ─────────────────────────────────────────────
 
@@ -306,6 +291,16 @@ export type PendingTurnCommit =
       key?: ItemEffectKeyForEvent;
       /** RequestId from UI/intent; used for cross-event correlation. */
       requestId?: number;
+      /**
+       * Target for scheduled item execution (engine-owned).
+       * Present only when execution is delayed.
+       */
+      target?: { x: number; y: number };
+      /**
+       * If set, item effect execution is delayed until nowMs >= executeAtMs (engine-owned).
+       * Once executed, this field is cleared.
+       */
+      executeAtMs?: number;
       /** Guardrail: emit itemCausedMatch at most once per item commit. */
       matchOutcomeEmitted?: boolean;
     };
@@ -315,6 +310,31 @@ export type PendingTurnCommit =
 // ─────────────────────────────────────────────
 
 export type SwapRejectReason = 'locked' | 'notAdjacent' | 'blocked' | 'empty';
+
+// ─────────────────────────────────────────────
+// Falling Animation Contract (Engine-owned payload; UI consumes)
+// ─────────────────────────────────────────────
+
+export type FallMove = {
+  /** Piece ID that moves (or spawns). */
+  id: PieceId;
+  /**
+   * Source cellIndex before falling.
+   * null => piece is newly spawned; UI derives a spawn-above start position for this toIndex.
+   */
+  fromIndex: number | null;
+  /** Destination cellIndex after falling. */
+  toIndex: number;
+  /**
+   * Optional per-piece delay (ms) to make falls slightly asymmetrical / nicer.
+   * Must be deterministic (computed in engine).
+   */
+  delayMs: number;
+};
+
+export type FallPlan = Readonly<{
+  moves: readonly FallMove[];
+}>;
 
 // ─────────────────────────────────────────────
 // Animation
@@ -332,6 +352,12 @@ export type EngineAnim = {
   durationMs: number;
   deadlineAtMs: number;
   token: number;
+
+  /**
+   * Engine-owned payload for true falling animation.
+   * Present only when kind==='fall' (by convention; enforced later via builders).
+   */
+  fallPlan?: FallPlan;
 };
 
 export type HardBoundaryKind = 'initLevel' | 'resetBoard';
@@ -461,12 +487,6 @@ export type EngineState = {
   // cached level rules
   allowedTypes: PieceType[];
 
-  // level/mode policies (cached from LevelDefinition)
-  chargedFloorFromItems: boolean;
-  enemyTurnEnabled: boolean;
-  enemyTurnEveryMs: number;
-  nextEnemyTurnAtMs: number;
-
   // item objective policy (per effect key)
   itemObjectives: Record<ItemEffectKeyForEvent, ItemObjectivesPolicy>;
 
@@ -566,8 +586,6 @@ export type EngineState = {
 
   events: EngineEvent[];
   pendingSwap: PendingSwap | null;
-
-  pendingLaserRow?: PendingLaserRow | null;
 
   // commit marker for "apply turn-end when we reach idle"
   pendingTurnCommit: PendingTurnCommit | null;
