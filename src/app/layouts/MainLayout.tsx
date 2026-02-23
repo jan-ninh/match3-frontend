@@ -50,6 +50,9 @@ export default function MainLayout() {
         <div className="absolute inset-0 z-10 flex items-center justify-center p-4 overflow-hidden pointer-events-none ">
           <div
             id="app-stage"
+            onContextMenuCapture={(e) => {
+              e.preventDefault();
+            }}
             className={[
               'match3-viewport relative overflow-hidden text-white pointer-events-auto',
               'aspect-3/4',
