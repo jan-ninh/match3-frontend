@@ -1,3 +1,4 @@
+// src/features/devtools-host/lib/useMatch3Engine.ts
 import { useCallback, useEffect, useReducer, useState } from 'react';
 
 import type { EngineAction } from '@/gamelogic';
@@ -10,6 +11,7 @@ import { useMatchRewardSfx } from './match3Engine/effects/useMatchRewardSfx';
 
 import { usePowerRequestIdAllocator } from './match3Engine/power/usePowerRequestIdAllocator';
 import { usePowerBridge } from './match3Engine/power/usePowerBridge';
+import { useLevel09AutoRearmLaser } from './match3Engine/power/useLevel09AutoRearmLaser';
 
 import { useIntentRouter } from './match3Engine/input/useIntentRouter';
 
@@ -92,6 +94,9 @@ export function useMatch3Engine({ initialLevelId = 1 }: Args) {
     events: state.events,
     allocPowerRequestId,
   });
+
+  // Level 09 QoL (engine-signal-based): auto-rearm laser on stable-idle separator.
+  useLevel09AutoRearmLaser({ levelId: state.levelId, events: state.events });
 
   useMatchRewardSfx({ events: state.events });
 
