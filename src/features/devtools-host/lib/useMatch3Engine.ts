@@ -221,6 +221,12 @@ export function useMatch3Engine({ initialLevelId = 1 }: Args) {
   }, []);
 
   // Level 09: timer ticking (engine-owned) — 1Hz, timeout-based (no rAF loop).
+  //
+  // IMPORTANT:
+  // - Timer display depends on EngineState.nowMs.
+  // - nowMs only advances when the reducer receives actions (tick/wake/inputs).
+  // - Therefore this effect MUST re-run after each tick (dependency includes state.nowMs),
+  //   otherwise it will only update when the player acts.
   useEffect(() => {
     const startSec = state.level9TimerStartSec | 0;
     if (startSec <= 0) return;
@@ -240,7 +246,7 @@ export function useMatch3Engine({ initialLevelId = 1 }: Args) {
     }, delay + 5);
 
     return () => window.clearTimeout(id);
-  }, [state.level9TimerStartSec, state.level9TimerDeadlineAtMs, state.phase]);
+  }, [state.level9TimerStartSec, state.level9TimerDeadlineAtMs, state.phase, state.nowMs]);
 
   // Enemy turn ticker — every 3s request one engine-owned enemy swap (engine will ignore if not stable idle).
   useEffect(() => {
