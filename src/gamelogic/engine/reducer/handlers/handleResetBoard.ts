@@ -3,6 +3,11 @@ import type { EngineEvent, EngineState } from '../../../types';
 import { nextAnimToken } from '../../anim';
 import { mkHardBoundary } from '../../events';
 import { createState } from '../../state';
+import { setPhase } from '../../../phaseState';
+
+import { beginAnim } from '../../anim';
+import { pushEvents } from '../../events';
+import { buildSpawnFallPlan } from '../../fallPlan';
 import type { ResetBoardAction } from '../actions';
 
 export function handleResetBoard(state: EngineState, _action: ResetBoardAction): EngineState {
@@ -18,5 +23,14 @@ export function handleResetBoard(state: EngineState, _action: ResetBoardAction):
   const hardBoundary = mkHardBoundary('resetBoard', state.nowMs, base);
 
   // Carry forward monotonic nowMs (never regress to 0)
-  return createState(state.levelId, newSeed, [hardBoundary, resetEvent], base, state.swapMs, state.nowMs);
+  const created = createState(state.levelId, newSeed, [hardBoundary, resetEvent], base, state.swapMs, state.nowMs);
+
+  // Intro: treat all pieces as spawned during a fall animation (UI spawn hack will animate them even before true-fall UI).
+  const events: EngineEvent[] = [];
+  const fallPlan = buildSpawnFallPlan(created.pieces, created.seed, created.width);
+
+  let s: EngineState = setPhase(created, 'fallAnimating', events);
+  s = beginAnim(s, 'fall', s.swapMs, { fallPlan });
+
+  return pushEvents(s, events);
 }

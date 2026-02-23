@@ -10,6 +10,7 @@ import { autoFinishAll } from './autoFinish';
 import type { ApplyAnimDone } from './autoFinish';
 import { mkAnimDone, mkAnimDoneIgnored, pushEvents } from './events';
 import { applyFallAnimDone } from './fallFlow';
+import { buildFallPlan } from './fallPlan';
 
 function applySwapCommit(state: EngineState, from: number, to: number): EngineState {
   const fromPid = state.cells[from]!.pieceId!;
@@ -145,6 +146,8 @@ export function applySwapAnimDone(state: EngineState, token: number, mode: AnimD
   s = { ...s, pendingTurnCommit: { kind: 'swap', spendMove: didSpendMove } };
   events.push({ type: 'turnCommitArmed', kind: 'swap', spendMove: didSpendMove, from, to });
 
+  const prePieces = s.pieces;
+
   const step = resolveOnce(s);
   s = step.state;
   events.push(...step.events);
@@ -156,7 +159,8 @@ export function applySwapAnimDone(state: EngineState, token: number, mode: AnimD
   }
 
   s = setPhase(s, 'fallAnimating', events);
-  s = beginAnim(s, 'fall', s.swapMs);
+  const fallPlan = buildFallPlan({ prePieces, postPieces: s.pieces, seed: s.seed, width: s.width });
+  s = beginAnim(s, 'fall', s.swapMs, { fallPlan });
 
   const withEvents = pushEvents(s, events);
 
