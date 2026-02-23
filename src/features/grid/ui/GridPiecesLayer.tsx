@@ -119,9 +119,17 @@ export default function GridPiecesLayer({
       // Apply per-move transition; will be reset in cleanup to avoid leaking into swaps/previews.
       el.style.transition = `transform ${moveMs}ms ${fallEasing}`;
 
-      // Engine jitter (mv.delayMs) + global hole delay.
+      // Engine jitter (mv.delayMs) + global hole delay + spawn stacking delay (bottom-first).
       const holeDelayMs = FALLING_TUNING.holeDelayMs;
-      el.style.transitionDelay = `${holeDelayMs + mv.delayMs}ms`;
+      const stackDelayMs = mv.spawnStackDelayMs ?? 0;
+
+      // Ensure spawned stacks cannot "invert" due to jitter.
+      // If msPerRow is enabled, keep jitter within a single row-step.
+      const msPerRow = FALLING_TUNING.fall.msPerRow | 0;
+      const jitterMs = mv.delayMs | 0;
+      const jitterSafeMs = msPerRow > 0 ? ((jitterMs % msPerRow) + msPerRow) % msPerRow : jitterMs;
+
+      el.style.transitionDelay = `${holeDelayMs + stackDelayMs + jitterSafeMs}ms`;
 
       // Set start position before paint, then animate to target next frame.
       el.style.transform = start;

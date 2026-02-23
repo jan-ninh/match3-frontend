@@ -58,7 +58,7 @@ export type FallingTuning = Readonly<{
 // TRUE FALLING ANIMATION
 //============================================================
 export const FALLING_TUNING: FallingTuning = {
-  holeDelayMs: 240,
+  holeDelayMs: 300,
 
   moveDelay: {
     enabled: true,
@@ -74,7 +74,7 @@ export const FALLING_TUNING: FallingTuning = {
 
   fall: {
     // Fixed-duration fallback (used only when msPerRow <= 0)
-    baseDurationMs: 400, // 0 => use swapMs
+    baseDurationMs: 600, // 0 => use swapMs
 
     // Constant-speed mode (ms per row). Set <=0 to disable.
     msPerRow: 70,
@@ -193,13 +193,20 @@ export function computeFallAnimWaitMs(swapMs: number, width: number, plan: FallP
   if (s === 0) return 0;
 
   const holeDelayMs = clampInt(FALLING_TUNING.holeDelayMs, 0, 60_000);
+  const msPerRow = clampInt(FALLING_TUNING.fall.msPerRow, 0, 60_000);
 
   let maxMs = 0;
 
   for (const mv of plan.moves) {
+    // Keep jitter within a single row-step to prevent "stack inversion" (top starts before bottom).
     const jitter = clampInt(mv.delayMs, 0, 60_000);
+    const jitterSafe = msPerRow > 0 ? jitter % msPerRow : jitter;
+
+    // Additional spawn stacking delay (engine-owned; 0 for non-spawns).
+    const stackDelay = clampInt(mv.spawnStackDelayMs ?? 0, 0, 60_000);
+
     const moveMs = computeFallMoveDurationMs(s, mv.fromIndex, mv.toIndex, width);
-    const end = holeDelayMs + jitter + moveMs;
+    const end = holeDelayMs + stackDelay + jitterSafe + moveMs;
     if (end > maxMs) maxMs = end;
   }
 

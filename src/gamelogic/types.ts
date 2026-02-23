@@ -335,6 +335,12 @@ export type FallMove = {
    * Must be deterministic (computed in engine).
    */
   delayMs: number;
+  /**
+   * Additional deterministic delay (ms) to enforce spawn stacking in a column.
+   * Goal: spawned tiles start bottom-first so they don't look like they fall through each other.
+   * 0/undefined for non-spawn moves.
+   */
+  spawnStackDelayMs?: number;
 };
 
 export type FallPlan = Readonly<{

@@ -38,7 +38,7 @@ import { TilePopFxLayer, type TilePopVariant } from './fx/tilePop/TilePopFxLayer
 // - 11..20 = stronger set (new)
 //===========================================================================================================
 //===========================================================================================================
-const TILE_POP_VFX_VARIANT: TilePopVariant = 0;
+const TILE_POP_VFX_VARIANT: TilePopVariant = 9;
 // 1 subtle
 // 2 Luft meh
 // 3 Luft meh
@@ -56,10 +56,10 @@ const TILE_POP_VFX_VARIANT: TilePopVariant = 0;
 // 14 extreme Luftkreise
 // 15 zu weiß, spuckt viele weiße kleine kreise nach aussen
 // 16 zu weiß, spuckt viele weiße kleine striche nach aussen
-// 17 helle weiße kreise... grenzwertig (nicht soo schlecht)
+// 17 [xxx] helle weiße kreise... grenzwertig (nicht soo schlecht)
 // 18 zu weiß, starker fadenkreuz
-// 19 viereckig (nicht soooo schlecht)
-// 20 starke Luft Kreise (geht so.....)
+// 19 [xxx] viereckig (nicht soooo schlecht)
+// 20 [xxx] starke Luft Kreise (geht so.....)
 
 type GridInputViewModel = Readonly<{
   cells: ComponentProps<typeof GridCellsLayer>['cells'];
