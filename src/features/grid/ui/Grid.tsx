@@ -1,4 +1,4 @@
-// src\features\grid\ui\Grid.tsx
+// src/features/grid/ui/Grid.tsx
 import { useMemo } from 'react';
 import type { ComponentProps } from 'react';
 
@@ -277,6 +277,10 @@ export function GridView({
   const bombFxMode: BombVfxMode = import.meta.env.DEV && isDev && debugEnabled ? bombVfxMode : 'legacyShock';
   const showMatchHints = import.meta.env.DEV && isDev && debugEnabled && showMatches && matchSwaps.length > 0;
 
+  const fallAnim = state.anim?.kind === 'fall' ? state.anim : null;
+  const fallPlan = fallAnim?.fallPlan ?? null;
+  const fallToken = fallAnim?.token ?? null;
+
   return (
     <>
       <GridDevPanels
@@ -339,6 +343,8 @@ export function GridView({
           isDragging={isDragging}
           phase={state.phase}
           swapMs={swapMs}
+          fallPlan={fallPlan}
+          fallToken={fallToken}
           previewActive={previewActive}
           previewOtherPieceId={previewOtherPieceId}
           previewAxis={previewAxisUI}
