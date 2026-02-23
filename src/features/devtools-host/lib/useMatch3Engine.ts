@@ -1,122 +1,21 @@
-// src\features\devtools-host\lib\useMatch3Engine.ts
-import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react';
+import { useCallback, useEffect, useReducer, useState } from 'react';
 
 import type { EngineAction } from '@/gamelogic';
-import { canSwap, createInitialState, engineReducer, SWAP_MS } from '@/gamelogic';
-import { playSfx } from '@/features/audio';
-import {
-  POWER_CONSUME_EVENT,
-  POWER_USE_AT_EVENT,
-  POWER_USE_EVENT,
-  type PowerConsumeDetail,
-  type PowerUseAtDetail,
-  type PowerUseDetail,
-} from '@/context/powerEvents';
-import type { PowerKey } from '@/types';
-import { useCampaignTracking } from '@/services/campaign/useCampaignTracking';
-import { setRuntimeLevelId } from '@/context/levelRuntime';
+import { createInitialState, engineReducer, SWAP_MS } from '@/gamelogic';
+
+import { useEngineLifecycle } from './match3Engine/effects/useEngineLifecycle';
+import { useTimeSources } from './match3Engine/effects/useTimeSources';
+import { useAnimBridges } from './match3Engine/effects/useAnimBridges';
+import { useMatchRewardSfx } from './match3Engine/effects/useMatchRewardSfx';
+
+import { usePowerRequestIdAllocator } from './match3Engine/power/usePowerRequestIdAllocator';
+import { usePowerBridge } from './match3Engine/power/usePowerBridge';
+
+import { useIntentRouter } from './match3Engine/input/useIntentRouter';
 
 type Args = {
   initialLevelId?: number;
 };
-
-function isPowerKey(v: unknown): v is PowerKey {
-  return v === 'gridlaser' || v === 'bomb' || v === 'laser' || v === 'extraShuffle';
-}
-
-type PowerUsedEvent = Readonly<{
-  type: 'powerUsed';
-  key: PowerKey;
-  requestId: number;
-}>;
-
-function isPowerUsedEvent(ev: unknown): ev is PowerUsedEvent {
-  if (!ev || typeof ev !== 'object') return false;
-  const r = ev as Record<string, unknown>;
-  if (r.type !== 'powerUsed') return false;
-  if (!isPowerKey(r.key)) return false;
-  if (typeof r.requestId !== 'number') return false;
-  const id = r.requestId | 0;
-  if (id <= 0) return false;
-  return true;
-}
-
-type SeenRing = {
-  set: Set<string>;
-  order: string[];
-};
-
-function markSeen(seen: SeenRing, id: string, max: number): boolean {
-  if (seen.set.has(id)) return false;
-  seen.set.add(id);
-  seen.order.push(id);
-
-  while (seen.order.length > max) {
-    const oldest = seen.order.shift();
-    if (oldest) seen.set.delete(oldest);
-  }
-
-  return true;
-}
-
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return !!v && typeof v === 'object';
-}
-
-function extractMatchLen(ev: unknown): number | null {
-  if (!isRecord(ev)) return null;
-
-  const t = ev.type;
-  if (typeof t !== 'string') return null;
-
-  // Keep this conservative to avoid false positives.
-  if (!/match/i.test(t)) return null;
-
-  const numKeys: readonly string[] = ['len', 'size', 'count', 'matchLen', 'matchSize'] as const;
-  for (const k of numKeys) {
-    const v = ev[k];
-    if (typeof v === 'number' && Number.isFinite(v)) return Math.max(0, Math.floor(v));
-  }
-
-  const arrKeys: readonly string[] = ['cells', 'indices', 'indexes', 'tiles', 'positions', 'coords', 'points', 'group'] as const;
-  for (const k of arrKeys) {
-    const v = ev[k];
-    if (Array.isArray(v)) return v.length;
-  }
-
-  // Some events may carry a single match group under a nested key.
-  const g = ev.match;
-  if (Array.isArray(g)) return g.length;
-
-  return null;
-}
-
-function extractMatchEventId(ev: unknown, matchLen: number, fallbackIndex: number): string | null {
-  if (!isRecord(ev)) return null;
-
-  const t = ev.type;
-  if (typeof t !== 'string' || t.length === 0) return null;
-
-  const idKeys: readonly string[] = ['id', 'eventId', 'seq', 'token'] as const;
-  for (const k of idKeys) {
-    const v = ev[k];
-    if (typeof v === 'number' && Number.isFinite(v)) return `${t}:${k}:${Math.floor(v)}`;
-    if (typeof v === 'string' && v.length > 0) return `${t}:${k}:${v}`;
-  }
-
-  const at = ev.atMs ?? ev.nowMs ?? ev.timeMs;
-  if (typeof at === 'number' && Number.isFinite(at)) return `${t}:at:${Math.floor(at)}:len:${matchLen}`;
-
-  // Last resort: stable-ish fingerprint (best-effort).
-  try {
-    const s = JSON.stringify(ev);
-    if (typeof s === 'string' && s.length > 0) return `${t}:len:${matchLen}:json:${s.slice(0, 180)}`;
-  } catch {
-    // ignore
-  }
-
-  return `${t}:len:${matchLen}:i:${fallbackIndex}`;
-}
 
 export function useMatch3Engine({ initialLevelId = 1 }: Args) {
   const isDev = import.meta.env.DEV;
@@ -160,341 +59,48 @@ export function useMatch3Engine({ initialLevelId = 1 }: Args) {
 
   const [state, dispatch] = useReducer(engineReducer, levelId, createInitialState);
 
-  // bootstrap monotonic time once (keeps engine-timers stable even if initial state starts at nowMs=0)
-  useEffect(() => {
-    dispatch({ type: 'wake', nowMs: performance.now() } as EngineAction);
-  }, []);
-
-  // campaign/run tracking (FE → BE)
-  useCampaignTracking({ state });
-
-  // Mirror current engine level to a tiny runtime signal for UI-only policies.
-  useEffect(() => {
-    setRuntimeLevelId(state.levelId);
-  }, [state.levelId]);
-
   // keep Engine timing in sync (Engine is the source of truth)
   const desiredSwapMs = reducedMotion ? 0 : SWAP_MS;
-  useLayoutEffect(() => {
-    if (state.swapMs === desiredSwapMs) return;
-    dispatch({ type: 'setSwapMs', swapMs: desiredSwapMs, nowMs: performance.now() } as EngineAction);
-  }, [desiredSwapMs, state.swapMs]);
 
-  // ensure level change actually re-inits engine (skip first run)
-  const didInitRef = useRef(false);
-  useEffect(() => {
-    if (!didInitRef.current) {
-      didInitRef.current = true;
-      return;
-    }
-    dispatch({ type: 'initLevel', levelId, nowMs: performance.now() } as EngineAction);
-  }, [levelId]);
-
-  // monotonic requestId allocator for power flows (prevents requestId=0 breaking consume dedupe)
-  const nextPowerRequestIdRef = useRef(1);
-  const allocPowerRequestId = useCallback((maybe: unknown): number => {
-    if (typeof maybe === 'number' && Number.isFinite(maybe)) {
-      const v = maybe | 0;
-      if (v > 0) return v;
-    }
-
-    const v = nextPowerRequestIdRef.current | 0;
-    nextPowerRequestIdRef.current = (v + 1) | 0;
-    return Math.max(1, v);
-  }, []);
-
-  // 0) Low-noise wake-ups (tab return / focus)
-  useEffect(() => {
-    const wake = () => dispatch({ type: 'wake', nowMs: performance.now() } as EngineAction);
-
-    const onFocus = () => wake();
-    const onVis = () => {
-      if (!document.hidden) wake();
-    };
-
-    window.addEventListener('focus', onFocus);
-    document.addEventListener('visibilitychange', onVis);
-
-    return () => {
-      window.removeEventListener('focus', onFocus);
-      document.removeEventListener('visibilitychange', onVis);
-    };
-  }, []);
-
-  // Level 09: timer ticking (engine-owned) — 1Hz, timeout-based (no rAF loop).
-  //
-  // IMPORTANT:
-  // - Timer display depends on EngineState.nowMs.
-  // - nowMs only advances when the reducer receives actions (tick/wake/inputs).
-  // - Therefore this effect MUST re-run after each tick (dependency includes state.nowMs),
-  //   otherwise it will only update when the player acts.
-  useEffect(() => {
-    const startSec = state.level9TimerStartSec | 0;
-    if (startSec <= 0) return;
-
-    if (state.phase === 'win' || state.phase === 'lose') return;
-
-    const now = performance.now();
-    const deadline = state.level9TimerDeadlineAtMs | 0;
-
-    // Update at most once per second, but also guarantee we tick at the deadline boundary.
-    const nextSecond = (Math.floor(now / 1000) + 1) * 1000;
-    const targetAt = deadline > 0 ? Math.min(deadline, nextSecond) : nextSecond;
-
-    const delay = Math.max(0, targetAt - now);
-    const id = window.setTimeout(() => {
-      dispatch({ type: 'tick', nowMs: performance.now() } as EngineAction);
-    }, delay + 5);
-
-    return () => window.clearTimeout(id);
-  }, [state.level9TimerStartSec, state.level9TimerDeadlineAtMs, state.phase, state.nowMs]);
-
-  //=========================================================================================================================
-  // Enemy turn ticker (Level 11 only) — every 3s request one engine-owned enemy swap (engine will ignore if not stable idle).
-  //=========================================================================================================================
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (state.levelId !== 11) return; // (Level 11 only)
-    if (state.phase === 'win' || state.phase === 'lose') return;
-
-    const id = window.setInterval(() => {
-      dispatch({ type: 'enemyTurn', nowMs: performance.now() } as EngineAction);
-    }, 5000); // every x seconds
-
-    return () => window.clearInterval(id);
-  }, [state.levelId, state.phase]);
-
-  // Power → Engine bridge (non-targeted)
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const onUse = (e: Event) => {
-      const ce = e as CustomEvent<PowerUseDetail>;
-      const d = ce.detail;
-      if (!d || d.key !== 'extraShuffle') return;
-
-      const requestId = allocPowerRequestId(d.requestId);
-
-      dispatch({ type: 'reshuffle', requestId, nowMs: performance.now() } as EngineAction);
-    };
-
-    window.addEventListener(POWER_USE_EVENT, onUse as EventListener);
-    return () => window.removeEventListener(POWER_USE_EVENT, onUse as EventListener);
-  }, [allocPowerRequestId]);
-
-  // Power → Engine bridge (Bomb targeting confirm)
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const onUseAt = (e: Event) => {
-      const ce = e as CustomEvent<PowerUseAtDetail>;
-      const d = ce.detail;
-      if (!d) return;
-
-      // Use runtime string compare to avoid TS "no overlap" if PowerUseAtDetail.key union lags behind.
-      const powerKey = String(d.key);
-
-      let itemKey: 'bomb3x3' | 'laserRow';
-      if (powerKey === 'gridlaser' || powerKey === 'bomb') itemKey = 'bomb3x3';
-      else if (powerKey === 'laser' || powerKey === 'laserRow' || powerKey === 'laserRowClear') itemKey = 'laserRow';
-      else return;
-
-      const t = d.target;
-      if (!t || typeof t.x !== 'number' || typeof t.y !== 'number') return;
-
-      const requestId = allocPowerRequestId(d.requestId);
-
-      dispatch({
-        type: 'useItemAt',
-        key: itemKey,
-        target: { x: t.x | 0, y: t.y | 0 },
-        requestId,
-        nowMs: performance.now(),
-      } as EngineAction);
-    };
-
-    window.addEventListener(POWER_USE_AT_EVENT, onUseAt as EventListener);
-    return () => window.removeEventListener(POWER_USE_AT_EVENT, onUseAt as EventListener);
-  }, [allocPowerRequestId]);
-
-  // EngineEvent `powerUsed` → UI consume (ack-driven)
-  const seenPowerUsedRef = useRef<SeenRing>({ set: new Set<string>(), order: [] });
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const seen = seenPowerUsedRef.current;
-
-    for (const ev of state.events) {
-      if (!isPowerUsedEvent(ev)) continue;
-
-      // include levelId to avoid cross-level requestId collisions
-      const id = `${state.levelId}:${ev.key}:${ev.requestId}`;
-      if (!markSeen(seen, id, 256)) continue;
-
-      window.dispatchEvent(
-        new CustomEvent<PowerConsumeDetail>(POWER_CONSUME_EVENT, {
-          detail: { key: ev.key, amount: 1, requestId: ev.requestId },
-        }),
-      );
-    }
-  }, [state.events, state.levelId]);
-
-  // Match4/5 reward SFX (event-driven, deduped)
-  const seenMatchSfxRef = useRef<SeenRing>({ set: new Set<string>(), order: [] });
-
-  useEffect(() => {
-    const seen = seenMatchSfxRef.current;
-
-    let best = 0;
-
-    for (let i = 0; i < state.events.length; i += 1) {
-      const ev = state.events[i];
-      const len = extractMatchLen(ev);
-      if (len == null || len < 4) continue;
-
-      const id = extractMatchEventId(ev, len, i);
-      if (!id) continue;
-      if (!markSeen(seen, id, 512)) continue;
-
-      if (len > best) best = len;
-    }
-
-    if (best >= 5) {
-      playSfx('match5Sting');
-      return;
-    }
-
-    if (best === 4) {
-      playSfx('match4Chime');
-    }
-  }, [state.events]);
-
-  // derive primitives so effects don't depend on `state.anim` object reference
-  const animKind = state.anim?.kind;
-  const animToken = state.anim?.token;
-  const animDurationMs = state.anim?.durationMs;
-  const animDeadlineAtMs = state.anim?.deadlineAtMs;
-
-  // 1) UI → Engine "done" bridge (NO rAF loop)
-  useEffect(() => {
-    if (!animKind) return;
-    if (animToken == null) return;
-    if (animDurationMs == null) return;
-
-    const id = window.setTimeout(() => {
-      const now = performance.now();
-
-      // keep engine clock fresh so follow-up beginAnim uses correct nowMs
-      dispatch({ type: 'wake', nowMs: now } as EngineAction);
-
-      if (animKind === 'swap') {
-        dispatch({ type: 'swapAnimDone', token: animToken, nowMs: now } as EngineAction);
-        return;
-      }
-
-      if (animKind === 'swapBack') {
-        dispatch({ type: 'swapBackAnimDone', token: animToken, nowMs: now } as EngineAction);
-        return;
-      }
-
-      if (animKind === 'fall') {
-        dispatch({ type: 'fallAnimDone', token: animToken, nowMs: now } as EngineAction);
-        return;
-      }
-    }, animDurationMs);
-
-    return () => window.clearTimeout(id);
-  }, [animToken, animKind, animDurationMs]);
-
-  // 2) Deadline fallback (single timer, no per-frame ticking)
-  useEffect(() => {
-    if (animToken == null) return;
-    if (animDeadlineAtMs == null) return;
-
-    const delay = Math.max(0, animDeadlineAtMs - performance.now());
-    const id = window.setTimeout(() => {
-      dispatch({ type: 'wake', nowMs: performance.now() } as EngineAction);
-    }, delay + 5);
-
-    return () => window.clearTimeout(id);
-  }, [animToken, animDeadlineAtMs]);
-
-  const canSwapAt = useCallback(
-    (from: number, to: number) => {
-      return canSwap(from, to, state.width, state.cells).ok;
-    },
-    [state.width, state.cells],
-  );
-
-  // Keep current grid dims for event-driven handlers (avoids recreating input controllers each render).
-  const gridDimsRef = useRef<{ width: number; height: number }>({ width: state.width, height: state.height });
-  useEffect(() => {
-    gridDimsRef.current = { width: state.width, height: state.height };
-  }, [state.width, state.height]);
-
-  const onIntent = useCallback(
-    (intent: unknown) => {
-      const i = intent as unknown as {
-        type?: unknown;
-        index?: unknown;
-        from?: unknown;
-        to?: unknown;
-        target?: unknown;
-        requestId?: unknown;
-      };
-      if (i?.type === 'click' && typeof i.index === 'number') {
-        const idx = i.index;
-        if (!Number.isFinite(idx)) return;
-
-        const { width, height } = gridDimsRef.current;
-        if (width <= 0 || height <= 0) return;
-
-        const max = width * height;
-        if (idx < 0 || idx >= max) return;
-
-        const x = idx % width;
-        const y = Math.floor(idx / width);
-
-        dispatch({
-          type: 'clickCell',
-          // Compatibility: different reducer versions may read different fields.
-          index: idx,
-          cellIndex: idx,
-          x,
-          y,
-          target: { x, y },
-          nowMs: performance.now(),
-        } as EngineAction);
-        return;
-      }
-
-      if (i?.type === 'swap' && typeof i.from === 'number' && typeof i.to === 'number') {
-        dispatch({ type: 'swapAttempt', from: i.from, to: i.to, nowMs: performance.now() } as EngineAction);
-        return;
-      }
-
-      // Legacy route: convert useBombAt intents to useItemAt (prevents reducer crash)
-      if (i?.type === 'useBombAt') {
-        const t = i.target as { x?: unknown; y?: unknown } | undefined;
-        if (t && typeof t.x === 'number' && typeof t.y === 'number') {
-          const requestId = allocPowerRequestId(i.requestId);
-
-          dispatch({
-            type: 'useItemAt',
-            key: 'bomb3x3',
-            target: { x: t.x | 0, y: t.y | 0 },
-            requestId,
-            nowMs: performance.now(),
-          } as EngineAction);
-          return;
-        }
-      }
-
-      dispatch(intent as EngineAction);
-    },
-    [allocPowerRequestId, dispatch],
-  );
+  // Composition: lifecycle + time sources + bridges + boundaries
+  useEngineLifecycle({
+    dispatch,
+    state,
+    levelId,
+    engineLevelId: state.levelId,
+    engineSwapMs: state.swapMs,
+    desiredSwapMs,
+  });
+
+  useTimeSources({
+    dispatch,
+    levelId: state.levelId,
+    phase: state.phase,
+    level9TimerStartSec: state.level9TimerStartSec,
+    level9TimerDeadlineAtMs: state.level9TimerDeadlineAtMs,
+    nowMs: state.nowMs,
+  });
+
+  const { allocPowerRequestId } = usePowerRequestIdAllocator();
+
+  usePowerBridge({
+    dispatch,
+    levelId: state.levelId,
+    events: state.events,
+    allocPowerRequestId,
+  });
+
+  useMatchRewardSfx({ events: state.events });
+
+  useAnimBridges({ dispatch, anim: state.anim });
+
+  const { canSwapAt, onIntent } = useIntentRouter({
+    dispatch,
+    width: state.width,
+    height: state.height,
+    cells: state.cells,
+    allocPowerRequestId,
+  });
 
   const onDevResetBoard = useCallback(() => {
     dispatch({ type: 'resetBoard', nowMs: performance.now() } as EngineAction);
