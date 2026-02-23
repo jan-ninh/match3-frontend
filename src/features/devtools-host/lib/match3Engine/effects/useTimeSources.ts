@@ -13,16 +13,12 @@ type Args = Readonly<{
   level9TimerStartSec: number;
   level9TimerDeadlineAtMs: number;
   nowMs: number;
+
+  // Engine-owned delayed item execution (Row-Laser confirm gap)
+  pendingLaserRowExecuteAtMs: number;
 }>;
 
-export function useTimeSources({
-  dispatch,
-  levelId,
-  phase,
-  level9TimerStartSec,
-  level9TimerDeadlineAtMs,
-  nowMs,
-}: Args) {
+export function useTimeSources({ dispatch, levelId, phase, level9TimerStartSec, level9TimerDeadlineAtMs, nowMs, pendingLaserRowExecuteAtMs }: Args) {
   // 0) Low-noise wake-ups (tab return / focus)
   useEffect(() => {
     const wake = () => dispatch({ type: 'wake', nowMs: performance.now() } as EngineAction);
@@ -40,6 +36,20 @@ export function useTimeSources({
       document.removeEventListener('visibilitychange', onVis);
     };
   }, [dispatch]);
+
+  // Engine-owned: delayed laserRow execution (no interactive gap).
+  useEffect(() => {
+    const at = pendingLaserRowExecuteAtMs | 0;
+    if (at <= 0) return;
+    if (phase === 'win' || phase === 'lose') return;
+
+    const delay = Math.max(0, at - performance.now());
+    const id = window.setTimeout(() => {
+      dispatch({ type: 'wake', nowMs: performance.now() } as EngineAction);
+    }, delay + 5);
+
+    return () => window.clearTimeout(id);
+  }, [pendingLaserRowExecuteAtMs, phase, dispatch]);
 
   // Level 09: timer ticking (engine-owned) — 1Hz, timeout-based (no rAF loop).
   //

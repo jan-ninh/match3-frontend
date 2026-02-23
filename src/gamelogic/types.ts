@@ -279,6 +279,16 @@ export type PendingSwap = {
 };
 
 // ─────────────────────────────────────────────
+// Pending Item Execution (engine-owned; delayed effects)
+// ─────────────────────────────────────────────
+
+export type PendingLaserRow = Readonly<{
+  executeAtMs: number;
+  target: Readonly<{ x: number; y: number }>;
+  requestId: number;
+}>;
+
+// ─────────────────────────────────────────────
 // Pending Turn Commit (turn-end must be engine-owned)
 // ─────────────────────────────────────────────
 
@@ -545,6 +555,8 @@ export type EngineState = {
 
   events: EngineEvent[];
   pendingSwap: PendingSwap | null;
+
+  pendingLaserRow?: PendingLaserRow | null;
 
   // commit marker for "apply turn-end when we reach idle"
   pendingTurnCommit: PendingTurnCommit | null;

@@ -79,6 +79,7 @@ export function useMatch3Engine({ initialLevelId = 1 }: Args) {
     level9TimerStartSec: state.level9TimerStartSec,
     level9TimerDeadlineAtMs: state.level9TimerDeadlineAtMs,
     nowMs: state.nowMs,
+    pendingLaserRowExecuteAtMs: state.pendingLaserRow?.executeAtMs ?? 0,
   });
 
   const { allocPowerRequestId } = usePowerRequestIdAllocator();

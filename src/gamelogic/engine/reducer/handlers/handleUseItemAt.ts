@@ -10,6 +10,10 @@ import { applyItemEffectAt, getItemEffectPreSteps, getItemEffectPreviewIndices }
 
 import { LEVEL07_TUNING } from '../../../levels/level-07';
 
+const LASER_ROW_ENGINE_DELAY_MS = 650;
+// NOTE: Must match UI intent feel (see src/features/grid/ui/laser/laserTimings.ts LASER_ENGINE_DELAY_MS).
+// Engine is the SSOT for lockout and effect timing.
+
 function powerKeyForItem(key: UseItemAtAction['key']): 'gridlaser' | 'laser' | 'extraShuffle' {
   switch (key) {
     case 'bomb3x3':
@@ -86,12 +90,28 @@ export function handleUseItemAt(state: EngineState, action: UseItemAtAction): En
     events.push({ type: 'selectionCleared' });
   }
 
-  // Lock input immediately (phase event must be preserved via same events array)
+  // Lock input immediately (engine-owned)
   s = setPhase(s, 'inputLock', events);
 
-  // Apply effect
-  // - Some items are modeled as first-class cascade preSteps (processed BEFORE detect).
-  // - If preSteps exist, we apply them via stabilizeBoard with resolve/shuffle disabled (turnEnd pipeline still handles real resolve).
+  // Row-laser: engine-owned delayed execution (closes UI interaction gap).
+  if (action.key === 'laserRow') {
+    const baseNow = s.nowMs | 0;
+    const delay = Math.max(0, LASER_ROW_ENGINE_DELAY_MS | 0);
+    const executeAtMs = baseNow > 0 ? baseNow + delay : delay;
+
+    s = {
+      ...s,
+      pendingLaserRow: {
+        executeAtMs,
+        target: { x: target.x | 0, y: target.y | 0 },
+        requestId: action.requestId,
+      },
+    };
+
+    return pushEvents(s, events);
+  }
+
+  // Other items: execute immediately (legacy behavior)
   const preSteps = getItemEffectPreSteps(s, action.key, target);
 
   if (preSteps !== undefined) {

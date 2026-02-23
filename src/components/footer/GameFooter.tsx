@@ -17,6 +17,11 @@ import { playSfx } from '@/features/audio';
 import type { PowerKey, Powers } from '@/types';
 import { NeonFooterButton } from '@/components';
 import { MATCH3_LEVEL_CHANGED_EVENT, getRuntimeLevelId, type Match3LevelChangedDetail } from '@/context/levelRuntime';
+import {
+  MATCH3_INPUT_LOCK_CHANGED_EVENT,
+  getRuntimeInputLocked,
+  type Match3InputLockChangedDetail,
+} from '@/context/inputLockRuntime';
 
 type FooterActionItem = ReturnType<typeof footerActions>[number];
 
@@ -104,6 +109,22 @@ export default function GameFooter() {
   const [armedGridlaser, setArmedGridlaser] = useState(false);
   const [armedLaser, setArmedLaser] = useState(false);
 
+  // Runtime input lock mirror (engine-owned). Used to disable all footer actions.
+  const [runtimeInputLocked, setRuntimeInputLockedState] = useState<boolean>(() => getRuntimeInputLocked());
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const onLock = (e: Event) => {
+      const ce = e as CustomEvent<Match3InputLockChangedDetail>;
+      const locked = !!ce.detail?.inputLocked;
+      setRuntimeInputLockedState(locked);
+    };
+
+    window.addEventListener(MATCH3_INPUT_LOCK_CHANGED_EVENT, onLock as EventListener);
+    return () => window.removeEventListener(MATCH3_INPUT_LOCK_CHANGED_EVENT, onLock as EventListener);
+  }, []);
+
   // Runtime level mirror (engine-owned). Used for UI-only policies.
   const [runtimeLevelId, setRuntimeLevelIdState] = useState<number | null>(() => getRuntimeLevelId());
 
@@ -145,7 +166,7 @@ export default function GameFooter() {
         console.error('Failed to load game status:', err);
       }
     })();
-  }, [user?.id]);
+  }, [user?.id, setPowers]);
 
   const emitArmPower = useCallback((key: TargetingKey, armed: boolean) => {
     if (typeof window === 'undefined') return;
@@ -175,6 +196,12 @@ export default function GameFooter() {
       emitArmPower('laser', false);
     }
   }, [armedGridlaser, armedLaser, emitArmPower]);
+
+  // Safety: input lock => disarm targeting (prevents UI showing aim mode while locked)
+  useEffect(() => {
+    if (!runtimeInputLocked) return;
+    disarmAllTargeting();
+  }, [runtimeInputLocked, disarmAllTargeting]);
 
   // Safety: if count hits 0 while armed, disarm (prevents "stuck targeting")
   useEffect(() => {
@@ -300,6 +327,8 @@ export default function GameFooter() {
 
   const onUsePower = useCallback(
     async (key: PowerKey) => {
+      if (runtimeInputLocked) return;
+
       const targetingKey = normalizeTargetingKey(key);
 
       const current = isLevel09 ? 1 : getPowerCount(powers, key);
@@ -362,7 +391,19 @@ export default function GameFooter() {
         setPowers(prev);
       }
     },
-    [armedGridlaser, armedLaser, disarmAllTargeting, emitArmPower, emitUsePower, isLevel09, powers, setPowers, updatePowers, user],
+    [
+      armedGridlaser,
+      armedLaser,
+      disarmAllTargeting,
+      emitArmPower,
+      emitUsePower,
+      isLevel09,
+      powers,
+      runtimeInputLocked,
+      setPowers,
+      updatePowers,
+      user,
+    ],
   );
 
   const actions = useMemo<FooterActionItem[]>(() => {
@@ -387,7 +428,8 @@ export default function GameFooter() {
         const countToShow = isInfinite ? null : powerCount != null ? powerCount : counted ? item.count : null;
 
         const canUse = isInfinite ? true : countToShow != null ? countToShow > 0 : true;
-        const isDisabled = isInfinite ? false : countToShow != null ? countToShow <= 0 : false;
+        const isDisabledByCount = isInfinite ? false : countToShow != null ? countToShow <= 0 : false;
+        const isDisabled = isDisabledByCount || runtimeInputLocked;
 
         const showBadge = countToShow == null && !counted && typeof item.badge === 'string' && item.badge.length > 0;
 
@@ -406,6 +448,8 @@ export default function GameFooter() {
         ) : null;
 
         const onClick = () => {
+          if (runtimeInputLocked) return;
+
           if (powerKey) {
             void onUsePower(powerKey);
             return;

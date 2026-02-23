@@ -12,6 +12,7 @@ import { setMatchRushTimeLeftSec } from '@/features/devtools-host/ui/hud/level07
 // 🔥 tiles are module-level state -> must force rerender when they change
 import { preloadTiles, setTilesetLevel } from '@/features/grid/ui/tiles';
 import { preloadSpecialTiles, setSpecialTilesetLevel } from '@/features/grid/ui/tilesSpecial';
+import { setRuntimeInputLocked } from '@/context/inputLockRuntime';
 
 import type { BombVfxMode } from '@/features/grid/ui/bomb/fx/BombExplosionFxLayer';
 
@@ -209,6 +210,11 @@ export default function GameContainer({
 
   // Item SFX (ACK-driven)
   useLaserItemSfx();
+
+  // Runtime signal for non-engine UI elements (Footer etc.)
+  useEffect(() => {
+    setRuntimeInputLocked(inputLocked);
+  }, [inputLocked]);
 
   // Bump component render when tileset/palette changes (tiles live outside React state)
   const [, bumpTilesRender] = useReducer((n: number) => (n + 1) % 1_000_000_000, 0);
