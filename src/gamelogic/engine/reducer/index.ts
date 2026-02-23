@@ -8,6 +8,7 @@ import { withNow } from './withNow';
 
 import { handleAnimDone } from './handlers/handleAnimDone';
 import { handleClickCell } from './handlers/handleClickCell';
+import { handleEnemyTurn } from './handlers/handleEnemyTurn';
 import { handleInitLevel } from './handlers/handleInitLevel';
 import { handleResetBoard } from './handlers/handleResetBoard';
 import { handleReshuffle } from './handlers/handleReshuffle';
@@ -70,6 +71,10 @@ export function engineReducer(state: EngineState, action: EngineReducerAction): 
 
       case 'swapAttempt': {
         return handleSwapAttempt(s, nonPriorityAction);
+      }
+
+      case 'enemyTurn': {
+        return handleEnemyTurn(s, nonPriorityAction);
       }
 
       case 'swapAnimDone':

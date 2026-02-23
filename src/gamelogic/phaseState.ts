@@ -11,8 +11,13 @@ export function setPhase(state: EngineState, phase: EnginePhase, events?: Engine
   const base: EngineState = { ...state, phase, inputLocked: isInputLocked(phase) };
 
   // Clear transient cascade policy when we return to idle.
-  if (phase === 'idle' && base.cascadeEffectPolicy !== undefined) {
-    return { ...base, cascadeEffectPolicy: undefined };
+  // Also clear transient enemy marking flag (enemy turn ends when we reach idle).
+  if (phase === 'idle') {
+    const clearedCascade = base.cascadeEffectPolicy !== undefined ? { ...base, cascadeEffectPolicy: undefined } : base;
+    if (clearedCascade.enemyMarkActive === true) {
+      return { ...clearedCascade, enemyMarkActive: undefined };
+    }
+    return clearedCascade;
   }
 
   // Token invalidation on restart-like phases (prevents stale UI Done from ever matching future anims).

@@ -2,6 +2,7 @@ import type { CellVM } from '../cellViewModel';
 import type { ObstacleSpriteStyles } from '../sprites/getObstacleSpriteStyles';
 
 import { ChargedCellOverlay } from './ChargedCellOverlay';
+import { EnemyRedCellOverlay } from './EnemyRedCellOverlay';
 import { SignalSourceOverlay } from './SignalSourceOverlay';
 import { SignalTargetOverlay } from './SignalTargetOverlay';
 
@@ -24,6 +25,9 @@ type Props = {
 
 export function CellOverlayRenderer({ vm, sprites }: Props) {
   switch (vm.kind) {
+    case 'enemyRed':
+      return <EnemyRedCellOverlay />;
+
     case 'chargedCell':
       return <ChargedCellOverlay />;
 

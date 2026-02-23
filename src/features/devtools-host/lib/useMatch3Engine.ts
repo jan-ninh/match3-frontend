@@ -242,6 +242,18 @@ export function useMatch3Engine({ initialLevelId = 1 }: Args) {
     return () => window.clearTimeout(id);
   }, [state.level9TimerStartSec, state.level9TimerDeadlineAtMs, state.phase]);
 
+  // Enemy turn ticker — every 3s request one engine-owned enemy swap (engine will ignore if not stable idle).
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (state.phase === 'win' || state.phase === 'lose') return;
+
+    const id = window.setInterval(() => {
+      dispatch({ type: 'enemyTurn', nowMs: performance.now() } as EngineAction);
+    }, 3000);
+
+    return () => window.clearInterval(id);
+  }, [state.phase]);
+
   // Power → Engine bridge (non-targeted)
   useEffect(() => {
     if (typeof window === 'undefined') return;

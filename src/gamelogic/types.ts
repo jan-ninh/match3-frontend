@@ -65,10 +65,17 @@ export type CellObstacle =
   | { kind: 'chargedCell' }
   | { kind: 'stoneTile'; hp: number; maxHp: number };
 
+export type CellMark = 'enemyRed';
+
 export type Cell = {
   blocked: boolean;
   pieceId: PieceId | null;
   obstacle?: CellObstacle;
+  /**
+   * Visual-only "floor mark" for special mechanics (slot-based, not piece-based).
+   * Example: enemy turns can paint cleared slots red.
+   */
+  mark?: CellMark;
 };
 
 // ─────────────────────────────────────────────
@@ -128,6 +135,10 @@ export function isSignalSource(cell: Cell): boolean {
 
 export function isSignalTarget(cell: Cell): boolean {
   return cell.obstacle?.kind === 'signalTarget';
+}
+
+export function isEnemyRedMarked(cell: Cell): boolean {
+  return cell.mark === 'enemyRed';
 }
 
 // ─────────────────────────────────────────────
@@ -544,4 +555,10 @@ export type EngineState = {
    * Cleared when we reach idle.
    */
   cascadeEffectPolicy?: 'noObjectives';
+
+  /**
+   * Transient flag: while true, every clear slot in this resolve chain is painted red (enemy territory).
+   * Cleared when we return to idle.
+   */
+  enemyMarkActive?: boolean;
 };

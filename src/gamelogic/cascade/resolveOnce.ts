@@ -30,6 +30,30 @@ function countClearablePieces(state: EngineState, indices: number[]): number {
   return count;
 }
 
+function markEnemyRedAtIndices(state: EngineState, indices: number[]): EngineState {
+  if (state.enemyMarkActive !== true) return state;
+
+  let nextCells = state.cells;
+  let changed = false;
+
+  for (const idx of indices) {
+    const c = nextCells[idx];
+    if (!c || c.blocked) continue;
+
+    if (c.mark === 'enemyRed') continue;
+
+    if (!changed) {
+      nextCells = state.cells.slice();
+      changed = true;
+    }
+
+    nextCells[idx] = { ...c, mark: 'enemyRed' };
+  }
+
+  if (!changed) return state;
+  return { ...state, cells: nextCells };
+}
+
 function clampInt(n: number, min: number, max: number): number {
   if (!Number.isFinite(n)) return min;
   const i = Math.floor(n);
@@ -63,6 +87,9 @@ export function resolveOnce(state: EngineState, chargedIds: Set<number> = new Se
         // Therefore: do NOT run cascade effects here (even if effectsEnabled === true).
         events.push({ type: 'phase', phase: 'clear' });
         s = clearCellsAndPieces(s, step.indices);
+        // Enemy mode: paint cleared slots red.
+        s = markEnemyRedAtIndices(s, step.indices);
+
         if (clearedCount > 0) events.push({ type: 'cleared', count: clearedCount });
         events.push({ type: 'cascadeStep', kind: 'itemLaserRowClear', row: step.row, indices: step.indices, cleared: clearedCount });
 
@@ -92,6 +119,9 @@ export function resolveOnce(state: EngineState, chargedIds: Set<number> = new Se
         // Therefore: do NOT run cascade effects here (even if effectsEnabled === true).
         events.push({ type: 'phase', phase: 'clear' });
         s = clearCellsAndPieces(s, step.indices);
+        // Enemy mode: paint cleared slots red.
+        s = markEnemyRedAtIndices(s, step.indices);
+
         if (clearedCount > 0) events.push({ type: 'cleared', count: clearedCount });
         events.push({
           type: 'cascadeStep',
@@ -250,6 +280,9 @@ export function resolveOnce(state: EngineState, chargedIds: Set<number> = new Se
   events.push({ type: 'phase', phase: 'clear' });
   s = clearCellsAndPieces(s, m.clearIndices);
   events.push({ type: 'cleared', count: m.clearIndices.length });
+
+  // Enemy mode: paint cleared slots red.
+  s = markEnemyRedAtIndices(s, m.clearIndices);
 
   if (effectsEnabled) {
     const postClear = runPostClearEffects(effects, s, ctx, events);

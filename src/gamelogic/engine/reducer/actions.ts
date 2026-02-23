@@ -7,6 +7,9 @@ export type ClickCellAction = { type: 'clickCell'; index: number; nowMs?: number
 export type ResetBoardAction = { type: 'resetBoard'; nowMs?: number };
 export type SwapAttemptAction = { type: 'swapAttempt'; from: number; to: number; nowMs?: number };
 
+// Enemy turn: request the engine to perform one random match-creating swap (player-like animation).
+export type EnemyTurnAction = { type: 'enemyTurn'; nowMs?: number };
+
 // Power/Item effects targeting confirm (engine-owned)
 export type UseItemAtAction = { type: 'useItemAt'; key: ItemEffectKey; target: ItemTarget; requestId: number; nowMs?: number };
 
@@ -32,6 +35,7 @@ export type EngineAction =
   | ClickCellAction
   | ResetBoardAction
   | SwapAttemptAction
+  | EnemyTurnAction
   | UseItemAtAction
   | ReshuffleAction
   | SetSwapMsAction

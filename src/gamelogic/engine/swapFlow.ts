@@ -7,9 +7,9 @@ import { setPhase } from '../phaseState';
 
 import { beginAnim } from './anim';
 import { autoFinishAll } from './autoFinish';
+import type { ApplyAnimDone } from './autoFinish';
 import { mkAnimDone, mkAnimDoneIgnored, pushEvents } from './events';
 import { applyFallAnimDone } from './fallFlow';
-import type { ApplyAnimDone } from './autoFinish';
 
 function applySwapCommit(state: EngineState, from: number, to: number): EngineState {
   const fromPid = state.cells[from]!.pieceId!;
@@ -126,7 +126,8 @@ export function applySwapAnimDone(state: EngineState, token: number, mode: AnimD
   const events: EngineEvent[] = [doneEvent];
 
   // spend a move only if the swap actually creates a match (level-configurable)
-  const canSpendMove = state.swapSpendsMove !== false;
+  const isEnemy = state.enemyMarkActive === true;
+  const canSpendMove = !isEnemy && state.swapSpendsMove !== false;
   const nextMovesLeft = canSpendMove ? Math.max(0, state.movesLeft - 1) : state.movesLeft;
   const didSpendMove = canSpendMove && nextMovesLeft !== state.movesLeft;
   if (didSpendMove) events.push({ type: 'movesSpent', left: nextMovesLeft });

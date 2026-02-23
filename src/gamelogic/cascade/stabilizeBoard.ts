@@ -1,4 +1,3 @@
-// src/gamelogic/cascade/stabilizeBoard.ts
 import type { EngineEvent, EngineState } from '../types';
 import type { EnginePhase } from '../phases';
 import { detectMatches, hasAnyMoves } from '../match';
@@ -37,6 +36,30 @@ function countClearablePieces(state: EngineState, indices: number[]): number {
   return count;
 }
 
+function markEnemyRedAtIndices(state: EngineState, indices: number[]): EngineState {
+  if (state.enemyMarkActive !== true) return state;
+
+  let nextCells = state.cells;
+  let changed = false;
+
+  for (const idx of indices) {
+    const c = nextCells[idx];
+    if (!c || c.blocked) continue;
+
+    if (c.mark === 'enemyRed') continue;
+
+    if (!changed) {
+      nextCells = state.cells.slice();
+      changed = true;
+    }
+
+    nextCells[idx] = { ...c, mark: 'enemyRed' };
+  }
+
+  if (!changed) return state;
+  return { ...state, cells: nextCells };
+}
+
 export function stabilizeBoard(state: EngineState, opts?: StabilizeOpts): { state: EngineState; events: EngineEvent[] } {
   const maxResolveLoops = opts?.maxResolveLoops ?? 64;
   const maxShuffleAttempts = opts?.maxShuffleAttempts ?? 200;
@@ -49,12 +72,11 @@ export function stabilizeBoard(state: EngineState, opts?: StabilizeOpts): { stat
   const effectsEnabled = state.cascadeEffectPolicy !== 'noObjectives';
   const effects = getCascadeEffectsForState(s);
 
-  // Item-driven charged overlay is ONLY for Level 11
-  const itemChargingEnabled = state.levelId === 11;
-
   // “once per move” charged-set (reset on shuffle)
   let chargedIds = new Set<number>();
   let ctx = { chargedIds };
+
+  const itemChargingEnabled = (state.levelId | 0) === 11;
 
   const dev = import.meta.env.DEV;
   const devAssert = (tag: string) => {
@@ -96,6 +118,9 @@ export function stabilizeBoard(state: EngineState, opts?: StabilizeOpts): { stat
             s = chargeCellsAtIndices(s, step.indices, events);
           }
 
+          // Enemy mode: paint cleared slots red.
+          s = markEnemyRedAtIndices(s, step.indices);
+
           if (clearedCount > 0) events.push({ type: 'cleared', count: clearedCount });
           events.push({ type: 'cascadeStep', kind: 'itemLaserRowClear', row: step.row, indices: step.indices, cleared: clearedCount });
 
@@ -129,6 +154,9 @@ export function stabilizeBoard(state: EngineState, opts?: StabilizeOpts): { stat
           if (itemChargingEnabled) {
             s = chargeCellsAtIndices(s, step.indices, events);
           }
+
+          // Enemy mode: paint cleared slots red.
+          s = markEnemyRedAtIndices(s, step.indices);
 
           if (clearedCount > 0) events.push({ type: 'cleared', count: clearedCount });
           events.push({
@@ -186,6 +214,9 @@ export function stabilizeBoard(state: EngineState, opts?: StabilizeOpts): { stat
       s = clearCellsAndPieces(s, m.clearIndices);
       devAssert(`${label}:clearCellsAndPieces`);
       events.push({ type: 'cleared', count: m.clearIndices.length });
+
+      // Enemy mode: paint cleared slots red.
+      s = markEnemyRedAtIndices(s, m.clearIndices);
 
       if (effectsEnabled) {
         const postClear = runPostClearEffects(effects, s, ctx, events);

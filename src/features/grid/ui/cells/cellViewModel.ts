@@ -99,6 +99,13 @@ export type ChargedCellVM = {
   y: number;
 };
 
+export type EnemyRedCellVM = {
+  kind: 'enemyRed';
+  index: number;
+  x: number;
+  y: number;
+};
+
 export type SignalSourceCellVM = {
   kind: 'signalSource';
   id: number;
@@ -135,6 +142,7 @@ export type CellVM =
   | TerminalCellVM
   | ObjectiveTerminalCellVM
   | ChargedCellVM
+  | EnemyRedCellVM
   | SignalSourceCellVM
   | SignalTargetCellVM
   | BlockedPlainCellVM;
@@ -142,6 +150,9 @@ export type CellVM =
 export function buildCellViewModel(cell: Cell, index: number, width: number): CellVM {
   const { x, y } = xyOf(index, width);
   const obs = cell.obstacle;
+
+  // Enemy mark takes precedence over other floor overlays.
+  if (cell.mark === 'enemyRed') return { kind: 'enemyRed', index, x, y };
 
   if (obs?.kind === 'chargedCell') return { kind: 'chargedCell', index, x, y };
 
