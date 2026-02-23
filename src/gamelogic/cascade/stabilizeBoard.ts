@@ -1,3 +1,4 @@
+// src/gamelogic/cascade/stabilizeBoard.ts
 import type { EngineEvent, EngineState } from '../types';
 import type { EnginePhase } from '../phases';
 import { detectMatches, hasAnyMoves } from '../match';
@@ -37,7 +38,6 @@ function countClearablePieces(state: EngineState, indices: number[]): number {
 
   return count;
 }
-
 
 export function stabilizeBoard(state: EngineState, opts?: StabilizeOpts): { state: EngineState; events: EngineEvent[] } {
   const maxResolveLoops = opts?.maxResolveLoops ?? 64;
@@ -94,7 +94,8 @@ export function stabilizeBoard(state: EngineState, opts?: StabilizeOpts): { stat
 
           // Level 11 only: allow item clears to contribute to chargedCell overlay.
           if (itemChargingEnabled) {
-            s = chargeCellsAtIndices(s, step.indices, events);
+            const actor = s.enemyMarkActive === true ? 'enemy' : 'player';
+            s = chargeCellsAtIndices(s, step.indices, events, actor);
           }
 
           // Enemy mode: paint cleared slots red.
@@ -131,7 +132,8 @@ export function stabilizeBoard(state: EngineState, opts?: StabilizeOpts): { stat
 
           // Level 11 only: allow item clears to contribute to chargedCell overlay.
           if (itemChargingEnabled) {
-            s = chargeCellsAtIndices(s, step.indices, events);
+            const actor = s.enemyMarkActive === true ? 'enemy' : 'player';
+            s = chargeCellsAtIndices(s, step.indices, events, actor);
           }
 
           // Enemy mode: paint cleared slots red.

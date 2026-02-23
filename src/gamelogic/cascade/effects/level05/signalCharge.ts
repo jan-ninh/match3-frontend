@@ -70,7 +70,7 @@ function canChargeCell(cell: Cell): boolean {
  * - If a cell is (or becomes) chargedCell, clear enemyRed mark so PLAYER can reclaim territory.
  * - Actor-aware (Option B): only actor='player' clears enemyRed.
  */
-export function chargeCellsAtIndices(state: EngineState, indices: Iterable<number>, events: EngineEvent[], actor: ChargeActor = 'player'): EngineState {
+export function chargeCellsAtIndices(state: EngineState, indices: Iterable<number>, events: EngineEvent[], actor: ChargeActor): EngineState {
   const nextCells = state.cells.slice();
 
   const prevChargedCount = state.chargedCellCount;
