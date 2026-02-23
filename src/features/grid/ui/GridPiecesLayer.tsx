@@ -1,11 +1,10 @@
-// src/features/grid/ui/GridPiecesLayer.tsx
 // GridPiecesLayer ist absichtlich KEIN Input-Layer
 // Es hat pointer-events-none am Root → es kann Pointer-Events gar nicht empfangen.
 import { useLayoutEffect, useRef } from 'react';
 
 import type { EnginePhase, Piece, PieceId } from '@/gamelogic';
 import type { FallPlan } from '@/gamelogic/types';
-import { FALLING_TUNING, computeEffectiveFallDurationMs } from '@/gamelogic/engine/fallingTuning';
+import { FALLING_TUNING, computeEffectiveFallDurationMs, computeFallMoveDurationMs } from '@/gamelogic/engine/fallingTuning';
 import type { Axis } from '@/devtools';
 import { cellPixelXY } from '../lib/math';
 import { PREVIEW_MS, TILE_SIZE, tileDist, EASING } from '../lib/constants';
@@ -65,7 +64,9 @@ export default function GridPiecesLayer({
       return;
     }
 
-    if (fallDurationMs <= 0) return;
+    // reduced motion => no anims
+    if (swapMs <= 0) return;
+
     if (!fallPlan || fallPlan.moves.length === 0) return;
     if (fallToken == null) return;
 
@@ -111,6 +112,13 @@ export default function GridPiecesLayer({
 
       const target = `translate(${targetX}px, ${targetY}px)`;
 
+      // Constant-speed: per-move duration derived from distance.
+      const moveMsRaw = computeFallMoveDurationMs(swapMs, mv.fromIndex, mv.toIndex, width);
+      const moveMs = moveMsRaw > 0 ? moveMsRaw : fallDurationMs;
+
+      // Apply per-move transition; will be reset in cleanup to avoid leaking into swaps/previews.
+      el.style.transition = `transform ${moveMs}ms ${fallEasing}`;
+
       // Engine jitter (mv.delayMs) + global hole delay.
       const holeDelayMs = FALLING_TUNING.holeDelayMs;
       el.style.transitionDelay = `${holeDelayMs + mv.delayMs}ms`;
@@ -137,11 +145,12 @@ export default function GridPiecesLayer({
     return () => {
       window.cancelAnimationFrame(raf);
       for (const el of touched) {
-        // Prevent delay from leaking into later swap/preview transitions.
+        // Prevent per-move config from leaking into later swap/preview transitions.
         el.style.transitionDelay = '';
+        el.style.transition = '';
       }
     };
-  }, [phase, swapMs, fallPlan, fallToken, width, dragPieceId, previewActive, previewOtherPieceId, previewAxis, previewDir]);
+  }, [phase, swapMs, fallPlan, fallToken, width, dragPieceId, previewActive, previewOtherPieceId, previewAxis, previewDir, fallDurationMs, fallEasing]);
 
   return (
     <div className="absolute inset-0 pointer-events-none">

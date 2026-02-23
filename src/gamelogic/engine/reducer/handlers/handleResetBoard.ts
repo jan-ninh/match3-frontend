@@ -8,7 +8,7 @@ import { setPhase } from '../../../phaseState';
 import { beginAnim } from '../../anim';
 import { pushEvents } from '../../events';
 import { buildSpawnFallPlan } from '../../fallPlan';
-import { FALLING_TUNING, computeEffectiveFallDurationMs } from '../../fallingTuning';
+import { computeFallAnimWaitMs } from '../../fallingTuning';
 import type { ResetBoardAction } from '../actions';
 
 export function handleResetBoard(state: EngineState, _action: ResetBoardAction): EngineState {
@@ -31,8 +31,9 @@ export function handleResetBoard(state: EngineState, _action: ResetBoardAction):
   const fallPlan = buildSpawnFallPlan(created.pieces, created.seed, created.width);
 
   let s: EngineState = setPhase(created, 'fallAnimating', events);
-  const fallDurationMs = computeEffectiveFallDurationMs(s.swapMs, FALLING_TUNING.fall.baseDurationMs);
-  s = beginAnim(s, 'fall', fallDurationMs, { fallPlan });
+
+  const fallWaitMs = computeFallAnimWaitMs(s.swapMs, s.width, fallPlan);
+  s = beginAnim(s, 'fall', fallWaitMs, { fallPlan });
 
   return pushEvents(s, events);
 }

@@ -1,9 +1,9 @@
-// src/gamelogic/engine/reducer/handlers/handleTickWake.ts
 import type { EngineEvent, EngineState } from '../../../types';
 import type { EnemyTurnAction, TickAction, WakeAction } from '../actions';
 
 import { beginAnim } from '../../anim';
 import { buildFallPlan } from '../../fallPlan';
+import { computeFallAnimWaitMs } from '../../fallingTuning';
 import { setPhase } from '../../../phaseState';
 import { isStableIdle, pushEvents } from '../../events';
 
@@ -68,9 +68,10 @@ function execPendingLaserRow(state: EngineState): EngineState {
 
   s = setPhase(s, 'fallAnimating', events);
 
-  // IMPORTANT: attach fallPlan so UI can do true-fall for delayed laserRow.
   const fallPlan = buildFallPlan({ prePieces, postPieces: s.pieces, seed: s.seed, width: s.width });
-  s = beginAnim(s, 'fall', s.swapMs, { fallPlan });
+  const fallWaitMs = computeFallAnimWaitMs(s.swapMs, s.width, fallPlan);
+
+  s = beginAnim(s, 'fall', fallWaitMs, { fallPlan });
 
   return pushEvents(s, events);
 }

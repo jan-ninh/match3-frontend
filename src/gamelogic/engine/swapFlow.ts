@@ -11,7 +11,7 @@ import type { ApplyAnimDone } from './autoFinish';
 import { mkAnimDone, mkAnimDoneIgnored, pushEvents } from './events';
 import { applyFallAnimDone } from './fallFlow';
 import { buildFallPlan } from './fallPlan';
-import { FALLING_TUNING, computeEffectiveFallDurationMs } from './fallingTuning';
+import { computeFallAnimWaitMs } from './fallingTuning';
 
 function applySwapCommit(state: EngineState, from: number, to: number): EngineState {
   const fromPid = state.cells[from]!.pieceId!;
@@ -161,8 +161,10 @@ export function applySwapAnimDone(state: EngineState, token: number, mode: AnimD
 
   s = setPhase(s, 'fallAnimating', events);
   const fallPlan = buildFallPlan({ prePieces, postPieces: s.pieces, seed: s.seed, width: s.width });
-  const fallDurationMs = computeEffectiveFallDurationMs(s.swapMs, FALLING_TUNING.fall.baseDurationMs);
-  s = beginAnim(s, 'fall', fallDurationMs, { fallPlan });
+
+  // IMPORTANT: engine must wait until the slowest move finishes (holeDelay + jitter + duration).
+  const fallWaitMs = computeFallAnimWaitMs(s.swapMs, s.width, fallPlan);
+  s = beginAnim(s, 'fall', fallWaitMs, { fallPlan });
 
   const withEvents = pushEvents(s, events);
 

@@ -9,7 +9,7 @@ import { autoFinishAll } from './autoFinish';
 import type { ApplyAnimDone } from './autoFinish';
 import { mkAnimDone, mkAnimDoneIgnored, pushEvents } from './events';
 import { buildFallPlan } from './fallPlan';
-import { FALLING_TUNING, computeEffectiveFallDurationMs } from './fallingTuning';
+import { computeFallAnimWaitMs } from './fallingTuning';
 
 // Turn-end is engine-owned and runs centrally in engineReducer when we reach `idle` and `pendingTurnCommit` exists.
 // fallFlow must NOT execute any turn-end logic, otherwise it can double-fire.
@@ -50,8 +50,9 @@ export function applyFallAnimDone(state: EngineState, token: number, mode: AnimD
   if (step.didResolve) {
     s = setPhase(s, 'fallAnimating', events);
     const fallPlan = buildFallPlan({ prePieces, postPieces: s.pieces, seed: s.seed, width: s.width });
-    const fallDurationMs = computeEffectiveFallDurationMs(s.swapMs, FALLING_TUNING.fall.baseDurationMs);
-    s = beginAnim(s, 'fall', fallDurationMs, { fallPlan });
+
+    const fallWaitMs = computeFallAnimWaitMs(s.swapMs, s.width, fallPlan);
+    s = beginAnim(s, 'fall', fallWaitMs, { fallPlan });
 
     const withEvents = pushEvents(s, events);
 
@@ -100,8 +101,9 @@ export function applyFallAnimDone(state: EngineState, token: number, mode: AnimD
   if (post.didResolve) {
     s = setPhase(s, 'fallAnimating', events);
     const fallPlan2 = buildFallPlan({ prePieces: prePieces2, postPieces: s.pieces, seed: s.seed, width: s.width });
-    const fallDurationMs2 = computeEffectiveFallDurationMs(s.swapMs, FALLING_TUNING.fall.baseDurationMs);
-    s = beginAnim(s, 'fall', fallDurationMs2, { fallPlan: fallPlan2 });
+
+    const fallWaitMs2 = computeFallAnimWaitMs(s.swapMs, s.width, fallPlan2);
+    s = beginAnim(s, 'fall', fallWaitMs2, { fallPlan: fallPlan2 });
 
     const withEvents = pushEvents(s, events);
 

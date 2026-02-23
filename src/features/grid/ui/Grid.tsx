@@ -38,7 +38,7 @@ import { TilePopFxLayer, type TilePopVariant } from './fx/tilePop/TilePopFxLayer
 // - 11..20 = stronger set (new)
 //===========================================================================================================
 //===========================================================================================================
-const TILE_POP_VFX_VARIANT: TilePopVariant = 8;
+const TILE_POP_VFX_VARIANT: TilePopVariant = 0;
 // 1 subtle
 // 2 Luft meh
 // 3 Luft meh

@@ -1,11 +1,11 @@
-import type { PieceId } from '../types';
+import type { FallPlan, PieceId } from '../types';
 
 /**
  * Falling Animation Tuning (SSOT)
  *
  * All knobs for "true falling" live here.
  * - Engine uses this for deterministic fallPlan delays + fall anim duration.
- * - UI uses this for hole delay, spawn height, fall easing, and duration.
+ * - UI uses this for hole delay, spawn height, fall easing, and per-move duration.
  */
 export type FallingTuning = Readonly<{
   /** Pause (ms) before any fall move starts (lets holes be visible). */
@@ -32,9 +32,20 @@ export type FallingTuning = Readonly<{
   fall: Readonly<{
     /**
      * If <= 0 => follow `swapMs` (keeps legacy feel).
-     * Otherwise explicit duration for fall (ms).
+     * Otherwise explicit duration for fall (ms) when speed-mode is disabled.
      */
     baseDurationMs: number;
+
+    /**
+     * Constant-speed mode (recommended):
+     * - If msPerRow > 0 => per-move duration scales with traveled rows.
+     * - Duration is clamped to [minMoveMs, maxMoveMs].
+     * - Engine anim.durationMs becomes max(holeDelay + jitter + per-move duration).
+     */
+    msPerRow: number;
+    minMoveMs: number;
+    maxMoveMs: number;
+
     /**
      * CSS easing for fall (e.g. 'linear' or cubic-bezier).
      * Swap easing remains separate (UI constants).
@@ -42,11 +53,12 @@ export type FallingTuning = Readonly<{
     easing: string;
   }>;
 }>;
+
 //============================================================
 // TRUE FALLING ANIMATION
 //============================================================
 export const FALLING_TUNING: FallingTuning = {
-  holeDelayMs: 180,
+  holeDelayMs: 240,
 
   moveDelay: {
     enabled: true,
@@ -61,7 +73,14 @@ export const FALLING_TUNING: FallingTuning = {
   },
 
   fall: {
+    // Fixed-duration fallback (used only when msPerRow <= 0)
     baseDurationMs: 400, // 0 => use swapMs
+
+    // Constant-speed mode (ms per row). Set <=0 to disable.
+    msPerRow: 70,
+    minMoveMs: 140,
+    maxMoveMs: 520,
+
     easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
   },
 };
@@ -70,6 +89,11 @@ function clampInt(n: number, min: number, max: number): number {
   if (!Number.isFinite(n)) return min;
   const i = Math.floor(n);
   return Math.max(min, Math.min(max, i));
+}
+
+function clampNum(n: number, min: number, max: number): number {
+  if (!Number.isFinite(n)) return min;
+  return Math.max(min, Math.min(max, n));
 }
 
 /**
@@ -94,7 +118,7 @@ export function computeFallMoveDelayMs(seed: number, id: PieceId, toIndex: numbe
 }
 
 /**
- * Fall duration policy:
+ * Fall duration policy (fixed-duration mode):
  * - reduced motion (swapMs===0) => 0
  * - baseDurationMs<=0 => follow swapMs (legacy coupling)
  * - else => baseDurationMs
@@ -107,4 +131,77 @@ export function computeEffectiveFallDurationMs(swapMs: number, baseDurationMs: n
   if (base <= 0) return s;
 
   return base;
+}
+
+function computeMoveDistanceRows(fromIndex: number | null, toIndex: number, width: number): number {
+  const w = clampInt(width, 1, 10_000);
+  const toY = Math.floor(toIndex / w);
+
+  if (fromIndex === null) {
+    const extraRows = clampInt(FALLING_TUNING.spawn.extraRowsAbove, 0, 50);
+    const hFactor = clampNum(FALLING_TUNING.spawn.heightFactor, 0, 10);
+    return (toY + extraRows) * hFactor;
+  }
+
+  const fromY = Math.floor(fromIndex / w);
+  const dy = Math.abs(toY - fromY);
+  if (dy > 0) return dy;
+
+  const fromX = fromIndex % w;
+  const toX = toIndex % w;
+  const dx = Math.abs(toX - fromX);
+  return dx;
+}
+
+/**
+ * Per-move duration for a single FallMove.
+ * - If fall.msPerRow > 0: duration scales with rows traveled (clamped).
+ * - Otherwise: duration is fixed via computeEffectiveFallDurationMs(swapMs, baseDurationMs).
+ */
+export function computeFallMoveDurationMs(swapMs: number, fromIndex: number | null, toIndex: number, width: number): number {
+  const s = clampInt(swapMs, 0, 60_000);
+  if (s === 0) return 0;
+
+  const cfg = FALLING_TUNING.fall;
+
+  const msPerRow = clampInt(cfg.msPerRow, 0, 60_000);
+  if (msPerRow > 0) {
+    const distRows = computeMoveDistanceRows(fromIndex, toIndex, width);
+    const raw = distRows * msPerRow;
+
+    const minMs = clampInt(cfg.minMoveMs, 0, 60_000);
+    const maxMs = clampInt(cfg.maxMoveMs, 0, 60_000);
+
+    const rounded = Math.round(raw);
+    const hi = maxMs > 0 ? maxMs : 60_000;
+
+    return Math.max(minMs, Math.min(hi, rounded));
+  }
+
+  return computeEffectiveFallDurationMs(s, cfg.baseDurationMs);
+}
+
+/**
+ * Total engine wait time for a fall-phase.
+ * Must cover: holeDelay + per-move jitter + per-move duration (max across moves).
+ *
+ * Engine uses this as anim.durationMs so it never advances the resolve chain
+ * while the UI is still mid-fall.
+ */
+export function computeFallAnimWaitMs(swapMs: number, width: number, plan: FallPlan): number {
+  const s = clampInt(swapMs, 0, 60_000);
+  if (s === 0) return 0;
+
+  const holeDelayMs = clampInt(FALLING_TUNING.holeDelayMs, 0, 60_000);
+
+  let maxMs = 0;
+
+  for (const mv of plan.moves) {
+    const jitter = clampInt(mv.delayMs, 0, 60_000);
+    const moveMs = computeFallMoveDurationMs(s, mv.fromIndex, mv.toIndex, width);
+    const end = holeDelayMs + jitter + moveMs;
+    if (end > maxMs) maxMs = end;
+  }
+
+  return maxMs;
 }

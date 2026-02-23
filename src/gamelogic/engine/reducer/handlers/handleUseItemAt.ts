@@ -1,9 +1,9 @@
-// src/gamelogic/engine/reducer/handlers/handleUseItemAt.ts
 import type { EngineEvent, EngineState } from '../../../types';
 import type { UseItemAtAction } from '../actions';
 
 import { beginAnim } from '../../anim';
 import { buildFallPlan } from '../../fallPlan';
+import { computeFallAnimWaitMs } from '../../fallingTuning';
 import { isStableIdle, mkTurnCommitArmedItem, pushEvents } from '../../events';
 import { setPhase } from '../../../phaseState';
 
@@ -151,9 +151,10 @@ export function handleUseItemAt(state: EngineState, action: UseItemAtAction): En
   // Enter fall animation phase (engine-owned)
   s = setPhase(s, 'fallAnimating', events);
 
-  // IMPORTANT: attach fallPlan so UI can do true-fall (otherwise it looks instant).
   const fallPlan = buildFallPlan({ prePieces, postPieces: s.pieces, seed: s.seed, width: s.width });
-  s = beginAnim(s, 'fall', s.swapMs, { fallPlan });
+  const fallWaitMs = computeFallAnimWaitMs(s.swapMs, s.width, fallPlan);
+
+  s = beginAnim(s, 'fall', fallWaitMs, { fallPlan });
 
   return pushEvents(s, events);
 }
