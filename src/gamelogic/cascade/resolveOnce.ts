@@ -190,11 +190,37 @@ export function resolveOnce(state: EngineState, chargedIds: Set<number> = new Se
       const nextItemCommit = { ...itemCommit, matchOutcomeEmitted: true };
       let nextState: EngineState = { ...s, pendingTurnCommit: nextItemCommit };
 
+      // Level 09: ensure timer is initialized once we have a real nowMs.
+      if ((s.level9TimerStartSec | 0) > 0 && (nextState.level9TimerDeadlineAtMs | 0) <= 0 && (s.nowMs | 0) > 0) {
+        const startSec = s.level9TimerStartSec | 0;
+        if (startSec > 0) {
+          nextState = { ...nextState, level9TimerStage: 0, level9TimerDeadlineAtMs: s.nowMs + startSec * 1000 };
+        }
+      }
+
       // Level 09: decrement countdown once per qualifying RowLaser item commit (Match4+).
       if (itemCommit.key === 'laserRow' && maxLen >= 4 && (s.laserRowMatch4Target | 0) > 0) {
         const prevRemaining = s.laserRowMatch4Remaining | 0;
         if (prevRemaining > 0) {
-          nextState = { ...nextState, laserRowMatch4Remaining: prevRemaining - 1 };
+          const nextRemaining = prevRemaining - 1;
+          nextState = { ...nextState, laserRowMatch4Remaining: nextRemaining };
+
+          // Timer reset rules:
+          // - after 1st success => reset to level9TimerAfterFirstSec
+          // - after 2nd+ success => reset to level9TimerAfterSecondSec
+          if ((s.level9TimerStartSec | 0) > 0 && (s.nowMs | 0) > 0) {
+            const prevStage = s.level9TimerStage | 0;
+            const nextStage = prevStage >= 2 ? 2 : prevStage + 1;
+
+            const resetSec = nextStage === 1 ? (s.level9TimerAfterFirstSec | 0) : (s.level9TimerAfterSecondSec | 0);
+            if (resetSec > 0) {
+              nextState = {
+                ...nextState,
+                level9TimerStage: nextStage,
+                level9TimerDeadlineAtMs: s.nowMs + resetSec * 1000,
+              };
+            }
+          }
         }
       }
 

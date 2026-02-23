@@ -5,7 +5,7 @@ import { pushEvents } from '../../events';
 import { isSignalLinked } from '../../../board/signal/signalPathCheck';
 
 type WinReason = 'matchRush' | 'laserRowMatch4' | 'stoneTiles' | 'gate' | 'leaks' | 'terminals' | 'objectiveTerminals' | 'signal';
-type LoseReason = 'moves' | 'contamination';
+type LoseReason = 'moves' | 'timer' | 'contamination';
 
 function checkWinConditions(state: EngineState): WinReason | null {
   // Level 07: MatchRush win
@@ -54,9 +54,18 @@ function checkWinConditions(state: EngineState): WinReason | null {
 }
 
 function checkLoseConditions(state: EngineState): LoseReason | null {
-  // Out of moves
-  if (state.movesLeft <= 0) {
+  // Out of moves (level-configurable)
+  if (state.movesLoseEnabled && state.movesLeft <= 0) {
     return 'moves';
+  }
+
+  // Level 09: Timer lose (engine-owned)
+  const startSec = state.level9TimerStartSec | 0;
+  if (startSec > 0) {
+    const deadline = state.level9TimerDeadlineAtMs | 0;
+    if (deadline > 0 && state.nowMs >= deadline) {
+      return 'timer';
+    }
   }
 
   // Contamination threshold (Level 02+)

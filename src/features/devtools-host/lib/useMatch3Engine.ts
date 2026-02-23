@@ -159,6 +159,11 @@ export function useMatch3Engine({ initialLevelId = 1 }: Args) {
 
   const [state, dispatch] = useReducer(engineReducer, levelId, createInitialState);
 
+  // bootstrap monotonic time once (keeps engine-timers stable even if initial state starts at nowMs=0)
+  useEffect(() => {
+    dispatch({ type: 'wake', nowMs: performance.now() } as EngineAction);
+  }, []);
+
   // campaign/run tracking (FE → BE)
   useCampaignTracking({ state });
 
@@ -214,6 +219,28 @@ export function useMatch3Engine({ initialLevelId = 1 }: Args) {
       document.removeEventListener('visibilitychange', onVis);
     };
   }, []);
+
+  // Level 09: timer ticking (engine-owned) — 1Hz, timeout-based (no rAF loop).
+  useEffect(() => {
+    const startSec = state.level9TimerStartSec | 0;
+    if (startSec <= 0) return;
+
+    if (state.phase === 'win' || state.phase === 'lose') return;
+
+    const now = performance.now();
+    const deadline = state.level9TimerDeadlineAtMs | 0;
+
+    // Update at most once per second, but also guarantee we tick at the deadline boundary.
+    const nextSecond = (Math.floor(now / 1000) + 1) * 1000;
+    const targetAt = deadline > 0 ? Math.min(deadline, nextSecond) : nextSecond;
+
+    const delay = Math.max(0, targetAt - now);
+    const id = window.setTimeout(() => {
+      dispatch({ type: 'tick', nowMs: performance.now() } as EngineAction);
+    }, delay + 5);
+
+    return () => window.clearTimeout(id);
+  }, [state.level9TimerStartSec, state.level9TimerDeadlineAtMs, state.phase]);
 
   // Power → Engine bridge (non-targeted)
   useEffect(() => {
@@ -283,7 +310,7 @@ export function useMatch3Engine({ initialLevelId = 1 }: Args) {
       const id = `${state.levelId}:${ev.key}:${ev.requestId}`;
       if (!markSeen(seen, id, 256)) continue;
 
-            window.dispatchEvent(
+      window.dispatchEvent(
         new CustomEvent<PowerConsumeDetail>(POWER_CONSUME_EVENT, {
           detail: { key: ev.key, amount: 1, requestId: ev.requestId },
         }),

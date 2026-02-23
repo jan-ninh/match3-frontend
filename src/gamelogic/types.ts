@@ -212,6 +212,15 @@ export type LevelDefinition = {
 
   // Level 09: LaserRow -> Match4+ (countdowns to win; 0/undefined = disabled)
   laserRowMatch4Target?: number;
+  // Level 09: Timer (seconds; 0/undefined = disabled)
+  level9TimerStartSec?: number;
+  level9TimerAfterFirstSec?: number;
+  level9TimerAfterSecondSec?: number;
+
+  // Move policy knobs (engine-owned; UI may hide/repurpose moves)
+  movesLoseEnabled?: boolean; // default: true
+  swapSpendsMove?: boolean; // default: true
+
 
   blockedIndices: number[];
   firewallNodes: FirewallNodeDef[];
@@ -435,6 +444,10 @@ export type EngineState = {
   movesTotal: number;
   movesLeft: number;
 
+  // move policy (engine-owned)
+  movesLoseEnabled: boolean;
+  swapSpendsMove: boolean;
+
   // turn counter (0-based, increments after each complete player turn)
   turnIndex: number;
 
@@ -445,6 +458,13 @@ export type EngineState = {
   // Level 09: LaserRow -> Match4+ (engine-owned)
   laserRowMatch4Target: number;
   laserRowMatch4Remaining: number;
+
+  // Level 09: Timer (engine-owned; 0=start not yet initialized)
+  level9TimerStartSec: number;
+  level9TimerAfterFirstSec: number;
+  level9TimerAfterSecondSec: number;
+  level9TimerStage: number; // 0=start, 1=after first success, 2=after second+ success
+  level9TimerDeadlineAtMs: number; // performance.now()-based; lose when nowMs >= deadline
 
   // Level 01: Firewall/Gate mechanics
   breachesTotal: number;

@@ -125,9 +125,10 @@ export function applySwapAnimDone(state: EngineState, token: number, mode: AnimD
   // matches exist => resolve once, then wait for falling animation
   const events: EngineEvent[] = [doneEvent];
 
-  // spend a move only if the swap actually creates a match
-  const nextMovesLeft = Math.max(0, state.movesLeft - 1);
-  const didSpendMove = nextMovesLeft !== state.movesLeft;
+  // spend a move only if the swap actually creates a match (level-configurable)
+  const canSpendMove = state.swapSpendsMove !== false;
+  const nextMovesLeft = canSpendMove ? Math.max(0, state.movesLeft - 1) : state.movesLeft;
+  const didSpendMove = canSpendMove && nextMovesLeft !== state.movesLeft;
   if (didSpendMove) events.push({ type: 'movesSpent', left: nextMovesLeft });
 
   let s: EngineState = {

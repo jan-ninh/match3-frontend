@@ -73,6 +73,9 @@ export type HudModel = {
   matchRushUnits: number;
   matchRushTargetUnits: number;
   matchRushPercent: number; // 0..100 (clamped)
+
+  // Level 09: Timer (engine-owned; null when not active)
+  timeLeftSec: number | null;
 };
 
 export type GameplayHudInput = {
@@ -107,6 +110,9 @@ export type GameplayHudInput = {
   matchRushUnits: number;
   matchRushTargetUnits: number;
   matchRushPercent: number; // 0..100 (clamped)
+
+  // Level 09: Timer (engine-owned; null when not active)
+  timeLeftSec: number | null;
 
   // Level 09: LaserRow -> Match4+ (engine-owned)
   laserRowMatch4Remaining: number;

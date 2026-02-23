@@ -271,6 +271,14 @@ export function createState(
   const stoneTotal = level.stoneTileNodes?.length ?? 0;
 
   const lrMatch4Target = level.laserRowMatch4Target ?? 0;
+  const movesLoseEnabled = level.movesLoseEnabled ?? true;
+  const swapSpendsMove = level.swapSpendsMove ?? true;
+
+  const timerStartSec = level.level9TimerStartSec ?? 0;
+  const timerAfterFirstSec = level.level9TimerAfterFirstSec ?? 0;
+  const timerAfterSecondSec = level.level9TimerAfterSecondSec ?? 0;
+
+  const timerDeadlineAtMs = timerStartSec > 0 && nowMs > 0 ? nowMs + timerStartSec * 1000 : 0;
 
   const base: EngineState = {
     levelId,
@@ -287,6 +295,9 @@ export function createState(
     movesTotal: level.moves,
     movesLeft: level.moves,
 
+    movesLoseEnabled,
+    swapSpendsMove,
+
     // Turn counter (0-based)
     turnIndex: 0,
 
@@ -297,6 +308,12 @@ export function createState(
     // Level 09: LaserRow -> Match4+ (engine-owned)
     laserRowMatch4Target: lrMatch4Target,
     laserRowMatch4Remaining: lrMatch4Target,
+
+    level9TimerStartSec: timerStartSec,
+    level9TimerAfterFirstSec: timerAfterFirstSec,
+    level9TimerAfterSecondSec: timerAfterSecondSec,
+    level9TimerStage: 0,
+    level9TimerDeadlineAtMs: timerDeadlineAtMs,
 
     // Level 01: Firewall/Gate mechanics
     breachesTotal: level.firewallNodes.length,

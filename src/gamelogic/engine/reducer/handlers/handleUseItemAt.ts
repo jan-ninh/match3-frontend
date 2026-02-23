@@ -51,12 +51,22 @@ export function handleUseItemAt(state: EngineState, action: UseItemAtAction): En
   const itemPolicy = state.itemObjectives[action.key];
   const cascadeEffectPolicy = itemPolicy === 'noObjectives' ? 'noObjectives' : undefined;
 
+  // Level 09: a "move" is a confirmed Row-Laser usage (not swaps).
+  const countsAsMove = action.key === 'laserRow' && (state.laserRowMatch4Target | 0) > 0;
+
+  const nextMovesLeft = countsAsMove ? Math.max(0, (state.movesLeft | 0) - 1) : state.movesLeft;
+
+  if (countsAsMove && nextMovesLeft !== state.movesLeft) {
+    events.push({ type: 'movesSpent', left: nextMovesLeft });
+  }
+
   // Accept => arm turn commit (engine-owned)
   let s: EngineState = {
     ...state,
+    movesLeft: nextMovesLeft,
     pendingTurnCommit: {
       kind: 'item',
-      spendMove: false,
+      spendMove: countsAsMove,
       key: action.key,
       requestId: action.requestId,
       matchOutcomeEmitted: false,
@@ -120,4 +130,3 @@ export function handleUseItemAt(state: EngineState, action: UseItemAtAction): En
 
   return pushEvents(s, events);
 }
-

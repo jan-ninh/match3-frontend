@@ -77,5 +77,6 @@ export function toHudModel(input: GameplayHudInput): HudModel {
     matchRushUnits: input.matchRushUnits,
     matchRushTargetUnits: input.matchRushTargetUnits,
     matchRushPercent: input.matchRushPercent,
+    timeLeftSec: input.timeLeftSec,
   };
 }

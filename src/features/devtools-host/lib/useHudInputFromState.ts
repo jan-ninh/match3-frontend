@@ -155,8 +155,14 @@ export function useHudInputFromState(state: EngineState): GameplayHudInput {
     phase,
     matchRushUnits,
     matchRushTargetUnits,
+    nowMs,
+    level9TimerStartSec,
+    level9TimerDeadlineAtMs,
     laserRowMatch4Remaining,
     laserRowMatch4Target,
+    nowMs,
+    level9TimerStartSec,
+    level9TimerDeadlineAtMs,
   } = state;
 
   return useMemo(() => {
@@ -194,6 +200,18 @@ export function useHudInputFromState(state: EngineState): GameplayHudInput {
     const mrTarget = matchRushTargetUnits | 0;
     const mrPct = calcMatchRushPercent(mrUnits, mrTarget);
 
+    let timeLeftSec: number | null = null;
+    const tStart = level9TimerStartSec | 0;
+    if (tStart > 0) {
+      const deadline = level9TimerDeadlineAtMs | 0;
+      const n = nowMs | 0;
+      if (deadline > 0 && n > 0) {
+        timeLeftSec = clampInt(Math.ceil((deadline - n) / 1000), 0, 60 * 60);
+      } else {
+        timeLeftSec = clampInt(tStart, 0, 60 * 60);
+      }
+    }
+
     return {
       levelId,
       gateOpen,
@@ -217,6 +235,7 @@ export function useHudInputFromState(state: EngineState): GameplayHudInput {
       matchRushUnits: mrUnits,
       matchRushTargetUnits: mrTarget,
       matchRushPercent: mrPct,
+      timeLeftSec,
 
       laserRowMatch4Remaining: laserRowMatch4Remaining | 0,
       laserRowMatch4Target: laserRowMatch4Target | 0,
@@ -249,6 +268,9 @@ export function useHudInputFromState(state: EngineState): GameplayHudInput {
     phase,
     matchRushUnits,
     matchRushTargetUnits,
+    nowMs,
+    level9TimerStartSec,
+    level9TimerDeadlineAtMs,
     laserRowMatch4Remaining,
     laserRowMatch4Target,
   ]);
