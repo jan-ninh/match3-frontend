@@ -15,12 +15,14 @@ export function HudLeft({ model }: Props) {
   const timeLeftSec = model.levelId === 9 ? model.timeLeftSec : model.levelId === 7 ? matchRushTimeLeftSec : null;
 
   return (
-    <div className="relative">
-      <div className=" flex flex-col items-start gap-2">
-        <LevelMetaWidget levelId={model.levelId} />
-      </div>
+    <div className="flex flex-col items-start gap-2 relative z-20">
+      <LevelMetaWidget levelId={model.levelId} />
 
-      <div className="absolute flex flex-col items-end gap-2 mt-20">{timeLeftSec != null ? <TimeWidget timeLeftSec={timeLeftSec} /> : null}</div>
+      {timeLeftSec != null ? (
+        <div className="mt-2">
+          <TimeWidget timeLeftSec={timeLeftSec} />
+        </div>
+      ) : null}
     </div>
   );
 }
