@@ -1,3 +1,4 @@
+// src/gamelogic/animTimings.ts
 export const SWAP_MS = 240;
 
 // Small safety buffer to avoid edge-case locks (missing events, throttled timers, etc.)

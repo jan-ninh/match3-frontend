@@ -1,23 +1,18 @@
 // src/features/grid/ui/Grid.tsx
 import { useMemo } from 'react';
 import type { ComponentProps } from 'react';
-
 import type { EngineState } from '@/gamelogic/types';
 import type { PossibleMatchSwap } from '@/gamelogic/match';
-
 import { GridShell } from './GridShell';
 import GridOverlaysLayer from './GridOverlaysLayer';
 import GridPiecesLayer from './GridPiecesLayer';
 import GridCellsLayer from './GridCellsLayer';
 import { GridDevPanels } from './GridDevPanels';
-
 import { LaserWarningOverlay } from './LaserWarningOverlay';
-
 import { BombExplosionFxLayer } from './bomb/fx/BombExplosionFxLayer';
 import { BombOverlay } from './bomb/BombOverlay';
 import type { BombVfxMode } from './bomb/fx/BombExplosionFxLayer';
 import { useBomb3x3Targeting } from './bomb/useBomb3x3Targeting';
-
 import { LaserRowOverlay } from './laser/LaserRowOverlay';
 import { LaserRowStrikeFxLayer } from './laser/fx/LaserRowStrikeFxLayer';
 import { useLaserRowTargeting } from './laser/useLaserRowTargeting';
@@ -33,8 +28,38 @@ import {
   LASER_STRIKE_FX_START_DELAY_MS,
   LASER_TARGETING_SFX_COOLDOWN_MS,
 } from './laser/laserTimings';
-
 import MatchHintsOverlay from './matchHints/MatchHintsOverlay';
+import { TilePopFxLayer, type TilePopVariant } from './fx/tilePop/TilePopFxLayer';
+
+//===========================================================================================================
+//===========================================================================================================
+// ✅ CENTRAL KNOB (edit this number 1..20)
+// - 1..10  = subtle set (as before)
+// - 11..20 = stronger set (new)
+//===========================================================================================================
+//===========================================================================================================
+const TILE_POP_VFX_VARIANT: TilePopVariant = 8;
+// 1 subtle
+// 2 Luft meh
+// 3 Luft meh
+// 4 zu schnelles blinzeln
+// 5 schnelles blinzeln
+// 6 schnelles blinzeln
+// 7 Luft meh
+// 8 schnelles blinzeln
+// 9 Fadenkreuz
+// 10 geil (schnelles blinzeln)
+
+// 11 zu weiß, zu hell, zu viel schnee, too much blingbling
+// 12 noch extremer lol
+// 13 noch extremer lol
+// 14 extreme Luftkreise
+// 15 zu weiß, spuckt viele weiße kleine kreise nach aussen
+// 16 zu weiß, spuckt viele weiße kleine striche nach aussen
+// 17 helle weiße kreise... grenzwertig (nicht soo schlecht)
+// 18 zu weiß, starker fadenkreuz
+// 19 viereckig (nicht soooo schlecht)
+// 20 starke Luft Kreise (geht so.....)
 
 type GridInputViewModel = Readonly<{
   cells: ComponentProps<typeof GridCellsLayer>['cells'];
@@ -216,20 +241,14 @@ export function GridView({
   };
 
   const onPointerUpEffective = (e: React.PointerEvent<HTMLDivElement>) => {
-    // IMPORTANT:
-    // While targeting (bomb/laser), we block normal pointer-move / cell-down to prevent swaps,
-    // but we MUST still forward pointer-up / pointer-cancel so the input controller can release
-    // the current pointer sequence (otherwise the grid can get stuck).
     onPointerUp(e);
   };
 
   const onPointerCancelEffective = (e: React.PointerEvent<HTMLDivElement>) => {
-    // See note in onPointerUpEffective.
     onPointerCancel(e);
   };
 
   const onCellPointerDownEffective = (index: number, e: React.PointerEvent<HTMLButtonElement>) => {
-    // Guard: RMB should never trigger targeting "use-at" inside grid.
     if (e.button === 2) {
       e.preventDefault();
       e.stopPropagation();
@@ -237,21 +256,16 @@ export function GridView({
     }
 
     if (bomb.bombArmed) {
-      // 3x3gridlaser: NO confirm SFX (by request).
       bomb.onCellPointerDown(index, e);
       return;
     }
     if (laser.laserArmed) {
-      // Row-laser confirm SFX (by original laser goal).
       laserSfx.playConfirm();
-
-      // UI-only: strike beam timing is controlled by the knobs above.
       pushLaserStrike(Math.floor(index / width));
       laser.onCellPointerDown(index, e);
       return;
     }
 
-    // Patch-Delta (Datei 2): Level 09 => no manual swaps / no dragging
     if (isLevel09) {
       e.preventDefault();
       e.stopPropagation();
@@ -261,9 +275,6 @@ export function GridView({
     onCellPointerDown(index, e);
   };
 
-  // Single pointer-move hook point:
-  // - targeting armed => route to targeting (bomb/laser) via shell-move
-  // - normal => forward to BOTH controller move + shell move
   const onPointerMoveMerged = (e: React.PointerEvent<HTMLDivElement>) => {
     if (bomb.bombArmed || laser.laserArmed) {
       onShellPointerMoveEffective(e);
@@ -316,20 +327,16 @@ export function GridView({
         onPointerCancel={onPointerCancelEffective}
         onPointerLeave={onShellPointerLeaveEffective}
       >
-        {/* Laser Warning highlight (under cells/pieces, above bg) */}
         <LaserWarningOverlay warning={state.laserWarning} innerW={innerW} innerH={innerH} />
 
-        {/* DEV label for VFX toggle */}
         {import.meta.env.DEV && isDev && debugEnabled ? (
           <div className="absolute left-2 top-2 z-200 pointer-events-none select-none text-[10px] text-white/70">
             BombVFX: {bombFxMode === 'flipbook' ? 'Flipbook' : 'LegacyShock'} (press V)
           </div>
         ) : null}
 
-        {/* Bomb Targeting 3×3 (square corners, red glow) */}
         <BombOverlay indices={bomb.bombOverlayIndices} width={width} zIndex={44} />
 
-        {/* Laser Targeting (row highlight) */}
         <LaserRowOverlay armed={laser.laserArmed} row={laser.hoverRow} height={height} zIndex={46} />
 
         <GridCellsLayer width={width} height={height} cells={cells} onCellPointerDown={onCellPointerDownEffective} showDebugLabels={showDebugLabels} />
@@ -354,13 +361,13 @@ export function GridView({
           setDraggedEl={setDraggedEl}
         />
 
-        {/* DevTools: possible-match overlay (read-only) — above pieces, under FX */}
+        {/* ✅ Tile delete pop FX (UI-only). Variant is controlled by TILE_POP_VFX_VARIANT above. */}
+        <TilePopFxLayer pieces={pieceList} width={width} reducedMotionHint={swapMs === 0} zIndex={82} variant={TILE_POP_VFX_VARIANT} />
+
         {showMatchHints ? <MatchHintsOverlay swaps={matchSwaps} width={width} height={height} zIndex={80} /> : null}
 
-        {/* Laser strike FX (on confirm; UI-only) */}
         <LaserRowStrikeFxLayer bursts={laserStrikes} height={height} reducedMotionHint={swapMs === 0} zIndex={86} />
 
-        {/* Bomb detonation FX (after ACK) */}
         <BombExplosionFxLayer bursts={bomb.bombBursts} width={width} reducedMotionHint={swapMs === 0} zIndex={88} mode={bombFxMode} />
       </GridShell>
     </>
