@@ -11,6 +11,7 @@ import { useMatchRewardSfx } from './match3Engine/effects/useMatchRewardSfx';
 
 import { usePowerRequestIdAllocator } from './match3Engine/power/usePowerRequestIdAllocator';
 import { usePowerBridge } from './match3Engine/power/usePowerBridge';
+import { useResetTargetingOnInitLevel } from './match3Engine/power/useResetTargetingOnInitLevel';
 import { useLevel09AutoRearmLaser } from './match3Engine/power/useLevel09AutoRearmLaser';
 
 import { useIntentRouter } from './match3Engine/input/useIntentRouter';
@@ -95,7 +96,12 @@ export function useMatch3Engine({ initialLevelId = 1 }: Args) {
     allocPowerRequestId,
   });
 
+  // Safety baseline: on each initLevel boundary, disarm targeting at the first stable-idle separator after it.
+  // Prevents "stuck targeting/locked mode" leaking across level transitions.
+  useResetTargetingOnInitLevel({ events: state.events });
+
   // Level 09 QoL (engine-signal-based): auto-rearm laser on stable-idle separator.
+  // Order matters: reset runs before auto-rearm in the same stable-idle tick.
   useLevel09AutoRearmLaser({ levelId: state.levelId, events: state.events });
 
   useMatchRewardSfx({ events: state.events });
@@ -111,7 +117,7 @@ export function useMatch3Engine({ initialLevelId = 1 }: Args) {
   });
 
   const onDevResetBoard = useCallback(() => {
-    dispatch({ type: 'resetBoard', nowMs: performance.now() } as EngineAction);
+    dispatch({ type: 'resetBoard', nowMs: performance.now() as number } as EngineAction);
   }, [dispatch]);
 
   const onDevNextLevel = useCallback(() => setLevelId((v) => v + 1), []);
