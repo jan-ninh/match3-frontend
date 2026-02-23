@@ -80,6 +80,8 @@ export function useMatch3Engine({ initialLevelId = 1 }: Args) {
     level9TimerDeadlineAtMs: state.level9TimerDeadlineAtMs,
     nowMs: state.nowMs,
     pendingLaserRowExecuteAtMs: state.pendingLaserRow?.executeAtMs ?? 0,
+    enemyTurnEnabled: state.enemyTurnEnabled,
+    nextEnemyTurnAtMs: state.nextEnemyTurnAtMs,
   });
 
   const { allocPowerRequestId } = usePowerRequestIdAllocator();

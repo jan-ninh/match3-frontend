@@ -39,6 +39,11 @@ export function makeLevel11({ baseSeed, allowedTypes }: Args): LevelDefinition {
     allowedTypes,
     blockedIndices,
 
+    // Level/Mode policies (engine-owned)
+    chargedFloorFromItems: true,
+    enemyTurnEnabled: true,
+    enemyTurnEveryMs: 3000,
+
     // No Level 01 mechanics
     firewallNodes: [],
     gateIndices: [],

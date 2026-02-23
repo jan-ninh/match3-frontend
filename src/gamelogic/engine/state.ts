@@ -68,6 +68,20 @@ function resolveItemObstacleDamage(level: LevelDefinition): ResolvedItemObstacle
   return out;
 }
 
+function clampInt(n: number, min: number, max: number): number {
+  if (!Number.isFinite(n)) return min;
+  const i = Math.floor(n);
+  return Math.max(min, Math.min(max, i));
+}
+
+function resolveEnemyEveryMs(level: LevelDefinition): number {
+  const enabled = level.enemyTurnEnabled === true;
+  if (!enabled) return 0;
+
+  const raw = level.enemyTurnEveryMs ?? 3000;
+  return clampInt(raw, 250, 60 * 1000);
+}
+
 export function createState(
   levelId: LevelId,
   seed: number,
@@ -280,6 +294,12 @@ export function createState(
 
   const timerDeadlineAtMs = timerStartSec > 0 && nowMs > 0 ? nowMs + timerStartSec * 1000 : 0;
 
+  const chargedFloorFromItems = level.chargedFloorFromItems ?? false;
+
+  const enemyTurnEnabled = level.enemyTurnEnabled === true;
+  const enemyTurnEveryMs = resolveEnemyEveryMs(level);
+  const nextEnemyTurnAtMs = enemyTurnEnabled && enemyTurnEveryMs > 0 && nowMs > 0 ? nowMs + enemyTurnEveryMs : 0;
+
   const base: EngineState = {
     levelId,
     width: level.width,
@@ -288,6 +308,12 @@ export function createState(
     seed,
     rngState,
     allowedTypes: level.allowedTypes,
+
+    chargedFloorFromItems,
+
+    enemyTurnEnabled,
+    enemyTurnEveryMs,
+    nextEnemyTurnAtMs,
 
     itemObjectives,
     itemObstacleDamage,

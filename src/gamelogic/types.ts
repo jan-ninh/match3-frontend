@@ -218,6 +218,11 @@ export type LevelDefinition = {
   // Per-level item obstacle damage rules (engine-owned, applied on item hit area).
   itemObstacleDamage?: ItemObstacleDamageConfig;
 
+  // Level/Mode policies (engine-owned; resolved into EngineState cached toggles)
+  chargedFloorFromItems?: boolean;
+  enemyTurnEnabled?: boolean;
+  enemyTurnEveryMs?: number;
+
   // Level 07: Match Rush (units to win; 0/undefined = disabled)
   matchRushTargetUnits?: number;
 
@@ -455,6 +460,12 @@ export type EngineState = {
 
   // cached level rules
   allowedTypes: PieceType[];
+
+  // level/mode policies (cached from LevelDefinition)
+  chargedFloorFromItems: boolean;
+  enemyTurnEnabled: boolean;
+  enemyTurnEveryMs: number;
+  nextEnemyTurnAtMs: number;
 
   // item objective policy (per effect key)
   itemObjectives: Record<ItemEffectKeyForEvent, ItemObjectivesPolicy>;

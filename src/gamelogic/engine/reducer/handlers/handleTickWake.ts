@@ -1,12 +1,14 @@
 import type { EngineEvent, EngineState } from '../../../types';
-import type { TickAction, WakeAction } from '../actions';
+import type { EnemyTurnAction, TickAction, WakeAction } from '../actions';
 
 import { beginAnim } from '../../anim';
 import { setPhase } from '../../../phaseState';
-import { pushEvents } from '../../events';
+import { isStableIdle, pushEvents } from '../../events';
 
 import { stabilizeBoard } from '../../../cascade/stabilizeBoard';
 import { applyItemEffectAt, getItemEffectPreSteps, getItemEffectPreviewIndices } from '../../../itemeffects';
+
+import { handleEnemyTurn } from './handleEnemyTurn';
 
 function clampInt(n: number, min: number, max: number): number {
   if (!Number.isFinite(n)) return min;
@@ -77,21 +79,42 @@ export function handleTickWake(state: EngineState, action: TickAction | WakeActi
     s = execPendingLaserRow(s);
   }
 
+  if (s.phase === 'win' || s.phase === 'lose') return s;
+
   // Level 09 timer (engine-owned)
   const startSec = s.level9TimerStartSec | 0;
-  if (startSec <= 0) return s;
+  if (startSec > 0) {
+    // Init deadline lazily: createInitialState starts at nowMs=0.
+    if ((s.level9TimerDeadlineAtMs | 0) <= 0 && nowMs > 0) {
+      s = { ...s, level9TimerStage: 0, level9TimerDeadlineAtMs: nowMs + clampInt(startSec, 0, 60 * 60) * 1000 };
+    }
 
-  // Init deadline lazily: createInitialState starts at nowMs=0.
-  if ((s.level9TimerDeadlineAtMs | 0) <= 0 && nowMs > 0) {
-    s = { ...s, level9TimerStage: 0, level9TimerDeadlineAtMs: nowMs + clampInt(startSec, 0, 60 * 60) * 1000 };
+    const deadline = s.level9TimerDeadlineAtMs | 0;
+    if (deadline > 0 && nowMs >= deadline) {
+      const evs: EngineEvent[] = [];
+      const next = setPhase(s, 'lose', evs);
+      evs.push({ type: 'lose' });
+      return pushEvents(next, evs);
+    }
   }
 
-  const deadline = s.level9TimerDeadlineAtMs | 0;
-  if (deadline > 0 && nowMs >= deadline && s.phase !== 'win' && s.phase !== 'lose') {
-    const evs: EngineEvent[] = [];
-    const next = setPhase(s, 'lose', evs);
-    evs.push({ type: 'lose' });
-    return pushEvents(next, evs);
+  // Enemy turn scheduler (engine-owned)
+  const enemyEnabled = s.enemyTurnEnabled === true && (s.enemyTurnEveryMs | 0) > 0;
+
+  if (enemyEnabled && (s.nextEnemyTurnAtMs | 0) <= 0 && nowMs > 0) {
+    // Initialize deterministically once we have a real clock.
+    const every = clampInt(s.enemyTurnEveryMs, 250, 60 * 1000);
+    s = { ...s, enemyTurnEveryMs: every, nextEnemyTurnAtMs: nowMs + every };
+  }
+
+  const nextAt = s.nextEnemyTurnAtMs | 0;
+  if (enemyEnabled && nextAt > 0 && nowMs >= nextAt && isStableIdle(s)) {
+    const enemyAction: EnemyTurnAction = { type: 'enemyTurn', nowMs };
+    const acted = handleEnemyTurn(s, enemyAction);
+
+    // No catch-up loops: at most one enemy move per tick/wake.
+    const every = clampInt(s.enemyTurnEveryMs, 250, 60 * 1000);
+    return { ...acted, enemyTurnEveryMs: every, nextEnemyTurnAtMs: nowMs + every };
   }
 
   return s;

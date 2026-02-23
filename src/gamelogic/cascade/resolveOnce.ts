@@ -11,6 +11,8 @@ import { runPostClearEffects, runPostGravityEffects, runPostRefillEffects, runPr
 
 import { applyItemObstacleDamageAtIndices } from '../board/obstacles/itemObstacleDamage';
 
+import { markEnemyRedAtIndices } from './marks/enemyRed';
+
 // type MatchDetectionLike = { clearIndices: number[]; groups: number };
 
 function countClearablePieces(state: EngineState, indices: number[]): number {
@@ -30,29 +32,6 @@ function countClearablePieces(state: EngineState, indices: number[]): number {
   return count;
 }
 
-function markEnemyRedAtIndices(state: EngineState, indices: number[]): EngineState {
-  if (state.enemyMarkActive !== true) return state;
-
-  let nextCells = state.cells;
-  let changed = false;
-
-  for (const idx of indices) {
-    const c = nextCells[idx];
-    if (!c || c.blocked) continue;
-
-    if (c.mark === 'enemyRed') continue;
-
-    if (!changed) {
-      nextCells = state.cells.slice();
-      changed = true;
-    }
-
-    nextCells[idx] = { ...c, mark: 'enemyRed' };
-  }
-
-  if (!changed) return state;
-  return { ...state, cells: nextCells };
-}
 
 function clampInt(n: number, min: number, max: number): number {
   if (!Number.isFinite(n)) return min;
