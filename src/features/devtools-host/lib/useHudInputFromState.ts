@@ -1,3 +1,4 @@
+// src/features/devtools-host/lib/useHudInputFromState.ts
 import { useMemo } from 'react';
 import type { EngineState } from '@/gamelogic';
 import type { GameplayHudInput } from '@/features/devtools-host/lib/hud/typesHud';
@@ -60,16 +61,7 @@ function deriveObjectiveKind(args: {
   laserRowMatch4Target: number;
   cells: EngineState['cells'];
 }): ObjectiveKind {
-  const {
-    levelId,
-    signalSourcesTotal,
-    signalTargetsTotal,
-    objectiveTerminalsTotal,
-    terminalsTotal,
-    leaksTotal,
-    laserRowMatch4Target,
-    cells,
-  } = args;
+  const { levelId, signalSourcesTotal, signalTargetsTotal, objectiveTerminalsTotal, terminalsTotal, leaksTotal, laserRowMatch4Target, cells } = args;
 
   // Level 07: Match Rush
   if (levelId === 7) return 'matchRush';
@@ -160,9 +152,6 @@ export function useHudInputFromState(state: EngineState): GameplayHudInput {
     level9TimerDeadlineAtMs,
     laserRowMatch4Remaining,
     laserRowMatch4Target,
-    nowMs,
-    level9TimerStartSec,
-    level9TimerDeadlineAtMs,
   } = state;
 
   return useMemo(() => {

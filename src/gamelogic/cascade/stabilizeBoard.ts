@@ -15,6 +15,7 @@ import { getCascadeEffectsForState } from './effects/registry';
 import { runPostClearEffects, runPostGravityEffects, runPostRefillEffects, runPreClearEffects } from './effects/runEffects';
 
 import { applyItemObstacleDamageAtIndices } from '../board/obstacles/itemObstacleDamage';
+import { chargeCellsAtIndices } from './effects/level05/signalCharge';
 
 // type MatchDetectionLike = { clearIndices: number[]; groups: number };
 
@@ -85,6 +86,10 @@ export function stabilizeBoard(state: EngineState, opts?: StabilizeOpts): { stat
           toPhase('clear');
           s = clearCellsAndPieces(s, step.indices);
           devAssert('preStep:itemLaserRowClear:clearCellsAndPieces');
+
+          // Level 03/11: allow item clears to contribute to chargedCell overlay.
+          s = chargeCellsAtIndices(s, step.indices, events);
+
           if (clearedCount > 0) events.push({ type: 'cleared', count: clearedCount });
           events.push({ type: 'cascadeStep', kind: 'itemLaserRowClear', row: step.row, indices: step.indices, cleared: clearedCount });
 
@@ -113,6 +118,10 @@ export function stabilizeBoard(state: EngineState, opts?: StabilizeOpts): { stat
           toPhase('clear');
           s = clearCellsAndPieces(s, step.indices);
           devAssert('preStep:itemBomb3x3Blast:clearCellsAndPieces');
+
+          // Level 03/11: allow item clears to contribute to chargedCell overlay.
+          s = chargeCellsAtIndices(s, step.indices, events);
+
           if (clearedCount > 0) events.push({ type: 'cleared', count: clearedCount });
           events.push({
             type: 'cascadeStep',

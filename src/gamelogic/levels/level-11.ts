@@ -6,11 +6,9 @@
  * - Each match "infects" the board with a transparent green trace (charged floor).
  * - The green trace is purely a visual overlay; gameplay remains normal match-3.
  *
- * Win: Orthogonal path of charged cells connects Point A (left edge) to Point B (right edge).
- * Lose: Moves = 0
- *
- * Difference vs Level 03:
+ * Level 11 differences:
  * - No central blocked 2×2 crater (middle is open).
+ * - No Signal A/B nodes (we'll re-couple win conditions later).
  */
 import type { LevelDefinition, PieceType } from '../types';
 import { deriveSeed } from '../rng';
@@ -26,23 +24,9 @@ export function makeLevel11({ baseSeed, allowedTypes }: Args): LevelDefinition {
   const width = 8;
   const height = 8;
 
-  // ─────────────────────────────────────────────
-  // Point A & Point B (Signal Source & Target)
-  // ─────────────────────────────────────────────
-  // A (left edge): (0,6) = index 48
-  // B (right edge): (7,1) = index 15
-  const signalSourceNodes = [{ index: 0 + 6 * width, id: 0 }];
-  const signalTargetNodes = [{ index: 7 + 1 * width, id: 0 }];
-
-  // ─────────────────────────────────────────────
-  // Board Geometry
-  // ─────────────────────────────────────────────
   // Level 11: no central crater / no middle blockades.
   const blockedIndices: number[] = [];
 
-  // ─────────────────────────────────────────────
-  // Balancing
-  // ─────────────────────────────────────────────
   const moves = 12;
 
   const seed = deriveSeed(baseSeed, levelId);
@@ -71,11 +55,5 @@ export function makeLevel11({ baseSeed, allowedTypes }: Args): LevelDefinition {
     sweepEnabled: false,
 
     baseSeed: seed,
-
-    // ─────────────────────────────────────────────
-    // Signal Network (A -> B)
-    // ─────────────────────────────────────────────
-    signalSourceNodes,
-    signalTargetNodes,
   };
 }

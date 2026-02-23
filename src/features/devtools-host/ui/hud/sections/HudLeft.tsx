@@ -1,3 +1,4 @@
+// src/features/devtools-host/ui/hud/sections/HudLeft.tsx
 import type { HudModel } from '../../../lib/hud/typesHud';
 import { useMatchRushTimeLeftSec } from '../level07/matchRushTimeStore';
 import { TimeWidget } from '../widgets/TimeWidget';
@@ -8,11 +9,10 @@ type Props = {
 };
 
 export function HudLeft({ model }: Props) {
+  // Level 07 uses its own store; Level 09 uses engine-derived HUD model field.
   const matchRushTimeLeftSec = useMatchRushTimeLeftSec();
 
-  const level09TimeLeftSec = model.timeLeftSec;
-
-  const timeLeftSec = model.levelId === 7 ? matchRushTimeLeftSec : model.levelId === 9 ? level09TimeLeftSec : null;
+  const timeLeftSec = model.levelId === 9 ? model.timeLeftSec : model.levelId === 7 ? matchRushTimeLeftSec : null;
 
   return (
     <div className="relative">
@@ -20,9 +20,7 @@ export function HudLeft({ model }: Props) {
         <LevelMetaWidget levelId={model.levelId} />
       </div>
 
-      <div className="absolute flex flex-col items-end gap-2 mt-20  ">
-        {timeLeftSec != null ? <TimeWidget timeLeftSec={timeLeftSec} /> : null}
-      </div>
+      <div className="absolute flex flex-col items-end gap-2 mt-20">{timeLeftSec != null ? <TimeWidget timeLeftSec={timeLeftSec} /> : null}</div>
     </div>
   );
 }

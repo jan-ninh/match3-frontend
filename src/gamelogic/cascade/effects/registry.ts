@@ -33,8 +33,10 @@ export function getCascadeEffectsForState(state: EngineState): readonly CascadeE
     effects.push(sweepFirewallClearEffect);
   }
 
-  // Level 05: Signal Network charge effect
-  if (state.signalSourcesTotal > 0 || state.signalTargetsTotal > 0) {
+  // Charged Cells (green floor overlay)
+  // - Level 05: Signal Network uses it for path win (signal nodes exist)
+  // - Level 03 / Level 11: reuse as pure "trace" mechanic (no signal nodes required)
+  if (state.levelId === 3 || state.levelId === 11 || state.signalSourcesTotal > 0 || state.signalTargetsTotal > 0) {
     effects.push(signalChargeEffect);
   }
 

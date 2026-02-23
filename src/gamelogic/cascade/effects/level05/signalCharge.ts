@@ -1,15 +1,19 @@
 /**
- * Level 05: Signal Network - Charge cells where matches occur
+ * Charged Cells (green floor overlay)
  *
- * Key rule: charged cells are PASSABLE (pieces may sit on them).
+ * Origin: Level 05 "Signal Network" used chargedCell as the path medium.
+ * Now also reused by Level 03 / Level 11 as a pure "green trace" mechanic.
+ *
+ * Key rule: chargedCell is PASSABLE (pieces may sit on it).
  * Therefore: never set chargedCell as an obstacle BEFORE clear,
- * otherwise clear() would skip those cells (because they are "obstacles").
+ * otherwise clear() might skip those cells (because they are "obstacles").
  *
  * Approach:
  * - preClear: collect indices to charge into ctx.signalChargedIds
  * - postClear: actually mark cells as chargedCell obstacles (floor overlay)
  */
 import type { CascadeEffect, PreClearArgs, PostStageArgs, StageResult } from '../typesEffects';
+import type { EngineEvent, EngineState } from '../../../types';
 import type { Cell } from '../../../types';
 
 /**
@@ -39,15 +43,46 @@ function canChargeCell(cell: Cell): boolean {
   }
 }
 
+/**
+ * Engine-owned helper: mark given indices as chargedCell (passable floor overlay).
+ *
+ * Used by:
+ * - Match-driven charging (via CascadeEffect postClear)
+ * - Item-driven charging (laserRow / bomb3x3) after their preStep clear
+ */
+export function chargeCellsAtIndices(state: EngineState, indices: Iterable<number>, events: EngineEvent[]): EngineState {
+  const nextCells = state.cells.slice();
+  let chargedCount = state.chargedCellCount ?? 0;
+  let didChargeAny = false;
+
+  for (const idx of indices) {
+    const cell = nextCells[idx];
+    if (!cell) continue;
+    if (!canChargeCell(cell)) continue;
+
+    // already charged?
+    if (cell.obstacle?.kind === 'chargedCell') continue;
+
+    // chargedCell is passable: keep pieceId (should be null right after clear, but don't assume)
+    nextCells[idx] = {
+      ...cell,
+      obstacle: { kind: 'chargedCell' },
+    };
+
+    didChargeAny = true;
+    chargedCount++;
+    events.push({ type: 'cellCharged', index: idx });
+  }
+
+  if (!didChargeAny) return state;
+
+  return { ...state, cells: nextCells, chargedCellCount: chargedCount };
+}
+
 export const signalChargeEffect: CascadeEffect = {
   id: 'signalCharge',
 
   preClear({ state, match, ctx }: PreClearArgs): StageResult {
-    // Skip if no signal mechanics
-    if ((state.signalSourcesTotal ?? 0) === 0 && (state.signalTargetsTotal ?? 0) === 0) {
-      return { state, ctx };
-    }
-
     if (match.clearIndices.length === 0) return { state, ctx };
 
     const base = ctx.signalChargedIds ?? new Set<number>();
@@ -70,35 +105,13 @@ export const signalChargeEffect: CascadeEffect = {
     const chargedIds = ctx.signalChargedIds;
     if (!chargedIds || chargedIds.size === 0) return { state, ctx };
 
-    const nextCells = state.cells.slice();
-    let chargedCount = state.chargedCellCount ?? 0;
-    let didChargeAny = false;
-
-    for (const idx of chargedIds) {
-      const cell = nextCells[idx];
-      if (!cell) continue;
-      if (!canChargeCell(cell)) continue;
-
-      // already charged?
-      if (cell.obstacle?.kind === 'chargedCell') continue;
-
-      // chargedCell is passable: keep pieceId (should be null right after clear, but don't assume)
-      nextCells[idx] = {
-        ...cell,
-        obstacle: { kind: 'chargedCell' },
-      };
-
-      didChargeAny = true;
-      chargedCount++;
-      events.push({ type: 'cellCharged', index: idx });
-    }
+    const nextState = chargeCellsAtIndices(state, chargedIds, events);
 
     // consume the collected ids (avoid re-processing next stages/loops)
     const nextCtx = { ...ctx };
     delete nextCtx.signalChargedIds;
 
-    if (!didChargeAny) return { state, ctx: nextCtx };
-
-    return { state: { ...state, cells: nextCells, chargedCellCount: chargedCount }, ctx: nextCtx };
+    if (nextState === state) return { state, ctx: nextCtx };
+    return { state: nextState, ctx: nextCtx };
   },
 };
