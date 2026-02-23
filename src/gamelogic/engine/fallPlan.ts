@@ -1,5 +1,7 @@
 import type { FallMove, FallPlan, Piece, PieceId } from '../types';
 
+import { computeFallMoveDelayMs } from './fallingTuning';
+
 type PiecesById = Readonly<Partial<Record<PieceId, Piece>>>;
 
 type BuildArgs = Readonly<{
@@ -35,13 +37,12 @@ export function buildFallPlan({ prePieces, postPieces, seed, width }: BuildArgs)
       id,
       fromIndex,
       toIndex,
-      delayMs: computeDelayMs(seed, id, toIndex, width),
-      // delayMs: computeDelayMs(seed, id, toIndex, width),
+      delayMs: computeFallMoveDelayMs(seed, id, toIndex, width),
     });
   }
 
   // stable order (avoid Object.keys order coupling)
-  moves.sort((a, b) => a.toIndex - b.toIndex || a.id - b.id);
+  moves.sort((a, b) => (a.toIndex - b.toIndex) || (a.id - b.id));
 
   return { moves };
 }
@@ -50,11 +51,3 @@ export function buildSpawnFallPlan(postPieces: PiecesById, seed: number, width: 
   return buildFallPlan({ prePieces: {}, postPieces, seed, width });
 }
 
-function computeDelayMs(seed: number, id: PieceId, toIndex: number, width: number): number {
-  const col = width > 0 ? toIndex % width : 0;
-
-  // Deterministic small jitter: 0..40ms in 10ms steps.
-  // Chosen to be visually pleasant without affecting gameplay.
-  const x = ((seed >>> 0) ^ ((id * 2654435761) >>> 0) ^ ((col * 1597334677) >>> 0)) >>> 0;
-  return (x % 5) * 10;
-}

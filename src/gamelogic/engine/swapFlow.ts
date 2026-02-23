@@ -11,6 +11,7 @@ import type { ApplyAnimDone } from './autoFinish';
 import { mkAnimDone, mkAnimDoneIgnored, pushEvents } from './events';
 import { applyFallAnimDone } from './fallFlow';
 import { buildFallPlan } from './fallPlan';
+import { FALLING_TUNING, computeEffectiveFallDurationMs } from './fallingTuning';
 
 function applySwapCommit(state: EngineState, from: number, to: number): EngineState {
   const fromPid = state.cells[from]!.pieceId!;
@@ -160,7 +161,8 @@ export function applySwapAnimDone(state: EngineState, token: number, mode: AnimD
 
   s = setPhase(s, 'fallAnimating', events);
   const fallPlan = buildFallPlan({ prePieces, postPieces: s.pieces, seed: s.seed, width: s.width });
-  s = beginAnim(s, 'fall', s.swapMs, { fallPlan });
+  const fallDurationMs = computeEffectiveFallDurationMs(s.swapMs, FALLING_TUNING.fall.baseDurationMs);
+  s = beginAnim(s, 'fall', fallDurationMs, { fallPlan });
 
   const withEvents = pushEvents(s, events);
 

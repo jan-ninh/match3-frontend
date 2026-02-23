@@ -5,6 +5,7 @@ import { useLayoutEffect, useRef } from 'react';
 
 import type { EnginePhase, Piece, PieceId } from '@/gamelogic';
 import type { FallPlan } from '@/gamelogic/types';
+import { FALLING_TUNING, computeEffectiveFallDurationMs } from '@/gamelogic/engine/fallingTuning';
 import type { Axis } from '@/devtools';
 import { cellPixelXY } from '../lib/math';
 import { PREVIEW_MS, TILE_SIZE, tileDist, EASING } from '../lib/constants';
@@ -55,13 +56,16 @@ export default function GridPiecesLayer({
 
   const allowAnim = phase === 'swapAnimating' || phase === 'swapBackAnimating' || phase === 'fallAnimating';
 
+  const fallDurationMs = computeEffectiveFallDurationMs(swapMs, FALLING_TUNING.fall.baseDurationMs);
+  const fallEasing = FALLING_TUNING.fall.easing;
+
   useLayoutEffect(() => {
     if (phase !== 'fallAnimating') {
       appliedFallTokenRef.current = null;
       return;
     }
 
-    if (swapMs <= 0) return;
+    if (fallDurationMs <= 0) return;
     if (!fallPlan || fallPlan.moves.length === 0) return;
     if (fallToken == null) return;
 
@@ -96,7 +100,9 @@ export default function GridPiecesLayer({
       const start = (() => {
         if (mv.fromIndex === null) {
           const y = Math.floor(mv.toIndex / width);
-          const spawnOffsetY = -(y + 1) * tileDist;
+          const extraRows = FALLING_TUNING.spawn.extraRowsAbove;
+          const hFactor = FALLING_TUNING.spawn.heightFactor;
+          const spawnOffsetY = -((y + extraRows) * tileDist * hFactor);
           return `translate(${targetX}px, ${targetY + spawnOffsetY}px)`;
         }
         const fromPos = cellPixelXY(mv.fromIndex, width);
@@ -105,8 +111,9 @@ export default function GridPiecesLayer({
 
       const target = `translate(${targetX}px, ${targetY}px)`;
 
-      // Per-piece deterministic delay (engine-owned).
-      el.style.transitionDelay = `${mv.delayMs}ms`;
+      // Engine jitter (mv.delayMs) + global hole delay.
+      const holeDelayMs = FALLING_TUNING.holeDelayMs;
+      el.style.transitionDelay = `${holeDelayMs + mv.delayMs}ms`;
 
       // Set start position before paint, then animate to target next frame.
       el.style.transform = start;
@@ -155,7 +162,9 @@ export default function GridPiecesLayer({
         const previewMs = swapMs === 0 ? 0 : PREVIEW_MS;
         const transitionForPreviewNeighbor = previewActive && previewOtherPieceId === pp.id ? `transform ${previewMs}ms ${EASING}` : undefined;
 
-        const baseTransition = allowAnim ? `transform ${swapMs}ms ${EASING}` : undefined;
+        const baseMs = phase === 'fallAnimating' ? fallDurationMs : swapMs;
+        const baseEasing = phase === 'fallAnimating' ? fallEasing : EASING;
+        const baseTransition = allowAnim ? `transform ${baseMs}ms ${baseEasing}` : undefined;
         const outerTransition = applyDragOffset ? 'none' : (transitionForPreviewNeighbor ?? baseTransition);
 
         const isShaking = shakePieceId === pp.id;
