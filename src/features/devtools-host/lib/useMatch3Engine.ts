@@ -1,3 +1,4 @@
+// src\features\devtools-host\lib\useMatch3Engine.ts
 import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react';
 
 import type { EngineAction } from '@/gamelogic';
@@ -248,17 +249,20 @@ export function useMatch3Engine({ initialLevelId = 1 }: Args) {
     return () => window.clearTimeout(id);
   }, [state.level9TimerStartSec, state.level9TimerDeadlineAtMs, state.phase, state.nowMs]);
 
-  // Enemy turn ticker — every 3s request one engine-owned enemy swap (engine will ignore if not stable idle).
+  //=========================================================================================================================
+  // Enemy turn ticker (Level 11 only) — every 3s request one engine-owned enemy swap (engine will ignore if not stable idle).
+  //=========================================================================================================================
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    if (state.levelId !== 11) return; // (Level 11 only)
     if (state.phase === 'win' || state.phase === 'lose') return;
 
     const id = window.setInterval(() => {
       dispatch({ type: 'enemyTurn', nowMs: performance.now() } as EngineAction);
-    }, 3000);
+    }, 5000); // every x seconds
 
     return () => window.clearInterval(id);
-  }, [state.phase]);
+  }, [state.levelId, state.phase]);
 
   // Power → Engine bridge (non-targeted)
   useEffect(() => {
