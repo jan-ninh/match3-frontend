@@ -46,7 +46,7 @@ export type FallingTuning = Readonly<{
 // TRUE FALLING ANIMATION
 //============================================================
 export const FALLING_TUNING: FallingTuning = {
-  holeDelayMs: 220,
+  holeDelayMs: 180,
 
   moveDelay: {
     enabled: true,
@@ -54,9 +54,10 @@ export const FALLING_TUNING: FallingTuning = {
     steps: 5, // 0..40ms in 10ms steps (legacy default)
   },
 
+  // SPAWN HÖHE
   spawn: {
-    extraRowsAbove: 2,
-    heightFactor: 1.0,
+    extraRowsAbove: 1,
+    heightFactor: 2.0,
   },
 
   fall: {

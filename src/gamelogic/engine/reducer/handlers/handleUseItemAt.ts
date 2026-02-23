@@ -1,7 +1,9 @@
+// src/gamelogic/engine/reducer/handlers/handleUseItemAt.ts
 import type { EngineEvent, EngineState } from '../../../types';
 import type { UseItemAtAction } from '../actions';
 
 import { beginAnim } from '../../anim';
+import { buildFallPlan } from '../../fallPlan';
 import { isStableIdle, mkTurnCommitArmedItem, pushEvents } from '../../events';
 import { setPhase } from '../../../phaseState';
 
@@ -112,6 +114,8 @@ export function handleUseItemAt(state: EngineState, action: UseItemAtAction): En
   }
 
   // Other items: execute immediately (legacy behavior)
+  const prePieces = s.pieces;
+
   const preSteps = getItemEffectPreSteps(s, action.key, target);
 
   if (preSteps !== undefined) {
@@ -144,9 +148,12 @@ export function handleUseItemAt(state: EngineState, action: UseItemAtAction): En
   // Ack for UI consume (only after accept)
   events.push({ type: 'powerUsed', key: powerKeyForItem(action.key), requestId: action.requestId });
 
-  // Enter fall animation phase (engine-owned); keep phase event
+  // Enter fall animation phase (engine-owned)
   s = setPhase(s, 'fallAnimating', events);
-  s = beginAnim(s, 'fall', s.swapMs);
+
+  // IMPORTANT: attach fallPlan so UI can do true-fall (otherwise it looks instant).
+  const fallPlan = buildFallPlan({ prePieces, postPieces: s.pieces, seed: s.seed, width: s.width });
+  s = beginAnim(s, 'fall', s.swapMs, { fallPlan });
 
   return pushEvents(s, events);
 }
