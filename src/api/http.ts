@@ -19,7 +19,10 @@ export async function request<T = unknown>(path: string, opts: ReqOpts = {}): Pr
     ...existingHeaders,
   };
 
-  const res = await fetch(url, fetchOpts);
+  const res = await fetch(url, {
+    ...fetchOpts,
+    credentials: 'include',
+  });
 
   if (skipJson) return res as unknown as T;
 
@@ -39,4 +42,18 @@ export async function request<T = unknown>(path: string, opts: ReqOpts = {}): Pr
   }
 
   return data;
+}
+
+const TOKEN_STORAGE_KEY = 'authToken';
+
+export function setAuthToken(token: string | null) {
+  if (token) {
+    localStorage.setItem(TOKEN_STORAGE_KEY, token);
+  } else {
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
+  }
+}
+
+export function getAuthToken(): string | null {
+  return localStorage.getItem(TOKEN_STORAGE_KEY);
 }

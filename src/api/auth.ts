@@ -1,5 +1,5 @@
 // src/api/auth.ts
-// Small auth API wrapper. Exports functions the frontend will call.
+// API wrapper
 
 import { request } from './http';
 
@@ -25,5 +25,12 @@ export async function apiRegister(email: string, username: string, password: str
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, username, password, confirmPassword: password }),
+  });
+}
+
+export async function apiLogout(): Promise<void> {
+  return request('/api/auth/logout', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
   });
 }

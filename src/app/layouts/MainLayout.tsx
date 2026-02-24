@@ -36,7 +36,7 @@ export default function MainLayout() {
   useLayoutEffect(() => lockDocumentScroll(true), []);
 
   return (
-    <div className="fixed inset-0 overflow-hidden bg-neutral-900">
+    <div className="fixed inset-0 overflow-hidden bg-black">
       {/* DEV LANES + STAGE (outside stage) */}
       <div className="absolute inset-0">
         {/* DEV LEFT LANE */}
