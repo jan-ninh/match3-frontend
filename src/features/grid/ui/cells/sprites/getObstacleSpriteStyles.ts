@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 
-import { getSpecialTileSprite, specialSpike, specialTile_04 } from '../../tilesSpecial';
+import { getSpecialTileSprite, specialSpike, specialTile_05 } from '../../tilesSpecial';
 import { spriteToBgStyle } from './spriteToBgStyle';
 
 export type ObstacleSpriteStyles = {
@@ -14,7 +14,7 @@ export type ObstacleSpriteStyles = {
 
 export function getObstacleSpriteStyles(): ObstacleSpriteStyles {
   return {
-    blockedPlain: spriteToBgStyle(getSpecialTileSprite(specialTile_04)),
+    blockedPlain: spriteToBgStyle(getSpecialTileSprite(specialTile_05)),
     spike: spriteToBgStyle(getSpecialTileSprite(specialSpike)),
     leakOpen: spriteToBgStyle(getSpecialTileSprite('leakOpen')),
     leakSealed: spriteToBgStyle(getSpecialTileSprite('leakSealed')),
