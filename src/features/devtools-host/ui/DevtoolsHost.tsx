@@ -1,4 +1,5 @@
 // src/features/devtools-host/ui/DevtoolsHost.tsx
+// src/features/devtools-host/ui/DevtoolsHost.tsx
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 
@@ -130,7 +131,7 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
   const userId = user?.id ?? null;
   const { powers, setPowers, selectedPowersForNextStage, setSelectedPowersForNextStage } = usePowers();
 
-  const { isDev, state, inputLocked, canSwapAt, onIntent, onDevResetBoard, onDevNextLevel, onDevPrevLevel, onDevSetLevel, events } = useMatch3Engine({
+  const { isDev, state, inputLocked, canSwapAt, onIntent, onDevResetBoard, onDevFixedSeed, onDevNextLevel, onDevPrevLevel, onDevSetLevel, events } = useMatch3Engine({
     initialLevelId,
   });
 
@@ -451,7 +452,7 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
 
   return (
     <div className="w-full h-full">
-      <DevPanels enabled={isDev && debugEnabled} events={events} onDevWin={onDevWin} onDevLose={onDevLose} onDevResetProgress={onDevResetProgress} />
+      <DevPanels enabled={isDev && debugEnabled} events={events} onDevWin={onDevWin} onDevLose={onDevLose} onDevResetProgress={onDevResetProgress} onDevFixedSeed={onDevFixedSeed} />
 
       <GameContainer
         state={state}

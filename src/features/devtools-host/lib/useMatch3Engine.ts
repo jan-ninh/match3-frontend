@@ -120,6 +120,10 @@ export function useMatch3Engine({ initialLevelId = 1 }: Args) {
     dispatch({ type: 'resetBoard', nowMs: performance.now() as number } as EngineAction);
   }, [dispatch]);
 
+  const onDevFixedSeed = useCallback(() => {
+    dispatch({ type: 'initLevel', levelId: state.levelId, seedPolicy: 'fixedBase', nowMs: performance.now() } as EngineAction);
+  }, [dispatch, state.levelId]);
+
   const onDevNextLevel = useCallback(() => setLevelId((v) => v + 1), []);
   const onDevPrevLevel = useCallback(() => setLevelId((v) => Math.max(1, v - 1)), []);
   const onDevSetLevel = useCallback((id: number) => setLevelId(() => Math.max(1, id | 0)), []);
@@ -135,6 +139,7 @@ export function useMatch3Engine({ initialLevelId = 1 }: Args) {
     onIntent,
 
     onDevResetBoard,
+    onDevFixedSeed,
     onDevNextLevel,
     onDevPrevLevel,
     onDevSetLevel,

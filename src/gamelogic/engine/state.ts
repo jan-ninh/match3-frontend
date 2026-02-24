@@ -1,3 +1,4 @@
+// src/gamelogic/engine/state.ts
 import type {
   EngineEvent,
   EngineState,
@@ -10,6 +11,7 @@ import type {
   ResolvedItemObstacleDamageConfig,
 } from '../types';
 import { getLevelDefinition } from '../levels';
+import { randomSeed32 } from '../rng';
 import { buildInitialBoard } from '../board';
 import { stabilizeBoard } from '../cascade';
 import { assertBoardIntegrity, assertPhaseInvariants } from '../invariants';
@@ -419,6 +421,5 @@ export function createState(
 }
 
 export function createInitialState(levelId: LevelId): EngineState {
-  const level = getLevelDefinition(levelId);
-  return createState(levelId, level.baseSeed, [], 1, SWAP_MS, 0);
+  return createState(levelId, randomSeed32(), [], 1, SWAP_MS, 0);
 }

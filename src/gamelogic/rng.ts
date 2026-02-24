@@ -1,3 +1,4 @@
+// src/gamelogic/rng.ts
 export type Rng = {
   readonly seed: number;
   nextFloat: () => number; // [0, 1)
@@ -67,4 +68,38 @@ export function deriveSeed(baseSeed: number, levelId: number): number {
   x = Math.imul(x, 0xc2b2ae35) >>> 0;
   x ^= x >>> 16;
   return (x === 0 ? 1 : x) >>> 0;
+}
+
+
+type CryptoLike = { getRandomValues: (arr: Uint32Array) => Uint32Array };
+
+function getCryptoLike(): CryptoLike | null {
+  const rec = globalThis as unknown as Record<string, unknown>;
+  const c = rec.crypto;
+  if (!c || typeof c !== 'object') return null;
+
+  const cr = c as Record<string, unknown>;
+  const grv = cr.getRandomValues;
+  if (typeof grv !== 'function') return null;
+
+  return c as unknown as CryptoLike;
+}
+
+/**
+ * Runtime random seed for non-replay gameplay.
+ * - Prefers crypto.getRandomValues (stable across JS engines)
+ * - Fallback: Math.random
+ * Always returns a non-zero uint32.
+ */
+export function randomSeed32(): number {
+  const c = getCryptoLike();
+  if (c) {
+    const buf = new Uint32Array(1);
+    c.getRandomValues(buf);
+    const n = buf[0] ?? 0;
+    return (n === 0 ? 1 : n) >>> 0;
+  }
+
+  const n = Math.floor(Math.random() * 0x100000000) >>> 0;
+  return (n === 0 ? 1 : n) >>> 0;
 }

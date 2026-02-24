@@ -2,7 +2,25 @@
 import type { LevelId } from '../../types';
 import type { ItemEffectKey, ItemTarget } from '../../itemeffects';
 
-export type InitLevelAction = { type: 'initLevel'; levelId: LevelId; nowMs?: number };
+export type InitSeedPolicy = 'random' | 'fixedBase';
+
+export type InitLevelAction = {
+  type: 'initLevel';
+  levelId: LevelId;
+  /**
+   * Optional explicit seed override (takes precedence over seedPolicy).
+   * Must be an integer; 0 will be normalized to 1.
+   */
+  seed?: number;
+  /**
+   * Seed selection policy if `seed` override is not provided.
+   * - random (default): engine picks a random 32-bit seed
+   * - fixedBase: engine uses the LevelDefinition.baseSeed
+   */
+  seedPolicy?: InitSeedPolicy;
+  nowMs?: number;
+};
+
 export type ClickCellAction = { type: 'clickCell'; index: number; nowMs?: number };
 export type ResetBoardAction = { type: 'resetBoard'; nowMs?: number };
 export type SwapAttemptAction = { type: 'swapAttempt'; from: number; to: number; nowMs?: number };
