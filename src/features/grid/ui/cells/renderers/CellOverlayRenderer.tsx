@@ -32,10 +32,20 @@ export function CellOverlayRenderer({ vm, sprites }: Props) {
       return <ChargedCellOverlay />;
 
     case 'signalSource':
-      return <SignalSourceOverlay id={vm.id} />;
+      return (
+        <>
+          <ChargedCellOverlay />
+          <SignalSourceOverlay id={vm.id} />
+        </>
+      );
 
     case 'signalTarget':
-      return <SignalTargetOverlay id={vm.id} />;
+      return (
+        <>
+          <ChargedCellOverlay />
+          <SignalTargetOverlay id={vm.id} />
+        </>
+      );
 
     case 'gate':
       return <GateOverlay open={vm.open} />;
