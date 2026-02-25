@@ -14,6 +14,7 @@ import { useResetTargetingOnInitLevel } from './match3Engine/power/useResetTarge
 import { useLevel09AutoRearmLaser } from './match3Engine/power/useLevel09AutoRearmLaser';
 
 import { useIntentRouter } from './match3Engine/input/useIntentRouter';
+import { useTilesetSync } from './useTilesetSync';
 
 type Args = {
   initialLevelId?: number;
@@ -60,6 +61,17 @@ export function useMatch3Engine({ initialLevelId = 1 }: Args) {
   }, []);
 
   const [state, dispatch] = useReducer(engineReducer, levelId, createInitialState);
+
+  /**
+   * IMPORTANT:
+   * Keep tileset selection synced to the *requested* levelId (not the engine's current state.levelId).
+   *
+   * Rationale:
+   * - During level transitions, React can render once while the engine is still on the previous level.
+   * - If tileset selection is derived from state.levelId only, you can see a brief 1-frame flash of "old/fallback" tiles.
+   * - Syncing to the requested levelId (and doing it in a layout effect) removes that flash.
+   */
+  useTilesetSync(levelId);
 
   // keep Engine timing in sync (Engine is the source of truth)
   const desiredSwapMs = reducedMotion ? 0 : SWAP_MS;
