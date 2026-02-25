@@ -37,17 +37,9 @@ export function makeLevel04({ baseSeed, allowedTypes }: Args): LevelDefinition {
   // ─────────────────────────────────────────────
   // Board Geometry
   // ─────────────────────────────────────────────
-  // Central 2×2 blocked "crater" to force a non-trivial route.
-  const blockedIndices = [
-    3 + 3 * width, // 27
-    4 + 3 * width, // 28
-    3 + 4 * width, // 35
-    4 + 4 * width, // 36
-
-    // Reserve signal nodes to avoid initial piece spawn on them.
-    signalSourceNodes[0]!.index,
-    signalTargetNodes[0]!.index,
-  ];
+  // No blocked tiles in Level 04.
+  // (Signal source/target occupy their cells via obstacles in engine init.)
+  const blockedIndices: number[] = [];
 
   // Balancing: a bit tighter than Level 03 due to the second objective.
   const moves = 14;
