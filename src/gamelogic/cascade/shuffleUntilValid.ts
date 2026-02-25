@@ -1,4 +1,3 @@
-// src/gamelogic/cascade/shuffleUntilValid.ts
 import type { EngineState, Piece, PieceId } from '../types';
 import { detectMatches, hasAnyMoves } from '../match';
 import { rngShuffleInPlace } from '../rng';
@@ -23,16 +22,19 @@ export function shuffleUntilValid(state: EngineState, maxAttempts: number): { st
 
   let rngState = state.rngState;
 
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    const perm = pieceIds.slice();
-    const sh = rngShuffleInPlace(rngState, perm);
-    rngState = sh.state;
+  const buildCandidate = (perm: PieceId[], nextRngState: EngineState['rngState']): EngineState => {
+    // IMPORTANT:
+    // Only clear/re-assign pieceIds for cells that are part of the shuffle domain (indices[]).
+    // Do NOT blanket-clear other cells, because pieces may legally sit on passable obstacles
+    // (e.g. chargedCell, terminal open). Blanket-clearing would orphan those pieces and
+    // crash assertBoardIntegrity (piece exists in pieces but not present in its cellIndex).
+    const nextCells = state.cells.map((c) => ({ ...c }));
 
-    const nextCells = state.cells.map((c) => {
-      const p = c.pieceId !== null ? state.pieces[c.pieceId] : null;
-      if (p && p.type === 'keycard') return { ...c };
-      return { ...c, pieceId: null as PieceId | null };
-    });
+    // Clear shuffle-domain cells first (keep keycards untouched because they were excluded from indices[]).
+    for (const idx of indices) {
+      const c = nextCells[idx]!;
+      nextCells[idx] = { ...c, pieceId: null as PieceId | null };
+    }
 
     const nextPieces: Record<PieceId, Piece> = { ...state.pieces };
 
@@ -43,13 +45,21 @@ export function shuffleUntilValid(state: EngineState, maxAttempts: number): { st
       nextPieces[pid] = { ...nextPieces[pid]!, cellIndex: idx };
     }
 
-    const candidate: EngineState = {
+    return {
       ...state,
       cells: nextCells,
       pieces: nextPieces,
-      rngState,
+      rngState: nextRngState,
       selectedIndex: null,
     };
+  };
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const perm = pieceIds.slice();
+    const sh = rngShuffleInPlace(rngState, perm);
+    rngState = sh.state;
+
+    const candidate = buildCandidate(perm, rngState);
 
     const m = detectMatches(candidate);
     if (m.clearIndices.length !== 0) continue;
@@ -63,23 +73,8 @@ export function shuffleUntilValid(state: EngineState, maxAttempts: number): { st
   const sh = rngShuffleInPlace(rngState, perm);
   rngState = sh.state;
 
-  const nextCells = state.cells.map((c) => {
-    const p = c.pieceId !== null ? state.pieces[c.pieceId] : null;
-    if (p && p.type === 'keycard') return { ...c };
-    return { ...c, pieceId: null as PieceId | null };
-  });
-
-  const nextPieces: Record<PieceId, Piece> = { ...state.pieces };
-
-  for (let k = 0; k < indices.length; k++) {
-    const idx = indices[k]!;
-    const pid = perm[k]!;
-    nextCells[idx] = { ...nextCells[idx]!, pieceId: pid };
-    nextPieces[pid] = { ...nextPieces[pid]!, cellIndex: idx };
-  }
-
   return {
-    state: { ...state, cells: nextCells, pieces: nextPieces, rngState, selectedIndex: null },
+    state: buildCandidate(perm, rngState),
     attempts: maxAttempts,
   };
 }
