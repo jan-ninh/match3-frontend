@@ -9,12 +9,29 @@ import { playSfx } from './sfxPlayer';
 const MATCH_POP_SFX: readonly SfxId[] = ['matchPop01', 'matchPop02'] as const;
 const OBJECTIVE_SFX: readonly SfxId[] = ['matchObjective01', 'matchObjective02'] as const;
 
+const FIREWALL_BREAK_SFX: readonly SfxId[] = [
+  'firewallBreakV01',
+  'firewallBreakV02',
+  'firewallBreakV03',
+  'firewallBreakV04',
+  'firewallBreakV05',
+  'firewallBreakV06',
+  'firewallBreakV07',
+  'firewallBreakV08',
+  'firewallBreakV09',
+] as const;
+
 function pickRandom<T>(arr: readonly T[]): T {
   // NOTE: UI-only randomness; does not affect engine determinism.
   const n = arr.length;
   if (n <= 1) return arr[0];
   const i = Math.floor(Math.random() * n);
   return arr[Math.min(n - 1, Math.max(0, i))];
+}
+
+
+function isFirewallHitEvent(e: EngineEvent): boolean {
+  return e.type === 'firewallDamaged' || e.type === 'firewallDestroyed';
 }
 
 function isObjectiveProgressEvent(e: EngineEvent): boolean {
@@ -296,6 +313,12 @@ export function useEngineMatchObjectiveSfx(state: Pick<EngineState, 'events'>): 
 
     if (newEvents.length === 0) return;
 
+    // Firewall/Node hit SFX: play once per HP-loss (and on destroy).
+    for (const e of newEvents) {
+      if (!isFirewallHitEvent(e)) continue;
+      playSfx(pickRandom(FIREWALL_BREAK_SFX));
+    }
+
     // Segment by resolve passes (each starts with matchesFound).
     const matchStarts: number[] = [];
     for (let i = 0; i < newEvents.length; i++) {
@@ -319,16 +342,18 @@ export function useEngineMatchObjectiveSfx(state: Pick<EngineState, 'events'>): 
       if (bestLen >= 5) playSfx('match5Sting');
       else if (bestLen === 4) playSfx('match4Chime');
 
-      // 3) Optional objective stinger (if any objective progress occurred in this segment)
-      let hitObjective = false;
+      // 3) Optional objective stinger (exclude firewall hits; those have their own break SFX)
+      let hitObjectiveNonFirewall = false;
       for (let i = start; i < end; i++) {
-        if (isObjectiveProgressEvent(newEvents[i])) {
-          hitObjective = true;
+        const e = newEvents[i];
+        if (isFirewallHitEvent(e)) continue;
+        if (isObjectiveProgressEvent(e)) {
+          hitObjectiveNonFirewall = true;
           break;
         }
       }
 
-      if (hitObjective) playSfx(pickRandom(OBJECTIVE_SFX));
+      if (hitObjectiveNonFirewall) playSfx(pickRandom(OBJECTIVE_SFX));
     }
   }, [state.events]);
 }
