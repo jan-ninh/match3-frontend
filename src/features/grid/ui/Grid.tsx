@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import type { ComponentProps } from 'react';
 import type { EngineState } from '@/gamelogic/types';
 import type { PossibleMatchSwap } from '@/gamelogic/match';
+import { findPossibleMatchSwaps } from '@/gamelogic/match';
 import { GridShell } from './GridShell';
 import GridOverlaysLayer from './GridOverlaysLayer';
 import GridPiecesLayer from './GridPiecesLayer';
@@ -29,7 +30,9 @@ import {
   LASER_TARGETING_SFX_COOLDOWN_MS,
 } from './laser/laserTimings';
 import MatchHintsOverlay from './matchHints/MatchHintsOverlay';
+import { useAutoMatchHints } from './matchHints/useAutoMatchHints';
 import { TilePopFxLayer, type TilePopVariant } from './fx/tilePop/TilePopFxLayer';
+import { tileDist } from '../lib/constants';
 
 //===========================================================================================================
 //===========================================================================================================
@@ -207,6 +210,27 @@ export function GridView({
   const effectiveInputLocked = inputLocked || bomb.bombArmed || laser.laserArmed;
   const capturePointerMove = bomb.bombArmed || laser.laserArmed;
 
+  // ─────────────────────────────────────────────
+  // Auto Match Hints (idle -> blink + micro-drag)
+  // ─────────────────────────────────────────────
+  const hintSwaps = useMemo(() => {
+    if (isLevel09) return [];
+    // Hint only needs a stable board; avoid wasted work during animations.
+    if (state.phase !== 'idle') return [];
+    return findPossibleMatchSwaps({ width, height, cells: state.cells, pieces: state.pieces });
+  }, [isLevel09, state.phase, width, height, state.cells, state.pieces]);
+
+  const matchHint = useAutoMatchHints({
+    enabled: !isLevel09,
+    phase: state.phase,
+    inputLocked: effectiveInputLocked,
+    isDragging,
+    swaps: hintSwaps,
+    cells: state.cells,
+    pieces: state.pieces,
+    tileDist,
+  });
+
   // Patch-Delta (Datei 2): Prioritäten angepasst + Level09 not-allowed
   const cursorClass = useMemo(() => {
     if (bomb.bombArmed || laser.laserArmed) return 'cursor-crosshair';
@@ -241,14 +265,18 @@ export function GridView({
   };
 
   const onPointerUpEffective = (e: React.PointerEvent<HTMLDivElement>) => {
+    matchHint.onActivity();
     onPointerUp(e);
   };
 
   const onPointerCancelEffective = (e: React.PointerEvent<HTMLDivElement>) => {
+    matchHint.onActivity();
     onPointerCancel(e);
   };
 
   const onCellPointerDownEffective = (index: number, e: React.PointerEvent<HTMLButtonElement>) => {
+    matchHint.onActivity();
+
     if (e.button === 2) {
       e.preventDefault();
       e.stopPropagation();
@@ -359,6 +387,9 @@ export function GridView({
           shakePieceId={shakePieceId}
           showDebugLabels={showDebugLabels}
           setDraggedEl={setDraggedEl}
+          hintBlinkActive={matchHint.blinkActive}
+          hintBlinkPieceIds={matchHint.blinkPieceIds}
+          hintNudge={matchHint.nudge}
         />
 
         {/* ✅ Tile delete pop FX (UI-only). Variant is controlled by TILE_POP_VFX_VARIANT above. */}

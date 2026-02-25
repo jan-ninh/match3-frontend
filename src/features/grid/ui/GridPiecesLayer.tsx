@@ -1,6 +1,7 @@
+// src/features/grid/ui/GridPiecesLayer.tsx
 // GridPiecesLayer ist absichtlich KEIN Input-Layer
 // Es hat pointer-events-none am Root → es kann Pointer-Events gar nicht empfangen.
-import { useLayoutEffect, useRef } from 'react';
+import { useLayoutEffect, useMemo, useRef } from 'react';
 
 import type { EnginePhase, Piece, PieceId } from '@/gamelogic';
 import type { FallPlan } from '@/gamelogic/types';
@@ -9,6 +10,7 @@ import type { Axis } from '@/devtools';
 import { cellPixelXY } from '../lib/math';
 import { PREVIEW_MS, TILE_SIZE, tileDist, EASING } from '../lib/constants';
 import Tile from './Tile';
+import type { HintNudge } from './matchHints/useAutoMatchHints';
 
 type Props = {
   width: number;
@@ -32,6 +34,11 @@ type Props = {
   showDebugLabels?: boolean;
 
   setDraggedEl: (el: HTMLDivElement | null, basePos: { x: number; y: number }) => void;
+
+  // Auto Match Hint FX (UI-only)
+  hintBlinkActive?: boolean;
+  hintBlinkPieceIds?: readonly PieceId[];
+  hintNudge?: HintNudge | null;
 };
 
 export default function GridPiecesLayer({
@@ -50,8 +57,13 @@ export default function GridPiecesLayer({
   shakePieceId,
   showDebugLabels = false,
   setDraggedEl,
+  hintBlinkActive = false,
+  hintBlinkPieceIds = [],
+  hintNudge = null,
 }: Props) {
   const appliedFallTokenRef = useRef<number | null>(null);
+
+  const blinkSet = useMemo(() => new Set<PieceId>(hintBlinkPieceIds), [hintBlinkPieceIds]);
 
   const allowAnim = phase === 'swapAnimating' || phase === 'swapBackAnimating' || phase === 'fallAnimating';
 
@@ -176,15 +188,24 @@ export default function GridPiecesLayer({
           else previewOffsetY = -previewDir * tileDist;
         }
 
+        const hintDx = hintNudge && hintNudge.pieceId === pp.id ? hintNudge.dx : 0;
+        const hintDy = hintNudge && hintNudge.pieceId === pp.id ? hintNudge.dy : 0;
+
         const previewMs = swapMs === 0 ? 0 : PREVIEW_MS;
         const transitionForPreviewNeighbor = previewActive && previewOtherPieceId === pp.id ? `transform ${previewMs}ms ${EASING}` : undefined;
 
         const baseMs = phase === 'fallAnimating' ? fallDurationMs : swapMs;
         const baseEasing = phase === 'fallAnimating' ? fallEasing : EASING;
         const baseTransition = allowAnim ? `transform ${baseMs}ms ${baseEasing}` : undefined;
-        const outerTransition = applyDragOffset ? 'none' : (transitionForPreviewNeighbor ?? baseTransition);
+
+        const hintTransition =
+          hintNudge && hintNudge.pieceId === pp.id && !applyDragOffset ? `transform ${hintNudge.transitionMs}ms ${EASING}` : undefined;
+
+        const outerTransition = applyDragOffset ? 'none' : (hintTransition ?? transitionForPreviewNeighbor ?? baseTransition);
 
         const isShaking = shakePieceId === pp.id;
+
+        const hintBlink = hintBlinkActive && blinkSet.has(pp.id);
 
         return (
           <div
@@ -202,13 +223,19 @@ export default function GridPiecesLayer({
             style={{
               width: TILE_SIZE,
               height: TILE_SIZE,
-              transform: `translate(${basePos.x + previewOffsetX}px, ${basePos.y + previewOffsetY}px)`,
+              transform: `translate(${basePos.x + previewOffsetX + hintDx}px, ${basePos.y + previewOffsetY + hintDy}px)`,
               transition: outerTransition,
               willChange: 'transform',
               zIndex: isThisDragged ? 80 : 20,
             }}
           >
-            <Tile type={pp.type} dragging={isThisDragged && isDragging} preview={previewActive && previewOtherPieceId === pp.id} shaking={isShaking} />
+            <Tile
+              type={pp.type}
+              dragging={isThisDragged && isDragging}
+              preview={previewActive && previewOtherPieceId === pp.id}
+              shaking={isShaking}
+              hintBlink={hintBlink}
+            />
 
             {showDebugLabels ? (
               <div className="absolute bottom-1 right-1 text-[10px] leading-none text-white/85 drop-shadow font-mono">
