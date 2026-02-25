@@ -1,4 +1,3 @@
-// src/gamelogic/engine/state.ts
 import type {
   EngineEvent,
   EngineState,
@@ -302,6 +301,10 @@ export function createState(
   const enemyTurnEveryMs = resolveEnemyEveryMs(level);
   const nextEnemyTurnAtMs = enemyTurnEnabled && enemyTurnEveryMs > 0 && nowMs > 0 ? nowMs + enemyTurnEveryMs : 0;
 
+  // Level 01: Breach count = number of firewall obstacles present at init.
+  // (Seeded random placement is resolved during board build.)
+  const breachesTotal = cells.reduce((acc, c) => (c.obstacle?.kind === 'firewall' ? acc + 1 : acc), 0);
+
   const base: EngineState = {
     levelId,
     width: level.width,
@@ -344,8 +347,8 @@ export function createState(
     level9TimerDeadlineAtMs: timerDeadlineAtMs,
 
     // Level 01: Firewall/Gate mechanics
-    breachesTotal: level.firewallNodes.length,
-    breachesRemaining: level.firewallNodes.length,
+    breachesTotal,
+    breachesRemaining: breachesTotal,
 
     gateOpen: false,
     gateIndices: level.gateIndices,

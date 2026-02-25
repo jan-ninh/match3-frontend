@@ -1,16 +1,17 @@
-// src/gamelogic/board/build/buildInitialBoard.ts
 import type { LevelDefinition, Piece, PieceId } from '../../types';
 import { initRngState } from '../../rng';
 import type { BuildBoardResult } from './typesBuild';
 import { initCellsFromLevel } from './initCellsFromLevel';
 import { pickSpawnType } from './spawnPicker';
+import { resolveRandomFirewalls } from './resolveRandomFirewalls';
 
 export function buildInitialBoard(level: LevelDefinition, seed: number): BuildBoardResult {
-  const { width, height, allowedTypes } = level;
+  const resolvedLevel = resolveRandomFirewalls(level, seed);
+  const { width, height, allowedTypes } = resolvedLevel;
 
   let rngState = initRngState(seed);
 
-  const cells = initCellsFromLevel(level);
+  const cells = initCellsFromLevel(resolvedLevel);
 
   const pieces: Record<PieceId, Piece> = {};
   let nextPieceId = 0;
