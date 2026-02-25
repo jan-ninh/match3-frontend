@@ -1,4 +1,3 @@
-// src/features/audio/sfx/sfxManifest.ts
 /**
  * Public URL-based SFX manifest.
  * - points to files in /public so missing files won't break builds
@@ -41,6 +40,11 @@ export const SFX_URLS = {
 
   reshuffle: urls('audio/sfx/items/reshuffle/reshuffle.mp3', 'audio/sfx/items/reshuffle/reshuffle_SFX.ogg', 'audio/sfx/items/reshuffle/reshuffle_SFX.wav'),
 
+  // Ingame
+  // GOAL PIN asset (public/):
+  // - public/audio/sfx/ingame/game_win_jingle.mp3
+  gameWinJingle: urls('audio/sfx/ingame/game_win_jingle.mp3'),
+
   // UI
   // TEMP: maps to an existing SFX so hover works immediately.
   // Replace with e.g. audio/sfx/ui/settings_hover_01.* once you add the real asset.
@@ -75,6 +79,7 @@ export const CORE_SFX: readonly SfxId[] = [
   'laserTargeting',
   'laserConfirm',
   'reshuffle',
+  'gameWinJingle',
   'uiSettingsHover',
   'matchPop01',
   'matchPop02',

@@ -1,4 +1,3 @@
-// src/features/devtools-host/lib/useMatch3Engine.ts
 import { useCallback, useEffect, useReducer, useState } from 'react';
 
 import type { EngineAction } from '@/gamelogic';
@@ -104,7 +103,7 @@ export function useMatch3Engine({ initialLevelId = 1 }: Args) {
   // Order matters: reset runs before auto-rearm in the same stable-idle tick.
   useLevel09AutoRearmLaser({ levelId: state.levelId, events: state.events });
 
-  useMatchRewardSfx({ events: state.events });
+  useMatchRewardSfx({ state });
 
   useAnimBridges({ dispatch, anim: state.anim });
 

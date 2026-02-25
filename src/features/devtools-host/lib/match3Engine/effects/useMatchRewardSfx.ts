@@ -1,12 +1,14 @@
 import { useEffect, useRef } from 'react';
 
 import type { EngineState } from '@/gamelogic/types';
+import { getWinReasonIfMet } from '@/gamelogic/outcome/winConditions';
 import { playSfx } from '@/features/audio';
 
 type SeenRing = {
   set: Set<string>;
   order: string[];
 };
+
 
 function markSeen(seen: SeenRing, id: string, max: number): boolean {
   if (seen.set.has(id)) return false;
@@ -80,20 +82,69 @@ function extractMatchEventId(ev: unknown, matchLen: number, fallbackIndex: numbe
   return `${t}:len:${matchLen}:i:${fallbackIndex}`;
 }
 
+type RunAnchor = Readonly<{ key: string; startIndex: number }>;
+
+function extractRunAnchor(events: readonly unknown[]): RunAnchor {
+  for (let i = events.length - 1; i >= 0; i -= 1) {
+    const ev = events[i];
+    if (!isRecord(ev)) continue;
+
+    const t = ev.type;
+    if (t !== 'seededInit' && t !== 'reset') continue;
+
+    const levelId = ev.levelId;
+    const seed = ev.seed;
+
+    const lid = typeof levelId === 'number' && Number.isFinite(levelId) ? Math.floor(levelId) : -1;
+    const s = typeof seed === 'number' && Number.isFinite(seed) ? Math.floor(seed) : -1;
+
+    return { key: `${t}:${lid}:${s}`, startIndex: i };
+  }
+
+  return { key: 'unknown', startIndex: -1 };
+}
+
 type Args = Readonly<{
-  events: EngineState['events'];
+  state: EngineState;
 }>;
 
-export function useMatchRewardSfx({ events }: Args) {
+export function useMatchRewardSfx({ state }: Args) {
+  const events = state.events;
+
   // Match4/5 reward SFX (event-driven, deduped)
   const seenMatchSfxRef = useRef<SeenRing>({ set: new Set<string>(), order: [] });
+
+  // Win jingle should trigger as soon as the win condition is fulfilled,
+  // even if cascades / non-idle phases continue afterwards.
+  const didPlayWinJingleRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    const winReason = getWinReasonIfMet(state);
+    const isWinNow = winReason !== null;
+
+    // Play exactly once on the *transition* into a satisfied win condition.
+    // Do NOT key this off events (events are capped to MAX_EVENTS=80).
+    if (isWinNow && didPlayWinJingleRef.current === false) {
+      didPlayWinJingleRef.current = true;
+      playSfx('gameWinJingle');
+      return;
+    }
+
+    // Reset guard for the next run / reset.
+    if (!isWinNow && didPlayWinJingleRef.current === true) {
+      didPlayWinJingleRef.current = false;
+    }
+  }, [state]);
 
   useEffect(() => {
     const seen = seenMatchSfxRef.current;
 
+    const anchor = extractRunAnchor(events);
+    const runStart = anchor.startIndex + 1;
+
     let best = 0;
 
-    for (let i = 0; i < events.length; i += 1) {
+    for (let i = runStart; i < events.length; i += 1) {
       const ev = events[i];
       const len = extractMatchLen(ev);
       if (len == null || len < 4) continue;
