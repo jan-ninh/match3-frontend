@@ -40,11 +40,21 @@ export function getWinReasonIfMet(state: EngineState): WinReason | null {
     return 'objectiveTerminals';
   }
 
-  // Level 05+: Signal Network win (source connected to target via charged cells)
+  // Level 03/04/05+: Signal Network
   if (state.signalSourcesTotal > 0 && state.signalTargetsTotal > 0) {
-    if (isSignalLinked(state)) {
-      return 'signal';
+    const linked = state.signalLinked || isSignalLinked(state);
+    if (!linked) return null;
+
+    // Level 04 variant: link arms dormant firewalls; win requires both destroyed.
+    if (state.levelId === 4) {
+      if (state.breachesTotal > 0 && state.breachesRemaining <= 0) {
+        return 'signal';
+      }
+      return null;
     }
+
+    // Default signal rule: link is enough.
+    return 'signal';
   }
 
   return null;

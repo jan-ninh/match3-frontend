@@ -169,6 +169,11 @@ export function buildCellViewModel(cell: Cell, index: number, width: number): Ce
     const isSweep = obs.origin === 'sweep';
     if (isSweep) return { kind: 'sweepFirewall', index, x, y };
 
+    // Level 04 variant: dormant breach firewalls are rendered via FirewallNodeOverlay
+    // so we can show OFF (hp=0) vs ON (hp>0) without touching the spike renderer.
+    const isDormantLevel04 = obs.origin === 'level4Dormant';
+    if (isDormantLevel04) return { kind: 'firewallNode', index, x, y, hp: obs.hp, maxHp: obs.maxHp };
+
     const isSpike = obs.maxHp === 1;
     if (isSpike) return { kind: 'spike', index, x, y };
 

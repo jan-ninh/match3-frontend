@@ -7,6 +7,7 @@ import { sealKitsEffect } from './level02/sealKits';
 import { terminalsChargeEffect } from './level03_04/terminals';
 import { sweepFirewallClearEffect } from './level04/sweepFirewallClear';
 import { signalChargeEffect } from './level05/signalCharge';
+import { signalLinkEffect } from './level05/signalLink';
 import { matchRushProgressEffect } from './level07/matchRushProgress';
 import { stoneTileDamageEffect } from './level08/stoneTileDamage';
 
@@ -38,6 +39,7 @@ export function getCascadeEffectsForState(state: EngineState): readonly CascadeE
   // - Level 03 / Level 11: reuse as pure "trace" mechanic (no signal nodes required)
   if (state.levelId === 3 || state.levelId === 11 || state.signalSourcesTotal > 0 || state.signalTargetsTotal > 0) {
     effects.push(signalChargeEffect);
+    effects.push(signalLinkEffect);
   }
 
   // Level 07: Match Rush progress (static toggle via matchRushTargetUnits)

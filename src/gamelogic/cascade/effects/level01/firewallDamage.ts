@@ -1,4 +1,3 @@
-// src/gamelogic/cascade/effects/level01/firewallDamage.ts
 import type { EngineEvent, EngineState } from '../../../types';
 import type { CascadeEffect } from '../typesEffects';
 import { setGateOpen } from './gate';
@@ -38,7 +37,7 @@ function applyFirewallDamage(state: EngineState, clearIndices: number[], events:
     }
 
     if (nextHp > 0) {
-      nextCells[i] = { ...c, obstacle: { kind: 'firewall', hp: nextHp, maxHp: c.obstacle.maxHp } };
+      nextCells[i] = { ...c, obstacle: { kind: 'firewall', hp: nextHp, maxHp: c.obstacle.maxHp, origin: c.obstacle.origin } };
       events.push({ type: 'firewallDamaged', index: i, hp: nextHp });
       continue;
     }
@@ -56,7 +55,10 @@ function applyFirewallDamage(state: EngineState, clearIndices: number[], events:
     nextState = { ...nextState, breachesRemaining: remaining };
   }
 
-  if (remaining <= 0 && !nextState.gateOpen) {
+  // Only open a gate when the level actually has gate cells.
+  const hasGateCells = (nextState.gateIndices?.length ?? 0) > 0;
+
+  if (hasGateCells && remaining <= 0 && !nextState.gateOpen) {
     nextState = setGateOpen(nextState, true, events);
   }
 

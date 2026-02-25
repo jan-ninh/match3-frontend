@@ -42,8 +42,9 @@ export function resolveOutcomeIfIdle(state: EngineState): EngineState {
   if (winReason) {
     const evs: EngineEvent[] = [];
 
-    // Emit signal-specific event before generic win
-    if (winReason === 'signal') {
+    // Emit signal-specific event only if the engine hasn't emitted it yet.
+    // (Signal-link moment is handled by cascade effect `signalLinkEffect`.)
+    if (winReason === 'signal' && state.signalLinked !== true) {
       evs.push({ type: 'signalLinked' });
     }
 

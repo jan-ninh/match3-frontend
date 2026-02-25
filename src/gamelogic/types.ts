@@ -53,7 +53,7 @@ export type LaserWarning = {
 // ─────────────────────────────────────────────
 
 export type CellObstacle =
-  | { kind: 'firewall'; hp: number; maxHp: number; origin?: 'breach' | 'sweep' }
+  | { kind: 'firewall'; hp: number; maxHp: number; origin?: 'breach' | 'sweep' | 'level4Dormant' }
   | { kind: 'gate'; open: boolean }
   | { kind: 'leak'; id: number; progress: number; required: number }
   | { kind: 'contamination' }
@@ -157,17 +157,12 @@ export type Piece = {
 
 export type FirewallNodeDef = {
   index: number;
+  /** Current HP at level start (may be 0 for dormant nodes). */
   hp: number;
-};
-
-export type FirewallSpawnPolicy = 'noTriples8';
-
-export type FirewallSpawnDef = {
-  count: number;
-  hp: number;
-  policy?: FirewallSpawnPolicy; // default: 'noTriples8'
-  /** If true: never place on outer border (x=0|w-1|y=0|h-1). */
-  avoidBorder?: boolean;
+  /** Max HP for UI + activation (defaults to hp when omitted). */
+  maxHp?: number;
+  /** Optional origin tag for rendering / special rules. */
+  origin?: 'breach' | 'sweep' | 'level4Dormant';
 };
 
 export type LeakNodeDef = {
@@ -249,7 +244,6 @@ export type LevelDefinition = {
 
 
   blockedIndices: number[];
-  firewallSpawn?: FirewallSpawnDef;
   firewallNodes: FirewallNodeDef[];
   gateIndices: number[];
 
