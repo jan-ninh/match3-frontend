@@ -38,19 +38,19 @@ type State = Readonly<{
 }>;
 
 // After this idle time (no activity) the currently selected hint is played.
-const IDLE_MS = 2000;
+const IDLE_MS = 2500;
 
 // Placeholder: if > 0, the hint MAY switch while staying in the same stable-idle segment.
 // Default = 0 => no switching (hint remains fixed until the next stable idle begins).
 const SWITCH_HINT_SAME_TURN_SEC = 0;
 
 // "blink" timing (we toggle ring/glow for a short window)
-const BLINK_MS = 220;
+const BLINK_MS = 290; //220
 
 // nudge sequence: on -> off -> on -> off
 // Keep the 2nd nudge AFTER the 1st return finished.
-const NUDGE_MS = 220;
-const GAP_MS = 180;
+const NUDGE_MS = 300; // 220
+const GAP_MS = 150; // 180
 
 function canSelect(args: Pick<Args, 'enabled' | 'phase' | 'swaps'>): boolean {
   if (!args.enabled) return false;
@@ -309,29 +309,26 @@ export function useAutoMatchHints(args: Args): State {
     playTokenRef.current += 1; // invalidate scheduled callbacks
   }, [clearIdleTimer, clearSwitchTimer, clearPlayTimers, clearFx]);
 
-  const ensureSelected = useCallback(
-    (avoidKey: string | null) => {
-      const cfg = cfgRef.current;
+  const ensureSelected = useCallback((avoidKey: string | null) => {
+    const cfg = cfgRef.current;
 
-      // If selected is no longer present (candidates drift), re-pick.
-      const cur = selectedRef.current;
-      if (cur && hasSwapKey(cfg.swaps, cur.key)) return cur;
+    // If selected is no longer present (candidates drift), re-pick.
+    const cur = selectedRef.current;
+    if (cur && hasSwapKey(cfg.swaps, cur.key)) return cur;
 
-      selectedRef.current = null;
+    selectedRef.current = null;
 
-      if (!canSelect(cfg)) return null;
+    if (!canSelect(cfg)) return null;
 
-      const swap = pickRandomSwap(cfg.swaps, avoidKey);
-      if (!swap) return null;
+    const swap = pickRandomSwap(cfg.swaps, avoidKey);
+    if (!swap) return null;
 
-      const built = buildSelectedHint({ cells: cfg.cells, pieces: cfg.pieces, tileDist: cfg.tileDist }, swap);
-      if (!built) return null;
+    const built = buildSelectedHint({ cells: cfg.cells, pieces: cfg.pieces, tileDist: cfg.tileDist }, swap);
+    if (!built) return null;
 
-      selectedRef.current = built;
-      return built;
-    },
-    [],
-  );
+    selectedRef.current = built;
+    return built;
+  }, []);
 
   const scheduleIdle = useCallback(() => {
     if (typeof window === 'undefined') return;
@@ -438,22 +435,31 @@ export function useAutoMatchHints(args: Args): State {
       setNudge(mkNudge(0));
     }, NUDGE_MS);
 
-    const t2 = window.setTimeout(() => {
-      if (playTokenRef.current !== token) return;
-      setNudge(mkNudge(ampPx));
-      flashBlink(token, hint.blinkPieceIds);
-    }, 2 * NUDGE_MS + GAP_MS);
+    const t2 = window.setTimeout(
+      () => {
+        if (playTokenRef.current !== token) return;
+        setNudge(mkNudge(ampPx));
+        flashBlink(token, hint.blinkPieceIds);
+      },
+      2 * NUDGE_MS + GAP_MS,
+    );
 
-    const t3 = window.setTimeout(() => {
-      if (playTokenRef.current !== token) return;
-      setNudge(mkNudge(0));
-    }, 3 * NUDGE_MS + GAP_MS);
+    const t3 = window.setTimeout(
+      () => {
+        if (playTokenRef.current !== token) return;
+        setNudge(mkNudge(0));
+      },
+      3 * NUDGE_MS + GAP_MS,
+    );
 
-    const done = window.setTimeout(() => {
-      if (playTokenRef.current !== token) return;
-      clearFx();
-      scheduleIdle(); // repeat same hint after idle delay
-    }, 4 * NUDGE_MS + GAP_MS);
+    const done = window.setTimeout(
+      () => {
+        if (playTokenRef.current !== token) return;
+        clearFx();
+        scheduleIdle(); // repeat same hint after idle delay
+      },
+      4 * NUDGE_MS + GAP_MS,
+    );
 
     timersRef.current.push(t1, t2, t3, done);
   }, [clearPlayTimers, clearFx, ensureSelected, flashBlink, scheduleIdle]);

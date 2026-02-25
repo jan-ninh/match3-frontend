@@ -28,15 +28,11 @@ export default function Tile({ type, dragging, preview, locked, shaking, hintBli
   const isKeycard = type === 'keycard';
 
   // Base shadow must be a CLASS (not inline), otherwise it overrides Tailwind ring/shadow layers.
-  const baseShadow = isKeycard
-    ? 'shadow-[0_6px_16px_rgba(0,0,0,0.35),0_0_12px_rgba(251,191,36,0.25)]'
-    : 'shadow-[0_6px_16px_rgba(0,0,0,0.35)]';
+  const baseShadow = isKeycard ? 'shadow-[0_6px_16px_rgba(0,0,0,0.35),0_0_12px_rgba(251,191,36,0.25)]' : 'shadow-[0_6px_16px_rgba(0,0,0,0.35)]';
 
   // PREMIUM: avoid transform scale on the tile (scale => resampling => blur).
   // Use ring/glow instead for "lift" feedback.
-  const dragFx = dragging
-    ? 'ring-1 ring-white/20 shadow-[0_10px_22px_rgba(0,0,0,0.55),0_0_28px_rgba(34,211,238,0.16),0_6px_16px_rgba(0,0,0,0.35)]'
-    : '';
+  const dragFx = dragging ? 'ring-1 ring-white/20 shadow-[0_10px_22px_rgba(0,0,0,0.55),0_0_28px_rgba(34,211,238,0.16),0_6px_16px_rgba(0,0,0,0.35)]' : '';
 
   // NOTE:
   // Hint blink should NOT be a border/ring.
@@ -99,9 +95,9 @@ export default function Tile({ type, dragging, preview, locked, shaking, hintBli
     backgroundPosition: `${-sprite.x * scale}px ${-sprite.y * scale}px`,
   };
 
-  const overlayOpacity = hintBlink ? 0.92 : 0;
+  const overlayOpacity = hintBlink ? 0.52 : 0; // hintBlink ? 0.92 : 0;
   const overlayFilter = hintBlink
-    ? 'brightness(1.95) saturate(1.25) drop-shadow(0 0 10px rgba(34,211,238,0.55)) drop-shadow(0 0 20px rgba(34,211,238,0.25)) drop-shadow(0 0 10px rgba(255,255,255,0.14))'
+    ? 'brightness(1.95) saturate(1) drop-shadow(0 0 10px rgba(34,211,238,0.55)) drop-shadow(0 0 20px rgba(34,211,238,0.25)) drop-shadow(0 0 10px rgba(255,255,255,0.14))'
     : 'brightness(1) saturate(1)';
 
   const spriteOverlayStyle: CSSProperties = {
@@ -109,7 +105,7 @@ export default function Tile({ type, dragging, preview, locked, shaking, hintBli
     opacity: overlayOpacity,
     mixBlendMode: 'screen',
     filter: overlayFilter,
-    transition: 'opacity 90ms ease-out, filter 120ms ease-out',
+    transition: 'opacity 600ms ease-out, filter 600ms ease-out', // transition: 'opacity 90ms ease-out, filter 120ms ease-out',
     willChange: 'opacity, filter',
   };
 
