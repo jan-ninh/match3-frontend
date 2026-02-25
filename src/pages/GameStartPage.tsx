@@ -1,3 +1,4 @@
+// src\pages\GameStartPage.tsx
 import { useNavigate } from 'react-router';
 import { CyberButton, CyberTitle } from '@/components';
 
@@ -11,7 +12,7 @@ export default function GameStartPage() {
   ];
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
+    <div className="h-full min-h-0 w-full box-border overflow-hidden flex items-center justify-center p-4">
       <div className="text-center">
         <CyberTitle className="p-8" size="xl">
           MATCH-3
