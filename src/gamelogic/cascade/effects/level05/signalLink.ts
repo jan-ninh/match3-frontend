@@ -1,6 +1,6 @@
 import type { CascadeEffect, PostStageArgs, StageResult } from '../typesEffects';
 import type { EngineState } from '../../../types';
-import { isSignalLinked } from '../../../board/signal/signalPathCheck';
+import { isSignalLinked, isSignalLinkedLevel04ByFirewalls } from '../../../board/signal/signalPathCheck';
 
 function activateDormantFirewallsForLevel04(state: EngineState): EngineState {
   // Only Level 04 uses the "dormant firewall" activation mechanic.
@@ -44,6 +44,18 @@ export const signalLinkEffect: CascadeEffect = {
   postClear({ state, ctx, events }: PostStageArgs): StageResult {
     if (state.signalLinked) return { state, ctx };
 
+    // Level 04: endpoints are the two dormant firewalls (no signal nodes).
+    if (state.levelId === 4) {
+      if (!isSignalLinkedLevel04ByFirewalls(state)) return { state, ctx };
+
+      events.push({ type: 'signalLinked' });
+
+      let nextState: EngineState = { ...state, signalLinked: true };
+      nextState = activateDormantFirewallsForLevel04(nextState);
+      return { state: nextState, ctx };
+    }
+
+    // Default Signal Network: requires explicit source+target nodes.
     if ((state.signalSourcesTotal | 0) <= 0 || (state.signalTargetsTotal | 0) <= 0) return { state, ctx };
 
     if (!isSignalLinked(state)) return { state, ctx };
@@ -51,11 +63,7 @@ export const signalLinkEffect: CascadeEffect = {
     // Mark link as achieved (engine-owned, one-shot).
     events.push({ type: 'signalLinked' });
 
-    let nextState: EngineState = { ...state, signalLinked: true };
-
-    // Level 04: linking the signal arms the dormant firewalls.
-    nextState = activateDormantFirewallsForLevel04(nextState);
-
+    const nextState: EngineState = { ...state, signalLinked: true };
     return { state: nextState, ctx };
   },
 };

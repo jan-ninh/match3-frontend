@@ -1,6 +1,6 @@
 import type { EngineState } from '../types';
 
-import { isSignalLinked } from '../board/signal/signalPathCheck';
+import { isSignalLinked, isSignalLinkedLevel04ByFirewalls } from '../board/signal/signalPathCheck';
 
 export type WinReason = 'matchRush' | 'laserRowMatch4' | 'stoneTiles' | 'gate' | 'leaks' | 'terminals' | 'objectiveTerminals' | 'signal';
 
@@ -20,7 +20,22 @@ export function getWinReasonIfMet(state: EngineState): WinReason | null {
     return 'stoneTiles';
   }
 
+  // Level 04 variant: Firewall A ↔ Firewall B link arms the nodes; win requires both destroyed.
+  if (state.levelId === 4) {
+    // "Signal linked" is one-shot and becomes SSOT once achieved.
+    // Fallback: allow computing the link if the effect hasn't run yet.
+    const linked = state.signalLinked === true || isSignalLinkedLevel04ByFirewalls(state);
+    if (!linked) return null;
+
+    if (state.breachesTotal > 0 && state.breachesRemaining <= 0) {
+      return 'signal';
+    }
+
+    return null;
+  }
+
   // Level 01: Gate win (all firewalls breached)
+  // NOTE: explicitly skipped for Level 04.
   if (state.breachesRemaining <= 0 && state.gateOpen && state.breachesTotal > 0) {
     return 'gate';
   }
@@ -40,20 +55,11 @@ export function getWinReasonIfMet(state: EngineState): WinReason | null {
     return 'objectiveTerminals';
   }
 
-  // Level 03/04/05+: Signal Network
+  // Level 03/05+: Signal Network
   if (state.signalSourcesTotal > 0 && state.signalTargetsTotal > 0) {
-    const linked = state.signalLinked || isSignalLinked(state);
+    const linked = state.signalLinked === true || isSignalLinked(state);
     if (!linked) return null;
 
-    // Level 04 variant: link arms dormant firewalls; win requires both destroyed.
-    if (state.levelId === 4) {
-      if (state.breachesTotal > 0 && state.breachesRemaining <= 0) {
-        return 'signal';
-      }
-      return null;
-    }
-
-    // Default signal rule: link is enough.
     return 'signal';
   }
 
