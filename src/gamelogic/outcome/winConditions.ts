@@ -36,7 +36,12 @@ export function getWinReasonIfMet(state: EngineState): WinReason | null {
 
   // Level 01: Gate win (all firewalls breached)
   // NOTE: explicitly skipped for Level 04.
-  if (state.breachesRemaining <= 0 && state.gateOpen && state.breachesTotal > 0) {
+  //
+  // Important:
+  // Some early levels don't actually have gate indices (no "gate to open" on the board).
+  // In that case, the win should NOT depend on gateOpen (which might remain false forever).
+  const hasGate = (state.gateIndices?.length ?? 0) > 0;
+  if (state.breachesRemaining <= 0 && state.breachesTotal > 0 && (state.gateOpen || !hasGate)) {
     return 'gate';
   }
 
