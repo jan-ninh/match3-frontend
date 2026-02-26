@@ -1,13 +1,13 @@
-// src/pages/ProfileDashboard.tsx
 import { AvatarSprite, BadgeGrid, ProfileHeader, ProgressBar, StatsGrid, Navbar, CyberButton, GlassSection } from '@/components';
 import badges from '@/data/badges';
 import { useNavigate } from 'react-router';
 import { useAuth } from '@/context/AuthContext';
 import { useEffect, useMemo, useState } from 'react';
 
-//
 import ChangeAvatarModal from '@/features/overlays/ChangeAvatarModal';
-const MAX_LEVEL = 12;
+
+const EXP_PER_WIN = 1000;
+const EXP_PER_LEVEL = 3000;
 
 export default function ProfileDashboard() {
   const navigate = useNavigate();
@@ -47,37 +47,46 @@ export default function ProfileDashboard() {
     return Math.floor(score);
   }, [profile?.totalScore, user?.totalScore]);
 
-  const highestCompletedStage = useMemo(() => {
-    if (!profile) return 0;
-
-    let highest = 0;
-    for (const [key, data] of Object.entries(profile.progress || {})) {
-      if (!data?.completed) continue;
-      const n = Number.parseInt(key.replace('stage', ''), 10);
-      if (Number.isFinite(n) && n > highest) highest = n;
-    }
-
-    return highest;
+  const playerLevel = useMemo(() => {
+    const raw = (profile as unknown as { playerLevel?: unknown } | null)?.playerLevel;
+    const n = typeof raw === 'number' ? raw : Number(raw);
+    if (!Number.isFinite(n) || n < 1) return 1;
+    return Math.floor(n);
   }, [profile]);
 
-  const level = useMemo(() => {
-    // Profile level should reflect stage progression, not raw score buckets.
-    return Math.min(MAX_LEVEL, Math.max(1, highestCompletedStage + 1));
-  }, [highestCompletedStage]);
+  const playerExpTotal = useMemo(() => {
+    const raw = (profile as unknown as { playerExp?: unknown } | null)?.playerExp;
+    const n = typeof raw === 'number' ? raw : Number(raw);
+    if (!Number.isFinite(n) || n < 0) return 0;
+    return Math.floor(n);
+  }, [profile]);
+
+  const expRequired = EXP_PER_LEVEL;
+
+  const expCurrent = useMemo(() => {
+    // UI shows current exp within the active level.
+    // Overflow is handled server-side via (level, totalExp), but this is safe even if totalExp keeps growing.
+    return playerExpTotal % expRequired;
+  }, [playerExpTotal, expRequired]);
+
+  const progressPercent = useMemo(() => {
+    if (expRequired <= 0) return 0;
+    return (expCurrent / expRequired) * 100;
+  }, [expCurrent, expRequired]);
 
   const stats = useMemo(() => {
     if (!profile) return [];
+
+    const wins = typeof profile.gamesWon === 'number' ? profile.gamesWon : 0;
+
     return [
-      { label: 'Wins', value: profile.gamesWon },
+      { label: 'Wins', value: wins },
       { label: 'Losses', value: profile.gamesLost },
       { label: 'Games Played', value: profile.gamesPlayed },
       { label: 'Score', value: safeTotalScore.toLocaleString() },
+      { label: 'Total EXP', value: playerExpTotal.toLocaleString() },
     ];
   }, [profile, safeTotalScore]);
-
-  const progressPercent = useMemo(() => {
-    return (level / MAX_LEVEL) * 100;
-  }, [level]);
 
   const achievedBadges = useMemo(() => {
     if (!profile) return badges;
@@ -103,7 +112,6 @@ export default function ProfileDashboard() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* ✅ Navbar top - relative position */}
       <div className="shrink-0">
         <Navbar />
       </div>
@@ -111,7 +119,7 @@ export default function ProfileDashboard() {
       <div className="m-4 flex flex-col space-y-4">
         <ProfileHeader
           username={profile.username}
-          level={level}
+          level={playerLevel}
           avatar={<AvatarSprite name={profile.avatar as any} size={132} />}
           actions={
             <button
@@ -124,13 +132,13 @@ export default function ProfileDashboard() {
           }
         />
       </div>
-      {/* ✅ Content scrollable - flex-1 overflow-y-auto */}
+
       <div className="flex-1 flex flex-col min-h-0">
         <div className="mx-4 flex flex-col space-y-4 flex-1 min-h-0">
           <GlassSection className="flex flex-col gap-6 p-6 overflow-y-auto scrollbar-cyber flex-1 min-h-0">
             <StatsGrid stats={stats} />
             <GlassSection>
-              <ProgressBar percent={progressPercent} currentLevel={level} maxLevel={MAX_LEVEL} />
+              <ProgressBar percent={progressPercent} playerLevel={playerLevel} expCurrent={expCurrent} expRequired={expRequired} />
             </GlassSection>
 
             <BadgeGrid badges={achievedBadges} />
@@ -138,7 +146,6 @@ export default function ProfileDashboard() {
         </div>
       </div>
 
-      {/* ✅ Back button bottom - flex-shrink-0 */}
       <div className="shrink-0 px-6 mt-4 pb-10 flex justify-center">
         <CyberButton
           key={'Back'}
@@ -150,7 +157,6 @@ export default function ProfileDashboard() {
         />
       </div>
 
-      {/* Modal */}
       <ChangeAvatarModal
         open={avatarModalOpen}
         onClose={() => setAvatarModalOpen(false)}
