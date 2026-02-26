@@ -34,32 +34,32 @@ export function makeLevel05({ baseSeed, allowedTypes }: Args): LevelDefinition {
   // ─────────────────────────────────────────────
   // Terminal-Positionen: unterer Rand
   // ─────────────────────────────────────────────
-  // Terminal A: (2,7) = index 58, ChargeColor: blue
-  // Terminal B: (5,7) = index 61, ChargeColor: green
+  // Neue Terminals (laut GOAL PIN UPDATE):
+  // - (3,7) = index 59
+  // - (4,7) = index 60
+  //
+  // "Schloss-Symbol, aber keine 2 HP Slots" => requiredCharge = 1 (1-step unlock)
   const terminalNodes = [
     {
-      index: 2 + 7 * width, // (2,7) = 58
+      index: 3 + 7 * width, // (3,7) = 59
       id: 0,
-      requiredCharge: 2,
+      requiredCharge: 1,
       chargeColor: 'blue' as PieceType,
     },
     {
-      index: 5 + 7 * width, // (5,7) = 61
+      index: 4 + 7 * width, // (4,7) = 60
       id: 1,
-      requiredCharge: 2,
+      requiredCharge: 1,
       chargeColor: 'green' as PieceType,
     },
   ];
 
   // ─────────────────────────────────────────────
-  // Keycard-Positionen: oben
+  // Keycard-Positionen
   // ─────────────────────────────────────────────
-  // Keycard 1: (2,1) = index 10
-  // Keycard 2: (5,1) = index 13
-  const keycardNodes = [
-    { index: 2 + 1 * width }, // (2,1) = 10
-    { index: 5 + 1 * width }, // (5,1) = 13
-  ];
+  // GOAL PIN UPDATE: "Nimm die 2 Schlüssel raus" => keine Keycards im Start-Layout.
+  // (Erwartung: Keycards werden später via Gameplay/Events gespawnt.)
+  const keycardNodes: { index: number }[] = [];
 
   // ─────────────────────────────────────────────
   // Board Geometry
