@@ -4,6 +4,7 @@ import type { CSSProperties } from 'react';
 import type { PieceType } from '@/gamelogic';
 import { TILE_SIZE } from '../lib/constants';
 import { getTileSprite } from './tiles';
+import { KEYCARD_BASE_SHADOW_CLASS, KEYCARD_FALLBACK_STYLE, TILE_BASE_SHADOW_CLASS } from './tileStyles/keycardTileFx';
 
 type Props = {
   type: PieceType;
@@ -28,11 +29,13 @@ export default function Tile({ type, dragging, preview, locked, shaking, hintBli
   const isKeycard = type === 'keycard';
 
   // Base shadow must be a CLASS (not inline), otherwise it overrides Tailwind ring/shadow layers.
-  const baseShadow = isKeycard ? 'shadow-[0_6px_16px_rgba(0,0,0,0.35),0_0_12px_rgba(251,191,36,0.25)]' : 'shadow-[0_6px_16px_rgba(0,0,0,0.35)]';
+  const baseShadow = isKeycard ? KEYCARD_BASE_SHADOW_CLASS : TILE_BASE_SHADOW_CLASS;
 
   // PREMIUM: avoid transform scale on the tile (scale => resampling => blur).
   // Use ring/glow instead for "lift" feedback.
-  const dragFx = dragging ? 'ring-1 ring-white/20 shadow-[0_10px_22px_rgba(0,0,0,0.55),0_0_28px_rgba(34,211,238,0.16),0_6px_16px_rgba(0,0,0,0.35)]' : '';
+  const dragFx = dragging
+    ? 'ring-1 ring-white/20 shadow-[0_10px_22px_rgba(0,0,0,0.55),0_0_28px_rgba(34,211,238,0.16),0_6px_16px_rgba(0,0,0,0.35)]'
+    : '';
 
   // NOTE:
   // Hint blink should NOT be a border/ring.
@@ -58,14 +61,7 @@ export default function Tile({ type, dragging, preview, locked, shaking, hintBli
   // Keycard fallback (wenn kein Sprite/Atlas definiert ist)
   if (isKeycard && !sprite) {
     return (
-      <div
-        data-match3-tile=""
-        className={outerCls}
-        style={{
-          background: 'linear-gradient(135deg, rgba(251,191,36,0.4) 0%, rgba(245,158,11,0.5) 100%)',
-          border: '2px solid rgba(251,191,36,0.5)',
-        }}
-      >
+      <div data-match3-tile="" className={outerCls} style={KEYCARD_FALLBACK_STYLE}>
         <div className="w-full h-full flex items-center justify-center">
           <span className="text-amber-100 text-lg">🔑</span>
         </div>
