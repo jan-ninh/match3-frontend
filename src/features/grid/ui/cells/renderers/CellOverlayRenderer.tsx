@@ -1,3 +1,4 @@
+// src/features/grid/ui/cells/renderers/CellOverlayRenderer.tsx
 import type { CellVM } from '../cellViewModel';
 import type { ObstacleSpriteStyles } from '../sprites/getObstacleSpriteStyles';
 
@@ -79,8 +80,22 @@ export function CellOverlayRenderer({ vm, sprites }: Props) {
     case 'sealKit':
       return <SealKitOverlay spriteStyle={sprites.sealKit} />;
 
-    case 'terminal':
-      return <TerminalOverlay state={vm.state} charge={vm.charge} requiredCharge={vm.requiredCharge} chargeColor={vm.chargeColor} />;
+    case 'terminal': {
+      // Level 05: two adjacent terminals are rendered as ONE combined 2-cell slab (purely visual).
+      // SSOT for positions (for now): (3,7) + (4,7)
+      const pairRole =
+        vm.y === 7 && vm.x === 3 ? ('left' as const) : vm.y === 7 && vm.x === 4 ? ('right' as const) : undefined;
+
+      return (
+        <TerminalOverlay
+          state={vm.state}
+          charge={vm.charge}
+          requiredCharge={vm.requiredCharge}
+          chargeColor={vm.chargeColor}
+          pairRole={pairRole}
+        />
+      );
+    }
 
     case 'objectiveTerminal':
       return <ObjectiveTerminalOverlay state={vm.state} charge={vm.charge} requiredCharge={vm.requiredCharge} />;

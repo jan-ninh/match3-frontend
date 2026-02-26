@@ -1,12 +1,23 @@
+// src/features/grid/ui/cells/renderers/TerminalOverlay.tsx
 import type { PieceType } from '@/gamelogic';
 
+import { GAP, TILE_SIZE } from '../../../lib/constants';
 import { PipsRow } from '../primitives/PipsRow';
+
+type PairRole = 'left' | 'right';
 
 type Props = {
   state: 'locked' | 'open' | 'verified';
   charge: number;
   requiredCharge: number;
   chargeColor: PieceType;
+
+  /**
+   * Level 05: two terminals are visually grouped into a single 2-cell rectangle.
+   * - left: renders the full slab spanning 2 cells (incl. grid gap)
+   * - right: renders nothing (slab is owned by the left cell)
+   */
+  pairRole?: PairRole;
 };
 
 function colorLabelClass(color: PieceType): string {
@@ -21,7 +32,50 @@ function pipColorClass(color: PieceType, filled: boolean): string {
   return filled ? 'bg-purple-400/60 border-purple-300/50' : 'bg-white/5 border-white/15';
 }
 
-export function TerminalOverlay({ state, charge, requiredCharge, chargeColor }: Props) {
+function LockBadge() {
+  return (
+    <div className="h-8 w-8 rounded-lg border-2 flex items-center justify-center bg-slate-600/30 border-slate-400/40">
+      <span className="text-slate-300 text-xs">🔒</span>
+    </div>
+  );
+}
+
+function TerminalPairSlabOverlay() {
+  const pairW = TILE_SIZE * 2 + GAP;
+
+  return (
+    <>
+      <div
+        className="absolute top-0 left-0 h-full rounded-xl bg-slate-950/70 pointer-events-none"
+        style={{ width: pairW }}
+        data-match3-terminal-pair=""
+      />
+
+      <div
+        className="absolute top-0 left-0 h-full rounded-xl border-2 border-slate-500/40 shadow-[0_0_14px_rgba(100,116,139,0.20)] pointer-events-none"
+        style={{ width: pairW }}
+      />
+
+      <div className="absolute top-0 left-0 h-full flex items-center pointer-events-none" style={{ width: pairW }}>
+        <div className="flex items-center justify-center" style={{ width: TILE_SIZE }}>
+          <LockBadge />
+        </div>
+
+        <div style={{ width: GAP }} aria-hidden="true" />
+
+        <div className="flex items-center justify-center" style={{ width: TILE_SIZE }}>
+          <LockBadge />
+        </div>
+      </div>
+    </>
+  );
+}
+
+export function TerminalOverlay({ state, charge, requiredCharge, chargeColor, pairRole }: Props) {
+  // Level 05: two terminals share ONE visual slab (2 locks, no pips/labels)
+  if (pairRole === 'right') return null;
+  if (pairRole === 'left') return <TerminalPairSlabOverlay />;
+
   return (
     <>
       <div className="absolute inset-0 rounded-xl bg-slate-950/70" />

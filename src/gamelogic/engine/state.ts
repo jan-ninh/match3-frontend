@@ -1,3 +1,4 @@
+// src/gamelogic/engine/state.ts
 import type {
   EngineEvent,
   EngineState,
@@ -113,15 +114,18 @@ export function createState(
         delete pieces[existingPid];
       }
 
+      const requiredCharge = Math.max(0, node.requiredCharge | 0);
+      const initialState: 'locked' | 'open' = requiredCharge <= 0 ? 'open' : 'locked';
+
       cells[node.index] = {
         blocked: false, // Terminal manages its own passability via obstacle state
         pieceId: null,
         obstacle: {
           kind: 'terminal',
           id: node.id,
-          state: 'locked',
+          state: initialState,
           charge: 0,
-          requiredCharge: node.requiredCharge,
+          requiredCharge,
           chargeColor: node.chargeColor,
         },
       };
