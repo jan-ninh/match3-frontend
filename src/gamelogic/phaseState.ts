@@ -10,6 +10,18 @@ export function setPhase(state: EngineState, phase: EnginePhase, events?: Engine
 
   const base: EngineState = { ...state, phase, inputLocked: isInputLocked(phase) };
 
+  // Terminal phases must never keep an animation alive.
+  // (Example: Level 09 timer can force-lose while a fall anim is active.)
+  if (phase === 'win' || phase === 'lose') {
+    return {
+      ...base,
+      anim: null,
+      pendingSwap: null,
+      pendingTurnCommit: null,
+      animToken: bumpAnimToken(base.animToken),
+    };
+  }
+
   // Clear transient cascade policy when we return to idle.
   // Also clear transient enemy marking flag (enemy turn ends when we reach idle).
   if (phase === 'idle') {
