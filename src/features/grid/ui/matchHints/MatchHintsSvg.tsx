@@ -74,9 +74,9 @@ export function MatchHintsSvg({
             height={h}
             rx={8}
             ry={8}
-            fill={colors.core}
+            fill={colors.tileOverlay}
             fillOpacity={fillOpacity}
-            stroke={colors.core}
+            stroke={colors.tileOverlay}
             strokeOpacity={strokeOpacity}
             strokeWidth={2}
             filter={`url(#${defIds.tileGlowId})`}
@@ -93,7 +93,7 @@ export function MatchHintsSvg({
       case 'm4':
         return { fill: colors.yellow, filterId: defIds.yellowGlowId };
       case 'm3':
-        return { fill: colors.core, filterId: defIds.glowId };
+        return { fill: colors.blue, filterId: defIds.glowId };
     }
   };
 
@@ -123,7 +123,7 @@ export function MatchHintsSvg({
 
         return (
           <g key={`mh-m2a-${mover}-${anchor}`}>
-            <polygon points={outline.points} fill={colors.black} fillOpacity={0.9} />
+            <polygon points={outline.points} fill={colors.black} fillOpacity={0.1} />
             <polygon points={core.points} fill={vis.fill} filter={`url(#${vis.filterId})`} />
           </g>
         );

@@ -1,15 +1,17 @@
 import { createElement, Fragment, type ReactElement } from 'react';
 
-export type MatchHintsColors = Readonly<{ core: string; yellow: string; red: string; black: string }>;
+export type MatchHintsColors = Readonly<{ tileOverlay: string; blue: string; yellow: string; red: string; black: string }>;
 
 export const COLORS: MatchHintsColors = {
-  core: 'rgb(0 240 255)',
-  yellow: 'rgb(255 230 0)',
-  red: 'rgb(255 70 90)',
-  black: 'rgb(0 0 0)',
+  tileOverlay: 'rgb(200 200 200 / 1)', // Tile Overlay Farbe (Heatmap)
+
+  blue:   'rgb(0 50 200)', // prettier-ignore
+  yellow: 'rgb(255 230 0)', // prettier-ignore
+  red:    'rgb(255 70 90)', // prettier-ignore
+  black:  'rgb(0 0 0)', // prettier-ignore
 };
 
-export const DOT_R = 7;
+export const DOT_R = 10;
 
 export const ARROW = {
   bodyWidth: 7.5,
@@ -47,14 +49,14 @@ export function makeMatchHintsDefs(uid: string, colors: MatchHintsColors = COLOR
       createElement(
         'filter',
         { id: tileGlowId, x: '-35%', y: '-35%', width: '170%', height: '170%' },
-        createElement('feDropShadow', { dx: '0', dy: '0', stdDeviation: '2.5', floodColor: colors.core, floodOpacity: '0.55' }),
-        createElement('feDropShadow', { dx: '0', dy: '0', stdDeviation: '7.5', floodColor: colors.core, floodOpacity: '0.3' }),
+        createElement('feDropShadow', { dx: '0', dy: '0', stdDeviation: '2.5', floodColor: colors.tileOverlay, floodOpacity: '0.55' }),
+        createElement('feDropShadow', { dx: '0', dy: '0', stdDeviation: '7.5', floodColor: colors.tileOverlay, floodOpacity: '0.3' }),
       ),
       createElement(
         'filter',
         { id: glowId, x: '-35%', y: '-35%', width: '170%', height: '170%' },
-        createElement('feDropShadow', { dx: '0', dy: '0', stdDeviation: '2.5', floodColor: colors.core, floodOpacity: '1' }),
-        createElement('feDropShadow', { dx: '0', dy: '0', stdDeviation: '8.5', floodColor: colors.core, floodOpacity: '0.55' }),
+        createElement('feDropShadow', { dx: '0', dy: '0', stdDeviation: '2.5', floodColor: colors.tileOverlay, floodOpacity: '1' }),
+        createElement('feDropShadow', { dx: '0', dy: '0', stdDeviation: '8.5', floodColor: colors.tileOverlay, floodOpacity: '0.55' }),
       ),
       createElement(
         'filter',
