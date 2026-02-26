@@ -3,7 +3,7 @@ import { createElement, Fragment, type ReactElement } from 'react';
 export type MatchHintsColors = Readonly<{ tileOverlay: string; blue: string; yellow: string; red: string; black: string }>;
 
 export const COLORS: MatchHintsColors = {
-  tileOverlay: 'rgb(200 200 200 / 1)', // Tile Overlay Farbe (Heatmap)
+  tileOverlay: 'rgb(200 200 200 / 0.9)', // Tile Overlay Farbe (Heatmap)
 
   blue:   'rgb(0 50 200)', // prettier-ignore
   yellow: 'rgb(255 230 0)', // prettier-ignore
@@ -11,7 +11,7 @@ export const COLORS: MatchHintsColors = {
   black:  'rgb(0 0 0)', // prettier-ignore
 };
 
-export const DOT_R = 10;
+export const DOT_R = 0;
 
 export const ARROW = {
   bodyWidth: 7.5,
