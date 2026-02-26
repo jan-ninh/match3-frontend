@@ -10,7 +10,7 @@ type Props = {
 export function ObjectiveMatchRush({ objective }: Props) {
   void objective;
 
-  const title = 'Overclock the Grid!';
+  const title = 'Uplink Charge';
 
   return (
     <div
