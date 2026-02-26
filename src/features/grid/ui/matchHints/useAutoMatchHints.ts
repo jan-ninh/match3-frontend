@@ -38,7 +38,7 @@ type State = Readonly<{
 }>;
 
 // After this idle time (no activity) the currently selected hint is played.
-const IDLE_MS = 2500;
+const IDLE_MS = 6000;
 
 // Placeholder: if > 0, the hint MAY switch while staying in the same stable-idle segment.
 // Default = 0 => no switching (hint remains fixed until the next stable idle begins).
