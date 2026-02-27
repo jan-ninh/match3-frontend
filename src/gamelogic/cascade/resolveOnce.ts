@@ -14,6 +14,7 @@ import { applyItemObstacleDamageAtIndices } from '../board/obstacles/itemObstacl
 import { markEnemyRedAtIndices } from './marks/enemyRed';
 
 import { rngForCascadeEffect, pickDeterministic } from './cascadeRng';
+import { shouldSpawnKeycardsFromMatch4Stage } from '../scenarios/policies';
 
 // type MatchDetectionLike = { clearIndices: number[]; groups: number };
 
@@ -411,7 +412,7 @@ export function resolveOnce(state: EngineState, chargedIds: Set<number> = new Se
   // - Otherwise (cascade / item): pick deterministic slot among match4+ run indices
   // - Spawn happens after refill/settle so it does not affect objective clear counts
   // ─────────────────────────────────────────────
-  if (s.pendingTurnCommit && s.levelId === 5) {
+  if (s.pendingTurnCommit && shouldSpawnKeycardsFromMatch4Stage(s.levelId)) {
     const preferRaw = opts?.preferKeycardSpawnIndex;
     const prefer = typeof preferRaw === 'number' && Number.isFinite(preferRaw) ? (preferRaw | 0) : null;
 

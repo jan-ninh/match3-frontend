@@ -30,6 +30,7 @@ function isPowerGrantManyDetail(v: unknown): v is PowerGrantManyDetail {
   return isRecord(grants);
 }
 
+
 export function PowerProvider({ children }: { children: ReactNode }) {
   // IMPORTANT: clone to avoid sharing the frozen object reference as state
   const [powers, setPowersState] = useState<Powers>(() => ({ ...defaultPowers }));

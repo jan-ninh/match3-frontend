@@ -10,6 +10,7 @@ import { signalChargeEffect } from './level05/signalCharge';
 import { signalLinkEffect } from './level05/signalLink';
 import { matchRushProgressEffect } from './level07/matchRushProgress';
 import { stoneTileDamageEffect } from './level08/stoneTileDamage';
+import { shouldEnableSignalPipelineForLevelId } from '../../scenarios/policies';
 
 export function getCascadeEffectsForState(state: EngineState): readonly CascadeEffect[] {
   // IMPORTANT: only use *static per-level* toggles here (prevents "effect list changes mid-resolve")
@@ -33,21 +34,14 @@ export function getCascadeEffectsForState(state: EngineState): readonly CascadeE
   if (state.sweepEnabled) {
     effects.push(sweepFirewallClearEffect);
   }
-
-  // Charged Cells (green floor overlay)
-  // - Level 05: Signal Network uses it for path win (signal nodes exist)
-  // - Level 03 / Level 11: reuse as pure "trace" mechanic (no signal nodes required)
-  // - Level 04: special variant: firewall endpoints instead of signal nodes
-  if (
-    state.levelId === 3 ||
-    state.levelId === 4 ||
-    state.levelId === 11 ||
-    state.signalSourcesTotal > 0 ||
-    state.signalTargetsTotal > 0
-  ) {
+  // Charged Cells / Signal pipeline (ScenarioKey-owned, not StageId-owned)
+  // - Some scenarios reuse charged cells as a pure "trace" mechanic (no signal nodes required).
+  // - Any scenario with signal nodes should still get the pipeline.
+  if (shouldEnableSignalPipelineForLevelId(state.levelId, state.signalSourcesTotal, state.signalTargetsTotal)) {
     effects.push(signalChargeEffect);
     effects.push(signalLinkEffect);
   }
+
 
   // Level 07: Match Rush progress (static toggle via matchRushTargetUnits)
   if ((state.matchRushTargetUnits | 0) > 0) {

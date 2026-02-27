@@ -1,6 +1,7 @@
 import type { EngineState } from '../types';
 
 import { isSignalLinked, isSignalLinkedLevel04ByFirewalls } from '../board/signal/signalPathCheck';
+import { isSignalBreachStage } from '../scenarios/policies';
 
 export type WinReason = 'matchRush' | 'laserRowMatch4' | 'stoneTiles' | 'gate' | 'leaks' | 'terminals' | 'objectiveTerminals' | 'signal';
 
@@ -20,8 +21,8 @@ export function getWinReasonIfMet(state: EngineState): WinReason | null {
     return 'stoneTiles';
   }
 
-  // Level 04 variant: Firewall A ↔ Firewall B link arms the nodes; win requires both destroyed.
-  if (state.levelId === 4) {
+  // Signal Breach variant: Firewall A ↔ Firewall B link arms the nodes; win requires both destroyed.
+  if (isSignalBreachStage(state.levelId)) {
     // "Signal linked" is one-shot and becomes SSOT once achieved.
     // Fallback: allow computing the link if the effect hasn't run yet.
     const linked = state.signalLinked === true || isSignalLinkedLevel04ByFirewalls(state);

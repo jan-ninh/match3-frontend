@@ -1,4 +1,3 @@
-// src/features/devtools-host/lib/match3Engine/power/useLevel09AutoRearmLaser.ts
 import { useEffect, useRef } from 'react';
 
 import type { EngineState } from '@/gamelogic/types';
@@ -51,6 +50,7 @@ function emitArm(key: string, armed: boolean): void {
   if (typeof window === 'undefined') return;
   window.dispatchEvent(new CustomEvent(POWER_ARM_EVENT, { detail: { key, armed } }));
 }
+
 
 type Args = Readonly<{
   levelId: number;

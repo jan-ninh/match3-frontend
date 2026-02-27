@@ -103,6 +103,7 @@ function allocFooterRequestId(): number {
   return cur <= 0 ? 1 : cur;
 }
 
+
 export default function GameFooter() {
   const { powers, setPowers } = usePowers();
   const { user, updatePowers } = useAuth();

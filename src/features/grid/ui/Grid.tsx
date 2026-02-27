@@ -1,4 +1,3 @@
-// src/features/grid/ui/Grid.tsx
 import { useMemo } from 'react';
 import type { ComponentProps } from 'react';
 import type { EngineState } from '@/gamelogic/types';
@@ -179,8 +178,8 @@ export function GridView({
   const bomb = useBomb3x3Targeting({ width, height, swapMs, inputLocked });
   const laser = useLaserRowTargeting({ width, height, inputLocked });
 
-  // Manual swaps disabled (scenario-owned).
-  const manualSwapsDisabled = isManualSwapDisabledStage(state.levelId);
+  // Scenario policy: training "no manual swaps / no dragging"
+  const manualSwapDisabled = isManualSwapDisabledStage(state.levelId);
 
   const laserSfx = useLaserTargetingSfx({
     armed: laser.laserArmed,
@@ -215,14 +214,14 @@ export function GridView({
   // Auto Match Hints (idle -> blink + micro-drag)
   // ─────────────────────────────────────────────
   const hintSwaps = useMemo(() => {
-    if (manualSwapsDisabled) return [];
+    if (manualSwapDisabled) return [];
     // Hint only needs a stable board; avoid wasted work during animations.
     if (state.phase !== 'idle') return [];
     return findPossibleMatchSwaps({ width, height, cells: state.cells, pieces: state.pieces });
-  }, [manualSwapsDisabled, state.phase, width, height, state.cells, state.pieces]);
+  }, [manualSwapDisabled, state.phase, width, height, state.cells, state.pieces]);
 
   const matchHint = useAutoMatchHints({
-    enabled: !manualSwapsDisabled,
+    enabled: !manualSwapDisabled,
     phase: state.phase,
     inputLocked: effectiveInputLocked,
     isDragging,
@@ -235,10 +234,10 @@ export function GridView({
   const cursorClass = useMemo(() => {
     if (bomb.bombArmed || laser.laserArmed) return 'cursor-crosshair';
     if (effectiveInputLocked && showLockoutHints) return 'cursor-not-allowed';
-    if (manualSwapsDisabled) return 'cursor-not-allowed';
+    if (manualSwapDisabled) return 'cursor-not-allowed';
     if (isDragging) return 'cursor-grabbing';
     return 'cursor-grab';
-  }, [bomb.bombArmed, effectiveInputLocked, isDragging, manualSwapsDisabled, laser.laserArmed, showLockoutHints]);
+  }, [bomb.bombArmed, effectiveInputLocked, isDragging, laser.laserArmed, manualSwapDisabled, showLockoutHints]);
 
   useTargetingCursor({ targeting: bomb.bombArmed || laser.laserArmed });
 
@@ -294,7 +293,7 @@ export function GridView({
       return;
     }
 
-    if (manualSwapsDisabled) {
+    if (manualSwapDisabled) {
       e.preventDefault();
       e.stopPropagation();
       return;

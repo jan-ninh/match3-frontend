@@ -13,6 +13,7 @@ import { setMatchRushTimeLeftSec } from '@/features/devtools-host/ui/hud/level07
 import { preloadTiles, setTilesetLevel } from '@/features/grid/ui/tiles';
 import { preloadSpecialTiles, setSpecialTilesetLevel } from '@/features/grid/ui/tilesSpecial';
 import { setRuntimeInputLocked } from '@/context/inputLockRuntime';
+import { isMatchRushStage } from '@/gamelogic/scenarios/policies';
 
 import type { BombVfxMode } from '@/features/grid/ui/bomb/fx/BombExplosionFxLayer';
 
@@ -178,6 +179,12 @@ function unitsForPowerUsedKey(key: string): number {
   return 0;
 }
 
+function getTargetUnits(): number {
+  const raw = LEVEL07_TUNING.targetUnits;
+  if (typeof raw !== 'number' || !Number.isFinite(raw)) return 1;
+  return Math.max(1, Math.floor(raw));
+}
+
 export default function GameContainer({
   state,
   inputLocked,
@@ -204,8 +211,6 @@ export default function GameContainer({
 
   // Item SFX (ACK-driven)
   useLaserItemSfx();
-
-  const matchRushEnabled = (state.matchRushTargetUnits | 0) > 0;
 
   // Runtime signal for non-engine UI elements (Footer etc.)
   useEffect(() => {
@@ -252,22 +257,22 @@ export default function GameContainer({
     seenPower: { set: new Set<string>(), order: [] },
   });
 
-  // Reset progress whenever we leave/enter the mode.
+  // Reset progress whenever we leave/enter the scenario.
   useEffect(() => {
     matchRushRef.current.units = 0;
     matchRushRef.current.seenMatch = { set: new Set<string>(), order: [] };
     matchRushRef.current.seenFallback = { set: new Set<string>(), order: [] };
     matchRushRef.current.seenPower = { set: new Set<string>(), order: [] };
 
-    // Reset to 0 globally so stale UI never leaks.
+    // Only Match Rush shows the bar, but we reset to 0 globally so stale UI never leaks.
     setMatchRushPercent(0);
-  }, [state.levelId, matchRushEnabled]);
+  }, [state.levelId]);
 
   // Increment progress whenever new match/item events appear.
   useEffect(() => {
-    if (!matchRushEnabled) return;
+    if (!isMatchRushStage(state.levelId)) return;
 
-    const target = Math.max(1, state.matchRushTargetUnits | 0);
+    const target = getTargetUnits();
 
     const seenMatch = matchRushRef.current.seenMatch;
     const seenFallback = matchRushRef.current.seenFallback;
@@ -345,7 +350,7 @@ export default function GameContainer({
 
     const nextPercent = clamp((nextUnits / target) * 100, 0, 100);
     setMatchRushPercent(nextPercent);
-  }, [matchRushEnabled, state.events, state.matchRushTargetUnits, state.turnIndex]);
+  }, [state.levelId, state.turnIndex, state.events]);
 
   // ─────────────────────────────────────────────────────────────
   // Match Rush: UI-only countdown (display + lose trigger)
@@ -357,13 +362,13 @@ export default function GameContainer({
     didExpire: false,
   });
 
-  // Reset timer whenever we leave/enter the mode.
+  // Reset timer whenever scenario changes.
   useEffect(() => {
     timeRef.current.startedAtMs = performance.now();
     timeRef.current.lastShownSec = -1;
     timeRef.current.didExpire = false;
 
-    if (matchRushEnabled) {
+    if (isMatchRushStage(state.levelId)) {
       const limit = clampInt(LEVEL07_TUNING.timeLimitSec, 1, 60 * 60);
       setMatchRushTimeLeftSec(limit);
       timeRef.current.lastShownSec = limit;
@@ -372,11 +377,11 @@ export default function GameContainer({
 
     // For other levels: keep at 0 so the widget never shows stale state.
     setMatchRushTimeLeftSec(0);
-  }, [matchRushEnabled, state.levelId]);
+  }, [state.levelId]);
 
   // Run countdown even when player doesn't act.
   useEffect(() => {
-    if (!matchRushEnabled) return;
+    if (!isMatchRushStage(state.levelId)) return;
 
     // Stop ticking once the run is already resolved.
     if (state.phase === 'win' || state.phase === 'lose') return;
@@ -403,7 +408,7 @@ export default function GameContainer({
 
     const id = window.setInterval(tick, 250);
     return () => window.clearInterval(id);
-  }, [matchRushEnabled, onTimeExpired, state.phase]);
+  }, [onTimeExpired, state.levelId, state.phase]);
 
   // Derive HUD input from engine state
   const hudInput = useHudInputFromState(state);

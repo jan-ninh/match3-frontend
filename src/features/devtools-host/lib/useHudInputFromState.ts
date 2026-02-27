@@ -1,7 +1,7 @@
-// src/features/devtools-host/lib/useHudInputFromState.ts
 import { useMemo } from 'react';
 import type { EngineState } from '@/gamelogic';
 import type { GameplayHudInput } from '@/features/devtools-host/lib/hud/typesHud';
+import { isMatchRushStage } from '@/gamelogic/scenarios/policies';
 
 type TerminalHudState = {
   id: number;
@@ -52,7 +52,7 @@ function calcMatchRushPercent(units: number, targetUnits: number): number {
 }
 
 function deriveObjectiveKind(args: {
-  matchRushTargetUnits: number;
+  levelId: number;
   signalSourcesTotal: number;
   signalTargetsTotal: number;
   objectiveTerminalsTotal: number;
@@ -61,15 +61,15 @@ function deriveObjectiveKind(args: {
   laserRowMatch4Target: number;
   cells: EngineState['cells'];
 }): ObjectiveKind {
-  const { matchRushTargetUnits, signalSourcesTotal, signalTargetsTotal, objectiveTerminalsTotal, terminalsTotal, leaksTotal, laserRowMatch4Target, cells } = args;
+  const { levelId, signalSourcesTotal, signalTargetsTotal, objectiveTerminalsTotal, terminalsTotal, leaksTotal, laserRowMatch4Target, cells } = args;
 
-  // Match Rush (engine-owned toggle)
-  if ((matchRushTargetUnits | 0) > 0) return 'matchRush';
+  // Match Rush scenario
+  if (isMatchRushStage(levelId)) return 'matchRush';
 
-  // LaserRow -> Match4+ objective (engine-owned)
+  // Level 09+: LaserRow -> Match4+ objective (engine-owned)
   if ((laserRowMatch4Target | 0) > 0) return 'laserRowMatch4';
 
-  // Signal Network takes priority
+  // Level 05: Signal Network takes priority
   if (signalSourcesTotal > 0 && signalTargetsTotal > 0) return 'signal';
 
   if (objectiveTerminalsTotal > 0) return 'objectiveTerminals';
@@ -169,7 +169,7 @@ export function useHudInputFromState(state: EngineState): GameplayHudInput {
     const actualChargedCount = countChargedCells(cells);
 
     const objectiveKind = deriveObjectiveKind({
-      matchRushTargetUnits: matchRushTargetUnits ?? 0,
+      levelId,
       signalSourcesTotal: signalSourcesTotal ?? 0,
       signalTargetsTotal: signalTargetsTotal ?? 0,
       objectiveTerminalsTotal: objectiveTerminalsTotal ?? 0,
