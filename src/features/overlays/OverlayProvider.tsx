@@ -1,8 +1,14 @@
-// src/features/overlays/OverlayProvider.tsx
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import OverlayHost from './OverlayHost';
-import { OverlayContext, type OverlayApi, type OverlayContextValue, type OverlayData, type OverlayName, type OpenPowerChoiceOptions } from './overlayContext';
+import {
+  OverlayContext,
+  type OverlayApi,
+  type OverlayContextValue,
+  type OverlayData,
+  type OverlayName,
+  type OpenPowerChoiceOptions,
+} from './overlayContext';
 
 type QueuedOverlay = Readonly<{
   name: 'win';
@@ -79,6 +85,7 @@ export function OverlayProvider({ children }: { children: ReactNode }) {
         setOverlayRef.current('powerChoice', {
           level: dataRef.current.level,
           powerChoiceTitle: opts?.title ?? 'Choose your Power!',
+          expPreview: opts?.expPreview,
         });
       },
       openLogin: () => {

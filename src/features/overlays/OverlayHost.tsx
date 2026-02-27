@@ -28,6 +28,7 @@ export default function OverlayHost() {
       <PowerChoiceModal
         open={is('powerChoice')}
         title={data.powerChoiceTitle ?? 'Choose your Power!'}
+        expPreview={data.expPreview}
         onClose={noop}
         onChoose={(powerId) => {
           // Capture handler BEFORE close() clears the ref.

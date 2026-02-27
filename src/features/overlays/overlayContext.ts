@@ -5,13 +5,26 @@ export type PowerId = 'gridlaser' | 'laser' | 'extraShuffle';
 
 export type OverlayName = 'settings' | 'win' | 'lose' | 'quitConfirm' | 'powerChoice' | 'login' | 'register' | null;
 
+export type ExpPreview = Readonly<{
+  fromLevel: number;
+  fromExpTotal: number;
+
+  toLevel: number;
+  toExpTotal: number;
+
+  expRequired: number;
+  expDelta: number;
+}>;
+
 export type OverlayData = {
   level?: number;
   powerChoiceTitle?: string;
+  expPreview?: ExpPreview;
 };
 
 export type OpenPowerChoiceOptions = {
   title?: string;
+  expPreview?: ExpPreview;
   onChoose?: (powerId: PowerId) => void;
 };
 

@@ -1,5 +1,3 @@
-// src/features/devtools-host/ui/DevtoolsHost.tsx
-// src/features/devtools-host/ui/DevtoolsHost.tsx
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 
@@ -11,7 +9,7 @@ import { cycleTilesetPalette, preloadTiles } from '@/features/grid/ui/tiles';
 import { cycleSpecialTilesetPalette, preloadSpecialTiles } from '@/features/grid/ui/tilesSpecial';
 import { useOverlays } from '@/features/overlays';
 import { completeLevel, resetProgress } from '@/services/progress/progressActions';
-import type { PowerKey, Powers } from '@/types';
+import type { PowerKey, Powers, UserProfile } from '@/types';
 import { findPossibleMatchSwaps } from '@/gamelogic/match';
 import type { PossibleMatchSwap } from '@/gamelogic/match';
 
@@ -28,6 +26,9 @@ type Props = {
 
 type BackendRewardPowerId = Extract<PowerKey, 'bomb' | 'laser' | 'extraShuffle'>;
 const WIN_POWER_REWARD_AMOUNT = 2;
+
+const EXP_WIN_DELTA = 1000;
+const EXP_REQUIRED = 3000;
 
 function toBackendRewardPowerId(v: unknown): BackendRewardPowerId | null {
   if (v === 'bomb' || v === 'laser' || v === 'extraShuffle') return v;
@@ -111,6 +112,18 @@ function extractPowersFromLoseResponse(res: unknown): Powers | null {
   return powers as Powers;
 }
 
+function readPlayerMeta(p: UserProfile | null | undefined): { playerLevel: number; playerExp: number } | null {
+  if (!p) return null;
+
+  const lvlRaw = p.playerLevel;
+  const expRaw = p.playerExp;
+
+  const playerLevel = Number.isFinite(lvlRaw) ? Math.max(1, Math.floor(lvlRaw)) : 1;
+  const playerExp = Number.isFinite(expRaw) ? Math.max(0, Math.floor(expRaw)) : 0;
+
+  return { playerLevel, playerExp };
+}
+
 export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
   const navigate = useNavigate();
 
@@ -127,7 +140,7 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
   const usedPowerInCurrentStageRef = useRef<PowerKey | null>(null);
 
   const { openWin, openLose, openPowerChoice } = useOverlays();
-  const { user, updatePowers } = useAuth();
+  const { user, profile, refreshProfile, updatePowers } = useAuth();
   const userId = user?.id ?? null;
   const { powers, setPowers, selectedPowersForNextStage, setSelectedPowersForNextStage } = usePowers();
 
@@ -213,10 +226,13 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
   }, []);
 
   const completeDevWinStage = useCallback(
-    async (lvl: number, usedPower: PowerKey | undefined) => {
+    async (lvl: number, usedPower: PowerKey | undefined): Promise<{ didReportBackend: boolean }> => {
+      let didReportBackend = false;
+
       if (userId) {
         try {
           await apiCompleteStage(userId, lvl, usedPower);
+          didReportBackend = true;
         } catch (err) {
           console.error(`Failed to report stage completion for ${lvl}:`, err);
         }
@@ -228,6 +244,8 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
       } catch {
         // ignore local progress errors
       }
+
+      return { didReportBackend };
     },
     [userId],
   );
@@ -236,59 +254,95 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
     (lvl: number) => {
       const usedPower: PowerKey | undefined = usedPowerInCurrentStageRef.current ?? undefined;
 
-      // Final stage keeps original behavior: no reward selection.
-      if (lvl === 12) {
-        void (async () => {
+      void (async () => {
+        // Final stage keeps original behavior: no reward selection.
+        if (lvl === 12) {
           setSelectedPowersForNextStage(null);
           await completeDevWinStage(lvl, usedPower);
+          if (userId) await refreshProfile();
           openWin(lvl);
-        })();
-        return;
-      }
+          return;
+        }
 
-      openPowerChoice({
-        title: 'Choose your Reward!',
-        onChoose: async (powerId) => {
-          const backendPowerId = toBackendRewardPowerId(powerId);
-          if (!backendPowerId) {
-            console.warn(`Unexpected reward power id: ${String(powerId)}`);
-            return;
-          }
+        // 1) Snapshot EXP state before reporting stage completion.
+        let preMeta = readPlayerMeta(profile);
 
-          const rewardAmount = WIN_POWER_REWARD_AMOUNT;
-          const rewardDelta = buildRewardDelta(backendPowerId, rewardAmount);
-          const rewardedPowers = addReward(powers, backendPowerId, rewardAmount);
+        if (userId) {
+          const preProfile = await refreshProfile();
+          preMeta = readPlayerMeta(preProfile) ?? preMeta;
+        }
 
-          // 1) Immediate local reward update.
-          setPowers(rewardedPowers);
+        const fromLevel = preMeta?.playerLevel ?? 1;
+        const fromExpTotal = preMeta?.playerExp ?? 0;
 
-          // 2) Preserve selected reward for next stage start API call.
-          setSelectedPowersForNextStage(rewardDelta);
+        // 2) Report stage completion (backend awards EXP; local stage map cache updates).
+        const { didReportBackend } = await completeDevWinStage(lvl, usedPower);
 
-          // 3) Complete stage first (backend + local progress).
-          // Some backends rewrite player state on completeStage; persisting reward after this keeps DB in sync.
-          await completeDevWinStage(lvl, usedPower);
+        // 3) Re-load profile to get post-win EXP (SSOT).
+        let postMeta: { playerLevel: number; playerExp: number } | null = null;
+        if (userId) {
+          const postProfile = await refreshProfile();
+          postMeta = readPlayerMeta(postProfile);
+        }
 
-          // 4) Persist reward on backend (+2 guaranteed by business rule).
-          if (userId) {
-            try {
-              await updatePowers(rewardDelta, 'add');
-            } catch (err) {
-              // Fallback for backends that don't support "add" reliably: set absolute next value.
+        const hasVerifiedPost = didReportBackend && postMeta !== null;
+
+        const gained = Math.floor((fromExpTotal + EXP_WIN_DELTA) / EXP_REQUIRED) - Math.floor(fromExpTotal / EXP_REQUIRED);
+
+        const toLevel = hasVerifiedPost ? postMeta.playerLevel : fromLevel + Math.max(0, gained);
+        const toExpTotal = hasVerifiedPost ? postMeta.playerExp : fromExpTotal + EXP_WIN_DELTA;
+        const expDelta = Math.max(0, toExpTotal - fromExpTotal);
+
+        openPowerChoice({
+          title: 'Choose your Reward!',
+          expPreview: userId
+            ? {
+                fromLevel,
+                fromExpTotal,
+                toLevel,
+                toExpTotal,
+                expRequired: EXP_REQUIRED,
+                expDelta: expDelta > 0 ? expDelta : EXP_WIN_DELTA,
+              }
+            : undefined,
+          onChoose: async (powerId) => {
+            const backendPowerId = toBackendRewardPowerId(powerId);
+            if (!backendPowerId) {
+              console.warn(`Unexpected reward power id: ${String(powerId)}`);
+              return;
+            }
+
+            const rewardAmount = WIN_POWER_REWARD_AMOUNT;
+            const rewardDelta = buildRewardDelta(backendPowerId, rewardAmount);
+            const rewardedPowers = addReward(powers, backendPowerId, rewardAmount);
+
+            // 1) Immediate local reward update.
+            setPowers(rewardedPowers);
+
+            // 2) Preserve selected reward for next stage start API call.
+            setSelectedPowersForNextStage(rewardDelta);
+
+            // 3) Persist reward on backend (+2 guaranteed by business rule).
+            if (userId) {
               try {
-                await updatePowers(buildRewardAbsolute(backendPowerId, rewardedPowers), 'set');
-              } catch {
-                console.error('Failed to persist win reward powers to backend:', err);
+                await updatePowers(rewardDelta, 'add');
+              } catch (err) {
+                // Fallback for backends that don't support "add" reliably: set absolute next value.
+                try {
+                  await updatePowers(buildRewardAbsolute(backendPowerId, rewardedPowers), 'set');
+                } catch {
+                  console.error('Failed to persist win reward powers to backend:', err);
+                }
               }
             }
-          }
 
-          // 5) Show Win overlay (PowerChoice overlay auto-closes right after click).
-          openWin(lvl);
-        },
-      });
+            // 4) Show Win overlay (PowerChoice overlay auto-closes right after click).
+            openWin(lvl);
+          },
+        });
+      })();
     },
-    [completeDevWinStage, openPowerChoice, openWin, powers, setPowers, setSelectedPowersForNextStage, updatePowers, userId],
+    [completeDevWinStage, openPowerChoice, openWin, powers, profile, refreshProfile, setPowers, setSelectedPowersForNextStage, updatePowers, userId],
   );
 
   const runDevLoseFlow = useCallback(
