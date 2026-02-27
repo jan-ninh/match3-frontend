@@ -15,22 +15,35 @@ export default function ProfileDashboard() {
 
   const [avatarModalOpen, setAvatarModalOpen] = useState(false);
 
+  useEffect(() => {
+    console.log('ProfileDashboard mounted/updated:', { user: user?.id, profileLoaded: !!profile });
+  }, [user, profile]);
+
   // Refresh profile on mount and when visibility/focus changes
   useEffect(() => {
     const refresh = () => {
-      void refreshProfile().catch(() => {});
+      console.log('🔄 Triggering profile refresh...');
+      void refreshProfile().catch((err) => {
+        console.error('❌ Failed to refresh profile:', err);
+      });
     };
 
     // Initial refresh on mount
     refresh();
 
     // Refresh when window regains focus
-    const onFocus = () => refresh();
+    const onFocus = () => {
+      console.log('👁️ Window focused - refreshing profile');
+      refresh();
+    };
     window.addEventListener('focus', onFocus);
 
     // Refresh when tab becomes visible
     const onVisibility = () => {
-      if (!document.hidden) refresh();
+      if (!document.hidden) {
+        console.log('👁️ Tab became visible - refreshing profile');
+        refresh();
+      }
     };
     document.addEventListener('visibilitychange', onVisibility);
 

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Navbar, LevelGrid, CyberTitle } from '@/components';
 import type { LevelId, Progress } from '@/services/progress/ProgressStore';
-import { apiProfile } from '@/api/user';
+import { apiMyProfile } from '@/api/user';
 import { useAuth } from '@/context/AuthContext';
 import type { UserProfile } from '@/types';
 
@@ -36,15 +36,20 @@ export default function LevelMapPage() {
     void (async () => {
       // Guest mode: only stage 1 playable.
       if (!user?.id) {
+        console.log('👤 No user logged in - guest mode');
         if (!disposed) setProgress({ unlockedLevels: [1], completedLevels: [], lastPlayedLevel: 1 });
         return;
       }
 
       try {
-        const profile = await apiProfile(user.id);
+        console.log(`📥 Fetching progress for authenticated user`);
+        // Use /api/user/profile/me for security instead of passing user.id
+        const profile = await apiMyProfile();
         if (disposed) return;
+        console.log('✅ Progress loaded:', profile.progress);
         setProgress(profileToProgress(profile));
-      } catch {
+      } catch (err) {
+        console.error('❌ Failed to fetch progress:', err);
         if (disposed) return;
         // Do not trust local client progress for authenticated users.
         setProgress({ unlockedLevels: [1], completedLevels: [], lastPlayedLevel: 1 });
