@@ -123,9 +123,6 @@ export function handleUseItemAt(state: EngineState, action: UseItemAtAction): En
       }
     }
 
-    // Ack for UI consume (only after accept)
-    events.push({ type: 'powerUsed', key: powerKeyForItem(action.key), requestId: action.requestId });
-
     return pushEvents(s, events);
   }
 
