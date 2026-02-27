@@ -1,4 +1,3 @@
-// src/gamelogic/engine/state.ts
 import type {
   EngineEvent,
   EngineState,
@@ -117,6 +116,11 @@ export function createState(
       const requiredCharge = Math.max(0, node.requiredCharge | 0);
       const initialState: 'locked' | 'open' = requiredCharge <= 0 ? 'open' : 'locked';
 
+      const swapBlocked = node.swapBlocked === true;
+      const blocksPiece = node.blocksPiece === true;
+      const passThrough = node.passThrough === true;
+      const deliverFromAbove = node.deliverFromAbove === true;
+
       cells[node.index] = {
         blocked: false, // Terminal manages its own passability via obstacle state
         pieceId: null,
@@ -127,6 +131,10 @@ export function createState(
           charge: 0,
           requiredCharge,
           chargeColor: node.chargeColor,
+          swapBlocked,
+          blocksPiece,
+          passThrough,
+          deliverFromAbove,
         },
       };
     }

@@ -1,4 +1,3 @@
-// src/gamelogic/levels/level-05.ts
 import type { LevelDefinition, PieceType } from '../types';
 import { deriveSeed } from '../rng';
 
@@ -8,12 +7,17 @@ type Args = {
 };
 
 /**
- * Level 05 — FALSE IDENTITY
+ * Level 05 — FALSE IDENTITY (Deliver ID Cards)
  *
  * Current iteration:
  * - Two adjacent terminals at bottom center: (3,7) and (4,7)
- * - Terminals start OPEN (accept keycards immediately)
- * - No keycards are placed at init (we'll introduce them in a later step)
+ * - Terminals start OPEN (accept keycard deliveries immediately)
+ * - Terminals are configured as:
+ *   - indestructible (obstacles are never cleared by matches/items)
+ *   - unswappable (swapBlocked)
+ *   - blocker (blocksPiece) + pass-through (passThrough)
+ *     => pieces cannot occupy the terminal cell, but gravity flow does not split the column.
+ *   - keycard delivery is detected from the cell directly ABOVE the terminal (deliverFromAbove)
  *
  * Win condition (engine): deliver a keycard to each terminal (verified: 2/2)
  */
@@ -37,12 +41,20 @@ export function makeLevel05({ baseSeed, allowedTypes }: Args): LevelDefinition {
       id: 0,
       requiredCharge: 0,
       chargeColor: 'blue' as PieceType,
+      swapBlocked: true,
+      blocksPiece: true,
+      passThrough: true,
+      deliverFromAbove: true,
     },
     {
       index: 4 + 7 * width, // (4,7) = 60
       id: 1,
       requiredCharge: 0,
       chargeColor: 'blue' as PieceType,
+      swapBlocked: true,
+      blocksPiece: true,
+      passThrough: true,
+      deliverFromAbove: true,
     },
   ];
 

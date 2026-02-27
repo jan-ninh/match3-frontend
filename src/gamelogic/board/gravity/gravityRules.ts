@@ -1,4 +1,3 @@
-// src/gamelogic/board/gravity/gravityRules.ts
 import type { Cell } from '../../types';
 
 export function canReceiveFallingPiece(cell: Cell): boolean {
@@ -10,8 +9,9 @@ export function canReceiveFallingPiece(cell: Cell): boolean {
   // chargedCell is passable (floor overlay)
   if (obs.kind === 'chargedCell') return true;
 
-  // Terminal: only open terminals can receive pieces
+  // Terminal: configurable blocker/pass-through
   if (obs.kind === 'terminal') {
+    if (obs.blocksPiece === true) return false;
     return obs.state === 'open';
   }
 
@@ -28,8 +28,10 @@ export function blocksGravity(cell: Cell): boolean {
   // chargedCell is passable (does not block gravity flow)
   if (obs.kind === 'chargedCell') return false;
 
-  // Terminal: locked/verified block, open allows pass
+  // Terminal: pass-through terminals do not split the column.
+  // Otherwise: locked/verified block, open allows pass.
   if (obs.kind === 'terminal') {
+    if (obs.passThrough === true) return false;
     return obs.state !== 'open';
   }
 

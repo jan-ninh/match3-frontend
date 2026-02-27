@@ -1,4 +1,3 @@
-// src/gamelogic/board/swap/canSwap.ts
 import type { Cell, SwapRejectReason } from '../../types';
 import { areAdjacent } from '../../coords';
 
@@ -9,8 +8,12 @@ function isPassableObstacle(cell: Cell): boolean {
   // chargedCell is passable (floor overlay)
   if (obs.kind === 'chargedCell') return true;
 
-  // Terminal: passable only if open
-  if (obs.kind === 'terminal') return obs.state === 'open';
+  // Terminal: can be configured as "unswappable" (swapBlocked).
+  // Otherwise: passable only if open.
+  if (obs.kind === 'terminal') {
+    if (obs.swapBlocked === true) return false;
+    return obs.state === 'open';
+  }
 
   return false;
 }

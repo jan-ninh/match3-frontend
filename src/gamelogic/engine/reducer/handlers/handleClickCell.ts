@@ -11,6 +11,11 @@ export function handleClickCell(state: EngineState, action: ClickCellAction): En
 
   const clicked = action.index;
 
+  // Terminals can be configured as unswappable / unselectable.
+  const clickedCell = state.cells[clicked];
+  const clickedObs = clickedCell?.obstacle;
+  if (clickedObs?.kind === 'terminal' && clickedObs.swapBlocked === true) return state;
+
   if (state.selectedIndex === clicked) {
     const nextState: EngineState = { ...state, selectedIndex: null };
     return pushEvents(nextState, [{ type: 'selectionCleared' }]);

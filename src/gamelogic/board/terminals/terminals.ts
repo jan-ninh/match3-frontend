@@ -1,4 +1,3 @@
-// src/gamelogic/board/terminals/terminals.ts
 import type { Cell, CellObstacle } from '../../types';
 
 export function getTerminalAt(cells: Cell[], index: number): Extract<CellObstacle, { kind: 'terminal' }> | null {
@@ -13,6 +12,7 @@ export function isTerminalCell(cells: Cell[], index: number): boolean {
 export function canEnterTerminal(cells: Cell[], index: number): boolean {
   const terminal = getTerminalAt(cells, index);
   if (!terminal) return true;
+  if (terminal.blocksPiece === true) return false;
   return terminal.state === 'open';
 }
 

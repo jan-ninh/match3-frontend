@@ -1,4 +1,3 @@
-// src/gamelogic/cascade/gravity.ts
 import type { EngineState, Piece, PieceId } from '../types';
 import { blocksGravity, canReceiveFallingPiece } from '../board';
 
@@ -44,7 +43,8 @@ export function applyGravity(state: EngineState): EngineState {
   }
 
   // Enforce “no pieces in blocked/obstacle cells”
-  // Exceptions: chargedCell is passable, open terminals may hold a piece.
+  // Exceptions: chargedCell is passable and can hold pieces.
+  // Open terminals may hold a piece only when they are NOT configured as blockers.
   for (let i = 0; i < size; i++) {
     const c = nextCells[i]!;
 
@@ -63,8 +63,8 @@ export function applyGravity(state: EngineState): EngineState {
       continue;
     }
 
-    if (obs.kind === 'terminal' && obs.state === 'open') {
-      // special exception
+    if (obs.kind === 'terminal' && obs.state === 'open' && obs.blocksPiece !== true) {
+      // special exception (legacy behavior)
       continue;
     }
 
