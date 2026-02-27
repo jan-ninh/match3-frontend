@@ -22,6 +22,14 @@ export const LASER_TARGETING_SFX_COOLDOWN_MS = 110;
 export const LASER_CONFIRM_SFX_DELAY_MS = 0;
 
 // -----------------------------
+// Row target overlay timings (UI-only)
+// -----------------------------
+
+// When the row-laser is CONFIRMED, keep the last target row visible and fade it out.
+// This is intentionally separate from the normal "hover leave" fade window.
+export const LASER_CONFIRM_ROW_FADE_OUT_MS = 900;
+
+// -----------------------------
 // 3x3gridlaser targeting SFX (UI-only)
 // -----------------------------
 //

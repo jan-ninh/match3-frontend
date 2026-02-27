@@ -62,6 +62,23 @@ export function useLaserRowTargeting({ width, height, inputLocked, boardRef }: O
   // Remember which key variant armed us, so we can disarm the exact same key.
   const armedKeyRef = useRef<string>('laser');
 
+  // Confirm helper: after confirm we briefly keep hoverRow as the confirmed row,
+  // then clear it on the next tick so the overlay can freeze+fade.
+  const confirmClearTimerRef = useRef<number | null>(null);
+
+  // When we emit the disarm event as part of a CONFIRM,
+  // we must NOT let the global POWER_ARM_EVENT handler immediately clear hoverRow / cancel the timer,
+  // otherwise the overlay never sees the "row while disarmed" signal.
+  const suppressDisarmHoverClearOnceRef = useRef(false);
+
+  const clearConfirmTimer = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    if (confirmClearTimerRef.current != null) {
+      window.clearTimeout(confirmClearTimerRef.current);
+      confirmClearTimerRef.current = null;
+    }
+  }, []);
+
   const emitArm = useCallback((armed: boolean) => {
     if (typeof window === 'undefined') return;
     const key = armedKeyRef.current;
@@ -84,21 +101,38 @@ export function useLaserRowTargeting({ width, height, inputLocked, boardRef }: O
       const armed = !!d.armed;
       setLaserArmed(armed);
 
-      if (!armed) {
-        setHoverRow(null);
+      // Any arm immediately cancels confirm-related state.
+      if (armed) {
+        suppressDisarmHoverClearOnceRef.current = false;
+        clearConfirmTimer();
+        return;
       }
+
+      // Disarm:
+      // - confirm path: keep hoverRow briefly + keep the next-tick clear timer alive
+      // - otherwise: hard clear as before
+      if (suppressDisarmHoverClearOnceRef.current) {
+        suppressDisarmHoverClearOnceRef.current = false;
+        return;
+      }
+
+      clearConfirmTimer();
+      setHoverRow(null);
     };
 
     window.addEventListener(POWER_ARM_EVENT, onArm as EventListener);
     return () => window.removeEventListener(POWER_ARM_EVENT, onArm as EventListener);
-  }, []);
+  }, [clearConfirmTimer]);
 
   // Safety: input lock => disarm (prevents stuck targeting).
   useEffect(() => {
     if (!inputLocked) return;
     if (!laserArmed) return;
 
+    suppressDisarmHoverClearOnceRef.current = false;
+
     emitArm(false);
+    clearConfirmTimer();
 
     let id: number | null = null;
     if (typeof window !== 'undefined') {
@@ -112,7 +146,12 @@ export function useLaserRowTargeting({ width, height, inputLocked, boardRef }: O
       if (typeof window === 'undefined') return;
       if (id != null) window.clearTimeout(id);
     };
-  }, [emitArm, inputLocked, laserArmed]);
+  }, [clearConfirmTimer, emitArm, inputLocked, laserArmed]);
+
+  // Cleanup: no dangling timer on unmount.
+  useEffect(() => {
+    return () => clearConfirmTimer();
+  }, [clearConfirmTimer]);
 
   const onShellPointerMove = useCallback(
     (e: ReactPointerEvent<HTMLDivElement>) => {
@@ -157,6 +196,7 @@ export function useLaserRowTargeting({ width, height, inputLocked, boardRef }: O
 
       // If board dimensions are invalid, disarm without emitting a malformed event.
       if (!(safeW > 0 && safeH > 0)) {
+        suppressDisarmHoverClearOnceRef.current = false;
         setLaserArmed(false);
         setHoverRow(null);
         emitArm(false);
@@ -169,6 +209,20 @@ export function useLaserRowTargeting({ width, height, inputLocked, boardRef }: O
 
       const x = clampInt(xRaw, 0, Math.max(0, safeW - 1));
       const y = clampInt(yRaw, 0, Math.max(0, safeH - 1));
+
+      // ✅ Seed the row highlight for confirm => overlay can freeze+fade even after disarm.
+      // Then clear it next tick so the overlay transitions into its fade state.
+      setHoverRow(y);
+      clearConfirmTimer();
+
+      if (typeof window !== 'undefined') {
+        confirmClearTimerRef.current = window.setTimeout(() => {
+          setHoverRow(null);
+          confirmClearTimerRef.current = null;
+        }, 0);
+      } else {
+        setHoverRow(null);
+      }
 
       const requestId = allocPowerRequestId();
 
@@ -183,10 +237,12 @@ export function useLaserRowTargeting({ width, height, inputLocked, boardRef }: O
 
       // Disarm locally right away; engine input lock will enforce global lockout.
       setLaserArmed(false);
-      setHoverRow(null);
+
+      // This disarm is part of CONFIRM, so don't let the arm-event listener kill the seeded row/timer.
+      suppressDisarmHoverClearOnceRef.current = true;
       emitArm(false);
     },
-    [emitArm, height, inputLocked, laserArmed, width],
+    [clearConfirmTimer, emitArm, height, inputLocked, laserArmed, width],
   );
 
   return useMemo(
