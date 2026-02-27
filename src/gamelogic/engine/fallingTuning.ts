@@ -11,6 +11,12 @@ export type FallingTuning = Readonly<{
   /** Pause (ms) before any fall move starts (lets holes be visible). */
   holeDelayMs: number;
 
+  /**
+   * Row-laser specific pause (ms) before any fall move starts.
+   * Applied only when a fallPlan provides holeDelayMs (laserRow sets this).
+   */
+  laserRowHoleDelayMs: number;
+
   /** Per-piece deterministic delay (engine-owned). */
   moveDelay: Readonly<{
     enabled: boolean;
@@ -59,6 +65,8 @@ export type FallingTuning = Readonly<{
 //============================================================
 export const FALLING_TUNING: FallingTuning = {
   holeDelayMs: 300,
+  // Default: keep the same feel unless you explicitly tune it.
+  laserRowHoleDelayMs: 480,
 
   moveDelay: {
     enabled: true,
@@ -192,7 +200,7 @@ export function computeFallAnimWaitMs(swapMs: number, width: number, plan: FallP
   const s = clampInt(swapMs, 0, 60_000);
   if (s === 0) return 0;
 
-  const holeDelayMs = clampInt(FALLING_TUNING.holeDelayMs, 0, 60_000);
+  const holeDelayMs = clampInt(plan.holeDelayMs ?? FALLING_TUNING.holeDelayMs, 0, 60_000);
   const msPerRow = clampInt(FALLING_TUNING.fall.msPerRow, 0, 60_000);
 
   let maxMs = 0;

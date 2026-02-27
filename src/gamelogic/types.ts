@@ -58,7 +58,7 @@ export type CellObstacle =
   | { kind: 'leak'; id: number; progress: number; required: number }
   | { kind: 'contamination' }
   | { kind: 'sealKit' }
-  | { kind: 'terminal'; id: number; state: TerminalState; charge: number; requiredCharge: number; chargeColor: PieceType; swapBlocked?: boolean; blocksPiece?: boolean; passThrough?: boolean; deliverFromAbove?: boolean }
+  | { kind: 'terminal'; id: number; state: TerminalState; charge: number; requiredCharge: number; chargeColor: PieceType }
   | { kind: 'objectiveTerminal'; id: number; state: ObjectiveTerminalState; charge: number; requiredCharge: number }
   | { kind: 'signalSource'; id: number }
   | { kind: 'signalTarget'; id: number }
@@ -175,14 +175,6 @@ export type TerminalNodeDef = {
   id: number;
   requiredCharge: number;
   chargeColor: PieceType;
-  /** If true: cannot be selected/swapped (slot-locked). */
-  swapBlocked?: boolean;
-  /** If true: pieces may not occupy this cell ("blocker"). */
-  blocksPiece?: boolean;
-  /** If true: gravity flow passes through this cell (does not split the column). */
-  passThrough?: boolean;
-  /** If true: deliver keycards from the cell directly above this terminal. */
-  deliverFromAbove?: boolean;
 };
 
 export type KeycardNodeDef = {
@@ -352,6 +344,8 @@ export type FallMove = {
 
 export type FallPlan = Readonly<{
   moves: readonly FallMove[];
+  /** Optional per-anim hole delay override (ms). If omitted, FALLING_TUNING.holeDelayMs is used. */
+  holeDelayMs?: number;
 }>;
 
 

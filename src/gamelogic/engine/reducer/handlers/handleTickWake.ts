@@ -3,7 +3,7 @@ import type { EnemyTurnAction, TickAction, WakeAction } from '../actions';
 
 import { beginAnim } from '../../anim';
 import { buildFallPlan } from '../../fallPlan';
-import { computeFallAnimWaitMs } from '../../fallingTuning';
+import { FALLING_TUNING, computeFallAnimWaitMs } from '../../fallingTuning';
 import { setPhase } from '../../../phaseState';
 import { isStableIdle, pushEvents } from '../../events';
 
@@ -68,7 +68,12 @@ function execPendingLaserRow(state: EngineState): EngineState {
 
   s = setPhase(s, 'fallAnimating', events);
 
-  const fallPlan = buildFallPlan({ prePieces, postPieces: s.pieces, seed: s.seed, width: s.width });
+  const baseFallPlan = buildFallPlan({ prePieces, postPieces: s.pieces, seed: s.seed, width: s.width });
+
+  // Row-laser specific "hole delay" knob (lets the clear feel more impactful before new tiles drop).
+  const holeDelayMs = clampInt(FALLING_TUNING.laserRowHoleDelayMs, 0, 60_000);
+  const fallPlan = { ...baseFallPlan, holeDelayMs };
+
   const fallWaitMs = computeFallAnimWaitMs(s.swapMs, s.width, fallPlan);
 
   s = beginAnim(s, 'fall', fallWaitMs, { fallPlan });

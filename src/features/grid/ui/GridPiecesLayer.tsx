@@ -103,6 +103,9 @@ export default function GridPiecesLayer({
     const touched: HTMLDivElement[] = [];
     const targets = new Map<HTMLDivElement, string>();
 
+    // Engine jitter (mv.delayMs) + hole delay + spawn stacking delay (bottom-first).
+    const holeDelayMs = (fallPlan.holeDelayMs ?? FALLING_TUNING.holeDelayMs) | 0;
+
     for (const mv of fallPlan.moves) {
       if (dragPieceId === mv.id) continue;
 
@@ -149,8 +152,7 @@ export default function GridPiecesLayer({
       // Apply per-move transition; will be reset in cleanup to avoid leaking into swaps/previews.
       el.style.transition = `transform ${moveMs}ms ${fallEasing}`;
 
-      // Engine jitter (mv.delayMs) + global hole delay + spawn stacking delay (bottom-first).
-      const holeDelayMs = FALLING_TUNING.holeDelayMs;
+      // Engine jitter (mv.delayMs) + hole delay + spawn stacking delay (bottom-first).
       const stackDelayMs = mv.spawnStackDelayMs ?? 0;
 
       // Ensure spawned stacks cannot "invert" due to jitter.
