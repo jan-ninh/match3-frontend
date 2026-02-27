@@ -1,7 +1,8 @@
 // src/app/layouts/MainLayout.tsx
 import { useLayoutEffect } from 'react';
-import { Outlet } from 'react-router';
+import { Outlet, useLocation } from 'react-router';
 import stageBg from '@/assets/bg/match3-bg-04-techbay.png';
+import { GameBgFx } from '@/features/stage-bgfx/GameBgFx';
 
 function lockDocumentScroll(enabled: boolean): () => void {
   if (!enabled) return () => {};
@@ -35,6 +36,9 @@ export default function MainLayout() {
   // All pages scroll (if needed) inside the stage viewport to avoid scrollbar/width jumps.
   useLayoutEffect(() => lockDocumentScroll(true), []);
 
+  const { pathname } = useLocation();
+  const showStageBgFx = pathname === '/game-map/play-game';
+
   return (
     <div className="fixed inset-0 overflow-hidden bg-black">
       {/* DEV LANES + STAGE (outside stage) */}
@@ -66,6 +70,9 @@ export default function MainLayout() {
               backgroundRepeat: 'no-repeat',
             }}
           >
+            {/* BG FX must be stage-owned (not page-owned), otherwise padding/footer shrink it. */}
+            {showStageBgFx ? <GameBgFx /> : null}
+
             {/* subtle dim for UI readability */}
             <div className="absolute inset-0 bg-black/15 pointer-events-none" />
             <div className="relative z-10 h-full min-h-0 overflow-y-auto ">

@@ -48,10 +48,10 @@ export function GameStage({ gridRowRef: externalGridRowRef, grid, hud }: Props) 
 
       // If we can't measure yet, bail.
       if (s.width <= 0 || s.height <= 0 || g.width <= 0 || g.height <= 0) return;
-      // NEW: If grid doesn't fit stage (transient resize), keep last good position.
+      // If grid doesn't fit stage (transient resize), keep last good position.
       if (g.width > s.width || g.height > s.height) return;
 
-      // Center X, and place grid center at ~62% of stage height (like before),
+      // Center X, and place grid center at ~62% of stage height,
       // but pixel-snapped and without transforms.
       const rawLeft = (s.width - g.width) * 0.5;
       const rawTop = s.height * GRID_CENTER_Y_RATIO - g.height * 0.5;
@@ -96,14 +96,16 @@ export function GameStage({ gridRowRef: externalGridRowRef, grid, hud }: Props) 
   }, [gridRowRef]);
 
   return (
-    <div ref={stageRef} className="relative overflow-visible w-full h-full min-h-0  ">
+    <div ref={stageRef} className="relative overflow-visible w-full h-full min-h-0">
       {/* GRID: pixel-snapped absolute positioning (no %/translate centering) */}
       <div ref={gridRowRef} className="absolute z-10">
         {grid}
       </div>
-      <div className="absolute top-0 right-0 top-[-160px] right-[-200px] z-90 pointer-events-auto">
+
+      <div className="absolute top-[-160px] right-[-200px] z-90 pointer-events-auto">
         <SettingsGearButton iconSrc="/icons/settings-gear02.png" />
       </div>
+
       {/* HUD: top-anchored, clipped to not overlap grid */}
       <div
         className="absolute inset-x-0 top-0 z-20 overflow-y-hidden overflow-x-visible pointer-events-none"
