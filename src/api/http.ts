@@ -8,6 +8,13 @@ if (typeof window !== 'undefined') {
 
 type ReqOpts = RequestInit & { skipJson?: boolean };
 
+// Global handler for 401 errors (token expiration)
+let onUnauthorized: (() => void) | null = null;
+
+export function setUnauthorizedHandler(handler: () => void) {
+  onUnauthorized = handler;
+}
+
 export async function request<T = unknown>(path: string, opts: ReqOpts = {}): Promise<T> {
   const { skipJson, ...fetchOpts } = opts;
 
@@ -17,6 +24,12 @@ export async function request<T = unknown>(path: string, opts: ReqOpts = {}): Pr
   const defaultHeaders: Record<string, string> = {
     'Content-Type': 'application/json',
   };
+
+  // Add Authorization header if token exists (fallback for cross-domain deployments)
+  const token = getAuthToken();
+  if (token) {
+    defaultHeaders['Authorization'] = `Bearer ${token}`;
+  }
 
   // Ensure headers is always an object
   const existingHeaders = fetchOpts.headers as Record<string, string> | undefined;
@@ -46,6 +59,18 @@ export async function request<T = unknown>(path: string, opts: ReqOpts = {}): Pr
     const err: any = new Error(message);
     err.status = res.status;
     err.payload = data;
+
+    // Handle token expiration (401 Unauthorized)
+    if (res.status === 401) {
+      console.error('🔴 401 Unauthorized detected - calling handler', { url });
+      if (onUnauthorized) {
+        console.log('📞 Calling onUnauthorized handler...');
+        onUnauthorized();
+      } else {
+        console.warn('⚠️ No onUnauthorized handler registered!');
+      }
+    }
+
     throw err;
   }
 
