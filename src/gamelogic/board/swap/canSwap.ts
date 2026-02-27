@@ -1,5 +1,6 @@
 import type { Cell, SwapRejectReason } from '../../types';
 import { areAdjacent } from '../../coords';
+import { terminalAllowsSwap } from '../terminals/terminals';
 
 function isPassableObstacle(cell: Cell): boolean {
   const obs = cell.obstacle;
@@ -8,12 +9,7 @@ function isPassableObstacle(cell: Cell): boolean {
   // chargedCell is passable (floor overlay)
   if (obs.kind === 'chargedCell') return true;
 
-  // Terminal: can be configured as "unswappable" (swapBlocked).
-  // Otherwise: passable only if open.
-  if (obs.kind === 'terminal') {
-    if (obs.swapBlocked === true) return false;
-    return obs.state === 'open';
-  }
+  if (obs.kind === 'terminal') return terminalAllowsSwap(obs);
 
   return false;
 }

@@ -1,5 +1,5 @@
 import type { EngineEvent, EngineState } from '../types';
-import { getTerminalAt } from '../board';
+import { getTerminalAt, terminalKeycardSourceIndex } from '../board';
 
 /**
  * Check for keycard delivery to open terminals.
@@ -32,9 +32,7 @@ export function processKeycardDeliveries(state: EngineState): { state: EngineSta
     const terminal = getTerminalAt(nextCells, i);
     if (!terminal || terminal.state !== 'open') continue;
 
-    const deliverFromAbove = terminal.deliverFromAbove === true || terminal.blocksPiece === true;
-    const keycardCellIndex = deliverFromAbove ? i - width : i;
-
+    const keycardCellIndex = terminalKeycardSourceIndex(i, width, terminal);
     if (keycardCellIndex < 0) continue;
 
     const keyCell = nextCells[keycardCellIndex];

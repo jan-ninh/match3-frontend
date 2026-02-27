@@ -1,8 +1,16 @@
-// src/gamelogic/board.ts
-
 export { buildInitialBoard } from './board/build/buildInitialBoard';
 
-export { getTerminalAt, isTerminalCell, canEnterTerminal, getTerminalIndices } from './board/terminals/terminals';
+export {
+  getTerminalAt,
+  isTerminalCell,
+  canEnterTerminal,
+  getTerminalIndices,
+  terminalAllowsSwap,
+  terminalBlocksSwap,
+  terminalCanHoldPiece,
+  terminalBlocksGravityFlow,
+  terminalKeycardSourceIndex,
+} from './board/terminals/terminals';
 
 export {
   getObjectiveTerminalAt,

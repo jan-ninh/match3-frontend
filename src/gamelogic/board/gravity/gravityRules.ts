@@ -1,4 +1,5 @@
 import type { Cell } from '../../types';
+import { terminalBlocksGravityFlow, terminalCanHoldPiece } from '../terminals/terminals';
 
 export function canReceiveFallingPiece(cell: Cell): boolean {
   if (cell.blocked) return false;
@@ -11,8 +12,7 @@ export function canReceiveFallingPiece(cell: Cell): boolean {
 
   // Terminal: configurable blocker/pass-through
   if (obs.kind === 'terminal') {
-    if (obs.blocksPiece === true) return false;
-    return obs.state === 'open';
+    return terminalCanHoldPiece(obs);
   }
 
   // Other obstacles block falling pieces
@@ -29,10 +29,8 @@ export function blocksGravity(cell: Cell): boolean {
   if (obs.kind === 'chargedCell') return false;
 
   // Terminal: pass-through terminals do not split the column.
-  // Otherwise: locked/verified block, open allows pass.
   if (obs.kind === 'terminal') {
-    if (obs.passThrough === true) return false;
-    return obs.state !== 'open';
+    return terminalBlocksGravityFlow(obs);
   }
 
   // All other obstacles block gravity

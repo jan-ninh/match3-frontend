@@ -58,7 +58,22 @@ export type CellObstacle =
   | { kind: 'leak'; id: number; progress: number; required: number }
   | { kind: 'contamination' }
   | { kind: 'sealKit' }
-  | { kind: 'terminal'; id: number; state: TerminalState; charge: number; requiredCharge: number; chargeColor: PieceType }
+  | {
+      kind: 'terminal';
+      id: number;
+      state: TerminalState;
+      charge: number;
+      requiredCharge: number;
+      chargeColor: PieceType;
+      /** If true: cannot be selected/swapped (slot-locked). */
+      swapBlocked: boolean;
+      /** If true: pieces may not occupy this cell ("blocker"). */
+      blocksPiece: boolean;
+      /** If true: gravity flow passes through this cell (does not split the column). */
+      passThrough: boolean;
+      /** If true: deliver keycards from the cell directly above this terminal. */
+      deliverFromAbove: boolean;
+    }
   | { kind: 'objectiveTerminal'; id: number; state: ObjectiveTerminalState; charge: number; requiredCharge: number }
   | { kind: 'signalSource'; id: number }
   | { kind: 'signalTarget'; id: number }
@@ -86,12 +101,48 @@ export function isOccupied(cell: Cell): boolean {
   return cell.blocked || cell.obstacle != null;
 }
 
+export type TerminalObstacle = Extract<CellObstacle, { kind: 'terminal' }>;
+
+/** If true: terminal blocks click+swap intent. */
+export function terminalBlocksSwap(terminal: TerminalObstacle): boolean {
+  return terminal.swapBlocked;
+}
+
+/** If true: the terminal cell may contain a piece after gravity resolves. */
+export function terminalCanHoldPiece(terminal: TerminalObstacle): boolean {
+  if (terminal.blocksPiece) return false;
+  return terminal.state === 'open';
+}
+
+/** If true: gravity flow is blocked at this cell (splits the column). */
+export function terminalBlocksGravityFlow(terminal: TerminalObstacle): boolean {
+  if (terminal.passThrough) return false;
+  return terminal.state !== 'open';
+}
+
+/** Returns the cell index that should contain the keycard for delivery checks. */
+export function terminalKeycardSourceIndex(terminalIndex: number, width: number, terminal: TerminalObstacle): number {
+  const fromAbove = terminal.deliverFromAbove || terminal.blocksPiece;
+  return fromAbove ? terminalIndex - width : terminalIndex;
+}
+
+/** Swap passability (used by canSwap gate). */
+export function terminalAllowsSwap(terminal: TerminalObstacle): boolean {
+  if (terminalBlocksSwap(terminal)) return false;
+  return terminal.state === 'open';
+}
+
 export function canHoldPiece(cell: Cell): boolean {
   if (cell.blocked) return false;
+
   const obs = cell.obstacle;
   if (!obs) return true;
-  // chargedCell is passable (pieces can fall through)
+
+  // chargedCell is passable (floor overlay)
   if (obs.kind === 'chargedCell') return true;
+
+  if (obs.kind === 'terminal') return terminalCanHoldPiece(obs);
+
   return false;
 }
 
@@ -175,6 +226,14 @@ export type TerminalNodeDef = {
   id: number;
   requiredCharge: number;
   chargeColor: PieceType;
+  /** If true: cannot be selected/swapped (slot-locked). */
+  swapBlocked?: boolean;
+  /** If true: pieces may not occupy this cell ("blocker"). */
+  blocksPiece?: boolean;
+  /** If true: gravity flow passes through this cell (does not split the column). */
+  passThrough?: boolean;
+  /** If true: deliver keycards from the cell directly above this terminal. */
+  deliverFromAbove?: boolean;
 };
 
 export type KeycardNodeDef = {
@@ -344,8 +403,6 @@ export type FallMove = {
 
 export type FallPlan = Readonly<{
   moves: readonly FallMove[];
-  /** Optional per-anim hole delay override (ms). If omitted, FALLING_TUNING.holeDelayMs is used. */
-  holeDelayMs?: number;
 }>;
 
 
