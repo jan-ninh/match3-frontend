@@ -1,4 +1,4 @@
-import type { EngineEvent, EngineState } from '../types';
+import type { EngineEvent, EngineState, Piece, PieceId } from '../types';
 import type { ResolveOnceOpts, ResolveOnceResult } from './typesCascade';
 
 import { detect } from './detect';
@@ -12,6 +12,8 @@ import { runPostClearEffects, runPostGravityEffects, runPostRefillEffects, runPr
 import { applyItemObstacleDamageAtIndices } from '../board/obstacles/itemObstacleDamage';
 
 import { markEnemyRedAtIndices } from './marks/enemyRed';
+
+import { rngForCascadeEffect, pickDeterministic } from './cascadeRng';
 
 // type MatchDetectionLike = { clearIndices: number[]; groups: number };
 
@@ -37,6 +39,114 @@ function clampInt(n: number, min: number, max: number): number {
   if (!Number.isFinite(n)) return min;
   const i = Math.floor(n);
   return Math.max(min, Math.min(max, i));
+}
+
+type MatchRunLike = {
+  axis: 'h' | 'v';
+  len: number;
+  indices: number[];
+};
+
+function isValidBoardIndex(state: EngineState, index: number): boolean {
+  return Number.isFinite(index) && index >= 0 && index < state.cells.length;
+}
+
+function canPlaceKeycardAt(state: EngineState, index: number): boolean {
+  if (!isValidBoardIndex(state, index)) return false;
+  const c = state.cells[index];
+  if (!c) return false;
+  if (c.blocked) return false;
+  return true;
+}
+
+function hashMatch4Runs(runs: readonly MatchRunLike[]): number {
+  let h = 0 >>> 0;
+
+  for (const r of runs) {
+    const len = clampInt(r.len, 0, 99);
+    if (len < 4) continue;
+
+    const axisBit = r.axis === 'h' ? 1 : 2;
+    const first = r.indices.length > 0 ? clampInt(r.indices[0]!, 0, 1_000_000_000) : 0;
+    const last = r.indices.length > 0 ? clampInt(r.indices[r.indices.length - 1]!, 0, 1_000_000_000) : 0;
+
+    const v = ((axisBit * 13 + len * 7 + (first % 10_000) * 17 + (last % 10_000) * 19) >>> 0) >>> 0;
+    h = (((h * 33) >>> 0) ^ v) >>> 0;
+  }
+
+  return h >>> 0;
+}
+
+function collectMatch4CandidateIndices(runs: readonly MatchRunLike[]): number[] {
+  const set = new Set<number>();
+  for (const r of runs) {
+    const len = clampInt(r.len, 0, 99);
+    if (len < 4) continue;
+    for (const idx of r.indices) {
+      set.add(idx | 0);
+    }
+  }
+  return Array.from(set.values()).sort((a, b) => a - b);
+}
+
+function pickKeycardSpawnIndex(state: EngineState, runs: readonly MatchRunLike[], preferIndex: number | null): number | null {
+  const candidates = collectMatch4CandidateIndices(runs).filter((i) => canPlaceKeycardAt(state, i));
+
+  if (candidates.length === 0) return null;
+
+  if (preferIndex !== null && canPlaceKeycardAt(state, preferIndex)) {
+    return preferIndex;
+  }
+
+  const base = rngForCascadeEffect(state.seed, clampInt(state.turnIndex, 0, 1_000_000_000), 5001);
+  const h = hashMatch4Runs(runs);
+  const seed = (base ^ h) >>> 0;
+
+  return pickDeterministic(candidates, seed);
+}
+
+function spawnKeycardAtIndex(state: EngineState, index: number): EngineState {
+  if (!canPlaceKeycardAt(state, index)) return state;
+
+  const cell = state.cells[index]!;
+  const existingPid = cell.pieceId;
+
+  // If there's already a keycard here, do not double-count totals.
+  if (existingPid !== null) {
+    const p = state.pieces[existingPid];
+    if (p && p.type === 'keycard') return state;
+  }
+
+  const nextCells = state.cells.slice();
+  const nextPieces: Record<PieceId, Piece> = { ...state.pieces };
+
+  // Remove any existing piece at the target index.
+  if (existingPid !== null) {
+    delete nextPieces[existingPid];
+  }
+
+  const keycardId = state.nextPieceId as PieceId;
+  const nextPieceId = (state.nextPieceId | 0) + 1;
+
+  nextPieces[keycardId] = {
+    id: keycardId,
+    type: 'keycard',
+    cellIndex: index,
+  };
+
+  nextCells[index] = {
+    ...nextCells[index]!,
+    pieceId: keycardId,
+  };
+
+  return {
+    ...state,
+    cells: nextCells,
+    pieces: nextPieces,
+    nextPieceId,
+    // For Level 05 this is dynamic: keycards are earned/spawned, not pre-placed.
+    keycardsTotal: (state.keycardsTotal | 0) + 1,
+  };
 }
 
 export function resolveOnce(state: EngineState, chargedIds: Set<number> = new Set(), opts?: ResolveOnceOpts): ResolveOnceResult {
@@ -150,6 +260,8 @@ export function resolveOnce(state: EngineState, chargedIds: Set<number> = new Se
   didSomething = true;
 
   events.push({ type: 'matchesFound', clears: m.clearIndices.length, groups: m.groups });
+
+    const runs: MatchRunLike[] = (m.runs ?? []).map((r) => ({ axis: r.axis, len: r.len, indices: r.indices }));
 
   // NEW: Emit per-match-group observability so UI/SFX can distinguish match3/match4/match5.
   // This is deterministic and engine-owned (no UI inference needed).
@@ -288,6 +400,25 @@ export function resolveOnce(state: EngineState, chargedIds: Set<number> = new Se
     const postRefill = runPostRefillEffects(effects, s, ctx, events);
     s = postRefill.state;
     ctx = postRefill.ctx;
+  }
+
+  // ─────────────────────────────────────────────
+  // Level 05: Match4+ spawns keycards (engine-owned, deterministic)
+  //
+  // Rules:
+  // - Trigger: any match run with len>=4 in this resolveOnce wave
+  // - Swap-driven wave: preferKeycardSpawnIndex (swap destination) if provided
+  // - Otherwise (cascade / item): pick deterministic slot among match4+ run indices
+  // - Spawn happens after refill/settle so it does not affect objective clear counts
+  // ─────────────────────────────────────────────
+  if (s.pendingTurnCommit && s.levelId === 5) {
+    const preferRaw = opts?.preferKeycardSpawnIndex;
+    const prefer = typeof preferRaw === 'number' && Number.isFinite(preferRaw) ? (preferRaw | 0) : null;
+
+    const spawnIndex = pickKeycardSpawnIndex(s, runs, prefer);
+    if (spawnIndex !== null) {
+      s = spawnKeycardAtIndex(s, spawnIndex);
+    }
   }
 
   events.push({ type: 'phase', phase: 'settle' });

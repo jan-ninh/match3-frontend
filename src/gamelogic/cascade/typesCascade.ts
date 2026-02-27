@@ -40,4 +40,10 @@ export type StabilizeOpts = {
 export type ResolveOnceOpts = {
   // First-class step injection (e.g. item clears) processed BEFORE detect.
   preSteps?: CascadePreStep[];
+
+  /**
+   * Optional preferred spawn index for Match4+ keycard spawns.
+   * Used by swap-driven Match4+ so we can spawn at the swap destination.
+   */
+  preferKeycardSpawnIndex?: number;
 };

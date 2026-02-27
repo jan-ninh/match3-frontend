@@ -1,3 +1,4 @@
+// src/gamelogic/engine/swapFlow.ts
 import type { AnimDoneIgnoreReason, AnimDoneMode, EngineEvent, EngineState } from '../types';
 import { swapCellsImmutable, swapPiecesPositionsImmutable } from '../board';
 import { detectMatches } from '../match';
@@ -149,7 +150,8 @@ export function applySwapAnimDone(state: EngineState, token: number, mode: AnimD
 
   const prePieces = s.pieces;
 
-  const step = resolveOnce(s);
+  // Prefer swap destination as the keycard spawn position for Match4+ (Level 05).
+  const step = resolveOnce(s, new Set(), { preferKeycardSpawnIndex: to });
   s = step.state;
   events.push(...step.events);
 
