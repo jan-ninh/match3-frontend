@@ -52,7 +52,7 @@ function calcMatchRushPercent(units: number, targetUnits: number): number {
 }
 
 function deriveObjectiveKind(args: {
-  levelId: number;
+  matchRushTargetUnits: number;
   signalSourcesTotal: number;
   signalTargetsTotal: number;
   objectiveTerminalsTotal: number;
@@ -61,15 +61,15 @@ function deriveObjectiveKind(args: {
   laserRowMatch4Target: number;
   cells: EngineState['cells'];
 }): ObjectiveKind {
-  const { levelId, signalSourcesTotal, signalTargetsTotal, objectiveTerminalsTotal, terminalsTotal, leaksTotal, laserRowMatch4Target, cells } = args;
+  const { matchRushTargetUnits, signalSourcesTotal, signalTargetsTotal, objectiveTerminalsTotal, terminalsTotal, leaksTotal, laserRowMatch4Target, cells } = args;
 
-  // Level 07: Match Rush
-  if (levelId === 7) return 'matchRush';
+  // Match Rush (engine-owned toggle)
+  if ((matchRushTargetUnits | 0) > 0) return 'matchRush';
 
-  // Level 09+: LaserRow -> Match4+ objective (engine-owned)
+  // LaserRow -> Match4+ objective (engine-owned)
   if ((laserRowMatch4Target | 0) > 0) return 'laserRowMatch4';
 
-  // Level 05: Signal Network takes priority
+  // Signal Network takes priority
   if (signalSourcesTotal > 0 && signalTargetsTotal > 0) return 'signal';
 
   if (objectiveTerminalsTotal > 0) return 'objectiveTerminals';
@@ -169,7 +169,7 @@ export function useHudInputFromState(state: EngineState): GameplayHudInput {
     const actualChargedCount = countChargedCells(cells);
 
     const objectiveKind = deriveObjectiveKind({
-      levelId,
+      matchRushTargetUnits: matchRushTargetUnits ?? 0,
       signalSourcesTotal: signalSourcesTotal ?? 0,
       signalTargetsTotal: signalTargetsTotal ?? 0,
       objectiveTerminalsTotal: objectiveTerminalsTotal ?? 0,

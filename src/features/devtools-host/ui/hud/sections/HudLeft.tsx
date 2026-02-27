@@ -3,16 +3,17 @@ import type { HudModel } from '../../../lib/hud/typesHud';
 import { useMatchRushTimeLeftSec } from '../level07/matchRushTimeStore';
 import { TimeWidget } from '../widgets/TimeWidget';
 import { LevelMetaWidget } from '../widgets/LevelMetaWidget';
+import { isMatchRushStage } from '@/gamelogic/scenarios/policies';
 
 type Props = {
   model: HudModel;
 };
 
 export function HudLeft({ model }: Props) {
-  // Level 07 uses its own store; other timed modes expose engine-derived `timeLeftSec`.
+  // Match Rush uses its own store; other timed modes expose engine-derived `timeLeftSec`.
   const matchRushTimeLeftSec = useMatchRushTimeLeftSec();
 
-  const timeLeftSec = model.levelId === 7 ? matchRushTimeLeftSec : model.timeLeftSec;
+  const timeLeftSec = isMatchRushStage(model.levelId) ? matchRushTimeLeftSec : model.timeLeftSec;
 
   return (
     <div className="flex flex-col items-start gap-2 relative z-20">

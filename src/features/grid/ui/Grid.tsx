@@ -33,6 +33,7 @@ import MatchHintsOverlay from './matchHints/MatchHintsOverlay';
 import { useAutoMatchHints } from './matchHints/useAutoMatchHints';
 import { TilePopFxLayer, type TilePopVariant } from './fx/tilePop/TilePopFxLayer';
 import { tileDist } from '../lib/constants';
+import { isManualSwapDisabledStage } from '@/gamelogic/scenarios/policies';
 
 //===========================================================================================================
 //===========================================================================================================
@@ -178,8 +179,8 @@ export function GridView({
   const bomb = useBomb3x3Targeting({ width, height, swapMs, inputLocked });
   const laser = useLaserRowTargeting({ width, height, inputLocked });
 
-  // Patch-Delta (Datei 2): Level09 "no manual swaps / no dragging"
-  const isLevel09 = state.levelId === 9;
+  // Manual swaps disabled (scenario-owned).
+  const manualSwapsDisabled = isManualSwapDisabledStage(state.levelId);
 
   const laserSfx = useLaserTargetingSfx({
     armed: laser.laserArmed,
@@ -214,14 +215,14 @@ export function GridView({
   // Auto Match Hints (idle -> blink + micro-drag)
   // ─────────────────────────────────────────────
   const hintSwaps = useMemo(() => {
-    if (isLevel09) return [];
+    if (manualSwapsDisabled) return [];
     // Hint only needs a stable board; avoid wasted work during animations.
     if (state.phase !== 'idle') return [];
     return findPossibleMatchSwaps({ width, height, cells: state.cells, pieces: state.pieces });
-  }, [isLevel09, state.phase, width, height, state.cells, state.pieces]);
+  }, [manualSwapsDisabled, state.phase, width, height, state.cells, state.pieces]);
 
   const matchHint = useAutoMatchHints({
-    enabled: !isLevel09,
+    enabled: !manualSwapsDisabled,
     phase: state.phase,
     inputLocked: effectiveInputLocked,
     isDragging,
@@ -231,14 +232,13 @@ export function GridView({
     tileDist,
   });
 
-  // Patch-Delta (Datei 2): Prioritäten angepasst + Level09 not-allowed
   const cursorClass = useMemo(() => {
     if (bomb.bombArmed || laser.laserArmed) return 'cursor-crosshair';
     if (effectiveInputLocked && showLockoutHints) return 'cursor-not-allowed';
-    if (isLevel09) return 'cursor-not-allowed';
+    if (manualSwapsDisabled) return 'cursor-not-allowed';
     if (isDragging) return 'cursor-grabbing';
     return 'cursor-grab';
-  }, [bomb.bombArmed, effectiveInputLocked, isDragging, isLevel09, laser.laserArmed, showLockoutHints]);
+  }, [bomb.bombArmed, effectiveInputLocked, isDragging, manualSwapsDisabled, laser.laserArmed, showLockoutHints]);
 
   useTargetingCursor({ targeting: bomb.bombArmed || laser.laserArmed });
 
@@ -294,7 +294,7 @@ export function GridView({
       return;
     }
 
-    if (isLevel09) {
+    if (manualSwapsDisabled) {
       e.preventDefault();
       e.stopPropagation();
       return;

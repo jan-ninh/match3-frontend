@@ -22,7 +22,7 @@ import {
   getRuntimeInputLocked,
   type Match3InputLockChangedDetail,
 } from '@/context/inputLockRuntime';
-import { getLevelDefinition } from '@/gamelogic/levels';
+import { isLaserRowMatch4TrainingStage } from '@/gamelogic/scenarios/policies';
 
 type FooterActionItem = ReturnType<typeof footerActions>[number];
 
@@ -103,14 +103,6 @@ function allocFooterRequestId(): number {
   return cur <= 0 ? 1 : cur;
 }
 
-function isLaserRowMatch4TrainingLevel(levelId: number | null): boolean {
-  const id = typeof levelId === 'number' && Number.isFinite(levelId) ? (levelId | 0) : 0;
-  if (id <= 0) return false;
-
-  const level = getLevelDefinition(id);
-  return (level.laserRowMatch4Target | 0) > 0 && level.swapSpendsMove === false && level.movesLoseEnabled === false;
-}
-
 export default function GameFooter() {
   const { powers, setPowers } = usePowers();
   const { user, updatePowers } = useAuth();
@@ -151,7 +143,7 @@ export default function GameFooter() {
     return () => window.removeEventListener(MATCH3_LEVEL_CHANGED_EVENT, onLevelChanged as EventListener);
   }, []);
 
-  const isInfiniteItemsLevel = isLaserRowMatch4TrainingLevel(runtimeLevelId);
+  const isInfiniteItemsLevel = isLaserRowMatch4TrainingStage(runtimeLevelId);
 
   /**
    * Keep latest powers ONLY for window event listeners (effects).

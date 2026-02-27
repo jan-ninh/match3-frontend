@@ -10,6 +10,7 @@ type Props = {
 
 export function HudCenter({ model }: Props) {
   const matchRushPercent = model.matchRushPercent;
+  const showMatchRushBar = model.objective.kind === 'matchRush';
 
   return (
     <div className="min-w-0 flex justify-center">
@@ -20,7 +21,7 @@ export function HudCenter({ model }: Props) {
         <div className="min-w-0 max-w-full flex flex-col items-center justify-center gap-2">
           <ObjectivePanel objective={model.objective} />
 
-          {model.levelId === 7 ? <MatchRushProgressBar percent={matchRushPercent} /> : null}
+          {showMatchRushBar ? <MatchRushProgressBar percent={matchRushPercent} /> : null}
 
           {/* Laser warning: directly UNDER the hint (more important/urgent) */}
           <LaserWarningBadge warning={model.laserWarning ?? null} />
