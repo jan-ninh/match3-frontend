@@ -106,14 +106,14 @@ export const LASER_STRIKE_PULSE_SEQUENCE: readonly LaserStrikePulseSpec[] = [
     lifeMs: 120,
     gapAfterMs: 5,
     peakOpacity: 1,
-    coreHeightPct: 40,
+    coreHeightPct: 100,
     scanEnabled: true,
   },
   // Pulse 2
   {
     lifeMs: 110,
     gapAfterMs: 2,
-    peakOpacity: 0.78,
+    peakOpacity: 1,
     coreHeightPct: 20,
     scanEnabled: false,
   },
@@ -121,14 +121,14 @@ export const LASER_STRIKE_PULSE_SEQUENCE: readonly LaserStrikePulseSpec[] = [
   {
     lifeMs: 90,
     gapAfterMs: 1,
-    peakOpacity: 0.62,
+    peakOpacity: 1,
     coreHeightPct: 30,
     scanEnabled: false,
   },
   // Pulse 4 (tail)
   {
     lifeMs: 10,
-    peakOpacity: 0.5,
+    peakOpacity: 1,
     coreHeightPct: 16,
     scanEnabled: false,
   },

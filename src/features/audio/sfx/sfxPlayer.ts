@@ -340,6 +340,86 @@ export function playSfx(id: SfxId, opts?: PlaySfxOptions): void {
   void preloadSfx(id);
 }
 
+
+// -----------------------------
+// URL-based SFX helpers (advanced / opt-in)
+// -----------------------------
+//
+// Use when you want to play an additional SFX file that is NOT part of the manifest,
+// but should still reuse the same WebAudio/HTMLAudio + volume tuning + unlock mechanics.
+//
+// Typical use-case: layer a 2nd variation on top of an existing SFX ID.
+
+type UrlSfxKey = string;
+
+const urlBufferCache = new Map<UrlSfxKey, AudioBuffer>();
+const urlLoadingCache = new Map<UrlSfxKey, Promise<AudioBuffer | null>>();
+
+async function loadBufferByUrl(url: string): Promise<AudioBuffer | null> {
+  const buf = await tryFetchDecode(url);
+  if (!buf) return null;
+  urlBufferCache.set(url, buf);
+  return buf;
+}
+
+export async function preloadSfxUrl(url: string): Promise<boolean> {
+  ensureAudioUnlocked();
+
+  const key = String(url);
+  if (urlBufferCache.has(key)) return true;
+
+  const existing = urlLoadingCache.get(key);
+  if (existing) {
+    const buf = await existing;
+    return !!buf;
+  }
+
+  const p = loadBufferByUrl(key);
+  urlLoadingCache.set(key, p);
+
+  const buf = await p;
+  urlLoadingCache.delete(key);
+  return !!buf;
+}
+
+export function playSfxUrl(url: string, opts?: PlaySfxOptions, tuneLikeId?: SfxId): void {
+  ensureAudioUnlocked();
+
+  const key = String(url);
+
+  const tunedVol = (() => {
+    const baseVol = clampNum(opts?.volume ?? 1, 0, 1);
+    if (!tuneLikeId) return baseVol;
+
+    const mul = clampNum(getSfxVolumeMultiplier(tuneLikeId), 0, 1);
+    return clampNum(baseVol * mul, 0, 1);
+  })();
+
+  const finalVol = clampNum(tunedVol * getMasterMul(), 0, 1);
+
+  if (finalVol <= 0) {
+    // Still warm up so re-enabling audio doesn't cold-start.
+    void preloadSfxUrl(key);
+    return;
+  }
+
+  const rate = opts?.playbackRate;
+  const tunedOpts: PlaySfxOptions = rate === undefined ? { volume: tunedVol } : { volume: tunedVol, playbackRate: rate };
+
+  const cached = urlBufferCache.get(key);
+  if (cached) {
+    playWithWebAudio(cached, tunedOpts);
+    return;
+  }
+
+  // no buffer yet -> immediate fallback (single URL)
+  playWithHtmlAudio([key], tunedOpts);
+
+  // warm up for future plays
+  void preloadSfxUrl(key);
+}
+
+
 /**
  * Prefetch CORE_SFX audio files (network/cache only, no WebAudio decode).
  * Safe before user gestures / AudioContext resume policies.

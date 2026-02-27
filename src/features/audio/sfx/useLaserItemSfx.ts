@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 
 import { POWER_ARM_EVENT, POWER_CONSUME_EVENT } from '@/context/powerEvents';
 
-import { playSfx, preloadSfx } from './sfxPlayer';
+import { playSfx, playSfxUrl, preloadSfx, preloadSfxUrl } from './sfxPlayer';
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return !!v && typeof v === 'object';
@@ -38,6 +38,15 @@ function isConsumeLike(v: unknown): v is ConsumeLike {
   return true;
 }
 
+function withBase(path: string): string {
+  // Vite guarantees BASE_URL to end with '/' (e.g. '/', '/myapp/').
+  const base = import.meta.env.BASE_URL ?? '/';
+  const clean = path.startsWith('/') ? path.slice(1) : path;
+  return base.endsWith('/') ? `${base}${clean}` : `${base}/${clean}`;
+}
+
+const LASER_ROW_LAYER_URL = withBase('audio/sfx/items/laser/laser_02.wav');
+
 function isLaserPowerKey(k: unknown): k is 'laser' | 'laserRow' | 'laserRowClear' {
   return k === 'laser' || k === 'laserRow' || k === 'laserRowClear';
 }
@@ -61,6 +70,7 @@ export function useLaserItemSfx(): void {
       if (!d.armed) return;
 
       void preloadSfx('laserRow');
+      void preloadSfxUrl(LASER_ROW_LAYER_URL);
     };
 
     const onConsume = (e: Event) => {
@@ -73,6 +83,7 @@ export function useLaserItemSfx(): void {
       if (amt <= 0) return;
 
       playSfx('laserRow', { volume: 1 });
+      playSfxUrl(LASER_ROW_LAYER_URL, { volume: 1 }, 'laserRow');
     };
 
     window.addEventListener(POWER_ARM_EVENT, onArm as EventListener);
