@@ -1,4 +1,3 @@
-// src/features/grid/ui/GridPiecesLayer.tsx
 // GridPiecesLayer ist absichtlich KEIN Input-Layer
 // Es hat pointer-events-none am Root → es kann Pointer-Events gar nicht empfangen.
 import { useLayoutEffect, useMemo, useRef } from 'react';
@@ -70,6 +69,16 @@ export default function GridPiecesLayer({
   const fallDurationMs = computeEffectiveFallDurationMs(swapMs, FALLING_TUNING.fall.baseDurationMs);
   const fallEasing = FALLING_TUNING.fall.easing;
 
+  const spawnedSet = useMemo(() => {
+    const set = new Set<PieceId>();
+    if (phase !== 'fallAnimating') return set;
+    if (!fallPlan || fallPlan.moves.length === 0) return set;
+    for (const mv of fallPlan.moves) {
+      if (mv.fromIndex === null) set.add(mv.id);
+    }
+    return set;
+  }, [phase, fallPlan]);
+
   useLayoutEffect(() => {
     if (phase !== 'fallAnimating') {
       appliedFallTokenRef.current = null;
@@ -88,11 +97,20 @@ export default function GridPiecesLayer({
     if (typeof window === 'undefined') return;
     if (typeof window.requestAnimationFrame !== 'function') return;
 
+    const typeById = new Map<PieceId, Piece['type']>();
+    for (const p of pieces) typeById.set(p.id, p.type);
+
     const touched: HTMLDivElement[] = [];
     const targets = new Map<HTMLDivElement, string>();
 
     for (const mv of fallPlan.moves) {
       if (dragPieceId === mv.id) continue;
+
+      // Keycard special: "instant spawn" (do NOT start above and fall).
+      // It will still pop via CSS class on <Tile /> (see render below).
+      if (mv.fromIndex === null && typeById.get(mv.id) === 'keycard') {
+        continue;
+      }
 
       const el = document.querySelector<HTMLDivElement>(`[data-piece-id="${mv.id}"]`);
       if (!el) continue;
@@ -170,7 +188,21 @@ export default function GridPiecesLayer({
         el.style.transition = '';
       }
     };
-  }, [phase, swapMs, fallPlan, fallToken, width, dragPieceId, previewActive, previewOtherPieceId, previewAxis, previewDir, fallDurationMs, fallEasing]);
+  }, [
+    phase,
+    swapMs,
+    fallPlan,
+    fallToken,
+    width,
+    dragPieceId,
+    previewActive,
+    previewOtherPieceId,
+    previewAxis,
+    previewDir,
+    fallDurationMs,
+    fallEasing,
+    pieces,
+  ]);
 
   return (
     <div className="absolute inset-0 pointer-events-none">
@@ -207,6 +239,8 @@ export default function GridPiecesLayer({
 
         const hintBlink = hintBlinkActive && blinkSet.has(pp.id);
 
+        const spawnPop = pp.type === 'keycard' && spawnedSet.has(pp.id);
+
         return (
           <div
             key={pp.id}
@@ -235,6 +269,7 @@ export default function GridPiecesLayer({
               preview={previewActive && previewOtherPieceId === pp.id}
               shaking={isShaking}
               hintBlink={hintBlink}
+              spawnPop={spawnPop}
             />
 
             {showDebugLabels ? (

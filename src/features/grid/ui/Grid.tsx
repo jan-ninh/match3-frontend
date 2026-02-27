@@ -33,6 +33,7 @@ import { useAutoMatchHints } from './matchHints/useAutoMatchHints';
 import { TilePopFxLayer, type TilePopVariant } from './fx/tilePop/TilePopFxLayer';
 import { tileDist } from '../lib/constants';
 import { isManualSwapDisabledStage } from '@/gamelogic/scenarios/policies';
+import { KEYCARD_POP_CSS } from './tileStyles/keycardTileFx';
 
 //===========================================================================================================
 //===========================================================================================================
@@ -338,6 +339,9 @@ export function GridView({
         debugSnapshot={debugSnapshot}
         stateMeta={{ levelId: state.levelId, width, height, seed: state.seed }}
       />
+
+      {/* Keycard "instant spawn" pop FX CSS (injected once for the grid) */}
+      <style>{KEYCARD_POP_CSS}</style>
 
       <GridShell
         shellStyle={shellStyle}

@@ -1,10 +1,9 @@
-// src/features/grid/ui/Tile.tsx
 import type { CSSProperties } from 'react';
 
 import type { PieceType } from '@/gamelogic';
 import { TILE_SIZE } from '../lib/constants';
 import { getTileSprite } from './tiles';
-import { KEYCARD_BASE_SHADOW_CLASS, KEYCARD_FALLBACK_STYLE, TILE_BASE_SHADOW_CLASS } from './tileStyles/keycardTileFx';
+import { KEYCARD_BASE_SHADOW_CLASS, KEYCARD_FALLBACK_STYLE, KEYCARD_POP_CLASS, TILE_BASE_SHADOW_CLASS } from './tileStyles/keycardTileFx';
 
 type Props = {
   type: PieceType;
@@ -19,10 +18,13 @@ type Props = {
   // Auto Match Hint (UI-only)
   hintBlink?: boolean;
 
+  // Spawn FX (UI-only)
+  spawnPop?: boolean;
+
   className?: string;
 };
 
-export default function Tile({ type, dragging, preview, locked, shaking, hintBlink, className }: Props) {
+export default function Tile({ type, dragging, preview, locked, shaking, hintBlink, spawnPop = false, className }: Props) {
   const sprite = getTileSprite(type);
 
   // Keycard special rendering (Level 03)
@@ -30,6 +32,8 @@ export default function Tile({ type, dragging, preview, locked, shaking, hintBli
 
   // Base shadow must be a CLASS (not inline), otherwise it overrides Tailwind ring/shadow layers.
   const baseShadow = isKeycard ? KEYCARD_BASE_SHADOW_CLASS : TILE_BASE_SHADOW_CLASS;
+
+  const spawnFx = isKeycard && spawnPop ? KEYCARD_POP_CLASS : '';
 
   // PREMIUM: avoid transform scale on the tile (scale => resampling => blur).
   // Use ring/glow instead for "lift" feedback.
@@ -45,6 +49,7 @@ export default function Tile({ type, dragging, preview, locked, shaking, hintBli
   const outerCls = [
     'relative w-full h-full rounded-xl',
     baseShadow,
+    spawnFx,
     // keep transitions cheap; only box-shadow/filter feel
     'transition-[box-shadow,filter] duration-150',
     locked ? 'opacity-70' : '',
