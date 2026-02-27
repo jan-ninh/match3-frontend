@@ -8,6 +8,11 @@ export type Outcome = 'WIN' | 'LOSS';
 export type AbortReason = 'disconnect' | 'quit' | 'crash' | 'timeout' | 'unknown';
 
 export type CampaignStartRequestBody = Readonly<{
+  /**
+   * Optional explicit override.
+   * If omitted, the client will try to derive it from localStorage (AuthContext persist).
+   */
+  ACCOUNT_ID?: string;
   CLIENT_VERSION?: string;
   PLATFORM?: string;
   CLIENT_TIMESTAMP_MS?: number;
@@ -46,14 +51,34 @@ function jsonHeaders(): Record<string, string> {
   return { 'Content-Type': 'application/json' };
 }
 
+function readStoredAccountId(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem('user');
+    if (!raw) return null;
+    const parsed: unknown = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object' && 'id' in parsed) {
+      const v = (parsed as { id?: unknown }).id;
+      if (typeof v === 'string' && v.trim().length > 0) return v.trim();
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Start a campaign/run. Backend returns CAMPAIGN_ID.
  */
 export async function apiStartCampaign(body: CampaignStartRequestBody = {}): Promise<CampaignStartResponseBody> {
+  const accountId = (body.ACCOUNT_ID ?? readStoredAccountId()) ?? undefined;
+
+  const payload: CampaignStartRequestBody = accountId ? { ...body, ACCOUNT_ID: accountId } : body;
+
   return request('/api/campaign/start', {
     method: 'POST',
     headers: jsonHeaders(),
-    body: JSON.stringify(body),
+    body: JSON.stringify(payload),
   });
 }
 
