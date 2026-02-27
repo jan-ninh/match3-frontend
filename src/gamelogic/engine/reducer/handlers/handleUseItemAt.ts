@@ -110,6 +110,22 @@ export function handleUseItemAt(state: EngineState, action: UseItemAtAction): En
       },
     };
 
+    // Level 07: Match Rush progress is engine-owned.
+    // Count power usage as units (independent of objective-policy for clears).
+    if ((s.matchRushTargetUnits | 0) > 0 && s.phase !== 'init') {
+      const baseUnits = matchRushItemBaseUnits(action.key);
+      const gained = baseUnits * LEVEL07_TUNING.globalMultiplier;
+      if (gained > 0) {
+        s = {
+          ...s,
+          matchRushUnits: (s.matchRushUnits | 0) + gained,
+        };
+      }
+    }
+
+    // Ack for UI consume (only after accept)
+    events.push({ type: 'powerUsed', key: powerKeyForItem(action.key), requestId: action.requestId });
+
     return pushEvents(s, events);
   }
 
