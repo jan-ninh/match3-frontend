@@ -2,18 +2,18 @@ import type { LevelDefinition, PieceType } from '../types';
 
 import type { ScenarioKey } from './scenarioKeys';
 
-import { makeLevel01 } from '../levels/level-01';
-import { makeLevel02 } from '../levels/level-02';
-import { makeLevel03 } from '../levels/level-03';
-import { makeLevel04 } from '../levels/level-04';
-import { makeLevel05 } from '../levels/level-05';
-import { makeLevel06 } from '../levels/level-06';
-import { makeLevel07 } from '../levels/level-07';
-import { makeLevel08 } from '../levels/level-08';
-import { makeLevel09 } from '../levels/level-09';
-import { makeLevel10 } from '../levels/level-10';
-import { makeLevel11 } from '../levels/level-11';
-import { makeLevel12 } from '../levels/level-12';
+import { makeCleanRoomScenario } from './defs/clean-room';
+import { makeBreachProtocolScenario } from './defs/breach-protocol';
+import { makeTiberiumRunScenario } from './defs/tiberium-run';
+import { makeSignalBreachScenario } from './defs/signal-breach';
+import { makeFalseIdentityScenario } from './defs/false-identity';
+import { makePatchTheHoleScenario } from './defs/patch-the-hole';
+import { makeMatchRushScenario } from './defs/match-rush';
+import { makeLaserRowMatch4TrainingScenario } from './defs/laserrow-match4-training';
+import { makeStoneTilesIntroScenario } from './defs/stone-tiles-intro';
+import { makeFirewallSweepBossroomScenario } from './defs/firewall-sweep-bossroom';
+import { makeEnemyTurnTraceScenario } from './defs/enemy-turn-trace';
+import { makeSandboxScenario } from './defs/sandbox';
 
 export type ScenarioFactoryArgs = Readonly<{
   baseSeed: number;
@@ -25,22 +25,23 @@ export type ScenarioFactory = (args: ScenarioFactoryArgs) => LevelDefinition;
 /**
  * Scenario Registry (SSOT for ScenarioKey → definition factory).
  *
- * NOTE: In MS3 we'll rename/move the scenario files (no numeric filenames),
- * but the keys stay stable.
+ * MS3:
+ * - numeric Level files stay as a compatibility layer
+ * - ScenarioKey now maps to semantic scenario modules in `scenarios/defs/*`
  */
 const SCENARIO_REGISTRY: Readonly<Record<ScenarioKey, ScenarioFactory>> = {
-  'clean-room': makeLevel01,
-  'breach-protocol': makeLevel02,
-  'tiberium-run': makeLevel03,
-  'signal-breach': makeLevel04,
-  'false-identity': makeLevel05,
-  'patch-the-hole': makeLevel06,
-  'match-rush': makeLevel07,
-  'laserrow-match4-training': makeLevel08,
-  'stone-tiles-intro': makeLevel09,
-  'firewall-sweep-bossroom': makeLevel10,
-  'enemy-turn-trace': makeLevel11,
-  'sandbox': makeLevel12,
+  'clean-room': makeCleanRoomScenario,
+  'breach-protocol': makeBreachProtocolScenario,
+  'tiberium-run': makeTiberiumRunScenario,
+  'signal-breach': makeSignalBreachScenario,
+  'false-identity': makeFalseIdentityScenario,
+  'patch-the-hole': makePatchTheHoleScenario,
+  'match-rush': makeMatchRushScenario,
+  'laserrow-match4-training': makeLaserRowMatch4TrainingScenario,
+  'stone-tiles-intro': makeStoneTilesIntroScenario,
+  'firewall-sweep-bossroom': makeFirewallSweepBossroomScenario,
+  'enemy-turn-trace': makeEnemyTurnTraceScenario,
+  'sandbox': makeSandboxScenario,
 } as const;
 
 export function getScenarioDefinition(key: ScenarioKey, args: ScenarioFactoryArgs): LevelDefinition {
