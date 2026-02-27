@@ -1,5 +1,7 @@
-import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import toast from 'react-hot-toast';
 import { apiLogin, apiRegister, apiLogout, type UserDTO } from '@/api/auth';
+import { getAuthToken, setAuthToken, setUnauthorizedHandler } from '@/api/http';
 import type { UserProfile, Powers } from '@/types';
 import { apiMyProfile, apiUpdateAvatar, apiUpdatePowers } from '@/api/user';
 
@@ -22,7 +24,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<UserDTO | null>(() => {
     try {
       const raw = localStorage.getItem(USER_STORAGE_KEY);
-      return raw ? (JSON.parse(raw) as UserDTO) : null;
+      const userData = raw ? (JSON.parse(raw) as UserDTO) : null;
+
+      // Restore token from storage on app load
+      const storedToken = getAuthToken();
+      if (!storedToken && userData?.token) {
+        setAuthToken(userData.token);
+      }
+
+      return userData;
     } catch {
       localStorage.removeItem(USER_STORAGE_KEY);
       return null;
@@ -30,6 +40,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   });
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(false);
+  const handlerSetupRef = useRef(false);
 
   // safe persist function to store user info without token in localStorage
   const persist = useCallback((u: UserDTO | null) => {
@@ -113,6 +124,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } finally {
       setUser(null);
       setProfile(null);
+      setAuthToken(null); // Clear stored token
       persist(null); // localStorage should be cleared
     }
   }, [persist]);
@@ -154,6 +166,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       refreshProfile().catch(() => {});
     }
   }, []);
+
+  // Setup global 401 handler for token expiration (only once)
+  useEffect(() => {
+    if (handlerSetupRef.current) return;
+    handlerSetupRef.current = true;
+
+    const handleUnauthorized = () => {
+      console.warn('⚠️ Session expired - clearing user data and showing toast');
+      setUser(null);
+      setProfile(null);
+      setAuthToken(null);
+      persist(null);
+      toast.error('Your session expired. Please log in again.', { duration: 4000 });
+    };
+
+    setUnauthorizedHandler(handleUnauthorized);
+    console.log('✅ 401 handler registered');
+  }, [persist]);
 
   const value = useMemo(
     () => ({

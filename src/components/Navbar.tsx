@@ -3,6 +3,7 @@ import { useOverlays } from '@/features/overlays';
 import { useAuth } from '@/context/AuthContext';
 import SpriteIcon from '@/components/SpriteIcon'; // default export assumed
 import { CyberTitle } from './CyberTitle';
+import { useEffect } from 'react';
 
 type NavLinkItem = {
   kind: 'link';
@@ -26,6 +27,14 @@ export default function Navbar() {
   const navigate = useNavigate();
 
   const isAuthenticated = !!user;
+
+  // Log when auth state changes
+  useEffect(() => {
+    console.log('🔄 Navbar updated - auth state changed:', {
+      isAuthenticated,
+      userId: user?.id || 'none',
+    });
+  }, [isAuthenticated, user?.id]);
 
   const baseItems: NavItem[] = [
     { kind: 'link', label: 'Home', icon: 'home', to: '/game-map' },

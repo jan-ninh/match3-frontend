@@ -14,6 +14,20 @@ export default function ProfileDashboard() {
   const { user, profile, refreshProfile } = useAuth();
 
   const [avatarModalOpen, setAvatarModalOpen] = useState(false);
+  const [wasAuthenticated, setWasAuthenticated] = useState(!!user);
+
+  // Redirect to guest home if user becomes null (e.g., due to session expiration)
+  useEffect(() => {
+    if (wasAuthenticated && user === null) {
+      console.log('👤 Session expired, redirecting to guest home...');
+      navigate('/game-map', { replace: true });
+    }
+    setWasAuthenticated(!!user);
+  }, [user, navigate]);
+
+  useEffect(() => {
+    console.log('ProfileDashboard mounted/updated:', { user: user?.id, profileLoaded: !!profile });
+  }, [user, profile]);
 
   useEffect(() => {
     console.log('ProfileDashboard mounted/updated:', { user: user?.id, profileLoaded: !!profile });
