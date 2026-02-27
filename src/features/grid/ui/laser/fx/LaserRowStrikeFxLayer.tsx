@@ -107,14 +107,14 @@ export function LaserRowStrikeFxLayer({ bursts, height, zIndex = 86, reducedMoti
           const coreScaleYPeak = rm ? 1 : clampNum(b.coreScaleYPeak, 0.2, 3.5);
           const coreScaleYEnd = rm ? 1 : clampNum(b.coreScaleYEnd, 0.2, 3.5);
 
-          const coreHeightPct = clampNum(b.coreHeightPct, 4, 96);
+          // Allow >100% (overspill) but keep it bounded.
+          const coreHeightPct = clampNum(b.coreHeightPct, 4, 240);
           const noiseOpacity = clampNum(b.noiseOpacity, 0, 1);
 
           const scanEnabled = !rm && !!b.scanEnabled;
           const scanDurationSec = Math.max(0.04, (b.scanDurationMs | 0) / 1000);
           const scanWidthPct = clampNum(b.scanWidthPct, 4, 80);
 
-          // LASER TRANSITION DURATION
           return (
             <motion.div
               key={b.id}
@@ -156,28 +156,43 @@ export function LaserRowStrikeFxLayer({ bursts, height, zIndex = 86, reducedMoti
               <div className="absolute inset-0 match3-laser-strike-noise" style={{ opacity: noiseOpacity }} />
 
               {/* Beam core */}
-              <motion.div
+              {/*
+                IMPORTANT:
+                Framer Motion animates `scaleY` by writing its own `transform`.
+                If we also set `transform: translateY(-50%)` on the same element,
+                Motion will override it -> the core appears vertically offset (worse at larger heights).
+
+                Fix: keep centering on a non-motion wrapper, and animate scale on the inner motion layer.
+              */}
+              <div
                 className="absolute left-0 right-0"
                 style={{
                   top: '50%',
                   height: `${coreHeightPct}%`,
                   transform: 'translateY(-50%)',
-                  background: 'linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(191,219,254,0.92) 35%, rgba(255,255,255,0) 100%)',
-                  boxShadow: '0 0 26px rgba(59,130,246,0.55), 0 0 60px rgba(59,130,246,0.25)',
-                  filter: 'blur(0.2px)',
-                  mixBlendMode: 'screen',
                 }}
-                initial={{ opacity: 0, scaleY: coreScaleYFrom }}
-                animate={{
-                  opacity: rm ? [0, corePeakOpacity * 0.95, 0] : [0, corePeakOpacity, 0],
-                  scaleY: [coreScaleYFrom, coreScaleYPeak, coreScaleYEnd],
-                }}
-                transition={{
-                  duration: durSec,
-                  ease: 'easeOut',
-                  times: [0, 0.18, 1],
-                }}
-              />
+              >
+                <motion.div
+                  className="absolute inset-0"
+                  style={{
+                    background: 'linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(191,219,254,0.92) 35%, rgba(255,255,255,0) 100%)',
+                    boxShadow: '0 0 26px rgba(59,130,246,0.55), 0 0 60px rgba(59,130,246,0.25)',
+                    filter: 'blur(0.2px)',
+                    mixBlendMode: 'screen',
+                    transformOrigin: '50% 50%',
+                  }}
+                  initial={{ opacity: 0, scaleY: coreScaleYFrom }}
+                  animate={{
+                    opacity: rm ? [0, corePeakOpacity * 0.95, 0] : [0, corePeakOpacity, 0],
+                    scaleY: [coreScaleYFrom, coreScaleYPeak, coreScaleYEnd],
+                  }}
+                  transition={{
+                    duration: durSec,
+                    ease: 'easeOut',
+                    times: [0, 0.18, 1],
+                  }}
+                />
+              </div>
 
               {/* Scan streak (fast left->right) */}
               {scanEnabled ? (

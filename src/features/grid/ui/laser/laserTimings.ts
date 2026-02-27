@@ -103,7 +103,7 @@ export type LaserStrikePulseSpec = Readonly<{
 export const LASER_STRIKE_PULSE_SEQUENCE: readonly LaserStrikePulseSpec[] = [
   // Pulse 1 (strong)
   {
-    lifeMs: 120,
+    lifeMs: 60,
     gapAfterMs: 5,
     peakOpacity: 1,
     coreHeightPct: 100,
@@ -114,7 +114,7 @@ export const LASER_STRIKE_PULSE_SEQUENCE: readonly LaserStrikePulseSpec[] = [
     lifeMs: 110,
     gapAfterMs: 2,
     peakOpacity: 1,
-    coreHeightPct: 20,
+    coreHeightPct: 50,
     scanEnabled: false,
   },
   // Pulse 3
