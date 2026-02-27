@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
 import { apiLogin, apiRegister, apiLogout, type UserDTO } from '@/api/auth';
 import type { UserProfile, Powers } from '@/types';
-import { apiProfile, apiUpdateAvatar, apiUpdatePowers } from '@/api/user';
+import { apiMyProfile, apiUpdateAvatar, apiUpdatePowers } from '@/api/user';
 
 type AuthContextValue = {
   user: UserDTO | null;
@@ -54,11 +54,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const id = user?.id;
     if (!id) return null;
     try {
-      const p = await apiProfile(id);
+      console.log(`🔄 Refreshing profile for user: ${id}`);
+      // Use /api/user/profile/me for security instead of passing :id parameter
+      const p = await apiMyProfile();
       setProfile(p);
+      console.log('✅ Profile loaded successfully');
       return p;
     } catch (err) {
-      console.error('refreshProfile failed', err);
+      console.error('❌ refreshProfile failed', err);
+      if ((err as any)?.status === 401) {
+        console.warn('⚠️ User unauthorized - session may have expired');
+      }
       return null;
     }
   }, [user]);

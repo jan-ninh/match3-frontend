@@ -1,12 +1,18 @@
 // src/api/http.ts
 const API = import.meta.env.VITE_API_URL || '';
 
+// Debug: Log API URL on app start
+if (typeof window !== 'undefined') {
+  console.log('⚙️ API URL configured:', API || '(Will use relative paths)');
+}
+
 type ReqOpts = RequestInit & { skipJson?: boolean };
 
 export async function request<T = unknown>(path: string, opts: ReqOpts = {}): Promise<T> {
   const { skipJson, ...fetchOpts } = opts;
 
   const url = `${API}${path}`;
+  console.log(`📡 Requesting: ${url}`);
 
   const defaultHeaders: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -21,8 +27,10 @@ export async function request<T = unknown>(path: string, opts: ReqOpts = {}): Pr
 
   const res = await fetch(url, {
     ...fetchOpts,
-    credentials: 'include',
+    credentials: 'include', // Always send cookies
   });
+
+  console.log(`📨 Response status: ${res.status} ${res.statusText}`);
 
   if (skipJson) return res as unknown as T;
 
