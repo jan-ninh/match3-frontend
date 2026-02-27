@@ -1,5 +1,5 @@
-// src/gamelogic/levels/level-09.ts
 import type { LevelDefinition, PieceType } from '../types';
+import { deriveSeed } from '../rng';
 
 type Args = {
   baseSeed: number;
@@ -7,45 +7,52 @@ type Args = {
 };
 
 /**
- * Level 09: Laser setup.
- * Goal: 3× create a Match4+ as a cascade effect after using Row-Laser.
+ * Stage 09: Stone Tiles (moved from previous Stage 08).
+ * Objective title is intentionally not a hint; player should infer mechanics from feedback.
  */
 export function makeLevel09({ baseSeed, allowedTypes }: Args): LevelDefinition {
+  const levelId = 9;
   const width = 8;
   const height = 8;
-  const moves = 999;
+  const seed = deriveSeed(baseSeed, levelId);
+
+  // central 4×3 block (12 stones) => forces learning match-adjacent + laser/gridlaser usefulness
+  const stoneTileNodes = [
+    // y=2 (x=2..5)
+    { index: 2 + 2 * width },
+    { index: 3 + 2 * width },
+    { index: 4 + 2 * width },
+    { index: 5 + 2 * width },
+    // y=3
+    { index: 2 + 3 * width },
+    { index: 3 + 3 * width },
+    { index: 4 + 3 * width },
+    { index: 5 + 3 * width },
+    // y=4
+    { index: 2 + 4 * width },
+    { index: 3 + 4 * width },
+    { index: 4 + 4 * width },
+    { index: 5 + 4 * width },
+  ];
 
   return {
-    id: 9,
+    id: levelId,
     width,
     height,
-    baseSeed,
+    baseSeed: seed,
 
-    moves,
+    moves: 22,
     allowedTypes,
 
-    objectiveTitle: '3× Match4+ after Row Laser',
-    laserRowMatch4Target: 3,
-
-    // Item clears should not progress objective mechanics via cascade effects.
-    itemObjectivesDefault: 'noObjectives',
-
-    // Move policy: swaps do NOT spend moves; laserRow confirm spends 1 move (tracked for backend).
-    movesLoseEnabled: false,
-    swapSpendsMove: false,
-
-    // Timer: 60s to first success, then 50s, then 30s.
-    level9TimerStartSec: 60,
-    level9TimerAfterFirstSec: 50,
-    level9TimerAfterSecondSec: 30,
-
+    objectiveTitle: 'Obsidian Bastion',
 
     blockedIndices: [],
     firewallNodes: [],
     gateIndices: [],
-
     leakNodes: [],
     terminalNodes: [],
     keycardNodes: [],
+
+    stoneTileNodes,
   };
 }

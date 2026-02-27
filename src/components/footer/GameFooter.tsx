@@ -22,6 +22,7 @@ import {
   getRuntimeInputLocked,
   type Match3InputLockChangedDetail,
 } from '@/context/inputLockRuntime';
+import { getLevelDefinition } from '@/gamelogic/levels';
 
 type FooterActionItem = ReturnType<typeof footerActions>[number];
 
@@ -102,6 +103,14 @@ function allocFooterRequestId(): number {
   return cur <= 0 ? 1 : cur;
 }
 
+function isLaserRowMatch4TrainingLevel(levelId: number | null): boolean {
+  const id = typeof levelId === 'number' && Number.isFinite(levelId) ? (levelId | 0) : 0;
+  if (id <= 0) return false;
+
+  const level = getLevelDefinition(id);
+  return (level.laserRowMatch4Target | 0) > 0 && level.swapSpendsMove === false && level.movesLoseEnabled === false;
+}
+
 export default function GameFooter() {
   const { powers, setPowers } = usePowers();
   const { user, updatePowers } = useAuth();
@@ -142,7 +151,7 @@ export default function GameFooter() {
     return () => window.removeEventListener(MATCH3_LEVEL_CHANGED_EVENT, onLevelChanged as EventListener);
   }, []);
 
-  const isLevel09 = runtimeLevelId === 9;
+  const isInfiniteItemsLevel = isLaserRowMatch4TrainingLevel(runtimeLevelId);
 
   /**
    * Keep latest powers ONLY for window event listeners (effects).
@@ -205,7 +214,7 @@ export default function GameFooter() {
 
   // Safety: if count hits 0 while armed, disarm (prevents "stuck targeting")
   useEffect(() => {
-    if (isLevel09) return;
+    if (isInfiniteItemsLevel) return;
 
     const cur = getPowerCount(powers, 'gridlaser');
     if (cur > 0) return;
@@ -213,10 +222,10 @@ export default function GameFooter() {
 
     setArmedGridlaser(false);
     emitArmPower('gridlaser', false);
-  }, [armedGridlaser, emitArmPower, isLevel09, powers]);
+  }, [armedGridlaser, emitArmPower, isInfiniteItemsLevel, powers]);
 
   useEffect(() => {
-    if (isLevel09) return;
+    if (isInfiniteItemsLevel) return;
 
     const cur = getPowerCount(powers, 'laser');
     if (cur > 0) return;
@@ -224,7 +233,7 @@ export default function GameFooter() {
 
     setArmedLaser(false);
     emitArmPower('laser', false);
-  }, [armedLaser, emitArmPower, isLevel09, powers]);
+  }, [armedLaser, emitArmPower, isInfiniteItemsLevel, powers]);
 
   // Sync with global arm/disarm (Grid can disarm after confirm)
   useEffect(() => {
@@ -290,8 +299,8 @@ export default function GameFooter() {
     if (typeof window === 'undefined') return;
 
     const onConsume = (e: Event) => {
-      // Level 09: usage must not consume inventory.
-      if (isLevel09) return;
+      // LaserRow Match4+ training: usage must not consume inventory.
+      if (isInfiniteItemsLevel) return;
 
       const ce = e as CustomEvent<PowerConsumeDetail>;
       const d = ce.detail;
@@ -323,7 +332,7 @@ export default function GameFooter() {
 
     window.addEventListener(POWER_CONSUME_EVENT, onConsume as EventListener);
     return () => window.removeEventListener(POWER_CONSUME_EVENT, onConsume as EventListener);
-  }, [isLevel09, setPowers, updatePowers, user]);
+  }, [isInfiniteItemsLevel, setPowers, updatePowers, user]);
 
   const onUsePower = useCallback(
     async (key: PowerKey) => {
@@ -331,8 +340,8 @@ export default function GameFooter() {
 
       const targetingKey = normalizeTargetingKey(key);
 
-      const current = isLevel09 ? 1 : getPowerCount(powers, key);
-      if (!isLevel09 && current <= 0) {
+      const current = isInfiniteItemsLevel ? 1 : getPowerCount(powers, key);
+      if (!isInfiniteItemsLevel && current <= 0) {
         // If user tries to arm with 0, make sure it's off
         if (targetingKey) disarmAllTargeting();
         return;
@@ -397,7 +406,7 @@ export default function GameFooter() {
       disarmAllTargeting,
       emitArmPower,
       emitUsePower,
-      isLevel09,
+      isInfiniteItemsLevel,
       powers,
       runtimeInputLocked,
       setPowers,
@@ -420,7 +429,7 @@ export default function GameFooter() {
         const isLaser = powerKey === 'laser';
         const isActive = (isGridlaser && armedGridlaser) || (isLaser && armedLaser);
 
-        const isInfinite = isLevel09 && powerKey != null;
+        const isInfinite = isInfiniteItemsLevel && powerKey != null;
 
         const powerCount = powerKey ? getPowerCount(powers, powerKey) : null;
 

@@ -2,6 +2,7 @@
 import { useEffect, useRef } from 'react';
 
 import type { EngineState } from '@/gamelogic/types';
+import { getLevelDefinition } from '@/gamelogic/levels';
 import { POWER_ARM_EVENT } from '@/context/powerEvents';
 
 type SeenRing = {
@@ -51,13 +52,21 @@ function emitArm(key: string, armed: boolean): void {
   window.dispatchEvent(new CustomEvent(POWER_ARM_EVENT, { detail: { key, armed } }));
 }
 
+function isLaserRowMatch4TrainingLevel(levelId: number): boolean {
+  const id = levelId | 0;
+  if (id <= 0) return false;
+
+  const level = getLevelDefinition(id);
+  return (level.laserRowMatch4Target | 0) > 0 && level.swapSpendsMove === false && level.movesLoseEnabled === false;
+}
+
 type Args = Readonly<{
   levelId: number;
   events: EngineState['events'];
 }>;
 
 /**
- * Level 09 QoL:
+ * LaserRow Match4+ training QoL:
  * - After a laser row clear fully completes (incl. cascade) and Engine re-enters stable-idle,
  *   auto-arm laser again (as if the user pressed the laser button).
  *
@@ -72,9 +81,9 @@ export function useLevel09AutoRearmLaser({ levelId, events }: Args) {
   const lastTurnSeparatorRef = useRef<TurnSeparatorEvent | null>(null);
 
   useEffect(() => {
-    const isLevel09 = levelId === 9;
+    const enabled = isLaserRowMatch4TrainingLevel(levelId);
 
-    if (!isLevel09) {
+    if (!enabled) {
       pendingRearmRef.current = false;
       seenLaserUsedRef.current = { set: new Set<string>(), order: [] };
       lastTurnSeparatorRef.current = null;

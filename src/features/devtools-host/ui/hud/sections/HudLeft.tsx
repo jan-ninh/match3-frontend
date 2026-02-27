@@ -9,10 +9,10 @@ type Props = {
 };
 
 export function HudLeft({ model }: Props) {
-  // Level 07 uses its own store; Level 09 uses engine-derived HUD model field.
+  // Level 07 uses its own store; other timed modes expose engine-derived `timeLeftSec`.
   const matchRushTimeLeftSec = useMatchRushTimeLeftSec();
 
-  const timeLeftSec = model.levelId === 9 ? model.timeLeftSec : model.levelId === 7 ? matchRushTimeLeftSec : null;
+  const timeLeftSec = model.levelId === 7 ? matchRushTimeLeftSec : model.timeLeftSec;
 
   return (
     <div className="flex flex-col items-start gap-2 relative z-20">

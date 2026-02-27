@@ -5,6 +5,7 @@ import type { PowerKey, Powers } from '@/types';
 import { getChoiceBonus, PowerContext, defaultPowers } from './PowerContext';
 import { getRuntimeLevelId } from '@/context/levelRuntime';
 import { POWER_CONSUME_EVENT, POWER_GRANT_EVENT, type PowerConsumeDetail, type PowerGrantDetail } from './powerEvents';
+import { getLevelDefinition } from '@/gamelogic/levels';
 
 const POWERS_GRANT_MANY_EVENT = 'match3:powersGrantMany' as const;
 
@@ -27,6 +28,19 @@ function isPowerGrantManyDetail(v: unknown): v is PowerGrantManyDetail {
   if (!isRecord(v)) return false;
   const grants = v.grants;
   return isRecord(grants);
+}
+
+function isLaserRowMatch4TrainingLevel(levelId: number | null): boolean {
+  const id = typeof levelId === 'number' && Number.isFinite(levelId) ? (levelId | 0) : 0;
+  if (id <= 0) return false;
+
+  const level = getLevelDefinition(id);
+
+  // Training signature:
+  // - objective enabled (laserRowMatch4Target>0)
+  // - swaps are "free" (swapSpendsMove=false)
+  // - lose by moves disabled (movesLoseEnabled=false)
+  return (level.laserRowMatch4Target | 0) > 0 && level.swapSpendsMove === false && level.movesLoseEnabled === false;
 }
 
 export function PowerProvider({ children }: { children: ReactNode }) {
@@ -106,8 +120,8 @@ export function PowerProvider({ children }: { children: ReactNode }) {
       const d = ce.detail;
       if (!d) return;
 
-      // Level 09: items are infinite (ACK is still needed for SFX/VFX elsewhere).
-      if (getRuntimeLevelId() === 9) return;
+      // LaserRow Match4+ training: items are infinite (ACK is still needed for SFX/VFX elsewhere).
+      if (isLaserRowMatch4TrainingLevel(getRuntimeLevelId())) return;
 
       const key = d.key;
       if (!isPowerKey(key)) return;
