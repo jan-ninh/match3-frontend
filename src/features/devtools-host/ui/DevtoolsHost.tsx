@@ -80,6 +80,16 @@ function safeInt(n: number): number {
   return n | 0;
 }
 
+function consumePower(base: Powers, powerId: PowerKey | undefined): Powers {
+  if (!powerId) return base;
+
+  const backendId = powerId === 'bomb' ? 'bomb' : powerId === 'gridlaser' ? 'bomb' : powerId;
+  if (backendId === 'bomb') return { ...base, bomb: Math.max(0, (base.bomb ?? 0) - 1) };
+  if (backendId === 'laser') return { ...base, laser: Math.max(0, (base.laser ?? 0) - 1) };
+  if (backendId === 'extraShuffle') return { ...base, extraShuffle: Math.max(0, (base.extraShuffle ?? 0) - 1) };
+  return base;
+}
+
 function addReward(base: Powers, powerId: BackendRewardPowerId, amount: number): Powers {
   const add = safeInt(amount);
   if (powerId === 'bomb') return { ...base, bomb: (base.bomb ?? 0) + add };
@@ -229,19 +239,24 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
 
           const rewardAmount = WIN_POWER_REWARD_AMOUNT;
           const rewardDelta = buildRewardDelta(backendPowerId, rewardAmount);
-          const rewardedPowers = addReward(powers, backendPowerId, rewardAmount);
 
-          // 1) Immediate local reward update.
+          // 1) First consume the used power (if any)
+          let powersAfterConsume = consumePower(powers, usedPower);
+
+          // 2) Then add the reward
+          const rewardedPowers = addReward(powersAfterConsume, backendPowerId, rewardAmount);
+
+          // 3) Immediate local reward update.
           setPowers(rewardedPowers);
 
-          // 2) Preserve selected reward for next stage start API call.
+          // 4) Preserve selected reward for next stage start API call.
           setSelectedPowersForNextStage(rewardDelta);
 
-          // 3) Complete stage first (backend + local progress).
+          // 5) Complete stage first (backend + local progress).
           // Some backends rewrite player state on completeStage; persisting reward after this keeps DB in sync.
           await completeDevWinStage(lvl, usedPower);
 
-          // 4) Persist reward on backend (+2 guaranteed by business rule).
+          // 6) Persist reward on backend (+2 guaranteed by business rule).
           if (userId) {
             try {
               await updatePowers(rewardDelta, 'add');
@@ -255,7 +270,7 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
             }
           }
 
-          // 5) Show Win overlay (PowerChoice overlay auto-closes right after click).
+          // 7) Show Win overlay (PowerChoice overlay auto-closes right after click).
           openWin(lvl);
         },
       });
