@@ -1,4 +1,3 @@
-// src/devtools/DebugInputPanel.tsx
 import { useEffect, useRef, useState } from 'react';
 import { xyOf } from '@/gamelogic';
 
@@ -46,7 +45,7 @@ const FALLBACK_SNAPSHOT: DebugSnapshot = {
   previewToIndex: null,
 };
 
-type Props = {
+export type DebugInputPanelProps = {
   width: number;
   snapshot?: DebugSnapshot;
   hz?: number;
@@ -62,7 +61,11 @@ function fmtNum(n: number): string {
   return Number.isFinite(n) ? n.toFixed(1) : 'NaN';
 }
 
-export default function DebugInputPanel({ width, snapshot, hz = 15 }: Props) {
+/**
+ * Content-only version (no outer container).
+ * Useful when the caller wants to own layout / wrapper styling.
+ */
+export function DebugInputPanelBody({ width, snapshot, hz = 15 }: DebugInputPanelProps) {
   // simple hz throttle (dev-only panel)
   const [tick, setTick] = useState(0);
   const rafRef = useRef<number | null>(null);
@@ -110,16 +113,27 @@ export default function DebugInputPanel({ width, snapshot, hz = 15 }: Props) {
   ] as const;
 
   return (
-    <div className='rounded-2xl p-3 bg-black/30 border border-white/10 shadow-lg w-[280px]'>
-      <div className='text-white/80 text-sm font-semibold'>Input Debug</div>
-      <div className='mt-2 grid gap-1'>
+    <>
+      <div className="text-white/80 text-sm font-semibold">Input Debug</div>
+      <div className="mt-2 grid gap-1">
         {rows.map(([k, v]) => (
-          <div key={k} className='flex items-baseline justify-between gap-3 font-mono text-[11px]'>
-            <span className='text-white/55'>{k}</span>
-            <span className='text-white/85 truncate'>{v}</span>
+          <div key={k} className="flex items-baseline justify-between gap-3 font-mono text-[11px]">
+            <span className="text-white/55">{k}</span>
+            <span className="text-white/85 truncate">{v}</span>
           </div>
         ))}
       </div>
+    </>
+  );
+}
+
+/**
+ * Backward-compatible wrapper version (keeps the original visuals).
+ */
+export default function DebugInputPanel(props: DebugInputPanelProps) {
+  return (
+    <div className="rounded-2xl p-3 bg-black/30 border border-white/10 shadow-lg w-[280px]">
+      <DebugInputPanelBody {...props} />
     </div>
   );
 }

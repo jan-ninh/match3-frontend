@@ -3,6 +3,7 @@ import type { ComponentProps } from 'react';
 
 import type { EngineState } from '@/gamelogic';
 import { DebugInputPanel, DebugDevToolsPanel } from '@/devtools';
+import { DebugInputPanelBody } from '@/devtools/DebugInputPanel';
 import type { PowerKey } from '@/types';
 
 import { DEBUG_OVERLAY_HZ } from '../lib/constants';
@@ -118,50 +119,52 @@ export function GridDevPanels({
       : 'w-full px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 border border-white/10 text-white/80';
 
     return (
-      <div className="flex flex-col gap-3">
-        <DebugInputPanel width={width} snapshot={debugSnapshot} hz={DEBUG_OVERLAY_HZ} />
-
-        {/* Level hopping (demo-friendly) */}
-        <div className="rounded-xl border border-white/10 bg-black/35 backdrop-blur p-3">
-          <div className="text-xs tracking-widest text-white/60 uppercase mb-2">Level</div>
-
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={onPrev}
-              aria-label="Previous level"
-              className="w-full h-10 rounded-lg border border-slate-200/15 bg-slate-500/15 hover:bg-slate-500/25 active:bg-slate-500/30 text-slate-100/90 transition-colors select-none"
-            >
-              <span className="text-lg leading-none">←</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={onNext}
-              aria-label="Next level"
-              className="w-full h-10 rounded-lg border border-slate-200/15 bg-slate-500/15 hover:bg-slate-500/25 active:bg-slate-500/30 text-slate-100/90 transition-colors select-none"
-            >
-              <span className="text-lg leading-none">→</span>
-            </button>
+      /* 0) MAINCONTAINER - LEFT LANE  */
+      <div className="flex flex-col gap-3 ">
+        {/* 1) CONTAINER - TOP */}
+        <div className="flex gap-3">
+          {/* a) CONTAINER - INPUT DEBUG */}
+          <div className="rounded-2xl p-3 bg-black/30 border border-white/10 shadow-lg w-[280px]">
+            <DebugInputPanelBody width={width} snapshot={debugSnapshot} hz={DEBUG_OVERLAY_HZ} />
           </div>
-
-          {/* QUICK JUMP LEVEL GRID 1–12 */}
-          <div className="mt-2 grid [grid-template-columns:repeat(6,auto)] justify-center gap-1">
-            {quickLevels.map((lvl) => {
-              const disabled = !onDevSetLevel || lvl === current;
-
-              const cls = [
-                'h-8 w-8 rounded-md border text-xs font-mono transition-colors select-none',
-                disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-500/25 active:bg-slate-500/30',
-                lvl === current ? 'bg-emerald-500/15 border-emerald-300/25 text-emerald-100/90' : 'bg-slate-500/15 border-slate-200/15 text-slate-100/90',
-              ].join(' ');
-
-              return (
-                <button key={lvl} type="button" onClick={() => onDevSetLevel?.(lvl)} disabled={disabled} aria-label={`Jump to level ${lvl}`} className={cls}>
-                  {lvl}
-                </button>
-              );
-            })}
+          {/* b) CONTAINER - LEVEL HOPPING  */}
+          <div className="w-fit ml-auto self-end rounded-xl border border-white/10 bg-black/35 backdrop-blur p-3">
+            <div className="text-xs tracking-widest text-white/60 text-center uppercase mb-2">Level</div>
+            {/* b1) PREVIOUS/NEXT  */}
+            <div className="flex justify-center gap-1">
+              <button
+                type="button"
+                onClick={onPrev}
+                aria-label="Previous level"
+                className=" w-17 h-7 rounded-lg border border-slate-200/15 bg-slate-500/15 hover:bg-slate-500/25 active:bg-slate-500/30 text-slate-100/90 transition-colors select-none"
+              >
+                <span className="text-lg leading-none">←</span>
+              </button>
+              <button
+                type="button"
+                onClick={onNext}
+                aria-label="Next level"
+                className="w-17 h-7 rounded-lg border border-slate-200/15 bg-slate-500/15 hover:bg-slate-500/25 active:bg-slate-500/30 text-slate-100/90 transition-colors select-none"
+              >
+                <span className="text-lg leading-none">→</span>
+              </button>
+            </div>
+            {/* b2) QUICK JUMP (LEVELGRID 1–12) */}
+            <div className="mt-2 grid [grid-template-columns:repeat(4,auto)] justify-center gap-1">
+              {quickLevels.map((lvl) => {
+                const disabled = !onDevSetLevel || lvl === current;
+                const cls = [
+                  'h-8 w-8 rounded-md border text-xs font-mono transition-colors select-none',
+                  disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-500/25 active:bg-slate-500/30',
+                  lvl === current ? 'bg-emerald-500/15 border-emerald-300/25 text-emerald-100/90' : 'bg-slate-500/15 border-slate-200/15 text-slate-100/90',
+                ].join(' ');
+                return (
+                  <button key={lvl} type="button" onClick={() => onDevSetLevel?.(lvl)} disabled={disabled} aria-label={`Jump to level ${lvl}`} className={cls}>
+                    {lvl}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
 

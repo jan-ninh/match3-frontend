@@ -40,13 +40,14 @@ export default function MainLayout() {
   const showStageBgFx = pathname === '/game-map/play-game';
 
   return (
+    /* 0) MAINCONTAINER - 3 LANES  */
     <div className="fixed inset-0 overflow-hidden bg-black">
       {/* DEV LANES + STAGE (outside stage) */}
       <div className="absolute inset-0">
         {/* DEV LEFT LANE */}
         <div className="absolute inset-y-0 left-0 z-20 flex justify-end pointer-events-none"></div>
         {/* DEV RIGHT LANE */}
-        <div className="absolute inset-y-0 right-0 z-20 flex justify-start pointer-events-none">
+        <div className="absolute inset-y-0 right-0 z-20 flex justify-start pointer-events-none ">
           <div id="dev-right-lane" className="w-[min(520px,33vw)] max-w-full flex justify-start px-6 pointer-events-auto" style={{ paddingTop: '20px' }} />
         </div>{' '}
         <div id="dev-left-lane" className="w-[min(520px,33vw)] max-w-full flex justify-end px-6 pointer-events-auto" style={{ paddingTop: '20px' }} />
