@@ -1,4 +1,3 @@
-// src/features/grid/input/useGridInput.controller.ts
 import type { Dispatch, SetStateAction } from 'react';
 
 import type { Cell, Piece, PieceId } from '@/gamelogic';
@@ -62,11 +61,7 @@ type Args = {
 };
 
 export function createGridInputController({ width, height, cells, pieces, inputLocked, canSwapAt, onIntent, press, debug, raf, ui }: Args) {
-  const MAX_GLOBAL_PRESS_MS = 15_000;
-
   let globalCleanup: (() => void) | null = null;
-  let globalTimeoutId: number | null = null;
-
   // During a pointer-driven press we handle "click" ourselves via pointerup -> intent.
   // If a legacy/parallel onClick handler still exists in the UI, it can re-dispatch a click
   // using a broken index extraction (classic: e.target.dataset missing => falls back to 0).
@@ -76,11 +71,6 @@ export function createGridInputController({ width, height, cells, pieces, inputL
 
   const detachGlobalPointerListeners = () => {
     if (typeof window === 'undefined') return;
-
-    if (globalTimeoutId != null) {
-      window.clearTimeout(globalTimeoutId);
-      globalTimeoutId = null;
-    }
 
     if (globalCleanup) {
       globalCleanup();
@@ -392,6 +382,9 @@ export function createGridInputController({ width, height, cells, pieces, inputL
     };
 
     const onCancel = (e: PointerEvent) => {
+      // Some browsers emit pointercancel while the mouse button is still held
+      // (e.g. native HTML drag attempts). Treat that as non-release.
+      if (e.pointerType === 'mouse' && (e.buttons & 1) === 1) return;
       finishPress(e.pointerId, true);
     };
 
@@ -399,17 +392,27 @@ export function createGridInputController({ width, height, cells, pieces, inputL
     window.addEventListener('pointerup', onUp, { passive: true });
     window.addEventListener('pointercancel', onCancel, { passive: true });
 
+    const onBlur = () => {
+      finishPress(pointerId, true);
+    };
+
+    const onVisibilityChange = () => {
+      // If the tab gets hidden, browsers can drop pointerup/cancel.
+      if (typeof document !== 'undefined' && document.hidden) {
+        finishPress(pointerId, true);
+      }
+    };
+
+    window.addEventListener('blur', onBlur);
+    window.addEventListener('visibilitychange', onVisibilityChange);
+
     globalCleanup = () => {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onCancel);
+      window.removeEventListener('blur', onBlur);
+      window.removeEventListener('visibilitychange', onVisibilityChange);
     };
-
-    globalTimeoutId = window.setTimeout(() => {
-      // Best-effort safety: release capture + clear UI if pointerup/cancel was missed.
-      finishPress(pointerId, true);
-      detachGlobalPointerListeners();
-    }, MAX_GLOBAL_PRESS_MS);
   };
 
   return { startPress, updatePress, finishPress };

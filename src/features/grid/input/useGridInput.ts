@@ -1,5 +1,3 @@
-// src/features/grid/input/useGridInput.ts
-// src/features/grid/input/useGridInput.ts
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { EngineState, Piece, PieceId } from '@/gamelogic';
@@ -40,11 +38,12 @@ export function useGridInput({ state, inputLocked, canSwapAt, onIntent, debugEna
   const releaseCleanupRef = useRef<(() => void) | null>(null);
 
   // rAF transform infra (no React re-render per pointer move)
-  const { draggedElRef, dragBasePxRef, dragDxRef, dragDyRef, ensureRafRunning, stopRaf, snapBackDraggedPiece, resetDraggedPieceInstant, clearDragRefs } = useRafDragTransform({
-    swapMs,
-    easing: EASING,
-    getShouldContinue: () => !!(pressRef.current?.active && pressRef.current?.hasExceededThreshold),
-  });
+  const { draggedElRef, dragBasePxRef, dragDxRef, dragDyRef, ensureRafRunning, stopRaf, snapBackDraggedPiece, resetDraggedPieceInstant, clearDragRefs } =
+    useRafDragTransform({
+      swapMs,
+      easing: EASING,
+      getShouldContinue: () => !!(pressRef.current?.active && pressRef.current?.hasExceededThreshold),
+    });
 
   // minimal React state (rare changes only)
   const [dragPieceId, setDragPieceId] = useState<PieceId | null>(null);
@@ -194,6 +193,9 @@ export function useGridInput({ state, inputLocked, canSwapAt, onIntent, debugEna
 
       const onCancel = (e: PointerEvent) => {
         if (e.pointerId !== pointerId) return;
+        // Some browsers emit pointercancel while the mouse button is still held
+        // (e.g. native HTML drag attempts). Treat that as non-release.
+        if (e.pointerType === 'mouse' && (e.buttons & 1) === 1) return;
         ensureController().finishPress(pointerId, true);
         setActivePointerId((cur) => (cur === pointerId ? null : cur));
         clearGlobalRelease();
@@ -262,6 +264,9 @@ export function useGridInput({ state, inputLocked, canSwapAt, onIntent, debugEna
   };
 
   const onPointerCancel = (e: React.PointerEvent<HTMLDivElement>) => {
+    // Some browsers emit pointercancel while the mouse button is still held
+    // (e.g. native HTML drag attempts). Treat that as non-release.
+    if (e.pointerType === 'mouse' && (e.buttons & 1) === 1) return;
     ensureController().finishPress(e.pointerId, true);
     if (activePointerId === e.pointerId) setActivePointerId(null);
     clearGlobalRelease();

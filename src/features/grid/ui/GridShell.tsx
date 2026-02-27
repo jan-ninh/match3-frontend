@@ -55,6 +55,9 @@ export function GridShell({
       // Releases must not be missed (even if an overlay stops propagation).
       onPointerUpCapture={onPointerUp}
       onPointerCancelCapture={onPointerCancel}
+      // Prevent native HTML drag from stealing the pointer sequence (causes pointercancel).
+      onDragStartCapture={(e) => e.preventDefault()}
+      onDropCapture={(e) => e.preventDefault()}
       // Move is conditional: capture only when targeting overlays may stop propagation.
       onPointerMoveCapture={capturePointerMove ? onPointerMove : undefined}
       onPointerMove={!capturePointerMove ? onPointerMove : undefined}
