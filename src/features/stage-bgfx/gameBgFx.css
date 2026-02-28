@@ -1,3 +1,4 @@
+/* src/features/stage-bgfx/gameBgFx.css */
 /*
   Match-3 Gameplay Background FX
   - Designed to be "always-on" but non-distracting.
@@ -65,7 +66,7 @@
   }
   100% {
     transform: translate3d(-1.2%, -0.3%, 0) scale(1.03);
-    opacity: 0.30;
+    opacity: 0.3;
   }
 }
 
@@ -77,7 +78,7 @@
 
   /* soft city haze */
   background:
-    radial-gradient(120% 90% at 18% 28%, rgba(34, 211, 238, 0.10), rgba(0, 0, 0, 0) 60%),
+    radial-gradient(120% 90% at 18% 28%, rgba(34, 211, 238, 0.1), rgba(0, 0, 0, 0) 60%),
     radial-gradient(120% 90% at 82% 24%, rgba(236, 72, 153, 0.08), rgba(0, 0, 0, 0) 62%),
     radial-gradient(100% 100% at 50% 70%, rgba(255, 255, 255, 0.05), rgba(0, 0, 0, 0) 70%);
 }
@@ -88,11 +89,17 @@
 
 @keyframes match3-bgfx-particles {
   0% {
-    background-position: 0px 0px, 40px 20px, -30px -60px;
+    background-position:
+      0px 0px,
+      40px 20px,
+      -30px -60px;
     opacity: 0.12;
   }
   100% {
-    background-position: 120px 520px, -180px 360px, 210px 640px;
+    background-position:
+      120px 520px,
+      -180px 360px,
+      210px 640px;
     opacity: 0.14;
   }
 }
@@ -105,10 +112,13 @@
   /* Three sparse dot fields; low-contrast by design */
   background-image:
     radial-gradient(circle, rgba(255, 255, 255, 0.22) 0 1px, rgba(255, 255, 255, 0) 2px),
-    radial-gradient(circle, rgba(34, 211, 238, 0.20) 0 1px, rgba(34, 211, 238, 0) 2px),
+    radial-gradient(circle, rgba(34, 211, 238, 0.2) 0 1px, rgba(34, 211, 238, 0) 2px),
     radial-gradient(circle, rgba(236, 72, 153, 0.16) 0 1px, rgba(236, 72, 153, 0) 2px);
 
-  background-size: 140px 140px, 220px 220px, 260px 260px;
+  background-size:
+    140px 140px,
+    220px 220px,
+    260px 260px;
   background-repeat: repeat;
 }
 
@@ -119,7 +129,7 @@
 @keyframes match3-bgfx-top-sway {
   0% {
     transform: translate3d(-0.6%, 0, 0) rotate(-0.35deg);
-    opacity: 0.10;
+    opacity: 0.1;
   }
   50% {
     transform: translate3d(0.6%, 0, 0) rotate(0.35deg);
@@ -127,7 +137,7 @@
   }
   100% {
     transform: translate3d(-0.6%, 0, 0) rotate(-0.35deg);
-    opacity: 0.10;
+    opacity: 0.1;
   }
 }
 
@@ -157,7 +167,7 @@
 @keyframes match3-bgfx-neon-heat {
   0% {
     transform: translate3d(0, 0, 0);
-    opacity: 0.10;
+    opacity: 0.1;
   }
   45% {
     transform: translate3d(0.2%, -0.2%, 0);
@@ -165,7 +175,7 @@
   }
   100% {
     transform: translate3d(0, 0, 0);
-    opacity: 0.10;
+    opacity: 0.1;
   }
 }
 
@@ -175,7 +185,7 @@
   animation: match3-bgfx-neon-heat 14s ease-in-out infinite;
 
   background:
-    radial-gradient(70% 70% at 8% 38%, rgba(34, 211, 238, 0.10), rgba(0, 0, 0, 0) 62%),
+    radial-gradient(70% 70% at 8% 38%, rgba(34, 211, 238, 0.1), rgba(0, 0, 0, 0) 62%),
     radial-gradient(70% 70% at 92% 42%, rgba(236, 72, 153, 0.09), rgba(0, 0, 0, 0) 62%),
     radial-gradient(80% 80% at 8% 78%, rgba(59, 130, 246, 0.06), rgba(0, 0, 0, 0) 66%),
     radial-gradient(80% 80% at 92% 82%, rgba(168, 85, 247, 0.06), rgba(0, 0, 0, 0) 66%);
@@ -190,14 +200,14 @@
 @keyframes match3-bgfx-road-shimmer {
   0% {
     transform: translate3d(-35%, 0, 0);
-    opacity: 0.10;
+    opacity: 0.1;
   }
   60% {
     opacity: 0.13;
   }
   100% {
     transform: translate3d(135%, 0, 0);
-    opacity: 0.10;
+    opacity: 0.1;
   }
 }
 
@@ -251,7 +261,7 @@
 @keyframes match3-bgfx-platform-sweep {
   0% {
     transform: translate3d(-55%, 0, 0);
-    opacity: 0.0;
+    opacity: 0;
   }
   12% {
     opacity: 0.22;
@@ -261,14 +271,14 @@
   }
   100% {
     transform: translate3d(155%, 0, 0);
-    opacity: 0.0;
+    opacity: 0;
   }
 }
 
 .match3-bgfx__platformLeds {
   mix-blend-mode: screen;
   animation: match3-bgfx-platform-breathe 9s ease-in-out infinite;
-  opacity: 0.20;
+  opacity: 0.2;
 }
 
 .match3-bgfx__platformLeds::before {
@@ -306,7 +316,7 @@
     90deg,
     rgba(255, 255, 255, 0) 0%,
     rgba(255, 255, 255, 0.04) 18%,
-    rgba(34, 211, 238, 0.10) 38%,
+    rgba(34, 211, 238, 0.1) 38%,
     rgba(236, 72, 153, 0.08) 52%,
     rgba(255, 255, 255, 0) 74%
   );
@@ -339,13 +349,7 @@
   pointer-events: none;
 
   /* No harsh center dim; mostly edges */
-  background: radial-gradient(
-    120% 110% at 50% 58%,
-    rgba(0, 0, 0, 0.0) 0%,
-    rgba(0, 0, 0, 0.0) 48%,
-    rgba(0, 0, 0, 0.22) 72%,
-    rgba(0, 0, 0, 0.46) 100%
-  );
+  background: radial-gradient(120% 110% at 50% 58%, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0) 48%, rgba(0, 0, 0, 0.22) 72%, rgba(0, 0, 0, 0.46) 100%);
 
   animation: match3-bgfx-vignette 12s ease-in-out infinite;
 }

@@ -37,7 +37,14 @@ export default function MainLayout() {
   useLayoutEffect(() => lockDocumentScroll(true), []);
 
   const { pathname } = useLocation();
-  const showStageBgFx = pathname === '/game-map/play-game';
+
+  //========================================================================================================
+  // PERFORMANCE: MASTER TOGGLE (ALL STAGE BG VFX)
+  // - true:  FX enabled on play-game route
+  // - false: FX fully disabled (component not mounted)
+  //========================================================================================================
+  const BGFX_ENABLED = false;
+  const showStageBgFx = BGFX_ENABLED && pathname === '/game-map/play-game';
 
   return (
     /* 0) MAINCONTAINER - 3 LANES  */
