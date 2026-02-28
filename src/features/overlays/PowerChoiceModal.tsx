@@ -1,11 +1,9 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+
 import Modal from '@/components/Modal';
 import ProgressBar from '@/components/profileDashboard/ProgressBar';
-import Lottie from 'lottie-react';
-import confettiAnimation from '@/assets/fx/confetti on transparent background.json';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+
 import type { ExpPreview, PowerId } from './overlayContext';
-import { useAudio } from '@/context/AudioContext';
 
 type Props = {
   open: boolean;
@@ -48,9 +46,6 @@ function computeUi(level: number, expCurrent: number, expRequired: number, showL
 }
 
 export default function PowerChoiceModal({ open, title, expPreview, onClose, onChoose }: Props) {
-  const [showConfetti, setShowConfetti] = useState(false);
-  const { playWinSound } = useAudio();
-
   const rafRef = useRef<number | null>(null);
   const timersRef = useRef<number[]>([]);
   const [expUi, setExpUi] = useState<ExpUiState | null>(null);
@@ -60,17 +55,6 @@ export default function PowerChoiceModal({ open, title, expPreview, onClose, onC
     const req = safeInt(expPreview.expRequired, 3000);
     return req > 0 ? req : 3000;
   }, [expPreview]);
-
-  // Reset confetti
-  useEffect(() => {
-    if (showConfetti) {
-      const timer = window.setTimeout(() => {
-        setShowConfetti(false);
-      }, 2500);
-
-      return () => window.clearTimeout(timer);
-    }
-  }, [showConfetti]);
 
   const clearAnim = useCallback(() => {
     if (rafRef.current !== null) {
@@ -170,65 +154,42 @@ export default function PowerChoiceModal({ open, title, expPreview, onClose, onC
   }, [animateInt, clearAnim, expPreview, expRequired, open]);
 
   const onPick = (id: PowerId) => {
-    // confetti
-    setShowConfetti(true);
-
     // Reward application + backend persistence are handled by DevtoolsHost onChoose.
     onChoose(id);
-    playWinSound();
   };
 
   return (
-    <>
-      {showConfetti &&
-        createPortal(
-          <div className="fixed inset-0 pointer-events-none z-50">
-            <Lottie
-              animationData={confettiAnimation}
-              loop={false}
-              autoplay={true}
-              style={{
-                width: '100%',
-                height: '100%',
-                transform: 'scale(1.5)',
-              }}
-            />
-          </div>,
-          document.body,
-        )}
+    <Modal open={open} onClose={onClose} title="Boosters" size="md" closeOnBackdrop={false}>
+      <div className="relative overflow-hidden">
+        <div className="flex flex-col items-center gap-4 py-4">
+          <div className="text-2xl font-semibold text-cyan-600">{title}</div>
 
-      <Modal open={open} onClose={onClose} title="Boosters" size="md" closeOnBackdrop={false}>
-        <div className="relative overflow-hidden">
-          <div className="flex flex-col items-center gap-4 py-4">
-            <div className="text-2xl font-semibold text-cyan-600">{title}</div>
-
-            {expPreview && expUi && (
-              <div className="w-full max-w-md">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-[12px] tracking-wide text-emerald-300/80">+{safeInt(expPreview.expDelta, 1000).toLocaleString()} EXP</p>
-                  {expUi.showLevelUp && <p className="text-[12px] tracking-wide text-fuchsia-300/85">LEVEL UP!</p>}
-                </div>
-
-                <ProgressBar percent={expUi.percent} playerLevel={expUi.level} expCurrent={expUi.expCurrent} expRequired={expRequired} />
+          {expPreview && expUi && (
+            <div className="w-full max-w-md">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[12px] tracking-wide text-emerald-300/80">+{safeInt(expPreview.expDelta, 1000).toLocaleString()} EXP</p>
+                {expUi.showLevelUp && <p className="text-[12px] tracking-wide text-fuchsia-300/85">LEVEL UP!</p>}
               </div>
-            )}
 
-            <div className="flex gap-3 mt-2">
-              {powerIds.map((id) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => onPick(id)}
-                  className="px-3 py-2 rounded-lg text-black hover:bg-yellow-400 flex items-center justify-center"
-                  aria-label={`choose ${id}`}
-                >
-                  <img src={`/icons/${id}.png`} alt={id} className="w-8 h-8" loading="lazy" draggable={false} />
-                </button>
-              ))}
+              <ProgressBar percent={expUi.percent} playerLevel={expUi.level} expCurrent={expUi.expCurrent} expRequired={expRequired} />
             </div>
+          )}
+
+          <div className="flex gap-3 mt-2">
+            {powerIds.map((id) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => onPick(id)}
+                className="px-3 py-2 rounded-lg text-black hover:bg-yellow-400 flex items-center justify-center"
+                aria-label={`choose ${id}`}
+              >
+                <img src={`/icons/${id}.png`} alt={id} className="w-8 h-8" loading="lazy" draggable={false} />
+              </button>
+            ))}
           </div>
         </div>
-      </Modal>
-    </>
+      </div>
+    </Modal>
   );
 }

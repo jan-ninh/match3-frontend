@@ -22,7 +22,7 @@ export default function OverlayHost() {
   return (
     <>
       <SettingsModal open={is('settings')} onClose={api.close} />
-      <WinOverlay open={is('win')} onClose={api.close} level={data.level} />
+      <WinOverlay open={is('win')} onClose={api.close} level={data.level} mode={data.winMode} />
       <LoseOverlay open={is('lose')} onClose={api.close} level={data.level} />
       <QuitConfirmModal open={is('quitConfirm')} onClose={api.close} />
       <PowerChoiceModal

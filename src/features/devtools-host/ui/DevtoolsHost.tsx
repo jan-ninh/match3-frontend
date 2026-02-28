@@ -291,7 +291,10 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
 
         const toLevel = hasVerifiedPost ? postMeta.playerLevel : fromLevel + Math.max(0, gained);
         const toExpTotal = hasVerifiedPost ? postMeta.playerExp : fromExpTotal + EXP_WIN_DELTA;
-        const expDelta = Math.max(0, toExpTotal - fromExpTotal);
+                const expDelta = Math.max(0, toExpTotal - fromExpTotal);
+
+        // Win-first UX: show Win overlay, then queue PowerChoice (reward selection).
+        openWin({ level: lvl, mode: 'continue' });
 
         openPowerChoice({
           title: 'Choose your Reward!',
@@ -336,13 +339,13 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
               }
             }
 
-            // 4) Show Win overlay (PowerChoice overlay auto-closes right after click).
-            openWin(lvl);
+            // 4) After reward choice, return to map (Win overlay was already shown).
+            navigate('/game-map');
           },
         });
       })();
     },
-    [completeDevWinStage, openPowerChoice, openWin, powers, profile, refreshProfile, setPowers, setSelectedPowersForNextStage, updatePowers, userId],
+    [completeDevWinStage, navigate, openPowerChoice, openWin, powers, profile, refreshProfile, setPowers, setSelectedPowersForNextStage, updatePowers, userId],
   );
 
   const runDevLoseFlow = useCallback(

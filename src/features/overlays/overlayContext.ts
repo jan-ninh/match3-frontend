@@ -5,6 +5,13 @@ export type PowerId = 'gridlaser' | 'laser' | 'extraShuffle';
 
 export type OverlayName = 'settings' | 'win' | 'lose' | 'quitConfirm' | 'powerChoice' | 'login' | 'register' | null;
 
+export type WinMode = 'returnToMap' | 'continue';
+
+export type OpenWinOptions = {
+  level?: number;
+  mode?: WinMode;
+};
+
 export type ExpPreview = Readonly<{
   fromLevel: number;
   fromExpTotal: number;
@@ -18,6 +25,8 @@ export type ExpPreview = Readonly<{
 
 export type OverlayData = {
   level?: number;
+  winMode?: WinMode;
+
   powerChoiceTitle?: string;
   expPreview?: ExpPreview;
 };
@@ -30,7 +39,7 @@ export type OpenPowerChoiceOptions = {
 
 export type OverlayApi = {
   openSettings: () => void;
-  openWin: (level?: number) => void;
+  openWin: (levelOrOpts?: number | OpenWinOptions) => void;
   openLose: (level?: number) => void;
   openQuitConfirm: () => void;
   openPowerChoice: (opts?: OpenPowerChoiceOptions) => void;
