@@ -2,6 +2,8 @@ import type { EngineEvent, EngineState, PendingTurnCommit } from '../../../types
 
 import { setPhase } from '../../../phaseState';
 import { stabilizeBoard } from '../../../cascade';
+import { applyGravity } from '../../../cascade/gravity';
+import { applyRefill } from '../../../cascade/refill';
 import { pushEvents } from '../../events';
 import { processKeycardDeliveries } from '../../deliveryFlow';
 import { applyTurnEndEffects } from '../../turnEnd';
@@ -78,6 +80,29 @@ export function applyTurnEndPipeline(state: EngineState, commit: PendingTurnComm
   if (s.terminalsTotal > 0) {
     const deliveryResult = processKeycardDeliveries(s);
     s = pushEvents(deliveryResult.state, deliveryResult.events);
+
+    // Keycard delivery can create holes without any match clears.
+    // stabilizeBoard() alone won't settle holes unless detectMatches finds clears.
+    // So we explicitly settle (gravity + refill), then stabilize to resolve any auto-matches.
+    if (deliveryResult.events.length > 0) {
+      const evs: EngineEvent[] = [];
+
+      evs.push({ type: 'phase', phase: 'gravity' });
+      s = applyGravity(s);
+      evs.push({ type: 'gravity' });
+
+      evs.push({ type: 'phase', phase: 'refill' });
+      const ref = applyRefill(s);
+      s = ref.state;
+      evs.push({ type: 'refilled', count: ref.spawned });
+
+      evs.push({ type: 'phase', phase: 'settle' });
+
+      s = pushEvents(s, evs);
+
+      const stabilized = stabilizeBoard(s);
+      s = pushEvents(stabilized.state, stabilized.events);
+    }
   }
 
   return s;

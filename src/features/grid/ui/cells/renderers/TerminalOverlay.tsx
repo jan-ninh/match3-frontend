@@ -1,4 +1,3 @@
-// src/features/grid/ui/cells/renderers/TerminalOverlay.tsx
 import type { PieceType } from '@/gamelogic';
 
 import { GAP, TILE_SIZE } from '../../../lib/constants';
@@ -6,16 +5,18 @@ import { PipsRow } from '../primitives/PipsRow';
 
 type PairRole = 'left' | 'right';
 
+type TerminalState = 'locked' | 'open' | 'verified';
+
 type Props = {
-  state: 'locked' | 'open' | 'verified';
+  state: TerminalState;
   charge: number;
   requiredCharge: number;
   chargeColor: PieceType;
 
   /**
    * Level 05: two terminals are visually grouped into a single 2-cell rectangle.
-   * - left: renders the full slab spanning 2 cells (incl. grid gap)
-   * - right: renders nothing (slab is owned by the left cell)
+   * - left: renders the full slab spanning 2 cells (incl. grid gap) + LEFT status badge
+   * - right: renders only the RIGHT status badge (slab is owned by the left cell)
    */
   pairRole?: PairRole;
 };
@@ -32,49 +33,65 @@ function pipColorClass(color: PieceType, filled: boolean): string {
   return filled ? 'bg-purple-400/60 border-purple-300/50' : 'bg-white/5 border-white/15';
 }
 
-function LockBadge() {
+function StatusBadge({ state }: { state: TerminalState }) {
+  const wrapperClass =
+    state === 'verified'
+      ? 'bg-emerald-500/30 border-emerald-300/50'
+      : state === 'open'
+        ? 'bg-red-700/30 border-red-400/40'
+        : 'bg-slate-600/30 border-slate-400/40';
+
   return (
-    <div className="h-8 w-8 rounded-lg border-2 flex items-center justify-center bg-slate-600/30 border-slate-400/40">
-      <span className="text-slate-300 text-xs">🔒</span>
+    <div className={['h-8 w-8 rounded-lg border-2 flex items-center justify-center', wrapperClass].join(' ')}>
+      {state === 'verified' ? (
+        <span className="text-emerald-200 text-sm">✓</span>
+      ) : state === 'open' ? (
+        <span className="text-sky-200 text-xs">🔒</span>
+      ) : (
+        <span className="text-slate-300 text-xs">🔒</span>
+      )}
     </div>
   );
 }
 
-function TerminalPairSlabOverlay() {
+function TerminalPairSlabOverlay({ leftState }: { leftState: TerminalState }) {
   const pairW = TILE_SIZE * 2 + GAP;
 
   return (
     <>
-      <div
-        className="absolute top-0 left-0 h-full rounded-xl bg-slate-950/70 pointer-events-none"
-        style={{ width: pairW }}
-        data-match3-terminal-pair=""
-      />
+      <div className="absolute top-0 left-0 h-full rounded-xl bg-slate-950/70 pointer-events-none" style={{ width: pairW }} data-match3-terminal-pair="" />
 
       <div
         className="absolute top-0 left-0 h-full rounded-xl border-2 border-slate-500/40 shadow-[0_0_14px_rgba(100,116,139,0.20)] pointer-events-none"
         style={{ width: pairW }}
       />
 
+      {/* Left status badge (right badge is rendered by the right cell's overlay) */}
       <div className="absolute top-0 left-0 h-full flex items-center pointer-events-none" style={{ width: pairW }}>
         <div className="flex items-center justify-center" style={{ width: TILE_SIZE }}>
-          <LockBadge />
+          <StatusBadge state={leftState} />
         </div>
 
         <div style={{ width: GAP }} aria-hidden="true" />
 
-        <div className="flex items-center justify-center" style={{ width: TILE_SIZE }}>
-          <LockBadge />
-        </div>
+        <div className="flex items-center justify-center" style={{ width: TILE_SIZE }} aria-hidden="true" />
       </div>
     </>
   );
 }
 
+function TerminalPairRightBadge({ state }: { state: TerminalState }) {
+  return (
+    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+      <StatusBadge state={state} />
+    </div>
+  );
+}
+
 export function TerminalOverlay({ state, charge, requiredCharge, chargeColor, pairRole }: Props) {
-  // Level 05: two terminals share ONE visual slab (2 locks, no pips/labels)
-  if (pairRole === 'right') return null;
-  if (pairRole === 'left') return <TerminalPairSlabOverlay />;
+  // Level 05: two terminals share ONE visual slab, but each cell owns its own badge.
+  if (pairRole === 'left') return <TerminalPairSlabOverlay leftState={state} />;
+  if (pairRole === 'right') return <TerminalPairRightBadge state={state} />;
 
   return (
     <>
@@ -91,24 +108,7 @@ export function TerminalOverlay({ state, charge, requiredCharge, chargeColor, pa
       />
 
       <div className="absolute inset-0 flex items-center justify-center">
-        <div
-          className={[
-            'h-8 w-8 rounded-lg border-2 flex items-center justify-center',
-            state === 'verified'
-              ? 'bg-emerald-500/30 border-emerald-300/50'
-              : state === 'open'
-                ? 'bg-sky-500/30 border-sky-300/50'
-                : 'bg-slate-600/30 border-slate-400/40',
-          ].join(' ')}
-        >
-          {state === 'verified' ? (
-            <span className="text-emerald-200 text-sm">✓</span>
-          ) : state === 'open' ? (
-            <span className="text-sky-200 text-xs">⎆</span>
-          ) : (
-            <span className="text-slate-300 text-xs">🔒</span>
-          )}
-        </div>
+        <StatusBadge state={state} />
       </div>
 
       {state !== 'verified' && requiredCharge > 0 ? (
