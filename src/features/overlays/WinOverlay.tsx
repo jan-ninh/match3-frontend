@@ -1,3 +1,4 @@
+// src/features/overlays/WinOverlay.tsx
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router';
@@ -90,7 +91,7 @@ export default function WinOverlay({ open, onClose, level, mode = 'returnToMap' 
             }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
           >
-            Level {level} completed
+            Found a key!
           </motion.div>
 
           {typeof level === 'number' && (
@@ -102,7 +103,7 @@ export default function WinOverlay({ open, onClose, level, mode = 'returnToMap' 
               }}
               transition={{ duration: 0.2, ease: 'easeOut' }}
             >
-              Found a key!
+              Level {level} completed
             </motion.div>
           )}
 

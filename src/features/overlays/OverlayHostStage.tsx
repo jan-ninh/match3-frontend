@@ -21,21 +21,19 @@ export default function OverlayHostStage() {
   const { active, data, api, powerChoiceOnChooseRef } = ctx;
   const is = (name: typeof active) => active === name;
 
-  const noop = () => {};
-
   return (
     <>
       <SettingsModal open={is('settings')} onClose={api.close} />
-      <WinOverlay open={is('win')} onClose={api.close} level={data.level} />
+      <WinOverlay open={is('win')} onClose={api.close} level={data.level} mode={data.winMode} />
       <LoseOverlay open={is('lose')} onClose={api.close} level={data.level} />
       <QuitConfirmModal open={is('quitConfirm')} onClose={api.close} />
 
       <PowerChoiceModal
         open={is('powerChoice')}
         title={data.powerChoiceTitle ?? 'Choose your Power!'}
-        onClose={noop}
+        expPreview={data.expPreview}
+        onClose={api.close}
         onChoose={(powerId) => {
-          // Capture handler BEFORE close() clears the ref.
           const onChoose = powerChoiceOnChooseRef.current;
           api.close();
           onChoose?.(powerId);

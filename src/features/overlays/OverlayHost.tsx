@@ -17,8 +17,6 @@ export default function OverlayHost() {
   const { active, data, api, powerChoiceOnChooseRef } = ctx;
   const is = (name: typeof active) => active === name;
 
-  const noop = () => {};
-
   return (
     <>
       <SettingsModal open={is('settings')} onClose={api.close} />
@@ -29,7 +27,7 @@ export default function OverlayHost() {
         open={is('powerChoice')}
         title={data.powerChoiceTitle ?? 'Choose your Power!'}
         expPreview={data.expPreview}
-        onClose={noop}
+        onClose={api.close}
         onChoose={(powerId) => {
           // Capture handler BEFORE close() clears the ref.
           const onChoose = powerChoiceOnChooseRef.current;
