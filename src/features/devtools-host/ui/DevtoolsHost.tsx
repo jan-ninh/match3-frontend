@@ -13,8 +13,10 @@ import { useMatch3Engine } from '../lib/useMatch3Engine';
 import { useDevOverlayState } from '../lib/devtools/useDevOverlayState';
 import { usePossibleMatchSwaps } from '../lib/match/usePossibleMatchSwaps';
 import { useTilesetPaletteCycle } from '../lib/tiles/useTilesetPaletteCycle';
-import { useUsedPowerTracker } from '../lib/powers/useUsedPowerTracker';
-import { useStageStartSync } from '../lib/backend/useStageStartSync';
+
+import { useUsedPowerTracker } from '@/features/gameplay/lib/powers/useUsedPowerTracker';
+import { useStageStartSync } from '@/features/gameplay/lib/backend/useStageStartSync';
+
 import { useWinFlow } from '../lib/outcome/useWinFlow';
 import { useLoseFlow } from '../lib/outcome/useLoseFlow';
 import { useOutcomeReactions } from '../lib/outcome/useOutcomeReactions';
@@ -34,10 +36,21 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
   const userId = user?.id ?? null;
   const { powers, setPowers, selectedPowersForNextStage, setSelectedPowersForNextStage } = usePowers();
 
-  const { isDev, state, inputLocked, canSwapAt, onIntent, onDevResetBoard, onDevFixedSeed, onDevNextLevel, onDevPrevLevel, onDevSetLevel, events } =
-    useMatch3Engine({
-      initialLevelId,
-    });
+  const {
+    isDev,
+    state,
+    inputLocked,
+    canSwapAt,
+    onIntent,
+    onDevResetBoard,
+    onDevFixedSeed,
+    onDevNextLevel,
+    onDevPrevLevel,
+    onDevSetLevel,
+    events,
+  } = useMatch3Engine({
+    initialLevelId,
+  });
 
   const { debugEnabled, showMatches, showLockoutHints, onToggleShowMatches, onToggleShowLockoutHints } = useDevOverlayState({ isDev });
 
