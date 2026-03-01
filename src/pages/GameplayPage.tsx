@@ -6,7 +6,7 @@ import { useLocation, useNavigate } from 'react-router';
 import { useAuth } from '@/context/AuthContext';
 import { apiGetGameStatus } from '@/api/game';
 import { GameFooter } from '@/components';
-import { DevtoolsHost } from '@/features/devtools-host';
+import { GameplayHost } from '@/features/gameplay';
 
 const MIN_LEVEL = 1;
 const MAX_LEVEL = 12;
@@ -80,7 +80,7 @@ export default function GameplayPage() {
     // Stage-inner layout: [gameplay area][footer], no extra document flow, no scrollbars.
     <div className="h-full w-full overflow-hidden grid grid-rows-[minmax(0,1fr)_auto] gap-0 p-6">
       <div className="min-h-0">
-        <DevtoolsHost key={effectiveLevel} initialLevelId={effectiveLevel} />
+        <GameplayHost key={effectiveLevel} initialLevelId={effectiveLevel} />
       </div>
 
       <div className="shrink-0">
