@@ -10,13 +10,19 @@ import { cycleTilesetPalette, preloadTiles } from '@/features/grid/ui/tiles';
 import { cycleSpecialTilesetPalette, preloadSpecialTiles } from '@/features/grid/ui/tilesSpecial';
 import { useOverlays } from '@/features/overlays';
 import { completeLevel, resetProgress } from '@/services/progress/progressActions';
-import type { PowerKey, Powers, UserProfile } from '@/types';
+import type { PowerKey, Powers } from '@/types';
 import { findPossibleMatchSwaps } from '@/gamelogic/match';
 import type { PossibleMatchSwap } from '@/gamelogic/match';
 
 import { useDevHotkeys } from '../lib/useDevHotkeys';
 import { useDevPanelsTopSync } from '../lib/useDevPanelsTopSync';
 import { useMatch3Engine } from '../lib/useMatch3Engine';
+import { extractAllowedStage, getHttpMessage, getHttpStatus, isPrevStageNotCompleted } from '../lib/backend/httpError';
+import { buildExpPreview } from '../lib/outcome/expPreview';
+import { readPlayerMeta } from '../lib/outcome/playerMeta';
+import { EXP_REQUIRED, EXP_WIN_DELTA, WIN_POWER_REWARD_AMOUNT } from '../lib/outcome/winFlowConfig';
+import { toBackendPowerKey, toBackendRewardPowerId } from '../lib/powers/rewardMapping';
+import { addReward, buildRewardAbsolute, buildRewardDelta } from '../lib/powers/rewardMath';
 
 import DevPanels from './DevPanels';
 import GameContainer from './GameContainer';
@@ -25,104 +31,12 @@ type Props = {
   initialLevelId?: number;
 };
 
-type BackendRewardPowerId = Extract<PowerKey, 'bomb' | 'laser' | 'extraShuffle'>;
-const WIN_POWER_REWARD_AMOUNT = 2;
-
-const EXP_WIN_DELTA = 1000;
-const EXP_REQUIRED = 3000;
-
-function toBackendRewardPowerId(v: unknown): BackendRewardPowerId | null {
-  if (v === 'bomb' || v === 'laser' || v === 'extraShuffle') return v;
-  // UI alias (newer overlay): gridlaser reward should map to backend bomb inventory.
-  if (v === 'gridlaser') return 'bomb';
-  return null;
-}
-
-function toBackendPowerKey(key: unknown): PowerKey | null {
-  if (key === 'bomb' || key === 'laser' || key === 'extraShuffle') return key;
-  // Legacy alias: old UI used "gridlaser" for the bomb-like 3x3 item.
-  if (key === 'gridlaser') return 'bomb';
-  return null;
-}
-
-function getHttpStatus(err: unknown): number | null {
-  if (!err || typeof err !== 'object') return null;
-  const rec = err as Record<string, unknown>;
-  const s = rec.status;
-  if (typeof s === 'number' && Number.isFinite(s)) return s | 0;
-  return null;
-}
-
-function getHttpMessage(err: unknown): string {
-  if (err instanceof Error) return err.message;
-  if (!err || typeof err !== 'object') return String(err);
-  const rec = err as Record<string, unknown>;
-  const m = rec.message;
-  if (typeof m === 'string') return m;
-  return String(err);
-}
-
-function isPrevStageNotCompleted(err: unknown): boolean {
-  const msg = getHttpMessage(err);
-  return /previous\s+stage\s+not\s+completed/i.test(msg);
-}
-
-function extractAllowedStage(err: unknown): number | null {
-  if (!err || typeof err !== 'object') return null;
-
-  const maybePayload = (err as { payload?: unknown }).payload;
-  if (!maybePayload || typeof maybePayload !== 'object') return null;
-
-  const raw = (maybePayload as { allowedStage?: unknown }).allowedStage;
-  if (typeof raw !== 'number') return null;
-  if (!Number.isFinite(raw) || raw < 1) return null;
-
-  return Math.floor(raw);
-}
-
-function safeInt(n: number): number {
-  if (!Number.isFinite(n)) return 0;
-  return n | 0;
-}
-
-function addReward(base: Powers, powerId: BackendRewardPowerId, amount: number): Powers {
-  const add = safeInt(amount);
-  if (powerId === 'bomb') return { ...base, bomb: (base.bomb ?? 0) + add };
-  if (powerId === 'laser') return { ...base, laser: (base.laser ?? 0) + add };
-  return { ...base, extraShuffle: (base.extraShuffle ?? 0) + add };
-}
-
-function buildRewardDelta(powerId: BackendRewardPowerId, amount: number): Partial<Powers> {
-  const add = safeInt(amount);
-  if (powerId === 'bomb') return { bomb: add };
-  if (powerId === 'laser') return { laser: add };
-  return { extraShuffle: add };
-}
-
-function buildRewardAbsolute(powerId: BackendRewardPowerId, next: Powers): Partial<Powers> {
-  if (powerId === 'bomb') return { bomb: safeInt(next.bomb ?? 0) };
-  if (powerId === 'laser') return { laser: safeInt(next.laser ?? 0) };
-  return { extraShuffle: safeInt(next.extraShuffle ?? 0) };
-}
-
 function extractPowersFromLoseResponse(res: unknown): Powers | null {
   if (!res || typeof res !== 'object') return null;
   const rec = res as Record<string, unknown>;
   const powers = rec.powers;
   if (!powers || typeof powers !== 'object') return null;
   return powers as Powers;
-}
-
-function readPlayerMeta(p: UserProfile | null | undefined): { playerLevel: number; playerExp: number } | null {
-  if (!p) return null;
-
-  const lvlRaw = p.playerLevel;
-  const expRaw = p.playerExp;
-
-  const playerLevel = Number.isFinite(lvlRaw) ? Math.max(1, Math.floor(lvlRaw)) : 1;
-  const playerExp = Number.isFinite(expRaw) ? Math.max(0, Math.floor(expRaw)) : 0;
-
-  return { playerLevel, playerExp };
 }
 
 export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
@@ -278,26 +192,15 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
           postMeta = readPlayerMeta(postProfile);
         }
 
-        const hasVerifiedPost = didReportBackend && postMeta !== null;
-
-        const gained = Math.floor((fromExpTotal + EXP_WIN_DELTA) / EXP_REQUIRED) - Math.floor(fromExpTotal / EXP_REQUIRED);
-
-        const toLevel = hasVerifiedPost ? postMeta.playerLevel : fromLevel + Math.max(0, gained);
-        const toExpTotal = hasVerifiedPost ? postMeta.playerExp : fromExpTotal + EXP_WIN_DELTA;
-        const expDelta = Math.max(0, toExpTotal - fromExpTotal);
-
-        const expPreview = userId
-          ? {
-              fromLevel,
-              fromExpTotal,
-              toLevel,
-              toExpTotal,
-              expRequired: EXP_REQUIRED,
-              expDelta: expDelta > 0 ? expDelta : EXP_WIN_DELTA,
-            }
-          : undefined;
-
-        const didLevelUp = Boolean(expPreview && expPreview.toLevel > expPreview.fromLevel);
+        const { expPreview, didLevelUp } = buildExpPreview({
+          enabled: Boolean(userId),
+          fromLevel,
+          fromExpTotal,
+          didReportBackend,
+          postMeta,
+          expWinDelta: EXP_WIN_DELTA,
+          expRequired: EXP_REQUIRED,
+        });
 
         // Win-first UX: show Win overlay, then MissionReport, then optional LevelUp (reward selection).
         openWin({ level: lvl, mode: 'continue' });
