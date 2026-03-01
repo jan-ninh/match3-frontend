@@ -24,7 +24,8 @@ export function useStageStartSync(args: {
   const stageStartRetryRef = useRef<Set<number>>(new Set());
 
   useEffect(() => {
-    if (!args.userId) return;
+    const userId = args.userId;
+    if (!userId) return;
 
     const lvl = args.levelId;
     if (lvl <= 0) return;
@@ -36,7 +37,7 @@ export function useStageStartSync(args: {
       args.resetUsedPower();
 
       try {
-        const result = await apiStartStage(args.userId, lvl, args.selectedPowersForNextStage ?? undefined);
+        const result = await apiStartStage(userId, lvl, args.selectedPowersForNextStage ?? undefined);
         if (cancelled) return;
 
         // SSOT sync: always trust backend stage-start powers (especially stage1 reset).
@@ -79,13 +80,13 @@ export function useStageStartSync(args: {
           stageStartRetryRef.current.add(lvl);
 
           try {
-            await apiCompleteStage(args.userId, lvl - 1, undefined);
+            await apiCompleteStage(userId, lvl - 1, undefined);
           } catch {
             // ignore: we will still attempt start; worst case we run locally
           }
 
           try {
-            const result2 = await apiStartStage(args.userId, lvl, args.selectedPowersForNextStage ?? undefined);
+            const result2 = await apiStartStage(userId, lvl, args.selectedPowersForNextStage ?? undefined);
             if (cancelled) return;
 
             args.setPowers(result2.boosters);

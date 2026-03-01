@@ -6,7 +6,6 @@ import { useEffect, useMemo, useState } from 'react';
 
 import ChangeAvatarModal from '@/features/overlays/ChangeAvatarModal';
 
-const EXP_PER_WIN = 1000;
 const EXP_PER_LEVEL = 3000;
 
 export default function ProfileDashboard() {

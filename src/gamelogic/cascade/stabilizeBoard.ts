@@ -164,11 +164,10 @@ export function stabilizeBoard(state: EngineState, opts?: StabilizeOpts): { stat
         }
 
         default: {
-          const kind = step.kind;
-          const _exhaustiveKind: never = kind;
-          void _exhaustiveKind;
+          const _exhaustive: never = step;
+          void _exhaustive;
 
-          throw new Error(`Unhandled CascadePreStep kind: ${String(kind)}`);
+          throw new Error('Unhandled CascadePreStep kind');
         }
       }
     }

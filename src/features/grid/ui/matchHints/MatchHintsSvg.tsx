@@ -51,6 +51,7 @@ export function MatchHintsSvg({
   moverToAnchors,
   swapDots,
 }: Props) {
+  void height;
   const TileHeatLayer = () => (
     <>
       {clearHitsSorted.map(({ idx, hits }) => {

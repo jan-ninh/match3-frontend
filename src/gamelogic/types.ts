@@ -216,6 +216,16 @@ export type FirewallNodeDef = {
   origin?: 'breach' | 'sweep' | 'level4Dormant';
 };
 
+export type FirewallSpawnPolicy = 'noTriples8';
+
+export type FirewallSpawnDef = {
+  count: number;
+  hp: number;
+  policy?: FirewallSpawnPolicy;
+  avoidBorder?: boolean;
+};
+
+
 export type LeakNodeDef = {
   index: number;
   patchStepsRequired: number;
@@ -304,6 +314,10 @@ export type LevelDefinition = {
 
   blockedIndices: number[];
   firewallNodes: FirewallNodeDef[];
+
+  // Optional seeded random placement for firewall nodes (resolved at init).
+  firewallSpawn?: FirewallSpawnDef;
+
   gateIndices: number[];
 
   // Level 02+: Leak mechanics
@@ -399,10 +413,17 @@ export type FallMove = {
    * Must be deterministic (computed in engine).
    */
   delayMs: number;
+
+  /** Additional spawn stacking delay (engine-owned; 0 for non-spawns). */
+  spawnStackDelayMs?: number;
+
 };
 
 export type FallPlan = Readonly<{
   moves: readonly FallMove[];
+
+  /** Optional pause (ms) before any fall move starts (lets holes be visible). */
+  holeDelayMs?: number;
 }>;
 
 

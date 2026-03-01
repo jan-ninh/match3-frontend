@@ -21,14 +21,13 @@ export function buildExpPreview(args: {
   expRequired: number;
 }): { expPreview: ExpPreview | undefined; didLevelUp: boolean } {
   if (!args.enabled) return { expPreview: undefined, didLevelUp: false };
-
-  const hasVerifiedPost = args.didReportBackend && args.postMeta !== null;
+  const verifiedPost = args.didReportBackend ? args.postMeta : null;
 
   const gained =
     Math.floor((args.fromExpTotal + args.expWinDelta) / args.expRequired) - Math.floor(args.fromExpTotal / args.expRequired);
 
-  const toLevel = hasVerifiedPost ? args.postMeta.playerLevel : args.fromLevel + Math.max(0, gained);
-  const toExpTotal = hasVerifiedPost ? args.postMeta.playerExp : args.fromExpTotal + args.expWinDelta;
+  const toLevel = verifiedPost ? verifiedPost.playerLevel : args.fromLevel + Math.max(0, gained);
+  const toExpTotal = verifiedPost ? verifiedPost.playerExp : args.fromExpTotal + args.expWinDelta;
 
   const rawDelta = Math.max(0, toExpTotal - args.fromExpTotal);
 

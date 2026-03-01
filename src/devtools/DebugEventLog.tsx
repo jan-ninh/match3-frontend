@@ -74,6 +74,8 @@ function formatEvent(e: DebugLogEvent): string {
       return `matchesFound(clears=${e.clears}, groups=${e.groups})`;
     case 'matchGroup':
       return `matchGroup(id=${fmtIdShort(e.id)}, axis=${e.axis}, len=${e.len}, indices=[${fmtList(e.indices)}])`;
+    case 'itemCausedMatch':
+      return `itemCausedMatch(key=${e.key}, requestId=${e.requestId}, maxLen=${e.maxLen}, 3=${e.len3},4=${e.len4},5=${e.len5},6+=${e.len6Plus}, groups=${e.matchGroupIds.length})`;
     case 'cleared':
       return `cleared(count=${e.count})`;
     case 'gravity':
@@ -231,10 +233,11 @@ export default function DebugEventLog({ events, maxLines = DEFAULT_MAX_LINES }: 
 
     const onUi = (e: Event) => {
       const ce = e as CustomEvent<unknown>;
-      if (!isGridUiDebugEvent(ce.detail)) return;
+      const detail = ce.detail;
+      if (!isGridUiDebugEvent(detail)) return;
 
       setUiEvents((prev) => {
-        const next = [...prev, ce.detail];
+        const next = [...prev, detail];
         return next.length > MAX_UI_EVENTS ? next.slice(next.length - MAX_UI_EVENTS) : next;
       });
     };

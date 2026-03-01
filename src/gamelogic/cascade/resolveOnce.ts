@@ -237,13 +237,9 @@ export function resolveOnce(state: EngineState, chargedIds: Set<number> = new Se
       }
 
       default: {
-        // Fail-fast: if preSteps includes kinds this resolver doesn't handle yet,
-        // we want a hard signal instead of silently doing the wrong thing.
-        const kind = step.kind;
-        const _exhaustive: never = kind;
+        const _exhaustive: never = step;
         void _exhaustive;
-
-        throw new Error(`resolveOnce: unsupported preStep kind: ${String(kind)}`);
+        throw new Error('resolveOnce: unsupported preStep kind');
       }
     }
   }

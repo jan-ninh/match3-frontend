@@ -1,44 +1,6 @@
-import { useContext } from 'react';
+// src/features/overlays/OverlayHostStage.tsx
+//
+// DEPRECATED: Stage-bounded overlays are now handled by OverlayHost.
+// Keep this file as a thin alias so older imports continue to work.
 
-import { OverlayContext } from './overlayContext';
-
-import SettingsModal from './SettingsModal';
-import WinOverlay from './WinOverlay';
-import LoseOverlay from './LoseOverlay';
-import QuitConfirmModal from './QuitConfirmModal';
-import PowerChoiceModal from './OverlayMissionReport';
-
-/**
- * Stage-bounded overlays (belong to the game/stage):
- * - Win / Lose / PowerChoice / Settings / QuitConfirm
- *
- * NOTE: This host must be rendered INSIDE the stage container.
- */
-export default function OverlayHostStage() {
-  const ctx = useContext(OverlayContext);
-  if (!ctx) return null;
-
-  const { active, data, api, powerChoiceOnChooseRef } = ctx;
-  const is = (name: typeof active) => active === name;
-
-  return (
-    <>
-      <SettingsModal open={is('settings')} onClose={api.close} />
-      <WinOverlay open={is('win')} onClose={api.close} level={data.level} mode={data.winMode} />
-      <LoseOverlay open={is('lose')} onClose={api.close} level={data.level} />
-      <QuitConfirmModal open={is('quitConfirm')} onClose={api.close} />
-
-      <PowerChoiceModal
-        open={is('powerChoice')}
-        title={data.powerChoiceTitle ?? 'Choose your Power!'}
-        expPreview={data.expPreview}
-        onClose={api.close}
-        onChoose={(powerId) => {
-          const onChoose = powerChoiceOnChooseRef.current;
-          api.close();
-          onChoose?.(powerId);
-        }}
-      />
-    </>
-  );
-}
+export { default } from './OverlayHost';
