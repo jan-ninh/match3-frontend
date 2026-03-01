@@ -140,7 +140,7 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
   // Ref (no state) => avoids rerenders.
   const usedPowerInCurrentStageRef = useRef<PowerKey | null>(null);
 
-  const { openWin, openLose, openPowerChoice } = useOverlays();
+  const { openWin, openLose, openMissionReport, openLevelUp } = useOverlays();
   const { user, profile, refreshProfile, updatePowers } = useAuth();
   const userId = user?.id ?? null;
   const { powers, setPowers, selectedPowersForNextStage, setSelectedPowersForNextStage } = usePowers();
@@ -257,15 +257,6 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
       const usedPower: PowerKey | undefined = usedPowerInCurrentStageRef.current ?? undefined;
 
       void (async () => {
-        // Final stage keeps original behavior: no reward selection.
-        if (lvl === 12) {
-          setSelectedPowersForNextStage(null);
-          await completeDevWinStage(lvl, usedPower);
-          if (userId) await refreshProfile();
-          openWin(lvl);
-          return;
-        }
-
         // 1) Snapshot EXP state before reporting stage completion.
         let preMeta = readPlayerMeta(profile);
 
@@ -295,59 +286,82 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
         const toExpTotal = hasVerifiedPost ? postMeta.playerExp : fromExpTotal + EXP_WIN_DELTA;
         const expDelta = Math.max(0, toExpTotal - fromExpTotal);
 
-        // Win-first UX: show Win overlay, then queue PowerChoice (reward selection).
+        const expPreview = userId
+          ? {
+              fromLevel,
+              fromExpTotal,
+              toLevel,
+              toExpTotal,
+              expRequired: EXP_REQUIRED,
+              expDelta: expDelta > 0 ? expDelta : EXP_WIN_DELTA,
+            }
+          : undefined;
+
+        const didLevelUp = Boolean(expPreview && expPreview.toLevel > expPreview.fromLevel);
+
+        // Win-first UX: show Win overlay, then MissionReport, then optional LevelUp (reward selection).
         openWin({ level: lvl, mode: 'continue' });
 
-        openPowerChoice({
-          title: 'Choose your Reward!',
-          expPreview: userId
-            ? {
-                fromLevel,
-                fromExpTotal,
-                toLevel,
-                toExpTotal,
-                expRequired: EXP_REQUIRED,
-                expDelta: expDelta > 0 ? expDelta : EXP_WIN_DELTA,
+        openMissionReport({
+          expPreview,
+          onDone: () => navigate('/game-map'),
+        });
+
+        if (didLevelUp) {
+          openLevelUp({
+            title: 'Choose your Reward!',
+            onChoose: async (powerId) => {
+              const backendPowerId = toBackendRewardPowerId(powerId);
+              if (!backendPowerId) {
+                console.warn(`Unexpected reward power id: ${String(powerId)}`);
+                return;
               }
-            : undefined,
-          onChoose: async (powerId) => {
-            const backendPowerId = toBackendRewardPowerId(powerId);
-            if (!backendPowerId) {
-              console.warn(`Unexpected reward power id: ${String(powerId)}`);
-              return;
-            }
 
-            const rewardAmount = WIN_POWER_REWARD_AMOUNT;
-            const rewardDelta = buildRewardDelta(backendPowerId, rewardAmount);
-            const rewardedPowers = addReward(powers, backendPowerId, rewardAmount);
+              const rewardAmount = WIN_POWER_REWARD_AMOUNT;
+              const rewardDelta = buildRewardDelta(backendPowerId, rewardAmount);
+              const rewardedPowers = addReward(powers, backendPowerId, rewardAmount);
 
-            // 1) Immediate local reward update.
-            setPowers(rewardedPowers);
+              // 1) Immediate local reward update.
+              setPowers(rewardedPowers);
 
-            // 2) Preserve selected reward for next stage start API call.
-            setSelectedPowersForNextStage(rewardDelta);
+              // 2) Preserve selected reward for next stage start API call.
+              setSelectedPowersForNextStage(rewardDelta);
 
-            // 3) Persist reward on backend (+2 guaranteed by business rule).
-            if (userId) {
-              try {
-                await updatePowers(rewardDelta, 'add');
-              } catch (err) {
-                // Fallback for backends that don't support "add" reliably: set absolute next value.
+              // 3) Persist reward on backend (+2 guaranteed by business rule).
+              if (userId) {
                 try {
-                  await updatePowers(buildRewardAbsolute(backendPowerId, rewardedPowers), 'set');
-                } catch {
-                  console.error('Failed to persist win reward powers to backend:', err);
+                  await updatePowers(rewardDelta, 'add');
+                } catch (err) {
+                  // Fallback for backends that don't support "add" reliably: set absolute next value.
+                  try {
+                    await updatePowers(buildRewardAbsolute(backendPowerId, rewardedPowers), 'set');
+                  } catch {
+                    console.error('Failed to persist win reward powers to backend:', err);
+                  }
                 }
               }
-            }
 
-            // 4) After reward choice, return to map (Win overlay was already shown).
-            navigate('/game-map');
-          },
-        });
+              // 4) After reward choice, return to map.
+              navigate('/game-map');
+            },
+          });
+        }
       })();
     },
-    [completeDevWinStage, navigate, openPowerChoice, openWin, powers, profile, refreshProfile, setPowers, setSelectedPowersForNextStage, updatePowers, userId],
+    [
+      completeDevWinStage,
+      navigate,
+      openLevelUp,
+      openMissionReport,
+      openWin,
+      powers,
+      profile,
+      refreshProfile,
+      setPowers,
+      setSelectedPowersForNextStage,
+      updatePowers,
+      userId,
+    ],
   );
 
   const runDevLoseFlow = useCallback(

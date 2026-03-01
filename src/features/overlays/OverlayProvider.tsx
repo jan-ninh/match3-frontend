@@ -1,14 +1,17 @@
+// src/features/overlays/OverlayProvider.tsx
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import OverlayHost from './OverlayHost';
 import {
   OverlayContext,
+  type OpenLevelUpOptions,
+  type OpenMissionReportOptions,
+  type OpenPowerChoiceOptions,
   type OpenWinOptions,
   type OverlayApi,
   type OverlayContextValue,
   type OverlayData,
   type OverlayName,
-  type OpenPowerChoiceOptions,
   type WinMode,
 } from './overlayContext';
 
@@ -27,7 +30,9 @@ function normalizeOpenWinArg(v: number | OpenWinOptions | undefined): { level?: 
 export function OverlayProvider({ children }: { children: ReactNode }) {
   const [active, setActive] = useState<OverlayName>(null);
   const [data, setData] = useState<OverlayData>({});
-  const powerChoiceOnChooseRef = useRef<OpenPowerChoiceOptions['onChoose'] | null>(null);
+
+  const missionReportOnDoneRef = useRef<OpenMissionReportOptions['onDone'] | null>(null);
+  const levelUpOnChooseRef = useRef<OpenLevelUpOptions['onChoose'] | null>(null);
 
   // Keep latest state accessible inside a stable `api` object (api is memoized with []).
   // IMPORTANT: refs must be updated synchronously inside api methods to avoid same-tick races.
@@ -35,7 +40,6 @@ export function OverlayProvider({ children }: { children: ReactNode }) {
   const dataRef = useRef<OverlayData>(data);
 
   const setOverlayRef = useRef<(nextActive: OverlayName, nextData: OverlayData) => void>(() => {});
-
   setOverlayRef.current = (nextActive: OverlayName, nextData: OverlayData) => {
     activeRef.current = nextActive;
     dataRef.current = nextData;
@@ -52,91 +56,132 @@ export function OverlayProvider({ children }: { children: ReactNode }) {
     dataRef.current = data;
   }, [data]);
 
-  // Sequencing: Win should be shown BEFORE PowerChoice (reward selection).
-  // Both overlays stay mounted; only visibility is toggled via `active`.
-  const queuedRef = useRef<QueuedOverlay | null>(null);
+  // Sequencing: FIFO queue (Win -> MissionReport -> optional LevelUp).
+  const queueRef = useRef<QueuedOverlay[]>([]);
+
+  const resetAll = () => {
+    queueRef.current = [];
+    missionReportOnDoneRef.current = null;
+    levelUpOnChooseRef.current = null;
+  };
+
+  const enqueue = (q: QueuedOverlay) => {
+    queueRef.current.push(q);
+  };
+
+  const openNextQueued = () => {
+    const q = queueRef.current.shift();
+    if (!q) return;
+    setOverlayRef.current(q.name, q.data);
+  };
 
   const api: OverlayApi = useMemo(
     () => ({
       openSettings: () => {
-        queuedRef.current = null;
-        powerChoiceOnChooseRef.current = null;
+        resetAll();
         setOverlayRef.current('settings', {});
       },
       openWin: (levelOrOpts?: number | OpenWinOptions) => {
         const { level, mode } = normalizeOpenWinArg(levelOrOpts);
-
-        // If PowerChoice is visible, preempt it and queue it for AFTER Win closes.
-        if (activeRef.current === 'powerChoice') {
-          queuedRef.current = { name: 'powerChoice', data: { ...dataRef.current } };
-          setOverlayRef.current('win', { level, winMode: mode });
-          return;
-        }
-
-        queuedRef.current = null;
-        powerChoiceOnChooseRef.current = null;
+        resetAll();
         setOverlayRef.current('win', { level, winMode: mode });
       },
       openLose: (level?: number) => {
-        queuedRef.current = null;
-        powerChoiceOnChooseRef.current = null;
+        resetAll();
         setOverlayRef.current('lose', { level });
       },
       openQuitConfirm: () => {
-        queuedRef.current = null;
-        powerChoiceOnChooseRef.current = null;
+        resetAll();
         setOverlayRef.current('quitConfirm', {});
       },
-      openPowerChoice: (opts?: OpenPowerChoiceOptions) => {
-        // Store handler even if we queue (Win-first flow).
-        powerChoiceOnChooseRef.current = opts?.onChoose ?? null;
+
+      openMissionReport: (opts?: OpenMissionReportOptions) => {
+        missionReportOnDoneRef.current = opts?.onDone ?? null;
 
         const nextData: OverlayData = {
-          level: dataRef.current.level,
-          powerChoiceTitle: opts?.title ?? 'Choose your Power!',
+          ...dataRef.current,
           expPreview: opts?.expPreview,
+          missionReportTitle: opts?.title,
         };
 
-        // If Win is currently visible, queue PowerChoice until Win closes.
-        if (activeRef.current === 'win') {
-          queuedRef.current = { name: 'powerChoice', data: nextData };
+        // If another overlay is visible, queue MissionReport.
+        if (activeRef.current !== null) {
+          enqueue({ name: 'missionReport', data: nextData });
           return;
         }
 
-        queuedRef.current = null;
-        setOverlayRef.current('powerChoice', nextData);
+        setOverlayRef.current('missionReport', nextData);
       },
+
+      openLevelUp: (opts?: OpenLevelUpOptions) => {
+        levelUpOnChooseRef.current = opts?.onChoose ?? null;
+
+        const nextData: OverlayData = {
+          ...dataRef.current,
+          levelUpTitle: opts?.title ?? 'Choose your Reward!',
+          powerChoiceTitle: opts?.title ?? 'Choose your Reward!', // legacy field
+        };
+
+        // If another overlay is visible, queue LevelUp.
+        if (activeRef.current !== null) {
+          enqueue({ name: 'levelUp', data: nextData });
+          return;
+        }
+
+        setOverlayRef.current('levelUp', nextData);
+      },
+
+      // Legacy alias: open the LevelUp reward selection overlay.
+      openPowerChoice: (opts?: OpenPowerChoiceOptions) => {
+        levelUpOnChooseRef.current = opts?.onChoose ?? null;
+
+        const nextData: OverlayData = {
+          ...dataRef.current,
+          levelUpTitle: opts?.title ?? 'Choose your Reward!',
+          powerChoiceTitle: opts?.title ?? 'Choose your Power!',
+          // NOTE: legacy callers might send expPreview here; LevelUp UI currently ignores it.
+          expPreview: opts?.expPreview,
+        };
+
+        if (activeRef.current !== null) {
+          enqueue({ name: 'levelUp', data: nextData });
+          return;
+        }
+
+        setOverlayRef.current('levelUp', nextData);
+      },
+
       openLogin: () => {
-        queuedRef.current = null;
-        powerChoiceOnChooseRef.current = null;
+        resetAll();
         setOverlayRef.current('login', {});
       },
       openRegister: () => {
-        queuedRef.current = null;
-        powerChoiceOnChooseRef.current = null;
+        resetAll();
         setOverlayRef.current('register', {});
       },
+
       close: () => {
-        const q = queuedRef.current;
-        const keepPowerChoiceHandler = q?.name === 'powerChoice' && activeRef.current !== 'powerChoice';
+        const closing = activeRef.current;
+
+        // Clear handler refs when their overlay closes.
+        if (closing === 'missionReport') {
+          missionReportOnDoneRef.current = null;
+        }
+        if (closing === 'levelUp' || closing === 'powerChoice') {
+          levelUpOnChooseRef.current = null;
+        }
 
         // close current overlay
-        if (!keepPowerChoiceHandler) {
-          powerChoiceOnChooseRef.current = null;
-        }
         setOverlayRef.current(null, {});
 
-        // open queued overlay, if any
-        queuedRef.current = null;
-        if (q) {
-          setOverlayRef.current(q.name, q.data);
-        }
+        // open next queued overlay, if any
+        openNextQueued();
       },
     }),
     [],
   );
 
-  const value: OverlayContextValue = useMemo(() => ({ active, data, powerChoiceOnChooseRef, api }), [active, data, api]);
+  const value: OverlayContextValue = useMemo(() => ({ active, data, missionReportOnDoneRef, levelUpOnChooseRef, api }), [active, data, api]);
 
   return (
     <OverlayContext.Provider value={value}>

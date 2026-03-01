@@ -1,23 +1,29 @@
 // src/features/overlays/OverlayMissionReport.tsx
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router';
 
 import Modal from '@/components/Modal';
 import ProgressBar from '@/components/profileDashboard/ProgressBar';
 
-import type { ExpPreview, PowerId } from './overlayContext';
+import type { ExpPreview } from './overlayContext';
 
 type Props = {
   open: boolean;
-  title: string;
   expPreview?: ExpPreview;
   onClose: () => void;
-  onChoose: (powerId: PowerId) => void;
+  onPrimary: () => void;
 };
 
-type Screen = 'booster' | 'levelUp';
-
-const powerIds: PowerId[] = ['gridlaser', 'laser', 'extraShuffle'];
+/**
+ * EXP animation timing knobs (ms).
+ * Adjust these values to tune the "feel".
+ */
+const EXP_ANIM = {
+  startDelayMs: 900,
+  fillTo100Ms: 720,
+  afterLevelUpMs: 640,
+  levelUpFlashMs: 650,
+  gapMs: 140,
+} as const;
 
 function clamp(n: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, n));
@@ -49,11 +55,7 @@ function computeUi(level: number, expCurrent: number, expRequired: number, showL
   return { level: Math.max(1, level), expCurrent: cur, percent: clamp(percent, 0, 100), showLevelUp };
 }
 
-export default function PowerChoiceModal({ open, title, expPreview, onClose, onChoose }: Props) {
-  const navigate = useNavigate();
-
-  const [screen, setScreen] = useState<Screen>('booster');
-
+export default function OverlayMissionReport({ open, expPreview, onClose, onPrimary }: Props) {
   const rafRef = useRef<number | null>(null);
   const timersRef = useRef<number[]>([]);
   const [expUi, setExpUi] = useState<ExpUiState | null>(null);
@@ -70,12 +72,6 @@ export default function PowerChoiceModal({ open, title, expPreview, onClose, onC
     const toLevel = Math.max(1, safeInt(expPreview.toLevel, fromLevel));
     return toLevel > fromLevel;
   }, [expPreview]);
-
-  // Reset to booster screen when the modal closes.
-  useEffect(() => {
-    if (open) return;
-    setScreen('booster');
-  }, [open]);
 
   const clearAnim = useCallback(() => {
     if (rafRef.current !== null) {
@@ -110,7 +106,7 @@ export default function PowerChoiceModal({ open, title, expPreview, onClose, onC
     rafRef.current = window.requestAnimationFrame(step);
   }, []);
 
-  // EXP animation: starts when modal opens (so player "sees" +EXP immediately).
+  // EXP animation: starts when the MissionReport is visible.
   useEffect(() => {
     if (!open || !expPreview) {
       clearAnim();
@@ -133,74 +129,56 @@ export default function PowerChoiceModal({ open, title, expPreview, onClose, onC
     // initial state (before growth)
     setExpUi(computeUi(fromLevel, fromCur, expRequired, false));
 
-    // Duration tuning: readable but not sluggish.
-    const D1 = 720;
-    const D2 = 640;
-    const LEVEL_UP_FLASH_MS = 650;
-    const GAP_MS = 140;
+    const start = () => {
+      if (levelsGained <= 0) {
+        animateInt(fromCur, toCur, EXP_ANIM.fillTo100Ms, (v) => setExpUi(computeUi(fromLevel, v, expRequired, false)));
+        return;
+      }
 
-    if (levelsGained <= 0) {
-      animateInt(fromCur, toCur, D1, (v) => setExpUi(computeUi(fromLevel, v, expRequired, false)));
-      return;
-    }
+      // Phase 1: fill to 100%
+      animateInt(
+        fromCur,
+        expRequired,
+        EXP_ANIM.fillTo100Ms,
+        (v) => setExpUi(computeUi(fromLevel, v, expRequired, false)),
+        () => {
+          // Level up moment: reset bar, bump level, flash.
+          setExpUi(computeUi(fromLevel + 1, 0, expRequired, true));
 
-    // Phase 1: fill to 100%
-    animateInt(
-      fromCur,
-      expRequired,
-      D1,
-      (v) => setExpUi(computeUi(fromLevel, v, expRequired, false)),
-      () => {
-        // Level up moment: reset bar, bump level, flash.
-        setExpUi(computeUi(fromLevel + 1, 0, expRequired, true));
+          const t1 = window.setTimeout(() => {
+            setExpUi((prev) => {
+              if (!prev) return prev;
+              return { ...prev, showLevelUp: false };
+            });
+          }, EXP_ANIM.levelUpFlashMs);
+          timersRef.current.push(t1);
 
-        const t1 = window.setTimeout(() => {
-          setExpUi((prev) => {
-            if (!prev) return prev;
-            return { ...prev, showLevelUp: false };
-          });
-        }, LEVEL_UP_FLASH_MS);
-        timersRef.current.push(t1);
+          const t2 = window.setTimeout(() => {
+            if (toCur <= 0) {
+              setExpUi(computeUi(fromLevel + 1, 0, expRequired, false));
+              return;
+            }
 
-        const t2 = window.setTimeout(() => {
-          if (toCur <= 0) {
-            setExpUi(computeUi(fromLevel + 1, 0, expRequired, false));
-            return;
-          }
+            animateInt(0, toCur, EXP_ANIM.afterLevelUpMs, (v) => setExpUi(computeUi(fromLevel + 1, v, expRequired, false)));
+          }, EXP_ANIM.gapMs);
+          timersRef.current.push(t2);
+        },
+      );
+    };
 
-          animateInt(0, toCur, D2, (v) => setExpUi(computeUi(fromLevel + 1, v, expRequired, false)));
-        }, GAP_MS);
-        timersRef.current.push(t2);
-      },
-    );
+    const t0 = window.setTimeout(start, Math.max(0, EXP_ANIM.startDelayMs));
+    timersRef.current.push(t0);
 
     return () => clearAnim();
   }, [animateInt, clearAnim, expPreview, expRequired, open]);
 
-  const onPick = (id: PowerId) => {
-    onChoose(id);
-  };
-
-  const onPrimary = () => {
-    if (hasLevelUp) {
-      setScreen('levelUp');
-      return;
-    }
-
-    onClose();
-    navigate('/game-map');
-  };
-
   const primaryLabel = hasLevelUp ? 'Level up' : 'Return to Map';
 
-  const modalTitle = screen === 'levelUp' ? 'Level Up' : 'Mission Report';
-  const headline = screen === 'levelUp' ? title : 'Mission Report';
-
   return (
-    <Modal open={open} onClose={onClose} title={modalTitle} size="md" closeOnBackdrop={false}>
+    <Modal open={open} onClose={onClose} title="Mission Report" size="md" closeOnBackdrop={false}>
       <div className="relative overflow-hidden">
         <div className="flex flex-col items-center gap-4 py-4">
-          <div className="text-2xl font-semibold text-cyan-600">{headline}</div>
+          <div className="text-2xl font-semibold text-cyan-600">Mission Report</div>
 
           {expPreview && expUi && (
             <div className="w-full max-w-md">
@@ -213,33 +191,17 @@ export default function PowerChoiceModal({ open, title, expPreview, onClose, onC
             </div>
           )}
 
-          {screen === 'levelUp' ? (
-            <div className="flex gap-3 mt-2">
-              {powerIds.map((id) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => onPick(id)}
-                  className="px-3 py-2 rounded-lg text-black hover:bg-yellow-400 flex items-center justify-center"
-                  aria-label={`choose ${id}`}
-                >
-                  <img src={`/icons/${id}.png`} alt={id} className="w-8 h-8" loading="lazy" draggable={false} />
-                </button>
-              ))}
-            </div>
-          ) : (
-            <div className="mt-2 w-full flex flex-col items-center gap-2">
-              <button
-                type="button"
-                onClick={onPrimary}
-                className="h-10 px-5 rounded-lg border border-white/10 bg-cyan-500/20 hover:bg-cyan-500/30 active:bg-cyan-500/35 text-cyan-50 transition-colors select-none"
-              >
-                {primaryLabel}
-              </button>
+          <div className="mt-2 w-full flex flex-col items-center gap-2">
+            <button
+              type="button"
+              onClick={onPrimary}
+              className="h-10 px-5 rounded-lg border border-white/10 bg-cyan-500/20 hover:bg-cyan-500/30 active:bg-cyan-500/35 text-cyan-50 transition-colors select-none"
+            >
+              {primaryLabel}
+            </button>
 
-              {hasLevelUp && <div className="text-xs text-white/60">Claim your reward on the next screen.</div>}
-            </div>
-          )}
+            {hasLevelUp && <div className="text-xs text-white/60">Claim your reward on the next screen.</div>}
+          </div>
         </div>
       </div>
     </Modal>
