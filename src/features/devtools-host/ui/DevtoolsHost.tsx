@@ -1,28 +1,26 @@
 // src/features/devtools-host/ui/DevtoolsHost.tsx
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router';
 
 import { apiCompleteStage, apiLoseGame, apiStartStage } from '@/api/game';
 import { useAuth } from '@/context/AuthContext';
 import { usePowers } from '@/context/PowerContext';
-import { POWER_CONSUME_EVENT, type PowerConsumeDetail } from '@/context/powerEvents';
-import { cycleTilesetPalette, preloadTiles } from '@/features/grid/ui/tiles';
-import { cycleSpecialTilesetPalette, preloadSpecialTiles } from '@/features/grid/ui/tilesSpecial';
 import { useOverlays } from '@/features/overlays';
 import { completeLevel, resetProgress } from '@/services/progress/progressActions';
 import type { PowerKey, Powers } from '@/types';
-import { findPossibleMatchSwaps } from '@/gamelogic/match';
-import type { PossibleMatchSwap } from '@/gamelogic/match';
 
-import { useDevHotkeys } from '../lib/useDevHotkeys';
 import { useDevPanelsTopSync } from '../lib/useDevPanelsTopSync';
 import { useMatch3Engine } from '../lib/useMatch3Engine';
 import { extractAllowedStage, getHttpMessage, getHttpStatus, isPrevStageNotCompleted } from '../lib/backend/httpError';
 import { buildExpPreview } from '../lib/outcome/expPreview';
 import { readPlayerMeta } from '../lib/outcome/playerMeta';
 import { EXP_REQUIRED, EXP_WIN_DELTA, WIN_POWER_REWARD_AMOUNT } from '../lib/outcome/winFlowConfig';
-import { toBackendPowerKey, toBackendRewardPowerId } from '../lib/powers/rewardMapping';
+import { toBackendRewardPowerId } from '../lib/powers/rewardMapping';
 import { addReward, buildRewardAbsolute, buildRewardDelta } from '../lib/powers/rewardMath';
+import { useDevOverlayState } from '../lib/devtools/useDevOverlayState';
+import { usePossibleMatchSwaps } from '../lib/match/usePossibleMatchSwaps';
+import { useTilesetPaletteCycle } from '../lib/tiles/useTilesetPaletteCycle';
+import { useUsedPowerTracker } from '../lib/powers/useUsedPowerTracker';
 
 import DevPanels from './DevPanels';
 import GameContainer from './GameContainer';
@@ -42,18 +40,6 @@ function extractPowersFromLoseResponse(res: unknown): Powers | null {
 export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
   const navigate = useNavigate();
 
-  const [showLockoutHints, setShowLockoutHints] = useState(false);
-  const [debugEnabled, setDebugEnabled] = useState(false);
-
-  // DevTools: match hints overlay toggle
-  const [showMatches, setShowMatches] = useState(false);
-
-  // Dev-only: force rerender when changing tiles palette (palette lives in module state).
-  const [tilesVersion, setTilesVersion] = useState(0);
-
-  // Ref (no state) => avoids rerenders.
-  const usedPowerInCurrentStageRef = useRef<PowerKey | null>(null);
-
   const { openWin, openLose, openMissionReport, openLevelUp } = useOverlays();
   const { user, profile, refreshProfile, updatePowers } = useAuth();
   const userId = user?.id ?? null;
@@ -64,11 +50,13 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
       initialLevelId,
     });
 
-  // DevTools-only: compute match swaps (read-only)
-  const matchSwaps = useMemo<readonly PossibleMatchSwap[]>(() => {
-    if (!isDev || !debugEnabled) return [];
-    return findPossibleMatchSwaps(state);
-  }, [debugEnabled, isDev, state.cells, state.height, state.pieces, state.width]);
+  const { debugEnabled, showMatches, showLockoutHints, onToggleShowMatches, onToggleShowLockoutHints } = useDevOverlayState({ isDev });
+
+  const matchSwaps = usePossibleMatchSwaps({ enabled: isDev && debugEnabled, state });
+
+  const { tilesVersion, onDevNextTilesPalette } = useTilesetPaletteCycle();
+
+  const { getUsedPower, resetUsedPower } = useUsedPowerTracker({ levelId: state.levelId });
 
   // Demo/presentation: in dev builds allow free level hopping even when the debug overlay is closed.
   const allowDevLevelHop = isDev;
@@ -82,64 +70,11 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
   const handledWinLevelRef = useRef<number | null>(null);
   const handledLoseLevelRef = useRef<number | null>(null);
 
-  // Reset "used power" when level changes (no render, no cascading effects).
-  useEffect(() => {
-    usedPowerInCurrentStageRef.current = null;
-  }, [state.levelId]);
-
-  // Track power consumption during gameplay.
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const onConsume = (e: Event) => {
-      const ce = e as CustomEvent<PowerConsumeDetail>;
-      const detail = ce.detail;
-      if (!detail) return;
-
-      const backendPowerKey = toBackendPowerKey(detail.key);
-      if (!backendPowerKey) return;
-
-      // Store the power that was used (only first used power per stage).
-      if (!usedPowerInCurrentStageRef.current) {
-        usedPowerInCurrentStageRef.current = backendPowerKey;
-      }
-    };
-
-    window.addEventListener(POWER_CONSUME_EVENT, onConsume as EventListener);
-    return () => window.removeEventListener(POWER_CONSUME_EVENT, onConsume as EventListener);
-  }, []);
-
-  useDevHotkeys({
-    enabled: isDev,
-    onToggle: () => {
-      // Toggle DevTools overlay (debugEnabled). When opening, auto-enable match hints.
-      setDebugEnabled((prev) => {
-        const next = !prev;
-        if (next) setShowMatches(true);
-        return next;
-      });
-    },
-  });
-
-  // When DevTools closes, also close the match overlay (keeps UI consistent).
-  useEffect(() => {
-    if (debugEnabled) return;
-    setShowMatches(false);
-  }, [debugEnabled]);
-
   useDevPanelsTopSync({
     enabled: isDev && debugEnabled,
     gridRowRef,
     deps: [state.levelId, state.width, state.height, showLockoutHints],
   });
-
-  const onDevNextTilesPalette = useCallback(() => {
-    cycleTilesetPalette();
-    cycleSpecialTilesetPalette();
-    preloadTiles();
-    preloadSpecialTiles();
-    setTilesVersion((v) => (v + 1) | 0);
-  }, []);
 
   const completeDevWinStage = useCallback(
     async (lvl: number, usedPower: PowerKey | undefined): Promise<{ didReportBackend: boolean }> => {
@@ -168,7 +103,7 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
 
   const runDevWinFlowWithRewardChoice = useCallback(
     (lvl: number) => {
-      const usedPower: PowerKey | undefined = usedPowerInCurrentStageRef.current ?? undefined;
+      const usedPower: PowerKey | undefined = getUsedPower();
 
       void (async () => {
         // 1) Snapshot EXP state before reporting stage completion.
@@ -253,6 +188,7 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
     },
     [
       completeDevWinStage,
+      getUsedPower,
       navigate,
       openLevelUp,
       openMissionReport,
@@ -323,7 +259,7 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
 
     const start = async () => {
       // New stage => reset used power for new stage.
-      usedPowerInCurrentStageRef.current = null;
+      resetUsedPower();
 
       try {
         const result = await apiStartStage(userId, lvl, selectedPowersForNextStage ?? undefined);
@@ -400,7 +336,17 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [allowDevLevelHop, navigate, onDevSetLevel, selectedPowersForNextStage, setPowers, setSelectedPowersForNextStage, state.levelId, userId]);
+  }, [
+    allowDevLevelHop,
+    navigate,
+    onDevSetLevel,
+    resetUsedPower,
+    selectedPowersForNextStage,
+    setPowers,
+    setSelectedPowersForNextStage,
+    state.levelId,
+    userId,
+  ]);
 
   // React to engine outcome phases.
   useEffect(() => {
@@ -447,8 +393,8 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
         showLockoutHints={showLockoutHints}
         showMatches={showMatches}
         matchSwaps={matchSwaps}
-        onToggleShowMatches={() => setShowMatches((v) => !v)}
-        onToggleShowLockoutHints={() => setShowLockoutHints((v) => !v)}
+        onToggleShowMatches={onToggleShowMatches}
+        onToggleShowLockoutHints={onToggleShowLockoutHints}
         onDevResetBoard={onDevResetBoard}
         onDevPrevLevel={onDevPrevLevel}
         onDevNextLevel={onDevNextLevel}
