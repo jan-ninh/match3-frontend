@@ -1,12 +1,15 @@
 // src/pages/GameplayPage.tsx
 // only Composition Root (Layout + Wiring)
 // no "in-game UI"
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
+
 import { useAuth } from '@/context/AuthContext';
 import { apiGetGameStatus } from '@/api/game';
 import { GameFooter } from '@/components';
 import { GameplayHost } from '@/features/gameplay';
+
+const DevtoolsHost = lazy(() => import('@/features/devtools-host/ui/DevtoolsHost'));
 
 const MIN_LEVEL = 1;
 const MAX_LEVEL = 12;
@@ -76,11 +79,19 @@ export default function GameplayPage() {
     return <div className="h-full w-full flex items-center justify-center text-cyan-100/70">Loading stage...</div>;
   }
 
+  const useDevtools = import.meta.env.DEV;
+
   return (
     // Stage-inner layout: [gameplay area][footer], no extra document flow, no scrollbars.
     <div className="h-full w-full overflow-hidden grid grid-rows-[minmax(0,1fr)_auto] gap-0 p-6">
       <div className="min-h-0">
-        <GameplayHost key={effectiveLevel} initialLevelId={effectiveLevel} />
+        {useDevtools ? (
+          <Suspense fallback={<div className="h-full w-full flex items-center justify-center text-cyan-100/70">Loading devtools...</div>}>
+            <DevtoolsHost key={effectiveLevel} initialLevelId={effectiveLevel} />
+          </Suspense>
+        ) : (
+          <GameplayHost key={effectiveLevel} initialLevelId={effectiveLevel} />
+        )}
       </div>
 
       <div className="shrink-0">
