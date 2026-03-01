@@ -1,3 +1,4 @@
+// src/features/devtools-host/ui/DevtoolsHost.tsx
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 
@@ -144,9 +145,10 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
   const userId = user?.id ?? null;
   const { powers, setPowers, selectedPowersForNextStage, setSelectedPowersForNextStage } = usePowers();
 
-  const { isDev, state, inputLocked, canSwapAt, onIntent, onDevResetBoard, onDevFixedSeed, onDevNextLevel, onDevPrevLevel, onDevSetLevel, events } = useMatch3Engine({
-    initialLevelId,
-  });
+  const { isDev, state, inputLocked, canSwapAt, onIntent, onDevResetBoard, onDevFixedSeed, onDevNextLevel, onDevPrevLevel, onDevSetLevel, events } =
+    useMatch3Engine({
+      initialLevelId,
+    });
 
   // DevTools-only: compute match swaps (read-only)
   const matchSwaps = useMemo<readonly PossibleMatchSwap[]>(() => {
@@ -291,7 +293,7 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
 
         const toLevel = hasVerifiedPost ? postMeta.playerLevel : fromLevel + Math.max(0, gained);
         const toExpTotal = hasVerifiedPost ? postMeta.playerExp : fromExpTotal + EXP_WIN_DELTA;
-                const expDelta = Math.max(0, toExpTotal - fromExpTotal);
+        const expDelta = Math.max(0, toExpTotal - fromExpTotal);
 
         // Win-first UX: show Win overlay, then queue PowerChoice (reward selection).
         openWin({ level: lvl, mode: 'continue' });
@@ -509,7 +511,14 @@ export default function DevtoolsHost({ initialLevelId = 1 }: Props) {
 
   return (
     <div className="w-full h-full">
-      <DevPanels enabled={isDev && debugEnabled} events={events} onDevWin={onDevWin} onDevLose={onDevLose} onDevResetProgress={onDevResetProgress} onDevFixedSeed={onDevFixedSeed} />
+      <DevPanels
+        enabled={isDev && debugEnabled}
+        events={events}
+        onDevWin={onDevWin}
+        onDevLose={onDevLose}
+        onDevResetProgress={onDevResetProgress}
+        onDevFixedSeed={onDevFixedSeed}
+      />
 
       <GameContainer
         state={state}

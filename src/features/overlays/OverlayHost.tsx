@@ -5,7 +5,7 @@ import SettingsModal from './SettingsModal';
 import WinOverlay from './WinOverlay';
 import LoseOverlay from './LoseOverlay';
 import QuitConfirmModal from './QuitConfirmModal';
-import PowerChoiceModal from './PowerChoiceModal';
+import PowerChoiceModal from './OverlayMissionReport';
 
 const LoginModal = lazy(() => import('./LoginModal'));
 const RegisterModal = lazy(() => import('./RegisterModal'));

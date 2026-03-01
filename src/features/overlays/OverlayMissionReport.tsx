@@ -1,4 +1,4 @@
-// src/features/overlays/PowerChoiceModal.tsx
+// src/features/overlays/OverlayMissionReport.tsx
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 
@@ -193,8 +193,8 @@ export default function PowerChoiceModal({ open, title, expPreview, onClose, onC
 
   const primaryLabel = hasLevelUp ? 'Level up' : 'Return to Map';
 
-  const modalTitle = screen === 'levelUp' ? 'Level Up' : 'Boosters';
-  const headline = screen === 'levelUp' ? title : 'Boosters';
+  const modalTitle = screen === 'levelUp' ? 'Level Up' : 'Mission Report';
+  const headline = screen === 'levelUp' ? title : 'Mission Report';
 
   return (
     <Modal open={open} onClose={onClose} title={modalTitle} size="md" closeOnBackdrop={false}>

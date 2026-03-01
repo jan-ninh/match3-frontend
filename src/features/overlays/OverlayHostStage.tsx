@@ -6,7 +6,7 @@ import SettingsModal from './SettingsModal';
 import WinOverlay from './WinOverlay';
 import LoseOverlay from './LoseOverlay';
 import QuitConfirmModal from './QuitConfirmModal';
-import PowerChoiceModal from './PowerChoiceModal';
+import PowerChoiceModal from './OverlayMissionReport';
 
 /**
  * Stage-bounded overlays (belong to the game/stage):
