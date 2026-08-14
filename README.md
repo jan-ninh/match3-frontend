@@ -174,3 +174,20 @@ Clone the frontend repository:
 git clone https://github.com/jan-ninh/match3-frontend.git
 cd match3-frontend
 npm install
+```
+
+Create a local `.env` file based on the included `.env.example` and configure the backend URL:
+
+```env
+VITE_API_URL=
+```
+
+Then start the development server:
+
+```bash
+npm run dev
+```
+
+The backend is maintained in a separate repository:
+
+https://github.com/jan-ninh/match3-backend
