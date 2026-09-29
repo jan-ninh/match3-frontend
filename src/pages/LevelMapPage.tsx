@@ -1,3 +1,6 @@
+import { useGuest } from '@/context/GuestContext';
+import { guestStageAccess } from '@/services/guest/guestStore';
+import GuestStatus from '@/components/GuestStatus';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Navbar, LevelGrid, CyberTitle } from '@/components';
@@ -11,6 +14,11 @@ export default function LevelMapPage() {
   const [progress, setProgress] = useState<Progress | null>(null);
 
   const { user } = useAuth();
+  const { save, store } = useGuest();
+  const guestAccess = guestStageAccess(save);
+  const visibleProgress = user
+    ? progress
+    : { completedLevels: save.completedStages, unlockedLevels: guestAccess.playableStages, lastPlayedLevel: save.lastPlayedStage };
 
   const profileToProgress = (profile: UserProfile): Progress => {
     const completedLevels = Object.entries(profile.progress || {})
@@ -34,11 +42,8 @@ export default function LevelMapPage() {
     let disposed = false;
 
     void (async () => {
-      // Guest mode: only stage 1 playable.
-      if (!user?.id) {
-        if (!disposed) setProgress({ unlockedLevels: [1], completedLevels: [], lastPlayedLevel: 1 });
-        return;
-      }
+      // Guest progress is read directly from GuestStore above.
+      if (!user?.id) return;
 
       try {
         const profile = await apiProfile(user.id);
@@ -60,7 +65,7 @@ export default function LevelMapPage() {
     navigate(`/game-map/play-game?level=${level}`);
   };
 
-  if (!progress) return <div className="p-6">Loading levels...</div>;
+  if (!visibleProgress) return <div className="p-6">Loading levels...</div>;
 
   return (
     <>
@@ -69,7 +74,22 @@ export default function LevelMapPage() {
         <CyberTitle size="md" className="text-center">
           Level Map
         </CyberTitle>
-        <LevelGrid progress={progress} onSelect={onSelect} />
+        <GuestStatus />
+        {!user && (
+          <div className="text-center my-4">
+            {guestAccess.campaignComplete && <p>Campaign complete! Optional sandbox 12 is unlocked.</p>}
+            <button
+              type="button"
+              className="border border-cyan-300 rounded px-4 py-2"
+              onClick={() => {
+                if (window.confirm('Start a new guest run? This resets local campaign progress and powers.')) store.reset();
+              }}
+            >
+              New Run / Reset
+            </button>
+          </div>
+        )}
+        <LevelGrid progress={visibleProgress} playableStages={user ? undefined : guestAccess.playableStages} onSelect={onSelect} />
       </div>
     </>
   );

@@ -12,6 +12,9 @@ type AuthContextValue = {
   login: (email: string, password: string) => Promise<UserDTO>;
   register: (email: string, username: string, password: string) => Promise<UserDTO>;
   logout: () => void;
+  playDemo: () => void;
+  resumeAccount: () => void;
+  savedUser: UserDTO | null;
   refreshProfile: () => Promise<UserProfile | null>;
   updateAvatar: (avatar: UserDTO['avatar']) => Promise<void>;
   updatePowers: (powers: Partial<Powers>, operation?: 'set' | 'add') => Promise<void>;
@@ -21,23 +24,38 @@ const USER_STORAGE_KEY = 'user';
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<UserDTO | null>(() => {
+  const [savedUser, setSavedUser] = useState<UserDTO | null>(() => {
     try {
       const raw = localStorage.getItem(USER_STORAGE_KEY);
-      return raw ? (JSON.parse(raw) as UserDTO) : null;
+      const value = raw ? JSON.parse(raw) : null;
+      return value && typeof value.id === 'string' && typeof value.username === 'string' ? (value as UserDTO) : null;
     } catch {
-      localStorage.removeItem(USER_STORAGE_KEY);
       return null;
     }
   });
+  // A stored ID is only a hint. Guest mode is the default until explicit account entry.
+  const [user, setUser] = useState<UserDTO | null>(null);
+  const playDemo = useCallback(() => {
+    setUser(null);
+    setProfile(null);
+  }, []);
+  const resumeAccount = useCallback(() => {
+    setProfile(null);
+    setUser(savedUser);
+  }, [savedUser]);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(false);
 
   // persist minimal safe user
   const persist = useCallback((u: UserDTO | null) => {
-    if (!u) return localStorage.removeItem(USER_STORAGE_KEY);
+    setSavedUser(u);
+    if (!u) return;
     const safe = { id: u.id, username: u.username, avatar: u.avatar ?? null };
-    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(safe));
+    try {
+      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(safe));
+    } catch {
+      /* memory-only account hint */
+    }
   }, []);
 
   const normalizeAndRethrow = (err: any) => {
@@ -103,7 +121,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const logout = useCallback(() => {
     setUser(null);
     setProfile(null);
-    localStorage.removeItem(USER_STORAGE_KEY);
+    setSavedUser(null);
+    try {
+      localStorage.removeItem(USER_STORAGE_KEY);
+    } catch {
+      /* guest remains usable */
+    }
   }, []);
 
   // helpers to update avatar/powers and keep profile in sync
@@ -148,11 +171,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       refreshProfile().catch(() => {});
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // run once on mount
+  }, [user?.id]); // explicit login/resume hydrates the selected account
 
   const value = useMemo(
     () => ({
       user,
+      savedUser,
+      playDemo,
+      resumeAccount,
       profile,
       loading,
       login,
@@ -162,7 +188,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       updateAvatar,
       updatePowers,
     }),
-    [user, profile, loading, login, register, logout, refreshProfile, updateAvatar, updatePowers],
+    [user, savedUser, playDemo, resumeAccount, profile, loading, login, register, logout, refreshProfile, updateAvatar, updatePowers],
   );
 
   return <AuthContext.Provider value={value as AuthContextValue}>{children}</AuthContext.Provider>;

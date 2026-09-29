@@ -17,11 +17,7 @@ import { playSfx } from '@/features/audio';
 import type { PowerKey, Powers } from '@/types';
 import { NeonFooterButton } from '@/components';
 import { MATCH3_LEVEL_CHANGED_EVENT, getRuntimeLevelId, type Match3LevelChangedDetail } from '@/context/levelRuntime';
-import {
-  MATCH3_INPUT_LOCK_CHANGED_EVENT,
-  getRuntimeInputLocked,
-  type Match3InputLockChangedDetail,
-} from '@/context/inputLockRuntime';
+import { MATCH3_INPUT_LOCK_CHANGED_EVENT, getRuntimeInputLocked, type Match3InputLockChangedDetail } from '@/context/inputLockRuntime';
 import { isLaserRowMatch4TrainingStage } from '@/gamelogic/scenarios/policies';
 
 type FooterActionItem = ReturnType<typeof footerActions>[number];
@@ -102,7 +98,6 @@ function allocFooterRequestId(): number {
   w.__match3PowerRequestId = next <= 0 ? 1 : next;
   return cur <= 0 ? 1 : cur;
 }
-
 
 export default function GameFooter() {
   const { powers, setPowers } = usePowers();
@@ -254,6 +249,7 @@ export default function GameFooter() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
+    if (!user) return; // Guest inventory is owned solely by GuestStore/PowerProvider.
     const onGrant = (e: Event) => {
       const ce = e as CustomEvent<PowerGrantDetail>;
       const d = ce.detail;
@@ -291,6 +287,7 @@ export default function GameFooter() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
+    if (!user) return;
     const onConsume = (e: Event) => {
       // LaserRow Match4+ training: usage must not consume inventory.
       if (isInfiniteItemsLevel) return;

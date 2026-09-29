@@ -22,7 +22,7 @@ type NavItem = NavLinkItem | NavActionItem;
 
 export default function Navbar() {
   const { openLogin, openSettings } = useOverlays();
-  const { user, logout } = useAuth();
+  const { user, logout, savedUser, resumeAccount, playDemo } = useAuth();
   const navigate = useNavigate();
 
   const isAuthenticated = !!user;
@@ -31,6 +31,27 @@ export default function Navbar() {
     { kind: 'link', label: 'Home', icon: 'home', to: '/game-map' },
     { kind: 'action', label: 'Settings', icon: 'settings', onClick: openSettings },
   ];
+
+  if (user)
+    baseItems.push({
+      kind: 'action',
+      label: 'Play Demo',
+      icon: 'play',
+      onClick: () => {
+        playDemo();
+        navigate('/game-map');
+      },
+    });
+  else if (savedUser)
+    baseItems.push({
+      kind: 'action',
+      label: 'Resume saved account',
+      icon: 'profile',
+      onClick: () => {
+        resumeAccount();
+        navigate('/game-map');
+      },
+    });
 
   const authItems: NavItem[] = [
     { kind: 'link', label: 'Leaderboard', icon: 'leaderboard', to: '/game-map/leaderboard' },

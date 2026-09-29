@@ -1,3 +1,5 @@
+import { useGuest } from '@/context/GuestContext';
+import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router';
 import Modal from '@/components/Modal';
 import { CyberButton } from '@/components';
@@ -9,9 +11,12 @@ type Props = {
 
 export default function QuitConfirmModal({ open, onClose }: Props) {
   const navigate = useNavigate();
+  const { store } = useGuest();
+  const { user } = useAuth();
 
   const back = () => onClose();
   const quit = () => {
+    if (!user) store.leave();
     onClose();
     navigate('/game-map');
   };

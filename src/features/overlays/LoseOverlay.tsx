@@ -1,4 +1,5 @@
 // src/features/overlays/LoseOverlay.tsx
+import { useAuth } from '@/context/AuthContext';
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router';
 import Modal from '@/components/Modal';
@@ -14,6 +15,7 @@ type Props = {
 
 export default function LoseOverlay({ open, onClose, level: _level = 1 }: Props) {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { playLoseSound } = useAudio(); // ✅ NEW
 
   // ✅ play lose sound exactly once per open
@@ -66,7 +68,9 @@ export default function LoseOverlay({ open, onClose, level: _level = 1 }: Props)
           }}
           transition={{ duration: 0.18, ease: 'easeOut' }}
         >
-          Powers have been reset. Return to the map and try again from Level 1.
+          {user
+            ? 'Powers have been reset. Return to the map and try again from Level 1.'
+            : 'Your completed stages are safe. Return to the map to retry; used powers remain spent.'}
         </motion.div>
 
         <motion.div

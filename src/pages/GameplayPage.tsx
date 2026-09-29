@@ -4,6 +4,9 @@
 import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 
+import { useGuest } from '@/context/GuestContext';
+import GuestStatus from '@/components/GuestStatus';
+import { resolveGuestStage } from '@/services/guest/guestStore';
 import { useAuth } from '@/context/AuthContext';
 import { apiGetGameStatus } from '@/api/game';
 import { GameFooter } from '@/components';
@@ -26,7 +29,7 @@ function readLevelFromSearch(search: string): number {
   return normalizeLevel(n);
 }
 
-export default function GameplayPage() {
+function AccountGameplayPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -79,24 +82,64 @@ export default function GameplayPage() {
     return <div className="h-full w-full flex items-center justify-center text-cyan-100/70">Loading stage...</div>;
   }
 
-  const useDevtools = import.meta.env.DEV;
+  return <StageView level={effectiveLevel} />;
+}
 
+type GuestBinding = { runId: string; attemptId: string; stageId: number };
+function StageView({ level, guestBinding }: { level: number; guestBinding?: GuestBinding }) {
   return (
-    // Stage-inner layout: [gameplay area][footer], no extra document flow, no scrollbars.
     <div className="h-full w-full overflow-hidden grid grid-rows-[minmax(0,1fr)_auto] gap-0 p-6">
       <div className="min-h-0">
-        {useDevtools ? (
-          <Suspense fallback={<div className="h-full w-full flex items-center justify-center text-cyan-100/70">Loading devtools...</div>}>
-            <DevtoolsHost key={effectiveLevel} initialLevelId={effectiveLevel} />
+        {import.meta.env.DEV ? (
+          <Suspense fallback={<div>Loading devtools...</div>}>
+            <DevtoolsHost initialLevelId={level} guestBinding={guestBinding} />
           </Suspense>
         ) : (
-          <GameplayHost key={effectiveLevel} initialLevelId={effectiveLevel} />
+          <GameplayHost initialLevelId={level} guestBinding={guestBinding} />
         )}
       </div>
-
       <div className="shrink-0">
+        <GuestStatus />
         <GameFooter />
       </div>
     </div>
   );
+}
+
+function GuestEntry({ requested }: { requested: number }) {
+  const { save, store, entryId: activeEntry } = useGuest();
+  const navigate = useNavigate();
+  const [entryId] = useState(() => crypto.randomUUID());
+  const [level] = useState(() => resolveGuestStage(store.getSnapshot().save, requested));
+  useEffect(() => {
+    if (requested !== level) {
+      navigate('/game-map/play-game?level=' + level, { replace: true });
+      return;
+    }
+    try {
+      const entered = store.enter(level, entryId);
+      if (!entered) return;
+      return () => store.release(entered.lease);
+    } catch {
+      // A shared save may have advanced between route resolution and entry.
+      navigate('/game-map/play-game?level=' + resolveGuestStage(store.getSnapshot().save, requested), { replace: true });
+    }
+  }, [store, entryId, level, requested, navigate]);
+  const attempt = save.activeAttempt;
+  if (activeEntry !== entryId || !attempt)
+    return (
+      <div>
+        <GuestStatus />
+        Starting local stage...
+      </div>
+    );
+  return <StageView level={level} guestBinding={{ runId: save.runId, attemptId: attempt.attemptId, stageId: level }} />;
+}
+
+export default function GameplayPage() {
+  const { user } = useAuth();
+  const { save } = useGuest();
+  const { search } = useLocation();
+  const requested = readLevelFromSearch(search);
+  return user ? <AccountGameplayPage key={user.id} /> : <GuestEntry key={save.runId + ':' + requested} requested={requested} />;
 }

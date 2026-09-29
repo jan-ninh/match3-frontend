@@ -1,4 +1,5 @@
 // src\pages\GameStartPage.tsx
+import GuestStatus from '@/components/GuestStatus';
 import { useNavigate } from 'react-router';
 import { CyberButton, CyberTitle } from '@/components';
 
@@ -18,6 +19,7 @@ export default function GameStartPage() {
           MATCH-3
         </CyberTitle>
 
+        <GuestStatus />
         <div className="flex flex-col max-w-xl mx-auto gap-3 items-center">
           {menuButtons.map((btn) => (
             <CyberButton key={btn.label} label={btn.label} onClick={btn.onClick} />

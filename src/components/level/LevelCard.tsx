@@ -29,6 +29,7 @@ export default function LevelCard({ level, isCompleted, isFutureLocked, isSelect
   return (
     <MotionButton
       type="button"
+      aria-label={level === 12 ? 'Sandbox 12' : `Stage ${level}`}
       disabled={!isSelectable}
       onClick={handleClick}
       className={`${T.button.base} ${T.shape.clip} ${isSelectable ? T.button.active : T.button.locked}`}

@@ -1,15 +1,9 @@
 // src/services/campaign/useCampaignTracking.ts
 import { useEffect, useRef } from 'react';
+import { useAuth } from '@/context/AuthContext';
 
 import type { EngineEvent, EngineState } from '@/gamelogic/types';
-import {
-  apiCampaignLevelAbort,
-  apiCampaignLevelEnd,
-  apiStartCampaign,
-  type AbortReason,
-  type CampaignId,
-  type Outcome,
-} from '@/api/campaign';
+import { apiCampaignLevelAbort, apiCampaignLevelEnd, apiStartCampaign, type AbortReason, type CampaignId, type Outcome } from '@/api/campaign';
 import { CAMPAIGN_DEBUG_EVENT, type CampaignDebugDetail, type CampaignDebugLastSend } from '@/context/campaignEvents';
 
 type SeenRing = {
@@ -114,6 +108,8 @@ function toMovesUsedRaw(movesTotal: number, movesLeft: number): number {
 }
 
 export function useCampaignTracking({ state }: Args): void {
+  const { user } = useAuth();
+  const enabled = Boolean(user?.id);
   const isDev = import.meta.env.DEV;
 
   const campaignIdRef = useRef<CampaignId | null>(null);
@@ -185,8 +181,8 @@ export function useCampaignTracking({ state }: Args): void {
 
     debugRef.current.phase = state.phase ?? null;
 
-    debugRef.current.movesTotal = typeof state.movesTotal === 'number' ? (state.movesTotal | 0) : null;
-    debugRef.current.movesLeft = typeof state.movesLeft === 'number' ? (state.movesLeft | 0) : null;
+    debugRef.current.movesTotal = typeof state.movesTotal === 'number' ? state.movesTotal | 0 : null;
+    debugRef.current.movesLeft = typeof state.movesLeft === 'number' ? state.movesLeft | 0 : null;
 
     if (debugRef.current.movesTotal != null && debugRef.current.movesLeft != null) {
       debugRef.current.movesUsedRaw = toMovesUsedRaw(debugRef.current.movesTotal, debugRef.current.movesLeft);
@@ -218,6 +214,7 @@ export function useCampaignTracking({ state }: Args): void {
   };
 
   const ensureCampaign = async (): Promise<CampaignId | null> => {
+    if (!enabled) return null;
     const existing = campaignIdRef.current;
     if (existing) return existing;
 
@@ -275,6 +272,7 @@ export function useCampaignTracking({ state }: Args): void {
   };
 
   const reportLevelEnd = async (outcome: Outcome) => {
+    if (!enabled) return;
     const a = ensureAttempt();
     if (reportedAttemptsRef.current.has(a.attemptId)) return;
 
@@ -324,6 +322,7 @@ export function useCampaignTracking({ state }: Args): void {
   };
 
   const reportAbort = async (reason: AbortReason) => {
+    if (!enabled) return;
     const a = attemptRef.current;
     if (!a) return;
     if (reportedAttemptsRef.current.has(a.attemptId)) return;
@@ -372,6 +371,7 @@ export function useCampaignTracking({ state }: Args): void {
 
   // 1) Detect initLevel boundaries → new attemptId
   useEffect(() => {
+    if (!enabled) return;
     const seen = seenInitBoundaryRef.current;
 
     for (const ev of state.events) {
@@ -398,11 +398,12 @@ export function useCampaignTracking({ state }: Args): void {
 
       void ensureCampaign();
     }
-  }, [state.events, state.levelId]);
+  }, [enabled, state.events, state.levelId]);
 
   // 2) Detect terminal phases → levelEnd once (WIN/LOSS)
   const prevPhaseRef = useRef<EngineState['phase'] | null>(null);
   useEffect(() => {
+    if (!enabled) return;
     const prev = prevPhaseRef.current;
     prevPhaseRef.current = state.phase;
 
@@ -417,11 +418,11 @@ export function useCampaignTracking({ state }: Args): void {
 
     const outcome: Outcome = phase === 'win' ? 'WIN' : 'LOSS';
     void reportLevelEnd(outcome);
-  }, [state.phase, state.movesLeft, state.movesTotal]);
+  }, [enabled, state.phase, state.movesLeft, state.movesTotal]);
 
   // 3) Best-effort abort reporting on tab/page hide
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (!enabled || typeof window === 'undefined') return;
 
     const onPageHide = () => {
       void reportAbort('disconnect');
@@ -429,7 +430,7 @@ export function useCampaignTracking({ state }: Args): void {
 
     window.addEventListener('pagehide', onPageHide);
     return () => window.removeEventListener('pagehide', onPageHide);
-  }, []);
+  }, [enabled]);
 
   // 4) Best-effort abort reporting on unmount / route leave
   useEffect(() => {

@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router';
 import './index.css';
 import App from '@/app/App';
+import { GuestProvider } from './context/GuestProvider';
 import { AuthProvider } from './context/AuthContext';
 import { PowerProvider } from './context/PowerProvider';
 import { CyberToaster } from '@/components';
@@ -13,10 +14,12 @@ createRoot(document.getElementById('root')!).render(
     <BrowserRouter>
       <AudioProvider>
         <AuthProvider>
-          <PowerProvider>
-            <App />
-            <CyberToaster position="bottom-center" />
-          </PowerProvider>
+          <GuestProvider>
+            <PowerProvider>
+              <App />
+              <CyberToaster position="bottom-center" />
+            </PowerProvider>
+          </GuestProvider>
         </AuthProvider>
       </AudioProvider>
     </BrowserRouter>
