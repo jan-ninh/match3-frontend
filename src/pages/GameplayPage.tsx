@@ -1,7 +1,13 @@
+import { useRead } from '@/services/network/useRead';
+import { RequestError } from '@/api/transport';
+import ReadFailure from '@/components/ReadFailure';
+import { useAccountOutcome } from '@/context/OutcomeContext';
+import { usePowers } from '@/context/PowerContext';
+import { apiStartStage } from '@/api/game';
 // src/pages/GameplayPage.tsx
 // only Composition Root (Layout + Wiring)
 // no "in-game UI"
-import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
+import { Suspense, lazy, useEffect, useCallback, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 
 import { useGuest } from '@/context/GuestContext';
@@ -32,57 +38,74 @@ function readLevelFromSearch(search: string): number {
 function AccountGameplayPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
-
-  const requestedLevel = useMemo(() => readLevelFromSearch(location.search), [location.search]);
-  const [effectiveLevel, setEffectiveLevel] = useState<number | null>(null);
-
+  const { search } = useLocation();
+  const requested = readLevelFromSearch(search);
+  const load = useCallback(
+    async (signal: AbortSignal) => {
+      const data = await apiGetGameStatus(user!.id, signal);
+      if (!Number.isInteger(data.allowedStage) || data.allowedStage! < 1 || data.allowedStage! > 12) throw new RequestError('protocol');
+      return data;
+    },
+    [user],
+  );
+  const read = useRead(user!.id, load);
+  const level = read.data?.allowedStage;
   useEffect(() => {
-    let disposed = false;
-
-    const applyGuard = async () => {
-      // Guest mode: no backend stage guard available.
-      if (!user?.id) {
-        const guestLevel = MIN_LEVEL;
-        setEffectiveLevel(guestLevel);
-
-        if (requestedLevel !== guestLevel) {
-          navigate(`/game-map/play-game?level=${guestLevel}`, { replace: true });
-        }
-
-        return;
-      }
-
-      try {
-        const status = await apiGetGameStatus(user.id);
-        const allowedStage = normalizeLevel(status?.allowedStage ?? MIN_LEVEL);
-
-        if (disposed) return;
-
-        setEffectiveLevel(allowedStage);
-
-        if (requestedLevel !== allowedStage) {
-          navigate(`/game-map/play-game?level=${allowedStage}`, { replace: true });
-        }
-      } catch {
-        if (disposed) return;
-        // Fallback to requested level if status is temporarily unavailable.
-        setEffectiveLevel(requestedLevel);
-      }
-    };
-
-    void applyGuard();
-
+    if (read.status === 'success' && level !== requested) navigate('/game-map/play-game?level=' + level, { replace: true });
+  }, [read.status, level, requested, navigate]);
+  if (read.status === 'error') return <ReadFailure error={read.error} retry={read.retry} />;
+  if (read.status !== 'success' || level !== requested)
+    return (
+      <div>
+        Loading stage...{' '}
+        <button type="button" onClick={() => navigate('/game-map')}>
+          Back to map
+        </button>
+      </div>
+    );
+  return <AccountStageEntry key={user!.id + ':' + level} level={level!} />;
+}
+function AccountStageEntry({ level }: { level: number }) {
+  const { user } = useAuth();
+  const { store, outcome } = useAccountOutcome();
+  const { setPowers, setSelectedPowersForNextStage } = usePowers();
+  const [allowed] = useState(() => !store.blocked(user!.id));
+  const [id] = useState(() => crypto.randomUUID());
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    let obsolete = false;
+    void Promise.resolve().then(() => {
+      if (obsolete || !user || !allowed) return;
+      store.start({
+        ownerId: user.id,
+        id,
+        stage: level,
+        write: () => apiStartStage(user.id, level),
+        present: () => {},
+        confirmed: () => {
+          if (obsolete) return;
+          const value = store.getSnapshot()?.result as { boosters?: import('@/types').Powers } | undefined;
+          if (value?.boosters) setPowers(value.boosters);
+          setSelectedPowersForNextStage(null);
+          setReady(true);
+        },
+      });
+    });
     return () => {
-      disposed = true;
+      obsolete = true;
     };
-  }, [navigate, requestedLevel, user?.id]);
-
-  if (effectiveLevel === null) {
-    return <div className="h-full w-full flex items-center justify-center text-cyan-100/70">Loading stage...</div>;
-  }
-
-  return <StageView level={effectiveLevel} />;
+  }, [allowed, user, id, level, store, setPowers, setSelectedPowersForNextStage]);
+  if (!allowed) return <ReadFailure title="Account save unresolved. Use Demo or check your account later." />;
+  if (ready) return <StageView level={level} />;
+  if (outcome?.id !== id || outcome.status === 'saving')
+    return (
+      <div>
+        Preparing account stage... <ReadFailure title="Account preparation" />
+      </div>
+    );
+  if (outcome.status !== 'saved')
+    return <ReadFailure title={outcome.status === 'unconfirmed' ? 'Account stage start unconfirmed' : 'Account stage start not accepted'} retry={() => {}} />;
+  return <StageView level={level} />;
 }
 
 type GuestBinding = { runId: string; attemptId: string; stageId: number };

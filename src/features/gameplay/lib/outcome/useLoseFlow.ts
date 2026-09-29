@@ -1,53 +1,26 @@
-// src/features/gameplay/lib/outcome/useLoseFlow.ts
-// src/features/gameplay/lib/outcome/useLoseFlow.ts
-import { useCallback } from 'react';
-
+import { useCallback, useState } from 'react';
 import { apiLoseGame } from '@/api/game';
-import { resetProgress } from '@/services/progress/progressActions';
-import type { Powers } from '@/types';
-
-type OpenLoseFn = (lvl: number) => void;
-
-function extractPowersFromLoseResponse(res: unknown): Powers | null {
-  if (!res || typeof res !== 'object') return null;
-  const rec = res as Record<string, unknown>;
-  const powers = rec.powers;
-  if (!powers || typeof powers !== 'object') return null;
-  return powers as Powers;
-}
-
-export function useLoseFlow(args: {
-  userId: string | null;
-  setPowers: (powers: Powers) => void;
-  setSelectedPowersForNextStage: (v: Partial<Powers> | null) => void;
-  onDevSetLevel: (lvl: number) => void;
-  openLose: OpenLoseFn;
-}): { runLoseFlow: (lvl: number) => Promise<void> } {
+import { useAccountOutcome } from '@/context/OutcomeContext';
+import { useAuth } from '@/context/AuthContext';
+export function useLoseFlow(args: { userId: string | null; openLose: (stage: number) => void }) {
+  const { store } = useAccountOutcome();
+  const { refreshProfile } = useAuth();
+  const [id] = useState(() => crypto.randomUUID());
   const runLoseFlow = useCallback(
-    async (lvl: number) => {
-      if (args.userId) {
-        try {
-          const result = await apiLoseGame(args.userId);
-          const nextPowers = extractPowersFromLoseResponse(result);
-          if (nextPowers) args.setPowers(nextPowers);
-        } catch (err) {
-          console.error(`Failed to report dev lose for ${lvl}:`, err);
-        }
-      }
-
-      // Local progress is also reset (map cache).
-      try {
-        await resetProgress();
-      } catch {
-        // ignore local progress errors
-      }
-
-      args.setSelectedPowersForNextStage(null);
-      args.onDevSetLevel(1);
-      args.openLose(lvl);
+    async (stage: number) => {
+      if (!args.userId) return;
+      store.start({
+        ownerId: args.userId,
+        id,
+        stage,
+        write: () => apiLoseGame(args.userId!),
+        present: () => args.openLose(stage),
+        confirmed: () => {
+          void refreshProfile();
+        },
+      });
     },
-    [args],
+    [args, store, id, refreshProfile],
   );
-
   return { runLoseFlow };
 }

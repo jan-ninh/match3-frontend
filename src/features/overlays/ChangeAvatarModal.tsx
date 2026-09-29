@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Modal, AvatarSprite, CyberButton } from '@/components';
 import { PICKABLE_AVATARS, type AvatarKey } from '@/assets/avatarsFrames';
+import { persistenceFailure } from '@/services/account/outcomeStore';
 import { apiUpdateAvatar } from '@/api/user';
 import { motion } from 'framer-motion';
 
@@ -19,7 +20,7 @@ export default function ChangeAvatarModal({ open, onClose, userId, currentAvatar
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const canSave = !!selected && selected !== initial && selected !== 'default.png' && !saving;
+  const canSave = !!selected && selected !== initial && selected !== 'default.png' && !saving && !error;
 
   const handleSave = async () => {
     if (!canSave || !selected) return;
@@ -31,7 +32,7 @@ export default function ChangeAvatarModal({ open, onClose, userId, currentAvatar
       await onUpdated?.(selected);
       onClose();
     } catch (e) {
-      setError('Failed to update avatar. Please try again.');
+      setError(persistenceFailure(e) === 'unconfirmed' ? 'Save unconfirmed. Check your profile before sending another change.' : 'Not accepted.');
     } finally {
       setSaving(false);
     }
@@ -83,7 +84,7 @@ export default function ChangeAvatarModal({ open, onClose, userId, currentAvatar
         {error ? <div className="mt-3 text-sm text-red-400">{error}</div> : null}
 
         <div className="mt-5 flex items-center justify-center ">
-          <CyberButton type="button" onClick={onClose} disabled={saving} label="Cancel" size="sm" />
+          <CyberButton type="button" onClick={onClose} label="Cancel" size="sm" />
           <CyberButton type="button" onClick={handleSave} size="sm" disabled={!canSave} label={saving ? 'Saving…' : 'Save'} />
         </div>
       </div>

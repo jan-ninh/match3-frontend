@@ -1,3 +1,4 @@
+import AccountPersistenceStatus from '@/components/AccountPersistenceStatus';
 // src/features/overlays/LoseOverlay.tsx
 import { useAuth } from '@/context/AuthContext';
 import { useEffect, useRef } from 'react';
@@ -69,10 +70,11 @@ export default function LoseOverlay({ open, onClose, level: _level = 1 }: Props)
           transition={{ duration: 0.18, ease: 'easeOut' }}
         >
           {user
-            ? 'Powers have been reset. Return to the map and try again from Level 1.'
+            ? 'Your game ended. Account changes depend on the save status below.'
             : 'Your completed stages are safe. Return to the map to retry; used powers remain spent.'}
         </motion.div>
 
+        <AccountPersistenceStatus />
         <motion.div
           className="h-0.5 w-64 rounded-full bg-pink-500/50"
           variants={{

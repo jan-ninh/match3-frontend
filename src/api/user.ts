@@ -2,9 +2,10 @@
 import { request } from './http';
 import type { UserProfile, Powers } from '@/types';
 
-export async function apiProfile(id: string): Promise<UserProfile> {
+export async function apiProfile(id: string, signal?: AbortSignal): Promise<UserProfile> {
   return request(`/api/user/profile/${id}`, {
     method: 'GET',
+    signal,
   });
 }
 

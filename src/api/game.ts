@@ -63,8 +63,9 @@ export async function apiAbandonGame(userId: string, usedPower?: PowerKey) {
 /**
  * Get current game status (powers, progress, hearts, etc.)
  */
-export async function apiGetGameStatus(userId: string) {
+export async function apiGetGameStatus(userId: string, signal?: AbortSignal) {
   return request<GameStatus>(`/api/game/${userId}/status`, {
     method: 'GET',
+    signal,
   });
 }

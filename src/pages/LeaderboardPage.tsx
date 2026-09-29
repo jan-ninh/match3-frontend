@@ -1,5 +1,7 @@
+import { useRead } from '@/services/network/useRead';
+import ReadFailure from '@/components/ReadFailure';
 // src/pages/LeaderboardPage.tsx
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import { CyberButton, GlassSection, Navbar, PodiumCard, RankRow, YourPositionCard } from '@/components';
 import type { User } from '@/types';
@@ -8,38 +10,12 @@ import { useAuth } from '@/context/AuthContext';
 
 export default function LeaderboardPage() {
   const navigate = useNavigate();
-  const { user, profile, refreshProfile } = useAuth();
-  const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let isMounted = true;
-    apiLeaderboardTop10()
-      .then((items) => {
-        if (!isMounted) return;
-        setUsers(items);
-      })
-      .catch((err: unknown) => {
-        if (!isMounted) return;
-        const message = err instanceof Error ? err.message : 'Failed to load leaderboard';
-        setError(message);
-      })
-      .finally(() => {
-        if (!isMounted) return;
-        setLoading(false);
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!user?.id) return;
-    if (profile) return;
-    void refreshProfile().catch(() => {});
-  }, [profile, refreshProfile, user?.id]);
+  const { user, profile } = useAuth();
+  const load = useCallback((signal: AbortSignal) => apiLeaderboardTop10(signal), []);
+  const read = useRead('leaderboard', load);
+  const users = useMemo<User[]>(() => read.data ?? [], [read.data]);
+  const loading = read.status === 'loading';
+  const error = read.error;
 
   const currentUserId = user?.id;
 
@@ -81,7 +57,7 @@ export default function LeaderboardPage() {
       <div className="shrink-0">
         <GlassSection className="text-center max-w-xl mx-auto mb-4 w-full">
           {loading && <div className="text-center text-gray-500 py-8">Loading leaderboard...</div>}
-          {!loading && error && <div className="text-center text-red-600 py-8">{error}</div>}
+          {!loading && error && <ReadFailure error={error} retry={read.retry} title="Leaderboard unavailable" />}
 
           {!loading && !error && (
             <div className="flex justify-center items-end  flex-wrap sm:flex-nowrap gap-4">

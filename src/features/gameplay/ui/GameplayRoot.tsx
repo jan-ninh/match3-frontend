@@ -9,11 +9,9 @@ import type { InputIntent } from '@/features/grid';
 import { useGuest } from '@/context/GuestContext';
 import { resolveGuestStage } from '@/services/guest/guestStore';
 import { useAuth } from '@/context/AuthContext';
-import { usePowers } from '@/context/PowerContext';
 import { useOverlays } from '@/features/overlays';
 
 import { useMatch3Engine } from '@/features/gameplay/lib/useMatch3Engine';
-import { useStageStartSync } from '@/features/gameplay/lib/backend/useStageStartSync';
 import { useLoseFlow } from '@/features/gameplay/lib/outcome/useLoseFlow';
 import { useOutcomeReactions } from '@/features/gameplay/lib/outcome/useOutcomeReactions';
 import { useWinFlow } from '@/features/gameplay/lib/outcome/useWinFlow';
@@ -59,57 +57,23 @@ type Props = {
   children: ReactNode;
 };
 
-export function GameplayRoot({ initialLevelId = 1, allowDevLevelHop = false, guestBinding, children }: Props) {
+export function GameplayRoot({ initialLevelId = 1, guestBinding, children }: Props) {
   const navigate = useNavigate();
   const { store } = useGuest();
 
-  const { openWin, openLose, openMissionReport, openLevelUp } = useOverlays();
-  const { user, profile, refreshProfile, updatePowers } = useAuth();
+  const { openWin, openLose } = useOverlays();
+  const { user } = useAuth();
   const userId = user?.id ?? null;
-
-  const { powers, setPowers, selectedPowersForNextStage, setSelectedPowersForNextStage } = usePowers();
 
   const { isDev, state, inputLocked, canSwapAt, onIntent, onDevResetBoard, onDevFixedSeed, onDevNextLevel, onDevPrevLevel, onDevSetLevel } = useMatch3Engine({
     initialLevelId,
     guestBinding,
   });
 
-  const { getUsedPower, resetUsedPower } = useUsedPowerTracker({ levelId: state.levelId });
+  const { getUsedPower } = useUsedPowerTracker({ levelId: state.levelId });
 
-  useStageStartSync({
-    userId,
-    levelId: state.levelId,
-    selectedPowersForNextStage,
-    allowDevLevelHop,
-    navigate: (to, opts) => navigate(to, opts),
-    onDevSetLevel,
-    setPowers,
-    setSelectedPowersForNextStage,
-    resetUsedPower,
-  });
-
-  const { runWinFlow } = useWinFlow({
-    userId,
-    profile,
-    refreshProfile,
-    updatePowers,
-    powers,
-    setPowers,
-    setSelectedPowersForNextStage,
-    getUsedPower,
-    openWin,
-    openMissionReport,
-    openLevelUp,
-    navigate: (to) => navigate(to),
-  });
-
-  const { runLoseFlow } = useLoseFlow({
-    userId,
-    setPowers,
-    setSelectedPowersForNextStage,
-    onDevSetLevel,
-    openLose,
-  });
+  const { runWinFlow } = useWinFlow({ userId, getUsedPower, openWin });
+  const { runLoseFlow } = useLoseFlow({ userId, openLose });
 
   const { onDevWin, onDevLose } = useOutcomeReactions({
     levelId: state.levelId,

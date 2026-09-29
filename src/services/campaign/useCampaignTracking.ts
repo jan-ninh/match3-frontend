@@ -111,6 +111,7 @@ export function useCampaignTracking({ state }: Args): void {
   const { user } = useAuth();
   const enabled = Boolean(user?.id);
   const isDev = import.meta.env.DEV;
+  const startAttemptedRef = useRef(false);
 
   const campaignIdRef = useRef<CampaignId | null>(null);
   const startInFlightRef = useRef<Promise<CampaignId | null> | null>(null);
@@ -220,12 +221,15 @@ export function useCampaignTracking({ state }: Args): void {
 
     const inflight = startInFlightRef.current;
     if (inflight) return inflight;
+    if (startAttemptedRef.current) return null;
+    startAttemptedRef.current = true;
 
     const p = (async (): Promise<CampaignId | null> => {
       try {
         setLastSend({ kind: 'campaignStart', ok: true, atMs: nowMsUnix(), message: 'starting' });
 
         const res = await apiStartCampaign({
+          ACCOUNT_ID: user?.id,
           PLATFORM: metaRef.current.PLATFORM,
           CLIENT_VERSION: metaRef.current.CLIENT_VERSION,
           CLIENT_TIMESTAMP_MS: nowMsUnix(),

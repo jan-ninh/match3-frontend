@@ -1,3 +1,4 @@
+import AccountPersistenceStatus from '@/components/AccountPersistenceStatus';
 // src/features/overlays/WinOverlay.tsx
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -107,6 +108,7 @@ export default function WinOverlay({ open, onClose, level, mode = 'returnToMap' 
             </motion.div>
           )}
 
+          <AccountPersistenceStatus />
           {/* Reward icon with pulse */}
           <motion.div
             className="text-6xl drop-shadow-[0_0_18px_rgba(34,211,238,0.25)]"

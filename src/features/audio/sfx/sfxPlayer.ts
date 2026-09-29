@@ -1,3 +1,4 @@
+import { resourceRequest } from '@/api/http';
 // src\features\audio\sfx\sfxPlayer.ts
 import { addAudioUnlockSubscriber, ensureAudioUnlocked, getAudioContext, primeAudioOutput, resumeAudioContextIfNeeded } from '../core/audioContext';
 import { CORE_SFX, SFX_URLS, type SfxId } from './sfxManifest';
@@ -126,7 +127,7 @@ async function tryFetchDecode(url: string): Promise<AudioBuffer | null> {
   if (!ctx) return null;
 
   try {
-    const res = await fetch(url);
+    const res = await resourceRequest<Response>(url, { skipJson: true, retryRead: false });
     if (!res.ok) return null;
 
     const ab = await res.arrayBuffer();
@@ -340,7 +341,6 @@ export function playSfx(id: SfxId, opts?: PlaySfxOptions): void {
   void preloadSfx(id);
 }
 
-
 // -----------------------------
 // URL-based SFX helpers (advanced / opt-in)
 // -----------------------------
@@ -419,7 +419,6 @@ export function playSfxUrl(url: string, opts?: PlaySfxOptions, tuneLikeId?: SfxI
   void preloadSfxUrl(key);
 }
 
-
 /**
  * Prefetch CORE_SFX audio files (network/cache only, no WebAudio decode).
  * Safe before user gestures / AudioContext resume policies.
@@ -431,7 +430,7 @@ const prefetchLoadingCache = new Map<SfxId, Promise<Prefetched | null>>();
 
 async function tryFetchArrayBuffer(url: string): Promise<ArrayBuffer | null> {
   try {
-    const res = await fetch(url);
+    const res = await resourceRequest<Response>(url, { skipJson: true, retryRead: false });
     if (!res.ok) return null;
     return await res.arrayBuffer();
   } catch {

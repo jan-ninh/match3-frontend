@@ -1,7 +1,11 @@
+import { useRead } from '@/services/network/useRead';
+import ReadFailure from '@/components/ReadFailure';
+import AccountPersistenceStatus from '@/components/AccountPersistenceStatus';
+import { useAccountOutcome } from '@/context/OutcomeContext';
 import { useGuest } from '@/context/GuestContext';
 import { guestStageAccess } from '@/services/guest/guestStore';
 import GuestStatus from '@/components/GuestStatus';
-import { useEffect, useState } from 'react';
+import { useCallback } from 'react';
 import { useNavigate } from 'react-router';
 import { Navbar, LevelGrid, CyberTitle } from '@/components';
 import type { LevelId, Progress } from '@/services/progress/ProgressStore';
@@ -11,14 +15,10 @@ import type { UserProfile } from '@/types';
 
 export default function LevelMapPage() {
   const navigate = useNavigate();
-  const [progress, setProgress] = useState<Progress | null>(null);
 
   const { user } = useAuth();
   const { save, store } = useGuest();
   const guestAccess = guestStageAccess(save);
-  const visibleProgress = user
-    ? progress
-    : { completedLevels: save.completedStages, unlockedLevels: guestAccess.playableStages, lastPlayedLevel: save.lastPlayedStage };
 
   const profileToProgress = (profile: UserProfile): Progress => {
     const completedLevels = Object.entries(profile.progress || {})
@@ -38,34 +38,33 @@ export default function LevelMapPage() {
     };
   };
 
-  useEffect(() => {
-    let disposed = false;
-
-    void (async () => {
-      // Guest progress is read directly from GuestStore above.
-      if (!user?.id) return;
-
-      try {
-        const profile = await apiProfile(user.id);
-        if (disposed) return;
-        setProgress(profileToProgress(profile));
-      } catch {
-        if (disposed) return;
-        // Do not trust local client progress for authenticated users.
-        setProgress({ unlockedLevels: [1], completedLevels: [], lastPlayedLevel: 1 });
-      }
-    })();
-
-    return () => {
-      disposed = true;
-    };
-  }, [user?.id]);
+  const load = useCallback((signal: AbortSignal) => (user ? apiProfile(user.id, signal) : Promise.resolve(null)), [user]);
+  const read = useRead(user?.id ?? 'demo', load);
+  const { store: outcomeStore } = useAccountOutcome();
+  const visibleProgress = user
+    ? read.status === 'success' && read.data
+      ? profileToProgress(read.data)
+      : null
+    : { completedLevels: save.completedStages, unlockedLevels: guestAccess.playableStages, lastPlayedLevel: save.lastPlayedStage };
 
   const onSelect = (level: LevelId) => {
     navigate(`/game-map/play-game?level=${level}`);
   };
 
-  if (!visibleProgress) return <div className="p-6">Loading levels...</div>;
+  if (user && read.status === 'error')
+    return (
+      <>
+        <Navbar />
+        <ReadFailure error={read.error} retry={read.retry} />
+      </>
+    );
+  if (!visibleProgress)
+    return (
+      <>
+        <Navbar />
+        <div className="p-6">Loading account progress...</div>
+      </>
+    );
 
   return (
     <>
@@ -75,6 +74,7 @@ export default function LevelMapPage() {
           Level Map
         </CyberTitle>
         <GuestStatus />
+        <AccountPersistenceStatus />
         {!user && (
           <div className="text-center my-4">
             {guestAccess.campaignComplete && <p>Campaign complete! Optional sandbox 12 is unlocked.</p>}
@@ -89,7 +89,11 @@ export default function LevelMapPage() {
             </button>
           </div>
         )}
-        <LevelGrid progress={visibleProgress} playableStages={user ? undefined : guestAccess.playableStages} onSelect={onSelect} />
+        <LevelGrid
+          progress={visibleProgress}
+          playableStages={user ? (outcomeStore.blocked(user.id) ? [] : undefined) : guestAccess.playableStages}
+          onSelect={onSelect}
+        />
       </div>
     </>
   );

@@ -153,16 +153,18 @@ export default function GameFooter() {
   useEffect(() => {
     if (!user?.id) return;
 
+    const controller = new AbortController();
     (async () => {
       try {
-        const status = await apiGetGameStatus(user.id);
-        if (status?.powers) {
+        const status = await apiGetGameStatus(user.id, controller.signal);
+        if (!controller.signal.aborted && status?.powers) {
           setPowers(status.powers);
         }
       } catch (err) {
         console.error('Failed to load game status:', err);
       }
     })();
+    return () => controller.abort();
   }, [user?.id, setPowers]);
 
   const emitArmPower = useCallback((key: TargetingKey, armed: boolean) => {

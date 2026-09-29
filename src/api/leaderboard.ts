@@ -12,8 +12,8 @@ type Top10Response = {
   top10: LeaderboardEntryDTO[];
 };
 
-export async function apiLeaderboardTop10(): Promise<User[]> {
-  const data = await request<Top10Response>('/api/leaderboard/top10', { method: 'GET' });
+export async function apiLeaderboardTop10(signal?: AbortSignal): Promise<User[]> {
+  const data = await request<Top10Response>('/api/leaderboard/top10', { method: 'GET', signal });
   const list = Array.isArray(data.top10) ? data.top10 : [];
 
   return list.map((entry) => ({

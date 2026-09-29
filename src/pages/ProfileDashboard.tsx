@@ -1,8 +1,11 @@
+import { useRead } from '@/services/network/useRead';
+import ReadFailure from '@/components/ReadFailure';
+import { apiProfile } from '@/api/user';
 import { AvatarSprite, BadgeGrid, ProfileHeader, ProgressBar, StatsGrid, Navbar, CyberButton, GlassSection } from '@/components';
 import badges from '@/data/badges';
 import { useNavigate } from 'react-router';
 import { useAuth } from '@/context/AuthContext';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 import ChangeAvatarModal from '@/features/overlays/ChangeAvatarModal';
 
@@ -10,34 +13,13 @@ const EXP_PER_LEVEL = 3000;
 
 export default function ProfileDashboard() {
   const navigate = useNavigate();
-  const { user, profile, refreshProfile } = useAuth();
+  const { user, refreshProfile } = useAuth();
 
   const [avatarModalOpen, setAvatarModalOpen] = useState(false);
 
-  // Refresh profile on mount and when visibility/focus changes
-  useEffect(() => {
-    const refresh = () => {
-      void refreshProfile().catch(() => {});
-    };
-
-    // Initial refresh on mount
-    refresh();
-
-    // Refresh when window regains focus
-    const onFocus = () => refresh();
-    window.addEventListener('focus', onFocus);
-
-    // Refresh when tab becomes visible
-    const onVisibility = () => {
-      if (!document.hidden) refresh();
-    };
-    document.addEventListener('visibilitychange', onVisibility);
-
-    return () => {
-      window.removeEventListener('focus', onFocus);
-      document.removeEventListener('visibilitychange', onVisibility);
-    };
-  }, [refreshProfile]);
+  const load = useCallback((signal: AbortSignal) => (user ? apiProfile(user.id, signal) : Promise.resolve(null)), [user]);
+  const read = useRead(user?.id ?? 'demo', load);
+  const profile = read.status === 'success' ? read.data : null;
 
   const safeTotalScore = useMemo(() => {
     const raw = profile?.totalScore ?? user?.totalScore ?? 0;
@@ -98,6 +80,20 @@ export default function ProfileDashboard() {
     }));
   }, [profile]);
 
+  if (!user)
+    return (
+      <>
+        <Navbar />
+        <p className="text-center p-6">Account stats require account sign-in. Demo progress stays on this device.</p>
+      </>
+    );
+  if (read.status === 'error')
+    return (
+      <>
+        <Navbar />
+        <ReadFailure error={read.error} retry={read.retry} />
+      </>
+    );
   if (!profile) {
     return (
       <>
@@ -146,14 +142,7 @@ export default function ProfileDashboard() {
       </div>
 
       <div className="shrink-0 px-6 mt-4 pb-10 flex justify-center">
-        <CyberButton
-          key={'Back'}
-          label={'Back'}
-          onClick={async () => {
-            await refreshProfile();
-            navigate('/game-map');
-          }}
-        />
+        <CyberButton key={'Back'} label={'Back'} onClick={() => navigate('/game-map')} />
       </div>
 
       <ChangeAvatarModal
@@ -164,6 +153,7 @@ export default function ProfileDashboard() {
         onUpdated={async (newAvatar) => {
           void newAvatar;
           await refreshProfile().catch(() => {});
+          read.retry();
         }}
       />
     </div>
