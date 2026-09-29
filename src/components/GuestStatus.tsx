@@ -2,9 +2,9 @@ import { useAuth } from '@/context/AuthContext';
 import { useGuest } from '@/context/GuestContext';
 
 export default function GuestStatus() {
-  const { user } = useAuth();
+  const { mode } = useAuth();
   const { persistence, recovered, conflict } = useGuest();
-  if (user) return null;
+  if (mode !== 'demo') return null;
   return (
     <p role="status" className="text-center text-sm text-cyan-100/70">
       Demo · {persistence === 'device' ? 'saved on this device' : 'this visit only'}

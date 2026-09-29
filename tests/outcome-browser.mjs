@@ -59,13 +59,13 @@ try {
     await page.getByText(outcome === 'WIN' ? 'You Won!' : 'Game Over', { exact: true }).waitFor({ timeout: 3000 });
     assert.ok(Date.now() - start < 3000);
     await page.getByText('Saving', { exact: true }).waitFor();
-    await page.getByText('Save unconfirmed', { exact: true }).waitFor({ timeout: 10000 });
+    await page.getByText('Save unconfirmed', { exact: true }).first().waitFor({ timeout: 10000 });
     assert.equal(writes.length, 1);
     await page
       .getByRole('button', { name: /Return to map/i })
       .last()
       .click();
-    await page.getByText('Save unconfirmed', { exact: true }).waitFor();
+    await page.getByText('Save unconfirmed', { exact: true }).first().waitFor();
     assert.equal(await page.getByRole('button', { name: 'Stage 1', exact: true }).isEnabled(), false);
     await page.getByRole('button', { name: 'Play Demo', exact: true }).first().click();
     await page.getByRole('button', { name: 'Stage 1', exact: true }).waitFor();

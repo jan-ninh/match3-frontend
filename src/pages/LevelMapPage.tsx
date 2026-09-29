@@ -1,22 +1,19 @@
-import { useRead } from '@/services/network/useRead';
-import ReadFailure from '@/components/ReadFailure';
+import AccountAvailability from '@/components/AccountAvailability';
 import AccountPersistenceStatus from '@/components/AccountPersistenceStatus';
 import { useAccountOutcome } from '@/context/OutcomeContext';
 import { useGuest } from '@/context/GuestContext';
 import { guestStageAccess } from '@/services/guest/guestStore';
 import GuestStatus from '@/components/GuestStatus';
-import { useCallback } from 'react';
 import { useNavigate } from 'react-router';
 import { Navbar, LevelGrid, CyberTitle } from '@/components';
 import type { LevelId, Progress } from '@/services/progress/ProgressStore';
-import { apiProfile } from '@/api/user';
 import { useAuth } from '@/context/AuthContext';
 import type { UserProfile } from '@/types';
 
 export default function LevelMapPage() {
   const navigate = useNavigate();
 
-  const { user } = useAuth();
+  const { user, mode, canUseAccount, profile, profileRequest } = useAuth();
   const { save, store } = useGuest();
   const guestAccess = guestStageAccess(save);
 
@@ -38,12 +35,10 @@ export default function LevelMapPage() {
     };
   };
 
-  const load = useCallback((signal: AbortSignal) => (user ? apiProfile(user.id, signal) : Promise.resolve(null)), [user]);
-  const read = useRead(user?.id ?? 'demo', load);
   const { store: outcomeStore } = useAccountOutcome();
   const visibleProgress = user
-    ? read.status === 'success' && read.data
-      ? profileToProgress(read.data)
+    ? canUseAccount && profile
+      ? profileToProgress(profile)
       : null
     : { completedLevels: save.completedStages, unlockedLevels: guestAccess.playableStages, lastPlayedLevel: save.lastPlayedStage };
 
@@ -51,18 +46,18 @@ export default function LevelMapPage() {
     navigate(`/game-map/play-game?level=${level}`);
   };
 
-  if (user && read.status === 'error')
+  if (mode === 'legacy-account' && !canUseAccount)
     return (
       <>
         <Navbar />
-        <ReadFailure error={read.error} retry={read.retry} />
+        <AccountAvailability />
       </>
     );
   if (!visibleProgress)
     return (
       <>
         <Navbar />
-        <div className="p-6">Loading account progress...</div>
+        <AccountAvailability />
       </>
     );
 
@@ -75,6 +70,9 @@ export default function LevelMapPage() {
         </CyberTitle>
         <GuestStatus />
         <AccountPersistenceStatus />
+        {mode === 'legacy-account' && profileRequest === 'loading' && (
+          <p className="text-center">Updating account data · last confirmed values are read-only.</p>
+        )}
         {!user && (
           <div className="text-center my-4">
             {guestAccess.campaignComplete && <p>Campaign complete! Optional sandbox 12 is unlocked.</p>}
@@ -91,7 +89,7 @@ export default function LevelMapPage() {
         )}
         <LevelGrid
           progress={visibleProgress}
-          playableStages={user ? (outcomeStore.blocked(user.id) ? [] : undefined) : guestAccess.playableStages}
+          playableStages={user ? (outcomeStore.blocked(user.id) || profileRequest === 'loading' ? [] : undefined) : guestAccess.playableStages}
           onSelect={onSelect}
         />
       </div>

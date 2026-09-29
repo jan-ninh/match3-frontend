@@ -108,8 +108,8 @@ function toMovesUsedRaw(movesTotal: number, movesLeft: number): number {
 }
 
 export function useCampaignTracking({ state }: Args): void {
-  const { user } = useAuth();
-  const enabled = Boolean(user?.id);
+  const { user, mode, canUseAccount, generation, isCurrent } = useAuth();
+  const enabled = mode === 'legacy-account' && canUseAccount && Boolean(user?.id);
   const isDev = import.meta.env.DEV;
   const startAttemptedRef = useRef(false);
 
@@ -215,7 +215,7 @@ export function useCampaignTracking({ state }: Args): void {
   };
 
   const ensureCampaign = async (): Promise<CampaignId | null> => {
-    if (!enabled) return null;
+    if (!enabled || !isCurrent(generation, user?.id)) return null;
     const existing = campaignIdRef.current;
     if (existing) return existing;
 
@@ -235,6 +235,7 @@ export function useCampaignTracking({ state }: Args): void {
           CLIENT_TIMESTAMP_MS: nowMsUnix(),
         });
 
+        if (!isCurrent(generation, user?.id)) return null;
         campaignIdRef.current = res.CAMPAIGN_ID;
         startInFlightRef.current = null;
 
@@ -276,7 +277,7 @@ export function useCampaignTracking({ state }: Args): void {
   };
 
   const reportLevelEnd = async (outcome: Outcome) => {
-    if (!enabled) return;
+    if (!enabled || !isCurrent(generation, user?.id)) return;
     const a = ensureAttempt();
     if (reportedAttemptsRef.current.has(a.attemptId)) return;
 

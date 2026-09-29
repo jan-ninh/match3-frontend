@@ -2,6 +2,7 @@ import { RequestError } from '../../api/transport.ts';
 export type PersistenceState = 'saving' | 'saved' | 'unconfirmed' | 'not-accepted';
 export type AccountOutcome = {
   ownerId: string;
+  generation?: number;
   id: string;
   stage: number;
   status: PersistenceState;
@@ -33,6 +34,7 @@ export class OutcomeStore {
   }
   start(input: {
     ownerId: string;
+    generation?: number;
     id: string;
     stage: number;
     rewardFromLevel?: number;
@@ -41,7 +43,14 @@ export class OutcomeStore {
     confirmed?: () => void;
   }) {
     if (this.snapshot?.id === input.id || this.blocked(input.ownerId)) return;
-    const outcome: AccountOutcome = { ownerId: input.ownerId, id: input.id, stage: input.stage, rewardFromLevel: input.rewardFromLevel, status: 'saving' };
+    const outcome: AccountOutcome = {
+      ownerId: input.ownerId,
+      generation: input.generation,
+      id: input.id,
+      stage: input.stage,
+      rewardFromLevel: input.rewardFromLevel,
+      status: 'saving',
+    };
     this.publish(outcome);
     input.present(); // Engine result is presented before any remote work.
     void input.write().then(

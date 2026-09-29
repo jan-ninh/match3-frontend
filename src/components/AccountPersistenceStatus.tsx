@@ -5,10 +5,16 @@ import { useOverlays } from '@/features/overlays';
 import { canonicalGuestPower } from '@/services/guest/guestStore';
 export default function AccountPersistenceStatus() {
   const navigate = useNavigate();
-  const { user, updatePowers, playDemo } = useAuth();
+  const { user, updatePowers, playDemo, generation } = useAuth();
   const { outcome, store } = useAccountOutcome();
   const { openLevelUp, close } = useOverlays();
   if (!user || outcome?.ownerId !== user.id) return null;
+  if (outcome.generation !== generation)
+    return store.blocked(user.id) ? (
+      <p role="status" className="text-center">
+        A previous account save is unresolved. Play Demo or check your account later.
+      </p>
+    ) : null;
   const result = outcome.result as { playerLevel?: number; playerExp?: number } | undefined;
   const reward =
     outcome.status === 'saved' &&

@@ -1,11 +1,9 @@
-import { useRead } from '@/services/network/useRead';
-import ReadFailure from '@/components/ReadFailure';
-import { apiProfile } from '@/api/user';
+import AccountAvailability from '@/components/AccountAvailability';
 import { AvatarSprite, BadgeGrid, ProfileHeader, ProgressBar, StatsGrid, Navbar, CyberButton, GlassSection } from '@/components';
 import badges from '@/data/badges';
 import { useNavigate } from 'react-router';
 import { useAuth } from '@/context/AuthContext';
-import { useCallback, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import ChangeAvatarModal from '@/features/overlays/ChangeAvatarModal';
 
@@ -13,20 +11,16 @@ const EXP_PER_LEVEL = 3000;
 
 export default function ProfileDashboard() {
   const navigate = useNavigate();
-  const { user, refreshProfile } = useAuth();
+  const { user, mode, canUseAccount, profile, refreshProfile, generation, isCurrent, profileRequest } = useAuth();
 
   const [avatarModalOpen, setAvatarModalOpen] = useState(false);
 
-  const load = useCallback((signal: AbortSignal) => (user ? apiProfile(user.id, signal) : Promise.resolve(null)), [user]);
-  const read = useRead(user?.id ?? 'demo', load);
-  const profile = read.status === 'success' ? read.data : null;
-
   const safeTotalScore = useMemo(() => {
-    const raw = profile?.totalScore ?? user?.totalScore ?? 0;
+    const raw = profile?.totalScore ?? 0;
     const score = Number(raw);
     if (!Number.isFinite(score) || score < 0) return 0;
     return Math.floor(score);
-  }, [profile?.totalScore, user?.totalScore]);
+  }, [profile?.totalScore]);
 
   const playerLevel = useMemo(() => {
     const raw = (profile as unknown as { playerLevel?: unknown } | null)?.playerLevel;
@@ -80,18 +74,18 @@ export default function ProfileDashboard() {
     }));
   }, [profile]);
 
-  if (!user)
+  if (mode === 'demo')
     return (
       <>
         <Navbar />
         <p className="text-center p-6">Account stats require account sign-in. Demo progress stays on this device.</p>
       </>
     );
-  if (read.status === 'error')
+  if (mode === 'legacy-account' && !canUseAccount)
     return (
       <>
         <Navbar />
-        <ReadFailure error={read.error} retry={read.retry} />
+        <AccountAvailability />
       </>
     );
   if (!profile) {
@@ -112,6 +106,7 @@ export default function ProfileDashboard() {
       </div>
 
       <div className="m-4 flex flex-col space-y-4">
+        {profileRequest === 'loading' && <p>Updating account data · last confirmed values are read-only.</p>}
         <ProfileHeader
           username={profile.username}
           level={playerLevel}
@@ -119,6 +114,7 @@ export default function ProfileDashboard() {
           actions={
             <button
               type="button"
+              disabled={profileRequest === 'loading'}
               onClick={() => setAvatarModalOpen(true)}
               className="px-4 h-10 rounded-xl border border-white/10 text-cyan-400 hover:text-pink-400 transition-colors duration-200"
             >
@@ -146,14 +142,14 @@ export default function ProfileDashboard() {
       </div>
 
       <ChangeAvatarModal
+        key={generation}
         open={avatarModalOpen}
         onClose={() => setAvatarModalOpen(false)}
         userId={user?.id ?? ''}
         currentAvatar={profile.avatar as any}
         onUpdated={async (newAvatar) => {
           void newAvatar;
-          await refreshProfile().catch(() => {});
-          read.retry();
+          if (isCurrent(generation, user?.id)) await refreshProfile();
         }}
       />
     </div>

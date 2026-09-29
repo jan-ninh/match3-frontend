@@ -22,17 +22,17 @@ type NavItem = NavLinkItem | NavActionItem;
 
 export default function Navbar() {
   const { openLogin, openSettings } = useOverlays();
-  const { user, logout, savedUser, resumeAccount, playDemo } = useAuth();
+  const { mode, logout, savedUser, resumeAccount, playDemo } = useAuth();
   const navigate = useNavigate();
 
-  const isAuthenticated = !!user;
+  const isLegacyAccount = mode === 'legacy-account';
 
   const baseItems: NavItem[] = [
     { kind: 'link', label: 'Home', icon: 'home', to: '/game-map' },
     { kind: 'action', label: 'Settings', icon: 'settings', onClick: openSettings },
   ];
 
-  if (user)
+  if (isLegacyAccount)
     baseItems.push({
       kind: 'action',
       label: 'Play Demo',
@@ -59,7 +59,7 @@ export default function Navbar() {
     { kind: 'link', label: 'Profile', icon: 'profile', to: '/game-map/profile' },
   ];
 
-  const navItems: NavItem[] = isAuthenticated
+  const navItems: NavItem[] = isLegacyAccount
     ? [
         ...baseItems,
         ...authItems,

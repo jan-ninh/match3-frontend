@@ -1,3 +1,4 @@
+import { RequestError } from '@/api/transport';
 import { useMemo, useState } from 'react';
 import Modal from '@/components/Modal';
 import { useAuth } from '@/context/AuthContext';
@@ -76,7 +77,11 @@ export default function RegisterModal({ onClose, onSwitchToLogin }: Props) {
       onClose();
       onSwitchToLogin();
     } catch (err: any) {
-      const serverMessage = err?.payload?.error ?? err?.message ?? 'Register failed.';
+      if (err instanceof RequestError && err.kind === 'cancelled') return;
+      const serverMessage =
+        err instanceof RequestError && ['timeout', 'unavailable', 'server', 'protocol'].includes(err.kind)
+          ? 'Account creation unconfirmed. Check your account before retrying.'
+          : (err?.message ?? 'Registration not accepted.');
       toast.error(serverMessage);
     } finally {
       setLoading(false);

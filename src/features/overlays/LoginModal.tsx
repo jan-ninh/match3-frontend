@@ -1,3 +1,4 @@
+import { RequestError } from '@/api/transport';
 import { useState } from 'react';
 import Modal from '@/components/Modal';
 import { useAuth } from '@/context/AuthContext';
@@ -62,6 +63,7 @@ export default function LoginModal({ onClose, onSwitchToRegister }: Props) {
       toast.success('Welcome back!', { duration: 1200 });
       onClose();
     } catch (err: any) {
+      if (err instanceof RequestError && err.kind === 'cancelled') return;
       const serverMessage = err?.payload?.error ?? err?.message ?? 'Login failed.';
       toast.error(serverMessage, { duration: 1800 });
     } finally {

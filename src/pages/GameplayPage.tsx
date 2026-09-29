@@ -1,3 +1,4 @@
+import AccountAvailability from '@/components/AccountAvailability';
 import { useRead } from '@/services/network/useRead';
 import { RequestError } from '@/api/transport';
 import ReadFailure from '@/components/ReadFailure';
@@ -66,7 +67,7 @@ function AccountGameplayPage() {
   return <AccountStageEntry key={user!.id + ':' + level} level={level!} />;
 }
 function AccountStageEntry({ level }: { level: number }) {
-  const { user } = useAuth();
+  const { user, generation, isCurrent } = useAuth();
   const { store, outcome } = useAccountOutcome();
   const { setPowers, setSelectedPowersForNextStage } = usePowers();
   const [allowed] = useState(() => !store.blocked(user!.id));
@@ -78,12 +79,13 @@ function AccountStageEntry({ level }: { level: number }) {
       if (obsolete || !user || !allowed) return;
       store.start({
         ownerId: user.id,
+        generation,
         id,
         stage: level,
         write: () => apiStartStage(user.id, level),
         present: () => {},
         confirmed: () => {
-          if (obsolete) return;
+          if (obsolete || !isCurrent(generation, user.id)) return;
           const value = store.getSnapshot()?.result as { boosters?: import('@/types').Powers } | undefined;
           if (value?.boosters) setPowers(value.boosters);
           setSelectedPowersForNextStage(null);
@@ -94,7 +96,7 @@ function AccountStageEntry({ level }: { level: number }) {
     return () => {
       obsolete = true;
     };
-  }, [allowed, user, id, level, store, setPowers, setSelectedPowersForNextStage]);
+  }, [allowed, user, id, level, store, setPowers, setSelectedPowersForNextStage, generation, isCurrent]);
   if (!allowed) return <ReadFailure title="Account save unresolved. Use Demo or check your account later." />;
   if (ready) return <StageView level={level} />;
   if (outcome?.id !== id || outcome.status === 'saving')
@@ -104,7 +106,7 @@ function AccountStageEntry({ level }: { level: number }) {
       </div>
     );
   if (outcome.status !== 'saved')
-    return <ReadFailure title={outcome.status === 'unconfirmed' ? 'Account stage start unconfirmed' : 'Account stage start not accepted'} retry={() => {}} />;
+    return <ReadFailure title={outcome.status === 'unconfirmed' ? 'Account stage start unconfirmed' : 'Account stage start not accepted'} />;
   return <StageView level={level} />;
 }
 
@@ -160,9 +162,18 @@ function GuestEntry({ requested }: { requested: number }) {
 }
 
 export default function GameplayPage() {
-  const { user } = useAuth();
+  const { user, mode, canUseAccount, generation } = useAuth();
   const { save } = useGuest();
   const { search } = useLocation();
+  const [entry, setEntry] = useState(() => (canUseAccount && user ? { id: user.id, generation } : null));
+  useEffect(() => {
+    if (mode === 'legacy-account' && canUseAccount && user) void Promise.resolve().then(() => setEntry({ id: user.id, generation }));
+  }, [mode, canUseAccount, user, generation]);
   const requested = readLevelFromSearch(search);
-  return user ? <AccountGameplayPage key={user.id} /> : <GuestEntry key={save.runId + ':' + requested} requested={requested} />;
+  if (mode === 'legacy-account' && (!user || entry?.id !== user.id || entry.generation !== generation)) return <AccountAvailability />;
+  return mode === 'legacy-account' && user ? (
+    <AccountGameplayPage key={user.id + ':' + generation} />
+  ) : (
+    <GuestEntry key={save.runId + ':' + requested} requested={requested} />
+  );
 }

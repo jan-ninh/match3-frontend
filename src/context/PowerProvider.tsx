@@ -2,7 +2,7 @@ import { useAuth } from './AuthContext';
 import { useGuest } from './GuestContext';
 import { canonicalGuestPower } from '@/services/guest/guestStore';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { ReactNode } from 'react';
+import type { ReactNode, SetStateAction } from 'react';
 import type { PowerKey, Powers } from '@/types';
 
 import { getChoiceBonus, PowerContext, defaultPowers } from './PowerContext';
@@ -34,17 +34,32 @@ function isPowerGrantManyDetail(v: unknown): v is PowerGrantManyDetail {
 }
 
 export function PowerProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  const { user, mode, profile, generation, isCurrent } = useAuth();
   const { save, store } = useGuest();
   // IMPORTANT: clone to avoid sharing the frozen object reference as state
-  const [powers, setPowersState] = useState<Powers>(() => ({ ...defaultPowers }));
+  const ownerKey = user ? user.id + ':' + generation : '';
+  const [accountPowers, setAccountPowers] = useState<{ key: string; powers: Powers }>({ key: '', powers: { bomb: 0, laser: 0, extraShuffle: 0 } });
+  const powers = useMemo(
+    () => (accountPowers.key === ownerKey ? accountPowers.powers : (profile?.powers ?? { bomb: 0, laser: 0, extraShuffle: 0 })),
+    [accountPowers, ownerKey, profile?.powers],
+  );
+  const setPowersState = useCallback(
+    (next: SetStateAction<Powers>) => {
+      if (!user || !isCurrent(generation, user.id)) return;
+      setAccountPowers((previous) => {
+        const base = previous.key === ownerKey ? previous.powers : { bomb: 0, laser: 0, extraShuffle: 0 };
+        return { key: ownerKey, powers: typeof next === 'function' ? next(base) : next };
+      });
+    },
+    [user, generation, ownerKey, isCurrent],
+  );
   const [selectedPowersForNextStage, setSelectedPowersForNextStageState] = useState<Partial<Powers> | null>(null);
 
   // UI grants (dev cheats, backend rewards, etc.)
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    if (!user) return;
+    if (mode !== 'legacy-account' || !user) return;
     const onGrant = (e: Event) => {
       const ce = e as CustomEvent<PowerGrantDetail>;
       const d = ce.detail;
@@ -66,13 +81,13 @@ export function PowerProvider({ children }: { children: ReactNode }) {
 
     window.addEventListener(POWER_GRANT_EVENT, onGrant as EventListener);
     return () => window.removeEventListener(POWER_GRANT_EVENT, onGrant as EventListener);
-  }, [user, store]);
+  }, [user, store, mode, setPowersState]);
 
   // Multi-grant (dev cheats). Bypasses any single-grant side-effects elsewhere.
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    if (!user) return;
+    if (mode !== 'legacy-account' || !user) return;
     const onGrantMany = (e: Event) => {
       const ce = e as CustomEvent<unknown>;
       const d = ce.detail;
@@ -103,7 +118,7 @@ export function PowerProvider({ children }: { children: ReactNode }) {
 
     window.addEventListener(POWERS_GRANT_MANY_EVENT, onGrantMany as EventListener);
     return () => window.removeEventListener(POWERS_GRANT_MANY_EVENT, onGrantMany as EventListener);
-  }, [user]);
+  }, [user, mode, setPowersState]);
 
   // Engine-ack-driven consume: dispatch only after EngineEvent `powerUsed` was observed
   useEffect(() => {
@@ -117,13 +132,14 @@ export function PowerProvider({ children }: { children: ReactNode }) {
       // LaserRow Match4+ training: items are infinite (ACK is still needed for SFX/VFX elsewhere).
       if (isLaserRowMatch4TrainingStage(getRuntimeLevelId())) return;
 
-      if (!user) {
+      if (mode === 'demo') {
         const key = canonicalGuestPower(d.key);
         if (key && d.guestRunId && d.guestAttemptId && d.requestId) {
           store.consume({ runId: d.guestRunId, attemptId: d.guestAttemptId }, key, d.amount, d.requestId);
         }
         return;
       }
+      if (!user) return;
       const key = d.key;
       if (!isPowerKey(key)) return;
 
@@ -140,13 +156,13 @@ export function PowerProvider({ children }: { children: ReactNode }) {
 
     window.addEventListener(POWER_CONSUME_EVENT, onConsume as EventListener);
     return () => window.removeEventListener(POWER_CONSUME_EVENT, onConsume as EventListener);
-  }, [user, store]);
+  }, [user, store, mode, setPowersState]);
 
   const setPowers = useCallback(
     (next: Powers) => {
       if (user) setPowersState(next);
     },
-    [user],
+    [user, setPowersState],
   );
 
   // NOTE:
@@ -156,7 +172,7 @@ export function PowerProvider({ children }: { children: ReactNode }) {
   // - backend[selected] + bonus (expected post-choice value if backend is "base")
   const setFromBackendAndSelect = useCallback(
     (backendPowers: Powers, selected: PowerKey) => {
-      if (!user) return;
+      if (mode !== 'legacy-account' || !user) return;
       setPowersState((prev) => {
         const next: Powers = {
           bomb: backendPowers.bomb ?? 0,
@@ -172,18 +188,18 @@ export function PowerProvider({ children }: { children: ReactNode }) {
         return next;
       });
     },
-    [user],
+    [user, mode, setPowersState],
   );
 
   const value = useMemo(
     () => ({
-      powers: user ? powers : save.powers,
+      powers: mode === 'demo' ? save.powers : powers,
       setFromBackendAndSelect,
       setPowers,
       selectedPowersForNextStage,
       setSelectedPowersForNextStage: setSelectedPowersForNextStageState,
     }),
-    [user, save.powers, powers, selectedPowersForNextStage, setFromBackendAndSelect, setPowers],
+    [mode, save.powers, powers, selectedPowersForNextStage, setFromBackendAndSelect, setPowers],
   );
 
   return <PowerContext.Provider value={value}>{children}</PowerContext.Provider>;

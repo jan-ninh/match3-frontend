@@ -9,25 +9,26 @@ export function useWinFlow(args: {
   openWin: (opts: { level: number; mode: 'returnToMap' }) => void;
 }) {
   const { store } = useAccountOutcome();
-  const { profile, refreshProfile } = useAuth();
+  const { profile, refreshProfile, generation, isCurrent } = useAuth();
   const [id] = useState(() => crypto.randomUUID());
   const runWinFlow = useCallback(
     (stage: number) => {
-      if (!args.userId) return;
+      if (!args.userId || !isCurrent(generation, args.userId)) return;
       const usedPower = args.getUsedPower();
       store.start({
         ownerId: args.userId,
+        generation,
         id,
         stage,
         rewardFromLevel: profile?.playerLevel,
         write: () => apiCompleteStage(args.userId!, stage, usedPower),
         present: () => args.openWin({ level: stage, mode: 'returnToMap' }),
         confirmed: () => {
-          void refreshProfile();
+          if (isCurrent(generation, args.userId!)) void refreshProfile();
         },
       });
     },
-    [args, store, id, profile, refreshProfile],
+    [args, store, id, profile, refreshProfile, generation, isCurrent],
   );
   return { runWinFlow };
 }
