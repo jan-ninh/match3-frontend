@@ -56,6 +56,10 @@ try {
   await confirmed;
   await page.waitForFunction(() => !document.body.textContent.includes('Updating account data'));
   assert.equal(calls.filter((c) => c.path === '/api/auth/refresh').length, before + 1);
+  const beforeReload = calls.filter((c) => c.path === '/api/auth/refresh').length;
+  await page.reload();
+  await page.getByText('BrowserAccount', { exact: true }).waitFor();
+  assert.equal(calls.filter((c) => c.path === '/api/auth/refresh').length, beforeReload + 1);
   assert.ok(calls.some((c) => c.path === '/api/auth/me' && c.authorization?.startsWith('Bearer ')));
   const persisted = await page.evaluate(() => [...Object.values(localStorage), ...Object.values(sessionStorage)]);
   for (const request of calls) if (request.authorization) assert.ok(persisted.every((v) => !v.includes(request.authorization.slice(7))));
@@ -63,6 +67,7 @@ try {
   // Actual server expiry/rejection, not an intercepted refresh response.
   backend.stdin.write('expire\n');
   await until(() => output.includes('TEST_SESSIONS_EXPIRED'));
+  await page.waitForTimeout(1500);
   await page.getByRole('button', { name: 'Refresh account', exact: true }).click();
   await page.getByText('Session expired', { exact: true }).waitFor();
   assert.equal(await page.getByRole('button', { name: 'Sign in', exact: true }).isVisible(), true);

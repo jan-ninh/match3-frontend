@@ -1,6 +1,7 @@
 // src/features/overlays/OverlayProvider.tsx
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
+import { useLocation } from 'react-router';
 import OverlayHost from './OverlayHost';
 import {
   OverlayContext,
@@ -30,6 +31,9 @@ function normalizeOpenWinArg(v: number | OpenWinOptions | undefined): { level?: 
 export function OverlayProvider({ children }: { children: ReactNode }) {
   const [active, setActive] = useState<OverlayName>(null);
   const [data, setData] = useState<OverlayData>({});
+  const location = useLocation();
+  const route = location.pathname + location.search;
+  const previousRoute = useRef(route);
 
   const missionReportOnDoneRef = useRef<OpenMissionReportOptions['onDone'] | null>(null);
   const levelUpOnChooseRef = useRef<OpenLevelUpOptions['onChoose'] | null>(null);
@@ -159,6 +163,9 @@ export function OverlayProvider({ children }: { children: ReactNode }) {
         resetAll();
         setOverlayRef.current('register', {});
       },
+      closeAuth: (name) => {
+        if (activeRef.current === name) setOverlayRef.current(null, {});
+      },
 
       close: () => {
         const closing = activeRef.current;
@@ -180,6 +187,14 @@ export function OverlayProvider({ children }: { children: ReactNode }) {
     }),
     [],
   );
+
+  useEffect(() => {
+    if (previousRoute.current !== route) {
+      const current = activeRef.current;
+      if (current === 'login' || current === 'register') api.closeAuth(current);
+      previousRoute.current = route;
+    }
+  }, [route, api]);
 
   const value: OverlayContextValue = useMemo(() => ({ active, data, missionReportOnDoneRef, levelUpOnChooseRef, api }), [active, data, api]);
 

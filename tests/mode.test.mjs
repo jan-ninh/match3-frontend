@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SessionStore } from '../src/services/account/modeStore.ts';
+import { SessionStore, ACCOUNT_INTENT_KEY } from '../src/services/account/modeStore.ts';
 import { RequestError, createRequester } from '../src/api/transport.ts';
 import { GuestStore } from '../src/services/guest/guestStore.ts';
 const user = (id = '000000000000000000000001') => ({
@@ -37,6 +37,89 @@ const deferred = () => {
   return { promise, resolve };
 };
 const signIn = (store) => store.credentials('/api/auth/login', { email: 'account@example.test', password: 'test password' });
+
+test('same-tab intent restores through verified refresh once; it stores no identity or token', async () => {
+  const values = new Map();
+  const storage = { getItem: (key) => values.get(key), setItem: (key, value) => values.set(key, value) };
+  const first = new SessionStore(async () => bundle(), storage);
+  await signIn(first);
+  assert.deepEqual([...values], [[ACCOUNT_INTENT_KEY, 'account']]);
+  let refreshes = 0;
+  const reloaded = new SessionStore(async (path) => {
+    assert.equal(path, '/api/auth/refresh');
+    refreshes++;
+    return bundle();
+  }, storage);
+  assert.equal(reloaded.getSnapshot().session, 'checking');
+  assert.equal(reloaded.getSnapshot().selected, null);
+  reloaded.restorePrevious();
+  reloaded.restorePrevious();
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  assert.equal(refreshes, 1);
+  assert.equal(reloaded.getSnapshot().session, 'verified');
+  reloaded.playDemo();
+  assert.equal(values.get(ACCOUNT_INTENT_KEY), 'demo');
+  const demo = new SessionStore(async () => {
+    throw Error('No restore allowed');
+  }, storage);
+  demo.restorePrevious();
+  assert.equal(demo.getSnapshot().mode, 'demo');
+});
+test('untrusted preference and legacy saved user cannot establish account authority; blocked storage stays usable', async () => {
+  for (const hint of [null, '{"id":"someone"}', 'true', 'account-with-token']) {
+    const store = new SessionStore(async () => bundle(), { getItem: () => hint, setItem: () => {} });
+    store.restorePrevious();
+    assert.equal(store.getSnapshot().mode, 'demo');
+  }
+  const store = new SessionStore(async () => bundle(), {
+    getItem: () => {
+      throw Error('blocked');
+    },
+    setItem: () => {
+      throw Error('blocked');
+    },
+  });
+  await signIn(store);
+  store.playDemo();
+  assert.equal(store.getSnapshot().mode, 'demo');
+});
+test('Demo selected during startup warm-up prevents late restoration and preserves Guest state', async () => {
+  const gate = deferred();
+  let calls = 0;
+  const store = new SessionStore(
+    async () => {
+      calls++;
+      return bundle();
+    },
+    { getItem: () => 'account', setItem: () => {} },
+  );
+  store.restorePrevious(async () => gate.promise);
+  store.playDemo();
+  gate.resolve();
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  assert.equal(calls, 0);
+  assert.equal(store.getSnapshot().mode, 'demo');
+  assert.equal(store.getSnapshot().profile, null);
+});
+test('definitively expired restoration clears reload intent but transport failure preserves it for explicit recovery', async () => {
+  for (const kind of ['unauthenticated', 'unavailable']) {
+    let saved = 'account';
+    const store = new SessionStore(
+      async () => {
+        throw new RequestError(kind);
+      },
+      {
+        getItem: () => saved,
+        setItem: (_key, value) => {
+          saved = value;
+        },
+      },
+    );
+    await store.restore();
+    assert.equal(saved, kind === 'unauthenticated' ? 'demo' : 'account');
+    assert.equal(store.getSnapshot().selected, null);
+  }
+});
 test('immediate Demo ignores arbitrary saved localStorage user ID; no token or account authority from storage', async () => {
   let calls = 0;
   const store = new SessionStore(async () => {

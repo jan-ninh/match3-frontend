@@ -1,9 +1,9 @@
 import { RequestError } from '@/api/transport';
-import { createContext, useContext, useMemo, useSyncExternalStore } from 'react';
+import { createContext, useContext, useEffect, useMemo, useSyncExternalStore } from 'react';
 import type { ReactNode } from 'react';
 import { apiLogin, apiRegister, type UserDTO } from '@/api/auth';
 import { apiUpdateAvatar } from '@/api/user';
-import { accountSession } from '@/api/http';
+import { accountSession, backendReadiness } from '@/api/http';
 import type { SessionSnapshot } from '@/services/account/modeStore';
 type AuthValue = SessionSnapshot & {
   user: Pick<UserDTO, 'id' | 'username' | 'avatar'> | null;
@@ -22,6 +22,10 @@ type AuthValue = SessionSnapshot & {
 const AuthContext = createContext<AuthValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const snapshot = useSyncExternalStore(accountSession.subscribe, accountSession.getSnapshot);
+  useEffect(() => {
+    backendReadiness.start();
+    accountSession.restorePrevious(backendReadiness.waitForReady);
+  }, []);
   const id = snapshot.selected?.id,
     username = snapshot.selected?.username,
     avatar = snapshot.selected?.avatar;
@@ -40,10 +44,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       playDemo: accountSession.playDemo,
       resumeAccount: () => {
-        void accountSession.restore();
+        if (backendReadiness.getSnapshot() === 'unavailable') backendReadiness.retry();
+        void accountSession.restore(backendReadiness.waitForReady);
       },
       retryAccount: () => {
-        void accountSession.restore();
+        if (backendReadiness.getSnapshot() === 'unavailable') backendReadiness.retry();
+        void accountSession.restore(backendReadiness.waitForReady);
       },
       refreshProfile: accountSession.refreshProfile,
       isCurrent: accountSession.isCurrent,

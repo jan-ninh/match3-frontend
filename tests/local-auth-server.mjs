@@ -64,6 +64,8 @@ if (process.env.MATCH3_TEST_NEAR_FINAL === '1') {
     }
   }
 }
+const { initializeDatabase } = await imp('src/db.ts');
+await initializeDatabase();
 const { app } = await imp('src/app.ts');
 const { RefreshSession } = await imp('src/models/RefreshSession.model.ts');
 const server = app.listen(3011, '127.0.0.1');

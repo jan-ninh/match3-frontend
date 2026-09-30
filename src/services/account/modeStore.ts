@@ -15,6 +15,9 @@ export type SessionSnapshot = {
 };
 export type Transport = <T = unknown>(path: string, options?: RequestOptions) => Promise<T>;
 type Envelope = { accessToken: string; user: CurrentUser };
+export const ACCOUNT_INTENT_KEY = 'match3-account-intent-v1';
+type IntentStorage = Pick<Storage, 'getItem' | 'setItem'>;
+type ReadyGate = (signal?: AbortSignal) => Promise<void>;
 function envelope(value: unknown): Envelope {
   if (!value || typeof value !== 'object' || !('accessToken' in value) || typeof value.accessToken !== 'string' || !value.accessToken || !('user' in value))
     throw new RequestError('protocol');
@@ -40,9 +43,32 @@ export class SessionStore {
   private renewal: { generation: number; promise: Promise<void> } | null = null;
   private cookieTail: Promise<void> = Promise.resolve();
   private transport: Transport;
-  constructor(transport: Transport) {
+  private previousIntent = false;
+  private startupStarted = false;
+  private intentStorage?: IntentStorage;
+  constructor(transport: Transport, intentStorage?: IntentStorage) {
     this.transport = transport;
+    this.intentStorage = intentStorage;
+    try {
+      this.previousIntent = intentStorage?.getItem(ACCOUNT_INTENT_KEY) === 'account';
+    } catch {
+      /* Memory-only intent remains usable. */
+    }
+    if (this.previousIntent) this.snapshot = { ...initial(), mode: 'account', session: 'checking', availability: 'checking', profileRequest: 'loading' };
   }
+  private saveIntent(mode: 'account' | 'demo') {
+    try {
+      this.intentStorage?.setItem(ACCOUNT_INTENT_KEY, mode);
+    } catch {
+      /* Never block play on preference storage. */
+    }
+  }
+  // This preference carries no identity/authority. Only a verified refresh can restore an account.
+  restorePrevious = (ready?: ReadyGate) => {
+    if (this.startupStarted) return;
+    this.startupStarted = true;
+    if (this.previousIntent && this.snapshot.generation === 0) void this.restore(ready);
+  };
   getSnapshot = () => this.snapshot;
   subscribe = (fn: () => void) => {
     this.listeners.add(fn);
@@ -63,6 +89,7 @@ export class SessionStore {
     this.token = null;
   }
   playDemo = () => {
+    this.saveIntent('demo');
     this.clearReads();
     this.publish(initial(this.snapshot.generation + 1));
   };
@@ -78,6 +105,7 @@ export class SessionStore {
     const e = error instanceof RequestError ? error : new RequestError('protocol');
     this.token = null;
     const expired = e.kind === 'unauthenticated';
+    if (expired) this.saveIntent('demo');
     this.publish({
       ...this.snapshot,
       session: expired ? 'expired' : 'unknown',
@@ -92,6 +120,7 @@ export class SessionStore {
     if (!this.isCurrent(generation)) throw new RequestError('cancelled');
     if (expectedId && value.user.id !== expectedId) throw new RequestError('unauthenticated');
     this.token = value.accessToken;
+    this.saveIntent('account');
     const accepted =
       this.snapshot.selected?.id === value.user.id && this.snapshot.selected.revision > value.user.revision ? this.snapshot.selected : value.user;
     this.publish({
@@ -136,9 +165,10 @@ export class SessionStore {
       throw error;
     }
   }
-  restore = async () => {
+  restore = async (ready?: ReadyGate) => {
     const generation = this.begin();
     try {
+      if (ready) await ready(this.intent!.signal);
       await this.renew(generation);
     } catch (error) {
       this.reject(generation, error);

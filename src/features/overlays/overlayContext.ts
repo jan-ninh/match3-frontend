@@ -9,17 +9,7 @@ export type PowerId = 'gridlaser' | 'laser' | 'extraShuffle';
  * - 'powerChoice' is kept as a legacy alias for backwards compatibility.
  * - New flow uses: win -> missionReport -> (optional) levelUp.
  */
-export type OverlayName =
-  | 'settings'
-  | 'win'
-  | 'lose'
-  | 'quitConfirm'
-  | 'missionReport'
-  | 'levelUp'
-  | 'powerChoice'
-  | 'login'
-  | 'register'
-  | null;
+export type OverlayName = 'settings' | 'win' | 'lose' | 'quitConfirm' | 'missionReport' | 'levelUp' | 'powerChoice' | 'login' | 'register' | null;
 
 export type WinMode = 'returnToMap' | 'continue';
 
@@ -86,6 +76,7 @@ export type OverlayApi = {
 
   openLogin: () => void;
   openRegister: () => void;
+  closeAuth: (name: 'login' | 'register') => void;
   close: () => void;
 };
 

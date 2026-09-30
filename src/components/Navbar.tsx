@@ -3,6 +3,7 @@ import { useOverlays } from '@/features/overlays';
 import { useAuth } from '@/context/AuthContext';
 import SpriteIcon from '@/components/SpriteIcon'; // default export assumed
 import { CyberTitle } from './CyberTitle';
+import AccountServiceStatus from './AccountServiceStatus';
 
 type NavLinkItem = {
   kind: 'link';
@@ -89,45 +90,48 @@ export default function Navbar() {
   };
 
   return (
-    <nav
-      className="flex justify-between items-center p-6
+    <>
+      <nav
+        className="flex justify-between items-center p-6
                   backdrop-blur-10px "
-    >
-      <CyberTitle size="sm">Match-3</CyberTitle>
-      <ul className="flex gap-1 items-center">
-        {navItems.map((item) => (
-          <li key={item.label} className="flex items-center">
-            {item.kind === 'link' ? (
-              <Link
-                to={item.to}
-                className="flex items-center justify-center p-1  hover:scale-110 active:scale-95  transition-transform duration-300 ease-out  rounded"
-                aria-label={item.label}
-                title={item.label}
-              >
-                {isUrl(item.icon) ? (
-                  <img src={item.icon} alt={item.label} className=" object-contain" />
-                ) : (
-                  <SpriteIcon name={item.icon} width={52} height={52} className="" alt={item.label} />
-                )}
-              </Link>
-            ) : (
-              <button
-                type="button"
-                onClick={item.onClick}
-                className="flex items-center justify-center p-1  hover:scale-110 active:scale-95  transition-transform duration-300 ease-out  rounded"
-                aria-label={item.label}
-                title={item.label}
-              >
-                {isUrl(item.icon) ? (
-                  <img src={item.icon} alt={item.label} className=" object-contain" />
-                ) : (
-                  <SpriteIcon name={item.icon} width={52} height={52} className="" alt={item.label} />
-                )}
-              </button>
-            )}
-          </li>
-        ))}
-      </ul>
-    </nav>
+      >
+        <CyberTitle size="sm">Match-3</CyberTitle>
+        <ul className="flex gap-1 items-center">
+          {navItems.map((item) => (
+            <li key={item.label} className="flex items-center">
+              {item.kind === 'link' ? (
+                <Link
+                  to={item.to}
+                  className="flex items-center justify-center p-1  hover:scale-110 active:scale-95  transition-transform duration-300 ease-out  rounded"
+                  aria-label={item.label}
+                  title={item.label}
+                >
+                  {isUrl(item.icon) ? (
+                    <img src={item.icon} alt={item.label} className=" object-contain" />
+                  ) : (
+                    <SpriteIcon name={item.icon} width={52} height={52} className="" alt={item.label} />
+                  )}
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  onClick={item.onClick}
+                  className="flex items-center justify-center p-1  hover:scale-110 active:scale-95  transition-transform duration-300 ease-out  rounded"
+                  aria-label={item.label}
+                  title={item.label}
+                >
+                  {isUrl(item.icon) ? (
+                    <img src={item.icon} alt={item.label} className=" object-contain" />
+                  ) : (
+                    <SpriteIcon name={item.icon} width={52} height={52} className="" alt={item.label} />
+                  )}
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      </nav>
+      <AccountServiceStatus />
+    </>
   );
 }

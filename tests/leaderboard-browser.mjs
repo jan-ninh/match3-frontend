@@ -51,6 +51,7 @@ try {
   await context.route('**/*', (route) =>
     new URL(route.request().url()).origin === new URL(base).origin || route.request().url().includes('/api/') ? route.continue() : route.abort(),
   );
+  await context.route('**/ready', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: '{"ready":true}' }));
   await context.route('**/api/**', async (route) => {
     const path = new URL(route.request().url()).pathname;
     if (!path.startsWith('/api/')) return route.fallback();

@@ -136,10 +136,8 @@ try {
   await map();
   const guestBeforeRestore = await guest();
   await page.reload();
-  await page.getByRole('button', { name: 'Stage 1', exact: true }).waitFor();
-  assert.equal(await guest(), guestBeforeRestore);
-  await page.getByRole('button', { name: 'Account', exact: true }).click();
   await page.getByText('Saved to account', { exact: true }).waitFor();
+  assert.equal(await guest(), guestBeforeRestore);
   await page.getByRole('button', { name: 'Stage 3', exact: true }).waitFor();
   state = await snapshot();
   assert.equal(state.totalScore, 1600);

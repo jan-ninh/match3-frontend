@@ -111,10 +111,8 @@ try {
   const pending = (await journal()).entries[0].pending;
   await map();
   await page.reload();
-  await page.getByRole('button', { name: 'Stage 1', exact: true }).waitFor();
-  assert.equal(await guest(), guestInitial);
-  await page.getByRole('button', { name: 'Account', exact: true }).click();
   await page.getByRole('button', { name: 'Sandbox 12', exact: true }).waitFor();
+  assert.equal(await guest(), guestInitial);
   await poll(async () => (await snapshot())?.campaign?.status === 'COMPLETED');
   await poll(async () => (await journal()).entries.length === 0);
   const completed = await snapshot(),

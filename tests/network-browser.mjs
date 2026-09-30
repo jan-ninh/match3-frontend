@@ -11,6 +11,7 @@ try {
   await context.route('**/*', (route) =>
     new URL(route.request().url()).origin !== new URL(base).origin && !route.request().url().includes('/api/') ? route.abort() : route.continue(),
   );
+  await context.route('**/ready', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: '{"ready":true}' }));
   await context.route('**/api/**', async (route) => {
     calls.push(route.request().url());
     await new Promise((r) => setTimeout(r, 15000));

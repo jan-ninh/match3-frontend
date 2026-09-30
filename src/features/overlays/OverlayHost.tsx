@@ -72,8 +72,8 @@ export default function OverlayHost() {
       />
 
       <Suspense fallback={null}>
-        {is('login') && <LoginModal onClose={api.close} onSwitchToRegister={api.openRegister} />}
-        {is('register') && <RegisterModal onClose={api.close} onSwitchToLogin={api.openLogin} />}
+        {is('login') && <LoginModal onClose={() => api.closeAuth('login')} onSwitchToRegister={api.openRegister} />}
+        {is('register') && <RegisterModal onClose={() => api.closeAuth('register')} onSwitchToLogin={api.openLogin} />}
       </Suspense>
     </>
   );

@@ -35,6 +35,7 @@ try {
     await context.route('**/*', (r) =>
       new URL(r.request().url()).origin !== new URL(base).origin && !r.request().url().includes('/api/') ? r.abort() : r.continue(),
     );
+    await context.route('**/ready', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{"ready":true}' }));
     await context.route('**/api/**', async (r) => {
       calls.push(r.request().url());
       if (late) {

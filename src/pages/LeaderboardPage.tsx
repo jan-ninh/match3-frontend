@@ -6,6 +6,8 @@ import { CyberButton, GlassSection, Navbar, PodiumCard, RankRow, YourPositionCar
 import { apiLeaderboardTop10, apiLeaderboardOwnRank } from '@/api/leaderboard';
 import { leaderboardPresentation } from '@/api/leaderboardShape';
 import { useAuth } from '@/context/AuthContext';
+import { backendReadiness } from '@/api/http';
+import { useAccountReadiness } from '@/services/network/useAccountReadiness';
 function OwnPosition() {
   const { user, generation, profile } = useAuth();
   const load = useCallback((signal: AbortSignal) => apiLeaderboardOwnRank(signal), []);
@@ -22,9 +24,13 @@ function OwnPosition() {
 }
 export default function LeaderboardPage() {
   const navigate = useNavigate();
+  const readiness = useAccountReadiness();
   const { mode, canUseAccount, generation, profile } = useAuth();
-  const load = useCallback((signal: AbortSignal) => apiLeaderboardTop10(signal), []);
-  const read = useRead('canonical-top:' + generation + ':' + profile?.revision, load);
+  const load = useCallback(async (signal: AbortSignal) => {
+    await backendReadiness.waitForReady(signal);
+    return apiLeaderboardTop10(signal);
+  }, []);
+  const read = useRead('canonical-top:' + generation + ':' + profile?.revision + ':' + readiness, load);
   const rows = read.data ?? [],
     state = leaderboardPresentation(read.status, read.data);
   return (
