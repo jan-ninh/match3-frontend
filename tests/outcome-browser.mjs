@@ -10,6 +10,31 @@ try {
     { outcome: 'WIN', expired: true },
   ]) {
     let refreshes = 0;
+    const owner = '000000000000000000000001';
+    const profile = {
+      id: owner,
+      email: 'account@example.test',
+      hearts: 3,
+      username: 'Account',
+      avatar: 'default.png',
+      powers: { bomb: 120, laser: 120, extraShuffle: 120 },
+      progress: {},
+      playerLevel: 1,
+      playerExp: 0,
+      totalScore: 0,
+      badges: [],
+      gamesPlayed: 0,
+      gamesWon: 0,
+      gamesLost: 0,
+      revision: 0,
+      rulesVersion: 'account-gameplay-v1',
+      campaignVersion: 'stage-catalog-2026-09-29-v1',
+      runId: null,
+      frontier: 1,
+      activeAttempt: null,
+      pendingRewards: [],
+      legacyInterrupted: false,
+    };
     const context = await browser.newContext();
     const writes = [];
     const errors = [];
@@ -20,7 +45,7 @@ try {
     await context.route('**/api/**', async (route) => {
       const url = route.request().url();
       if (!new URL(url).pathname.startsWith('/api/')) return route.continue();
-      if (url.includes('/completeStage/') || url.includes('/api/game/lose')) {
+      if (url.includes('/attempts/terminal')) {
         writes.push(url);
         if (expired) {
           await route.fulfill({ status: 401, body: '{}' });
@@ -36,31 +61,30 @@ try {
         await route.fulfill({ status: 401, body: '{}' });
         return;
       }
-      const profile = {
-        id: '000000000000000000000001',
-        email: 'account@example.test',
-        hearts: 3,
-        username: 'Account',
-        avatar: 'default.png',
-        powers: { bomb: 1, laser: 1, extraShuffle: 2 },
-        progress: {},
-        playerLevel: 1,
-        playerExp: 0,
-        totalScore: 0,
-        badges: [],
-        gamesPlayed: 0,
-        gamesWon: 0,
-        gamesLost: 0,
-      };
-      const data = url.includes('/auth/refresh')
-        ? { accessToken: 'mock-access-token', user: profile }
-        : url.includes('/auth/me')
-          ? profile
-          : url.includes('/status')
-            ? { allowedStage: 1, powers: profile.powers }
-            : url.includes('/start/')
-              ? { boosters: profile.powers }
-              : { CAMPAIGN_ID: crypto.randomUUID() };
+      let data;
+      if (url.includes('/auth/refresh')) data = { accessToken: 'mock-access-token', user: profile };
+      else if (url.includes('/auth/me')) data = profile;
+      else if (url.includes('/attempts/start')) {
+        const body = route.request().postDataJSON();
+        profile.runId = crypto.randomUUID();
+        profile.revision = 1;
+        profile.activeAttempt = {
+          attemptId: crypto.randomUUID(),
+          runId: profile.runId,
+          stageNumber: 1,
+          scenarioVersion: 'stage-catalog-2026-09-29-v1:clean-room',
+          startedAt: new Date().toISOString(),
+          startedRevision: 1,
+          startOperationId: body.operationId,
+          initialPowers: profile.powers,
+        };
+        data = {
+          receipt: { operationId: body.operationId, command: 'START', attemptId: profile.activeAttempt.attemptId, status: 'committed', resultingRevision: 1 },
+          snapshot: profile,
+        };
+      } else {
+        throw Error('Unexpected API request ' + new URL(url).pathname);
+      }
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(data) });
     });
     const page = await context.newPage();

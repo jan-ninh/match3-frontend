@@ -18,11 +18,12 @@ import { useIntentRouter } from './match3Engine/input/useIntentRouter';
 import { useTilesetSync } from './useTilesetSync';
 
 type Args = {
+  accountAttemptId?: string;
   guestBinding?: { runId: string; attemptId: string };
   initialLevelId?: number;
 };
 
-export function useMatch3Engine({ initialLevelId = 1, guestBinding }: Args) {
+export function useMatch3Engine({ initialLevelId = 1, guestBinding, accountAttemptId }: Args) {
   const isDev = import.meta.env.DEV;
 
   const [levelId, setLevelId] = useState<number>(initialLevelId);
@@ -104,6 +105,7 @@ export function useMatch3Engine({ initialLevelId = 1, guestBinding }: Args) {
 
   usePowerBridge({
     guestBinding,
+    accountAttemptId,
     dispatch,
     levelId: state.levelId,
     events: state.events,

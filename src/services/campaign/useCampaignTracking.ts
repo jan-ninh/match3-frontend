@@ -108,8 +108,9 @@ function toMovesUsedRaw(movesTotal: number, movesLeft: number): number {
 }
 
 export function useCampaignTracking({ state }: Args): void {
-  const { user, mode, canUseAccount, generation, isCurrent } = useAuth();
-  const enabled = mode === 'account' && canUseAccount && Boolean(user?.id);
+  const { user, generation, isCurrent } = useAuth();
+  // Authoritative gameplay owns the durable run; legacy ranking telemetry is paused until Slice 6.
+  const enabled = false;
   const isDev = import.meta.env.DEV;
   const startAttemptedRef = useRef(false);
 

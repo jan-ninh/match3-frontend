@@ -2,9 +2,8 @@ import { RequestError } from '@/api/transport';
 import { createContext, useContext, useMemo, useSyncExternalStore } from 'react';
 import type { ReactNode } from 'react';
 import { apiLogin, apiRegister, type UserDTO } from '@/api/auth';
-import { apiUpdateAvatar, apiUpdatePowers } from '@/api/user';
+import { apiUpdateAvatar } from '@/api/user';
 import { accountSession } from '@/api/http';
-import type { Powers } from '@/types';
 import type { SessionSnapshot } from '@/services/account/modeStore';
 type AuthValue = SessionSnapshot & {
   user: Pick<UserDTO, 'id' | 'username' | 'avatar'> | null;
@@ -19,7 +18,6 @@ type AuthValue = SessionSnapshot & {
   refreshProfile: typeof accountSession.refreshProfile;
   isCurrent: typeof accountSession.isCurrent;
   updateAvatar: (avatar: UserDTO['avatar']) => Promise<void>;
-  updatePowers: (powers: Partial<Powers>, operation?: 'set' | 'add') => Promise<void>;
 };
 const AuthContext = createContext<AuthValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -53,12 +51,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { selected, generation } = accountSession.getSnapshot();
         if (!selected || accountSession.getSnapshot().availability !== 'available') throw new RequestError('unavailable');
         await apiUpdateAvatar(selected.id, avatar);
-        if (accountSession.isCurrent(generation, selected.id)) await accountSession.refreshProfile();
-      },
-      updatePowers: async (powers: Partial<Powers>, operation: 'set' | 'add' = 'set') => {
-        const { selected, generation } = accountSession.getSnapshot();
-        if (!selected) return;
-        await apiUpdatePowers(selected.id, powers, operation);
         if (accountSession.isCurrent(generation, selected.id)) await accountSession.refreshProfile();
       },
     }),

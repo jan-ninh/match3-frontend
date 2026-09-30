@@ -1,18 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { apiGetGameStatus } from '@/api/game';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { footerActions } from './footerAction';
 import { usePowers } from '@/context/PowerContext';
-import { useAuth } from '@/context/AuthContext';
-import {
-  POWER_ARM_EVENT,
-  POWER_CONSUME_EVENT,
-  POWER_GRANT_EVENT,
-  POWER_USE_EVENT,
-  type PowerArmDetail,
-  type PowerConsumeDetail,
-  type PowerGrantDetail,
-  type PowerUseDetail,
-} from '@/context/powerEvents';
+import { POWER_ARM_EVENT, POWER_USE_EVENT, type PowerArmDetail, type PowerUseDetail } from '@/context/powerEvents';
 import { playSfx } from '@/features/audio';
 import type { PowerKey, Powers } from '@/types';
 import { NeonFooterButton } from '@/components';
@@ -100,8 +89,7 @@ function allocFooterRequestId(): number {
 }
 
 export default function GameFooter() {
-  const { powers, setPowers } = usePowers();
-  const { user, updatePowers } = useAuth();
+  const { powers } = usePowers();
 
   const [armedGridlaser, setArmedGridlaser] = useState(false);
   const [armedLaser, setArmedLaser] = useState(false);
@@ -140,32 +128,6 @@ export default function GameFooter() {
   }, []);
 
   const isInfiniteItemsLevel = isLaserRowMatch4TrainingStage(runtimeLevelId);
-
-  /**
-   * Keep latest powers ONLY for window event listeners (effects).
-   * Important: do NOT read this ref in render-path callbacks (e.g. `onUsePower`) that are passed into UI builders.
-   */
-  const powersRef = useRef<Powers>(powers);
-  useEffect(() => {
-    powersRef.current = powers;
-  }, [powers]);
-
-  useEffect(() => {
-    if (!user?.id) return;
-
-    const controller = new AbortController();
-    (async () => {
-      try {
-        const status = await apiGetGameStatus(user.id, controller.signal);
-        if (!controller.signal.aborted && status?.powers) {
-          setPowers(status.powers);
-        }
-      } catch (err) {
-        console.error('Failed to load game status:', err);
-      }
-    })();
-    return () => controller.abort();
-  }, [user?.id, setPowers]);
 
   const emitArmPower = useCallback((key: TargetingKey, armed: boolean) => {
     if (typeof window === 'undefined') return;
@@ -243,89 +205,6 @@ export default function GameFooter() {
     return () => window.removeEventListener(POWER_ARM_EVENT, onArm as EventListener);
   }, []);
 
-  /**
-   * Power grants via event (reward overlays etc.).
-   * Consumption is ack-driven via POWER_CONSUME_EVENT (emitted by the engine bridge after EngineEvent `powerUsed`).
-   * Here we only apply grants and (optionally) persist them.
-   */
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    if (!user) return; // Guest inventory is owned solely by GuestStore/PowerProvider.
-    const onGrant = (e: Event) => {
-      const ce = e as CustomEvent<PowerGrantDetail>;
-      const d = ce.detail;
-      if (!d) return;
-      if (typeof d.delta !== 'number') return;
-
-      const delta = d.delta | 0;
-      if (delta === 0) return;
-
-      const cur = getPowerCount(powersRef.current, d.key);
-      const nextVal = cur + delta;
-      const next: Powers = { ...powersRef.current, [d.key]: nextVal };
-
-      // Keep legacy alias in sync when granting gridlaser/bomb.
-      if (d.key === 'gridlaser') next.bomb = next.gridlaser;
-      if (d.key === 'bomb') next.gridlaser = next.bomb;
-
-      powersRef.current = next;
-      setPowers(next);
-
-      if (!user) return;
-
-      updatePowers({ [d.key]: nextVal }, 'set').catch(() => {
-        setPowers(powersRef.current);
-      });
-    };
-
-    window.addEventListener(POWER_GRANT_EVENT, onGrant as EventListener);
-    return () => window.removeEventListener(POWER_GRANT_EVENT, onGrant as EventListener);
-  }, [setPowers, updatePowers, user]);
-
-  /**
-   * Apply ack-driven consumption locally + best-effort persist.
-   */
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    if (!user) return;
-    const onConsume = (e: Event) => {
-      // LaserRow Match4+ training: usage must not consume inventory.
-      if (isInfiniteItemsLevel) return;
-
-      const ce = e as CustomEvent<PowerConsumeDetail>;
-      const d = ce.detail;
-      if (!d) return;
-
-      const amount = d.amount | 0;
-      if (amount <= 0) return;
-
-      const key = d.key;
-      const cur = getPowerCount(powersRef.current, key);
-      const nextVal = Math.max(0, cur - amount);
-      if (nextVal === cur) return;
-
-      const next: Powers = { ...powersRef.current, [key]: nextVal };
-
-      // Keep legacy alias in sync when consuming gridlaser/bomb.
-      if (key === 'gridlaser') next.bomb = nextVal;
-      if (key === 'bomb') next.gridlaser = nextVal;
-
-      powersRef.current = next;
-      setPowers(next);
-
-      if (!user) return;
-
-      updatePowers({ [key]: nextVal }, 'set').catch(() => {
-        // Best-effort: local UI already consumed; backend sync can be retried later.
-      });
-    };
-
-    window.addEventListener(POWER_CONSUME_EVENT, onConsume as EventListener);
-    return () => window.removeEventListener(POWER_CONSUME_EVENT, onConsume as EventListener);
-  }, [isInfiniteItemsLevel, setPowers, updatePowers, user]);
-
   const onUsePower = useCallback(
     async (key: PowerKey) => {
       if (runtimeInputLocked) return;
@@ -376,35 +255,9 @@ export default function GameFooter() {
         return;
       }
 
-      // Legacy behavior (until these powers are engine-owned)
-      const prev = powers;
-      const nextVal = current - 1;
-      const next: Powers = { ...powers, [key]: nextVal };
-      setPowers(next);
-
-      if (!user) return;
-
-      try {
-        const nextVal = current - 1;
-        await updatePowers({ [key]: nextVal }, 'set');
-      } catch {
-        // rollback to render-state snapshot
-        setPowers(prev);
-      }
+      // All supported powers are engine-owned; no direct inventory mutation.
     },
-    [
-      armedGridlaser,
-      armedLaser,
-      disarmAllTargeting,
-      emitArmPower,
-      emitUsePower,
-      isInfiniteItemsLevel,
-      powers,
-      runtimeInputLocked,
-      setPowers,
-      updatePowers,
-      user,
-    ],
+    [armedGridlaser, armedLaser, disarmAllTargeting, emitArmPower, emitUsePower, isInfiniteItemsLevel, powers, runtimeInputLocked],
   );
 
   const actions = useMemo<FooterActionItem[]>(() => {

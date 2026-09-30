@@ -25,6 +25,7 @@ try {
   if (!output.includes('TEST_BACKEND_READY')) throw Error('Isolated test backend failed: ' + diagnostics.slice(-1800));
   browser = await chromium.launch({ headless: true, channel: 'msedge' });
   const context = await browser.newContext();
+  await context.route('**/api/**', (route) => (new URL(route.request().url()).origin === 'http://127.0.0.1:3011' ? route.continue() : route.abort()));
   const page = await context.newPage();
   const errors = [],
     calls = [];

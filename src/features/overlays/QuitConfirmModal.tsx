@@ -1,3 +1,4 @@
+import { useAccountOutcome } from '@/context/OutcomeContext';
 import { useGuest } from '@/context/GuestContext';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router';
@@ -12,11 +13,13 @@ type Props = {
 export default function QuitConfirmModal({ open, onClose }: Props) {
   const navigate = useNavigate();
   const { store } = useGuest();
-  const { user } = useAuth();
+  const { mode } = useAuth();
+  const { store: account } = useAccountOutcome();
 
   const back = () => onClose();
   const quit = () => {
-    if (!user) store.leave();
+    if (mode === 'demo') store.leave();
+    else void account.abandon();
     onClose();
     navigate('/game-map');
   };
@@ -24,7 +27,9 @@ export default function QuitConfirmModal({ open, onClose }: Props) {
   return (
     <Modal open={open} onClose={onClose} title="Are you sure?" size="sm" closeOnBackdrop={false}>
       <div className="flex flex-col items-center gap-4 py-6">
-        <div className="text-2xl font-semibold text-cyan-600">Used boosters will not be refunded!</div>
+        <div className="text-2xl font-semibold text-cyan-600">
+          {mode === 'demo' ? 'Used boosters will not be refunded!' : 'Quit resets this account run. Player level and EXP remain.'}
+        </div>
 
         <div className="flex gap-3">
           <CyberButton type="button" label="back" size="sm" onClick={back} className="" />

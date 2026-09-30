@@ -92,16 +92,24 @@ export class SessionStore {
     if (!this.isCurrent(generation)) throw new RequestError('cancelled');
     if (expectedId && value.user.id !== expectedId) throw new RequestError('unauthenticated');
     this.token = value.accessToken;
+    const accepted =
+      this.snapshot.selected?.id === value.user.id && this.snapshot.selected.revision > value.user.revision ? this.snapshot.selected : value.user;
     this.publish({
       ...this.snapshot,
       session: 'verified',
       availability: 'available',
       profileRequest: 'success',
-      selected: value.user,
-      profile: value.user,
+      selected: accepted,
+      profile: accepted,
       error: undefined,
     });
   }
+  adoptGameplay = (generation: number, value: CurrentUser): boolean => {
+    if (!this.isCurrent(generation, value.id) || this.snapshot.session !== 'verified') return false;
+    if (this.snapshot.selected && value.revision < this.snapshot.selected.revision) return false;
+    this.publish({ ...this.snapshot, selected: value, profile: value, availability: 'available', profileRequest: 'success', error: undefined });
+    return true;
+  };
   // Serialize cookie-changing operations so logout cannot clear a newly issued login cookie in this app instance.
   private cookie<T>(path: string, body: unknown, signal?: AbortSignal): Promise<T> {
     const end = performance.now() + 8000;
@@ -249,7 +257,7 @@ export class SessionStore {
       const value = readCurrentUser(await this.request('/api/auth/me', { signal: controller.signal }));
       if (!this.isCurrent(generation, selected.id) || seq !== this.sequence || controller.signal.aborted) return null;
       if (value.id !== selected.id) throw new RequestError('unauthenticated');
-      this.publish({ ...this.snapshot, availability: 'available', profileRequest: 'success', profile: value, selected: value });
+      this.adoptGameplay(generation, value);
       return value;
     } catch (error) {
       if (this.isCurrent(generation) && seq === this.sequence && !controller.signal.aborted) this.reject(generation, error);

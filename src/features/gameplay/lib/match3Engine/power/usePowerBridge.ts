@@ -53,6 +53,7 @@ function isPowerUsedEvent(ev: unknown): ev is PowerUsedEvent {
 }
 
 type Args = Readonly<{
+  accountAttemptId?: string;
   guestBinding?: { runId: string; attemptId: string };
   dispatch: (a: EngineAction) => void;
   levelId: number;
@@ -60,7 +61,7 @@ type Args = Readonly<{
   allocPowerRequestId: (maybe: unknown) => number;
 }>;
 
-export function usePowerBridge({ dispatch, levelId, events, allocPowerRequestId, guestBinding }: Args) {
+export function usePowerBridge({ dispatch, levelId, events, allocPowerRequestId, guestBinding, accountAttemptId }: Args) {
   // The route owns this mounted engine's binding; delayed events retain that owner.
   const guestRunId = guestBinding?.runId;
   const guestAttemptId = guestBinding?.attemptId;
@@ -134,9 +135,9 @@ export function usePowerBridge({ dispatch, levelId, events, allocPowerRequestId,
 
       window.dispatchEvent(
         new CustomEvent<PowerConsumeDetail>(POWER_CONSUME_EVENT, {
-          detail: { key: ev.key, amount: 1, requestId: ev.requestId, guestRunId, guestAttemptId },
+          detail: { key: ev.key, amount: 1, requestId: ev.requestId, guestRunId, guestAttemptId, accountAttemptId },
         }),
       );
     }
-  }, [events, levelId, guestRunId, guestAttemptId]);
+  }, [events, levelId, guestRunId, guestAttemptId, accountAttemptId]);
 }

@@ -1,3 +1,4 @@
+import { useAccountOutcome } from '@/context/OutcomeContext';
 // src/features/gameplay/ui/GameplayRoot.tsx
 import type { ReactNode } from 'react';
 import { createContext, useContext, useMemo, useState } from 'react';
@@ -66,16 +67,19 @@ export function GameplayRoot({ initialLevelId = 1, guestBinding, children }: Pro
   // A mounted account board retains its owner when the session expires; it never becomes a guest board.
   const [accountOwner] = useState(() => (guestBinding ? null : (user?.id ?? null)));
   const userId = accountOwner;
+  const { store: account } = useAccountOutcome();
+  const [accountAttemptId] = useState(() => (guestBinding ? undefined : account.getSnapshot().binding?.attemptId));
 
   const { isDev, state, inputLocked, canSwapAt, onIntent, onDevResetBoard, onDevFixedSeed, onDevNextLevel, onDevPrevLevel, onDevSetLevel } = useMatch3Engine({
     initialLevelId,
     guestBinding,
+    accountAttemptId,
   });
 
   const { getUsedPower } = useUsedPowerTracker({ levelId: state.levelId });
 
-  const { runWinFlow } = useWinFlow({ userId, getUsedPower, openWin });
-  const { runLoseFlow } = useLoseFlow({ userId, openLose });
+  const { runWinFlow } = useWinFlow({ userId, getUsedPower, openWin, accountAttemptId });
+  const { runLoseFlow } = useLoseFlow({ userId, openLose, accountAttemptId });
 
   const { onDevWin, onDevLose } = useOutcomeReactions({
     levelId: state.levelId,

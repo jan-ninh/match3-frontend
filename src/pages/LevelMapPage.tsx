@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router';
 import { Navbar, LevelGrid, CyberTitle } from '@/components';
 import type { LevelId, Progress } from '@/services/progress/ProgressStore';
 import { useAuth } from '@/context/AuthContext';
-import type { UserProfile } from '@/types';
+import type { CurrentUser } from '@/api/profileShape';
 
 export default function LevelMapPage() {
   const navigate = useNavigate();
@@ -17,16 +17,16 @@ export default function LevelMapPage() {
   const { save, store } = useGuest();
   const guestAccess = guestStageAccess(save);
 
-  const profileToProgress = (profile: UserProfile): Progress => {
+  const profileToProgress = (profile: CurrentUser): Progress => {
     const completedLevels = Object.entries(profile.progress || {})
       .filter(([, data]) => data?.completed)
       .map(([key]) => Number.parseInt(key.replace('stage', ''), 10))
       .filter((n) => Number.isFinite(n) && n > 0)
       .sort((a, b) => a - b);
 
-    const highestCompleted = completedLevels.length ? Math.max(...completedLevels) : 0;
+    const highestCompleted = profile.frontier - 1;
 
-    const unlockedLevels = Array.from(new Set([1, ...(highestCompleted > 0 ? [highestCompleted + 1] : [])])).sort((a, b) => a - b);
+    const unlockedLevels = [profile.frontier];
 
     return {
       unlockedLevels,
@@ -88,7 +88,7 @@ export default function LevelMapPage() {
         )}
         <LevelGrid
           progress={visibleProgress}
-          playableStages={user ? (outcomeStore.blocked(user.id) || profileRequest === 'loading' ? [] : undefined) : guestAccess.playableStages}
+          playableStages={user ? (!outcomeStore.canStart() || profileRequest === 'loading' ? [] : [profile!.frontier]) : guestAccess.playableStages}
           onSelect={onSelect}
         />
       </div>

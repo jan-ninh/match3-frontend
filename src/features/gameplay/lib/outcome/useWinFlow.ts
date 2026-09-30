@@ -1,38 +1,21 @@
-import { RequestError } from '@/api/transport';
-import { useCallback, useState } from 'react';
-import { apiCompleteStage } from '@/api/game';
+import { useCallback } from 'react';
 import { useAccountOutcome } from '@/context/OutcomeContext';
-import { useAuth } from '@/context/AuthContext';
 import type { PowerKey } from '@/types';
 export function useWinFlow(args: {
   userId: string | null;
+  accountAttemptId?: string;
   getUsedPower: () => PowerKey | undefined;
   openWin: (opts: { level: number; mode: 'returnToMap' }) => void;
 }) {
   const { store } = useAccountOutcome();
-  const { profile, refreshProfile, generation, isCurrent, session } = useAuth();
-  const [id] = useState(() => crypto.randomUUID());
   const runWinFlow = useCallback(
     (stage: number) => {
-      if (!args.userId || !isCurrent(generation)) return;
-      const usedPower = args.getUsedPower();
-      store.start({
-        ownerId: args.userId,
-        generation,
-        id,
-        stage,
-        rewardFromLevel: profile?.playerLevel,
-        write: () =>
-          isCurrent(generation, args.userId!)
-            ? apiCompleteStage(args.userId!, stage, usedPower)
-            : Promise.reject(new RequestError(session === 'expired' ? 'unauthenticated' : 'unavailable')),
-        present: () => args.openWin({ level: stage, mode: 'returnToMap' }),
-        confirmed: () => {
-          if (isCurrent(generation, args.userId!)) void refreshProfile();
-        },
-      });
+      if (!args.userId || !args.accountAttemptId) return;
+      const binding = store.getSnapshot().binding;
+      if (binding?.stageNumber !== stage || binding.attemptId !== args.accountAttemptId) return;
+      void store.finish(args.accountAttemptId, 'WIN', () => args.openWin({ level: stage, mode: 'returnToMap' }));
     },
-    [args, store, id, profile, refreshProfile, generation, isCurrent, session],
+    [args, store],
   );
   return { runWinFlow };
 }

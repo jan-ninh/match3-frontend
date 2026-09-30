@@ -4,6 +4,14 @@ import { SessionStore } from '../src/services/account/modeStore.ts';
 import { RequestError, createRequester } from '../src/api/transport.ts';
 import { GuestStore } from '../src/services/guest/guestStore.ts';
 const user = (id = '000000000000000000000001') => ({
+  revision: 0,
+  rulesVersion: 'account-gameplay-v1',
+  campaignVersion: 'stage-catalog-2026-09-29-v1',
+  runId: null,
+  frontier: 1,
+  activeAttempt: null,
+  pendingRewards: [],
+  legacyInterrupted: false,
   id,
   email: 'account@example.test',
   username: 'Account',

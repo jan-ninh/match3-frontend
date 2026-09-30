@@ -46,6 +46,14 @@ try {
             body: JSON.stringify({
               accessToken: 'mock-access-token',
               user: {
+                revision: 0,
+                rulesVersion: 'account-gameplay-v1',
+                campaignVersion: 'stage-catalog-2026-09-29-v1',
+                runId: null,
+                frontier: 1,
+                activeAttempt: null,
+                pendingRewards: [],
+                legacyInterrupted: false,
                 id: '000000000000000000000001',
                 email: 'account@example.test',
                 hearts: 3,

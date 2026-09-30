@@ -1,114 +1,47 @@
 import AccountAvailability from '@/components/AccountAvailability';
-import { useRead } from '@/services/network/useRead';
-import { RequestError } from '@/api/transport';
-import ReadFailure from '@/components/ReadFailure';
+import AccountPersistenceStatus from '@/components/AccountPersistenceStatus';
 import { useAccountOutcome } from '@/context/OutcomeContext';
-import { usePowers } from '@/context/PowerContext';
-import { apiStartStage } from '@/api/game';
-// src/pages/GameplayPage.tsx
-// only Composition Root (Layout + Wiring)
-// no "in-game UI"
-import { Suspense, lazy, useEffect, useCallback, useState } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
-
 import { useGuest } from '@/context/GuestContext';
 import GuestStatus from '@/components/GuestStatus';
 import { resolveGuestStage } from '@/services/guest/guestStore';
 import { useAuth } from '@/context/AuthContext';
-import { apiGetGameStatus } from '@/api/game';
 import { GameFooter } from '@/components';
 import { GameplayHost } from '@/features/gameplay';
-
 const DevtoolsHost = lazy(() => import('@/features/devtools-host/ui/DevtoolsHost'));
-
-const MIN_LEVEL = 1;
-const MAX_LEVEL = 12;
-
-function normalizeLevel(value: number): number {
-  if (!Number.isFinite(value)) return MIN_LEVEL;
-  return Math.min(MAX_LEVEL, Math.max(MIN_LEVEL, Math.floor(value)));
+const MIN_LEVEL = 1,
+  MAX_LEVEL = 12;
+function normalizeLevel(value: number) {
+  return Number.isFinite(value) ? Math.min(MAX_LEVEL, Math.max(MIN_LEVEL, Math.floor(value))) : MIN_LEVEL;
 }
-
-function readLevelFromSearch(search: string): number {
+function readLevelFromSearch(search: string) {
   const raw = new URLSearchParams(search).get('level');
-  const n = raw ? Number(raw) : NaN;
-
-  return normalizeLevel(n);
+  return normalizeLevel(raw ? Number(raw) : NaN);
 }
-
-function AccountGameplayPage({ ownerId }: { ownerId: string }) {
+function AccountEntry({ requested }: { requested: number }) {
+  const { store, gameplay } = useAccountOutcome();
+  const { canUseAccount } = useAuth();
   const navigate = useNavigate();
-  const { search } = useLocation();
-  const requested = readLevelFromSearch(search);
-  const load = useCallback(
-    async (signal: AbortSignal) => {
-      const data = await apiGetGameStatus(ownerId, signal);
-      if (!Number.isInteger(data.allowedStage) || data.allowedStage! < 1 || data.allowedStage! > 12) throw new RequestError('protocol');
-      return data;
-    },
-    [ownerId],
+  const [entryId] = useState(() => crypto.randomUUID());
+  useEffect(() => {
+    store.retain(entryId);
+    void store.start(requested, entryId).catch(() => {});
+    return () => store.release(entryId);
+  }, [requested, entryId, store]);
+  if (gameplay.binding && gameplay.liveEntryId === entryId) return <StageView level={gameplay.binding.stageNumber} />;
+  return (
+    <div>
+      <AccountPersistenceStatus />
+      {!canUseAccount && <AccountAvailability />}
+      {gameplay.status === 'saving' && <p>Starting account stage...</p>}
+      {gameplay.status === 'not-accepted' && <p>Stage start not accepted.</p>}
+      <button type="button" className="underline" onClick={() => navigate('/game-map')}>
+        Back to map
+      </button>
+    </div>
   );
-  const read = useRead(ownerId, load);
-  const level = read.data?.allowedStage;
-  useEffect(() => {
-    if (read.status === 'success' && level !== requested) navigate('/game-map/play-game?level=' + level, { replace: true });
-  }, [read.status, level, requested, navigate]);
-  if (read.status === 'error') return <ReadFailure error={read.error} retry={read.retry} />;
-  if (read.status !== 'success' || level !== requested)
-    return (
-      <div>
-        Loading stage...{' '}
-        <button type="button" onClick={() => navigate('/game-map')}>
-          Back to map
-        </button>
-      </div>
-    );
-  return <AccountStageEntry key={ownerId + ':' + level} ownerId={ownerId} level={level!} />;
 }
-function AccountStageEntry({ level, ownerId }: { level: number; ownerId: string }) {
-  const { generation, isCurrent } = useAuth();
-  const { store, outcome } = useAccountOutcome();
-  const { setPowers, setSelectedPowersForNextStage } = usePowers();
-  const [allowed] = useState(() => !store.blocked(ownerId));
-  const [id] = useState(() => crypto.randomUUID());
-  const [ready, setReady] = useState(false);
-  useEffect(() => {
-    let obsolete = false;
-    void Promise.resolve().then(() => {
-      if (obsolete || !allowed) return;
-      store.start({
-        ownerId,
-        generation,
-        id,
-        stage: level,
-        write: () => apiStartStage(ownerId, level),
-        present: () => {},
-        confirmed: () => {
-          if (obsolete || !isCurrent(generation, ownerId)) return;
-          const value = store.getSnapshot()?.result as { boosters?: import('@/types').Powers } | undefined;
-          if (value?.boosters) setPowers(value.boosters);
-          setSelectedPowersForNextStage(null);
-          setReady(true);
-        },
-      });
-    });
-    return () => {
-      obsolete = true;
-    };
-  }, [allowed, ownerId, id, level, store, setPowers, setSelectedPowersForNextStage, generation, isCurrent]);
-  if (!allowed) return <ReadFailure title="Account save unresolved. Use Demo or check your account later." />;
-  if (ready) return <StageView level={level} />;
-  if (outcome?.id !== id || outcome.status === 'saving')
-    return (
-      <div>
-        Preparing account stage... <ReadFailure title="Account preparation" />
-      </div>
-    );
-  if (outcome.status !== 'saved')
-    return <ReadFailure title={outcome.status === 'unconfirmed' ? 'Account stage start unconfirmed' : 'Account stage start not accepted'} />;
-  return <StageView level={level} />;
-}
-
 type GuestBinding = { runId: string; attemptId: string; stageId: number };
 function StageView({ level, guestBinding }: { level: number; guestBinding?: GuestBinding }) {
   return (
@@ -161,18 +94,12 @@ function GuestEntry({ requested }: { requested: number }) {
 }
 
 export default function GameplayPage() {
-  const { user, mode, canUseAccount, generation } = useAuth();
+  const { mode, generation } = useAuth();
+  const { gameplay } = useAccountOutcome();
   const { save } = useGuest();
   const { search } = useLocation();
-  const [entry, setEntry] = useState(() => (canUseAccount && user ? { id: user.id, generation } : null));
-  useEffect(() => {
-    if (mode === 'account' && canUseAccount && user) void Promise.resolve().then(() => setEntry({ id: user.id, generation }));
-  }, [mode, canUseAccount, user, generation]);
   const requested = readLevelFromSearch(search);
-  if (mode === 'account' && (!entry || entry.generation !== generation)) return <AccountAvailability />;
-  return mode === 'account' && entry ? (
-    <AccountGameplayPage key={entry.id + ':' + generation} ownerId={entry.id} />
-  ) : (
-    <GuestEntry key={save.runId + ':' + requested} requested={requested} />
-  );
+  if (mode === 'account')
+    return gameplay.ownerId ? <AccountEntry key={gameplay.ownerId + ':' + generation + ':' + requested} requested={requested} /> : <AccountAvailability />;
+  return <GuestEntry key={save.runId + ':' + requested} requested={requested} />;
 }
