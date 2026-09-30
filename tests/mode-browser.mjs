@@ -44,17 +44,23 @@ try {
             status: 200,
             contentType: 'application/json',
             body: JSON.stringify({
-              username: 'Account',
-              avatar: 'default.png',
-              powers: { bomb: 99, laser: 99, extraShuffle: 99 },
-              progress: { stage1: { completed: true } },
-              playerLevel: 9,
-              playerExp: 2000,
-              badges: [],
-              gamesPlayed: 1,
-              gamesWon: 1,
-              gamesLost: 0,
-              totalScore: 900,
+              accessToken: 'mock-access-token',
+              user: {
+                id: '000000000000000000000001',
+                email: 'account@example.test',
+                hearts: 3,
+                username: 'Account',
+                avatar: 'default.png',
+                powers: { bomb: 99, laser: 99, extraShuffle: 99 },
+                progress: { stage1: { completed: true } },
+                playerLevel: 9,
+                playerExp: 2000,
+                badges: [],
+                gamesPlayed: 1,
+                gamesWon: 1,
+                gamesLost: 0,
+                totalScore: 900,
+              },
             }),
           });
         } catch {}
@@ -80,8 +86,8 @@ try {
   await stale.page.goto(base + '/game-map');
   assert.deepEqual(stale.calls, []);
   assert.equal(await stale.page.getByRole('button', { name: 'Stage 2', exact: true }).isEnabled(), true);
-  await stale.page.getByRole('button', { name: 'Resume saved account' }).click();
-  await stale.page.getByText('Loading account...', { exact: true }).waitFor();
+  await stale.page.getByRole('button', { name: 'Account' }).click();
+  await stale.page.getByText('Checking account', { exact: true }).waitFor();
   const start = Date.now();
   await stale.page.getByText('Account unavailable', { exact: true }).waitFor({ timeout: 12500 });
   assert.ok(Date.now() - start < 12500);
@@ -93,9 +99,9 @@ try {
   console.log('Mode browser: late account response and online event cannot overwrite Demo');
   const late = await setup(true, true);
   await late.page.goto(base + '/game-map');
-  await late.page.getByRole('button', { name: 'Resume saved account' }).click();
-  await late.page.getByText('Loading account...', { exact: true }).waitFor();
-  await late.page.waitForFunction(() => document.body.textContent.includes('Loading account...'));
+  await late.page.getByRole('button', { name: 'Account' }).click();
+  await late.page.getByText('Checking account', { exact: true }).waitFor();
+  await late.page.waitForFunction(() => document.body.textContent.includes('Checking account'));
   // Wait for the actual account read to reach the test server before leaving its owner.
   const reachDeadline = Date.now() + 2000;
   while (!late.calls.length && Date.now() < reachDeadline) await new Promise((resolve) => setTimeout(resolve, 10));

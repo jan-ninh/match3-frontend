@@ -1,3 +1,4 @@
+import { RequestError } from '@/api/transport';
 import { useCallback, useState } from 'react';
 import { apiCompleteStage } from '@/api/game';
 import { useAccountOutcome } from '@/context/OutcomeContext';
@@ -9,11 +10,11 @@ export function useWinFlow(args: {
   openWin: (opts: { level: number; mode: 'returnToMap' }) => void;
 }) {
   const { store } = useAccountOutcome();
-  const { profile, refreshProfile, generation, isCurrent } = useAuth();
+  const { profile, refreshProfile, generation, isCurrent, session } = useAuth();
   const [id] = useState(() => crypto.randomUUID());
   const runWinFlow = useCallback(
     (stage: number) => {
-      if (!args.userId || !isCurrent(generation, args.userId)) return;
+      if (!args.userId || !isCurrent(generation)) return;
       const usedPower = args.getUsedPower();
       store.start({
         ownerId: args.userId,
@@ -21,14 +22,17 @@ export function useWinFlow(args: {
         id,
         stage,
         rewardFromLevel: profile?.playerLevel,
-        write: () => apiCompleteStage(args.userId!, stage, usedPower),
+        write: () =>
+          isCurrent(generation, args.userId!)
+            ? apiCompleteStage(args.userId!, stage, usedPower)
+            : Promise.reject(new RequestError(session === 'expired' ? 'unauthenticated' : 'unavailable')),
         present: () => args.openWin({ level: stage, mode: 'returnToMap' }),
         confirmed: () => {
           if (isCurrent(generation, args.userId!)) void refreshProfile();
         },
       });
     },
-    [args, store, id, profile, refreshProfile, generation, isCurrent],
+    [args, store, id, profile, refreshProfile, generation, isCurrent, session],
   );
   return { runWinFlow };
 }

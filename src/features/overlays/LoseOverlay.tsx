@@ -16,7 +16,7 @@ type Props = {
 
 export default function LoseOverlay({ open, onClose, level: _level = 1 }: Props) {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { mode } = useAuth();
   const { playLoseSound } = useAudio(); // ✅ NEW
 
   // ✅ play lose sound exactly once per open
@@ -69,7 +69,7 @@ export default function LoseOverlay({ open, onClose, level: _level = 1 }: Props)
           }}
           transition={{ duration: 0.18, ease: 'easeOut' }}
         >
-          {user
+          {mode === 'account'
             ? 'Your game ended. Account changes depend on the save status below.'
             : 'Your completed stages are safe. Return to the map to retry; used powers remain spent.'}
         </motion.div>

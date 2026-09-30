@@ -1,29 +1,6 @@
-// src/api/auth.ts
-// Small auth API wrapper. Exports functions the frontend will call.
-
-import { request } from './http';
-
-export type UserDTO = {
-  id: string;
-  email: string;
-  username: string;
-  avatar?: string;
-  totalScore?: number;
-  hearts?: number;
-};
-
-export async function apiLogin(email: string, password: string): Promise<UserDTO> {
-  return request('/api/auth/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
-  });
-}
-
-export async function apiRegister(email: string, username: string, password: string): Promise<UserDTO> {
-  return request('/api/auth/register', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, username, password, confirmPassword: password }),
-  });
-}
+import { accountSession } from './http';
+import type { CurrentUser } from './profileShape';
+export type UserDTO = CurrentUser;
+export const apiLogin = (email: string, password: string) => accountSession.credentials('/api/auth/login', { email, password });
+export const apiRegister = (email: string, username: string, password: string) =>
+  accountSession.credentials('/api/auth/register', { email, username, password, confirmPassword: password });

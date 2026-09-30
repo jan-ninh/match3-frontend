@@ -24,13 +24,13 @@ try {
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto(base + '/game-map');
   assert.equal(calls.length, 0);
-  await page.getByRole('button', { name: 'Resume saved account' }).click();
+  await page.getByRole('button', { name: 'Account' }).click();
   let start = Date.now();
   await page.getByText('Account unavailable', { exact: true }).waitFor({ timeout: 12500 });
   assert.ok(Date.now() - start < 12500);
   await page.getByRole('button', { name: 'Play Demo', exact: true }).first().click();
   await page.getByRole('button', { name: 'Stage 1', exact: true }).waitFor();
-  await page.getByRole('button', { name: 'Resume saved account' }).click();
+  await page.getByRole('button', { name: 'Account' }).click();
   await page.getByRole('link', { name: 'Profile', exact: true }).click();
   await page.getByText('Account unavailable', { exact: true }).waitFor({ timeout: 12500 });
   assert.equal(await page.getByText('Loading profile...', { exact: true }).count(), 0);

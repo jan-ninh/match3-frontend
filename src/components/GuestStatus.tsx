@@ -2,7 +2,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useGuest } from '@/context/GuestContext';
 
 export default function GuestStatus() {
-  const { mode } = useAuth();
+  const { mode, logoutUnconfirmed } = useAuth();
   const { persistence, recovered, conflict } = useGuest();
   if (mode !== 'demo') return null;
   return (
@@ -16,6 +16,7 @@ export default function GuestStatus() {
           </button>
         </span>
       )}
+      {logoutUnconfirmed && <span className="block">Signed out on this device. Server sign-out could not be confirmed.</span>}
       {recovered && <span className="block">The guest save could not be restored. A fresh run was started.</span>}
     </p>
   );

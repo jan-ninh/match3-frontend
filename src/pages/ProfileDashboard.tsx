@@ -81,7 +81,7 @@ export default function ProfileDashboard() {
         <p className="text-center p-6">Account stats require account sign-in. Demo progress stays on this device.</p>
       </>
     );
-  if (mode === 'legacy-account' && !canUseAccount)
+  if (mode === 'account' && !canUseAccount)
     return (
       <>
         <Navbar />
@@ -106,6 +106,16 @@ export default function ProfileDashboard() {
       </div>
 
       <div className="m-4 flex flex-col space-y-4">
+        <button
+          type="button"
+          className="underline"
+          disabled={profileRequest === 'loading'}
+          onClick={() => {
+            void refreshProfile();
+          }}
+        >
+          Refresh account
+        </button>
         {profileRequest === 'loading' && <p>Updating account data · last confirmed values are read-only.</p>}
         <ProfileHeader
           username={profile.username}

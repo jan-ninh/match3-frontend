@@ -1,6 +1,6 @@
 // src/features/gameplay/ui/GameplayRoot.tsx
 import type { ReactNode } from 'react';
-import { createContext, useContext, useMemo } from 'react';
+import { createContext, useContext, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 
 import type { EngineState } from '@/gamelogic';
@@ -63,7 +63,9 @@ export function GameplayRoot({ initialLevelId = 1, guestBinding, children }: Pro
 
   const { openWin, openLose } = useOverlays();
   const { user } = useAuth();
-  const userId = user?.id ?? null;
+  // A mounted account board retains its owner when the session expires; it never becomes a guest board.
+  const [accountOwner] = useState(() => (guestBinding ? null : (user?.id ?? null)));
+  const userId = accountOwner;
 
   const { isDev, state, inputLocked, canSwapAt, onIntent, onDevResetBoard, onDevFixedSeed, onDevNextLevel, onDevPrevLevel, onDevSetLevel } = useMatch3Engine({
     initialLevelId,

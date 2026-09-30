@@ -73,9 +73,8 @@ export default function RegisterModal({ onClose, onSwitchToLogin }: Props) {
 
       await register(email, username, password);
 
-      toast.success('Account created. Please log in.');
+      toast.success('Account created.');
       onClose();
-      onSwitchToLogin();
     } catch (err: any) {
       if (err instanceof RequestError && err.kind === 'cancelled') return;
       const serverMessage =

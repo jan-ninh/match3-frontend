@@ -37,8 +37,8 @@ export function PowerProvider({ children }: { children: ReactNode }) {
   const { user, mode, profile, generation, isCurrent } = useAuth();
   const { save, store } = useGuest();
   // IMPORTANT: clone to avoid sharing the frozen object reference as state
-  const ownerKey = user ? user.id + ':' + generation : '';
   const [accountPowers, setAccountPowers] = useState<{ key: string; powers: Powers }>({ key: '', powers: { bomb: 0, laser: 0, extraShuffle: 0 } });
+  const ownerKey = user ? user.id + ':' + generation : accountPowers.key.endsWith(':' + generation) ? accountPowers.key : '';
   const powers = useMemo(
     () => (accountPowers.key === ownerKey ? accountPowers.powers : (profile?.powers ?? { bomb: 0, laser: 0, extraShuffle: 0 })),
     [accountPowers, ownerKey, profile?.powers],
@@ -59,7 +59,7 @@ export function PowerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    if (mode !== 'legacy-account' || !user) return;
+    if (mode !== 'account' || !user) return;
     const onGrant = (e: Event) => {
       const ce = e as CustomEvent<PowerGrantDetail>;
       const d = ce.detail;
@@ -87,7 +87,7 @@ export function PowerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    if (mode !== 'legacy-account' || !user) return;
+    if (mode !== 'account' || !user) return;
     const onGrantMany = (e: Event) => {
       const ce = e as CustomEvent<unknown>;
       const d = ce.detail;
@@ -139,24 +139,23 @@ export function PowerProvider({ children }: { children: ReactNode }) {
         }
         return;
       }
-      if (!user) return;
+      if (!isCurrent(generation)) return;
       const key = d.key;
       if (!isPowerKey(key)) return;
 
       const amount = d.amount | 0;
       if (amount <= 0) return;
 
-      setPowersState((prev) => {
-        const cur = (prev[key] ?? 0) | 0;
-        const nextVal = Math.max(0, cur - amount);
-        if (nextVal === cur) return prev;
-        return { ...prev, [key]: nextVal };
+      setAccountPowers((previous) => {
+        if (previous.key !== ownerKey) return previous;
+        const cur = (previous.powers[key] ?? 0) | 0;
+        return { ...previous, powers: { ...previous.powers, [key]: Math.max(0, cur - amount) } };
       });
     };
 
     window.addEventListener(POWER_CONSUME_EVENT, onConsume as EventListener);
     return () => window.removeEventListener(POWER_CONSUME_EVENT, onConsume as EventListener);
-  }, [user, store, mode, setPowersState]);
+  }, [user, store, mode, setPowersState, generation, isCurrent, ownerKey]);
 
   const setPowers = useCallback(
     (next: Powers) => {
@@ -172,7 +171,7 @@ export function PowerProvider({ children }: { children: ReactNode }) {
   // - backend[selected] + bonus (expected post-choice value if backend is "base")
   const setFromBackendAndSelect = useCallback(
     (backendPowers: Powers, selected: PowerKey) => {
-      if (mode !== 'legacy-account' || !user) return;
+      if (mode !== 'account' || !user) return;
       setPowersState((prev) => {
         const next: Powers = {
           bomb: backendPowers.bomb ?? 0,

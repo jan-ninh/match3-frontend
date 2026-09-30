@@ -36,20 +36,19 @@ function readLevelFromSearch(search: string): number {
   return normalizeLevel(n);
 }
 
-function AccountGameplayPage() {
-  const { user } = useAuth();
+function AccountGameplayPage({ ownerId }: { ownerId: string }) {
   const navigate = useNavigate();
   const { search } = useLocation();
   const requested = readLevelFromSearch(search);
   const load = useCallback(
     async (signal: AbortSignal) => {
-      const data = await apiGetGameStatus(user!.id, signal);
+      const data = await apiGetGameStatus(ownerId, signal);
       if (!Number.isInteger(data.allowedStage) || data.allowedStage! < 1 || data.allowedStage! > 12) throw new RequestError('protocol');
       return data;
     },
-    [user],
+    [ownerId],
   );
-  const read = useRead(user!.id, load);
+  const read = useRead(ownerId, load);
   const level = read.data?.allowedStage;
   useEffect(() => {
     if (read.status === 'success' && level !== requested) navigate('/game-map/play-game?level=' + level, { replace: true });
@@ -64,28 +63,28 @@ function AccountGameplayPage() {
         </button>
       </div>
     );
-  return <AccountStageEntry key={user!.id + ':' + level} level={level!} />;
+  return <AccountStageEntry key={ownerId + ':' + level} ownerId={ownerId} level={level!} />;
 }
-function AccountStageEntry({ level }: { level: number }) {
-  const { user, generation, isCurrent } = useAuth();
+function AccountStageEntry({ level, ownerId }: { level: number; ownerId: string }) {
+  const { generation, isCurrent } = useAuth();
   const { store, outcome } = useAccountOutcome();
   const { setPowers, setSelectedPowersForNextStage } = usePowers();
-  const [allowed] = useState(() => !store.blocked(user!.id));
+  const [allowed] = useState(() => !store.blocked(ownerId));
   const [id] = useState(() => crypto.randomUUID());
   const [ready, setReady] = useState(false);
   useEffect(() => {
     let obsolete = false;
     void Promise.resolve().then(() => {
-      if (obsolete || !user || !allowed) return;
+      if (obsolete || !allowed) return;
       store.start({
-        ownerId: user.id,
+        ownerId,
         generation,
         id,
         stage: level,
-        write: () => apiStartStage(user.id, level),
+        write: () => apiStartStage(ownerId, level),
         present: () => {},
         confirmed: () => {
-          if (obsolete || !isCurrent(generation, user.id)) return;
+          if (obsolete || !isCurrent(generation, ownerId)) return;
           const value = store.getSnapshot()?.result as { boosters?: import('@/types').Powers } | undefined;
           if (value?.boosters) setPowers(value.boosters);
           setSelectedPowersForNextStage(null);
@@ -96,7 +95,7 @@ function AccountStageEntry({ level }: { level: number }) {
     return () => {
       obsolete = true;
     };
-  }, [allowed, user, id, level, store, setPowers, setSelectedPowersForNextStage, generation, isCurrent]);
+  }, [allowed, ownerId, id, level, store, setPowers, setSelectedPowersForNextStage, generation, isCurrent]);
   if (!allowed) return <ReadFailure title="Account save unresolved. Use Demo or check your account later." />;
   if (ready) return <StageView level={level} />;
   if (outcome?.id !== id || outcome.status === 'saving')
@@ -167,12 +166,12 @@ export default function GameplayPage() {
   const { search } = useLocation();
   const [entry, setEntry] = useState(() => (canUseAccount && user ? { id: user.id, generation } : null));
   useEffect(() => {
-    if (mode === 'legacy-account' && canUseAccount && user) void Promise.resolve().then(() => setEntry({ id: user.id, generation }));
+    if (mode === 'account' && canUseAccount && user) void Promise.resolve().then(() => setEntry({ id: user.id, generation }));
   }, [mode, canUseAccount, user, generation]);
   const requested = readLevelFromSearch(search);
-  if (mode === 'legacy-account' && (!user || entry?.id !== user.id || entry.generation !== generation)) return <AccountAvailability />;
-  return mode === 'legacy-account' && user ? (
-    <AccountGameplayPage key={user.id + ':' + generation} />
+  if (mode === 'account' && (!entry || entry.generation !== generation)) return <AccountAvailability />;
+  return mode === 'account' && entry ? (
+    <AccountGameplayPage key={entry.id + ':' + generation} ownerId={entry.id} />
   ) : (
     <GuestEntry key={save.runId + ':' + requested} requested={requested} />
   );

@@ -4,7 +4,12 @@ const { chromium } = createRequire(import.meta.url)(process.env.MATCH3_PLAYWRIGH
 const browser = await chromium.launch({ headless: true, channel: 'msedge' });
 const base = process.env.MATCH3_DEV_URL || 'http://127.0.0.1:5173';
 try {
-  for (const outcome of ['WIN', 'LOSS']) {
+  for (const { outcome, expired } of [
+    { outcome: 'WIN', expired: false },
+    { outcome: 'LOSS', expired: false },
+    { outcome: 'WIN', expired: true },
+  ]) {
+    let refreshes = 0;
     const context = await browser.newContext();
     const writes = [];
     const errors = [];
@@ -15,15 +20,26 @@ try {
     await context.route('**/api/**', async (route) => {
       const url = route.request().url();
       if (!new URL(url).pathname.startsWith('/api/')) return route.continue();
-      if (url.includes('/completeStage/') || url.includes('/lose/')) {
+      if (url.includes('/completeStage/') || url.includes('/api/game/lose')) {
         writes.push(url);
+        if (expired) {
+          await route.fulfill({ status: 401, body: '{}' });
+          return;
+        }
         await new Promise((r) => setTimeout(r, 11000));
         try {
           await route.fulfill({ status: 503, body: '{}' });
         } catch {}
         return;
       }
+      if (url.includes('/auth/refresh') && ++refreshes > 1 && expired) {
+        await route.fulfill({ status: 401, body: '{}' });
+        return;
+      }
       const profile = {
+        id: '000000000000000000000001',
+        email: 'account@example.test',
+        hearts: 3,
         username: 'Account',
         avatar: 'default.png',
         powers: { bomb: 1, laser: 1, extraShuffle: 2 },
@@ -36,19 +52,21 @@ try {
         gamesWon: 0,
         gamesLost: 0,
       };
-      const data = url.includes('/profile/')
-        ? profile
-        : url.includes('/status')
-          ? { allowedStage: 1, powers: profile.powers }
-          : url.includes('/start/')
-            ? { boosters: profile.powers }
-            : { CAMPAIGN_ID: crypto.randomUUID() };
+      const data = url.includes('/auth/refresh')
+        ? { accessToken: 'mock-access-token', user: profile }
+        : url.includes('/auth/me')
+          ? profile
+          : url.includes('/status')
+            ? { allowedStage: 1, powers: profile.powers }
+            : url.includes('/start/')
+              ? { boosters: profile.powers }
+              : { CAMPAIGN_ID: crypto.randomUUID() };
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(data) });
     });
     const page = await context.newPage();
     page.on('pageerror', (e) => errors.push(e.message));
     await page.goto(base + '/game-map');
-    await page.getByRole('button', { name: 'Resume saved account' }).click();
+    await page.getByRole('button', { name: 'Account' }).click();
     await page.getByRole('button', { name: 'Stage 1', exact: true }).click();
     await page.getByRole('button', { name: 'Reshuffle', exact: true }).waitFor();
     await page.locator('[data-piece-id]').first().waitFor();
@@ -58,19 +76,28 @@ try {
     await page.getByRole('button', { name: outcome === 'WIN' ? 'Win (unlock next)' : 'Lose (reset + lvl1)', exact: true }).click();
     await page.getByText(outcome === 'WIN' ? 'You Won!' : 'Game Over', { exact: true }).waitFor({ timeout: 3000 });
     assert.ok(Date.now() - start < 3000);
-    await page.getByText('Saving', { exact: true }).waitFor();
-    await page.getByText('Save unconfirmed', { exact: true }).first().waitFor({ timeout: 10000 });
+    if (!expired) await page.getByText('Saving', { exact: true }).waitFor();
+    const label = expired ? 'Not accepted' : 'Save unconfirmed';
+    await page.getByText(label, { exact: true }).first().waitFor({ timeout: 10000 });
+    if (expired) await page.getByText('Session expired. Sign in again or play Demo.', { exact: true }).waitFor();
     assert.equal(writes.length, 1);
     await page
       .getByRole('button', { name: /Return to map/i })
       .last()
       .click();
-    await page.getByText('Save unconfirmed', { exact: true }).first().waitFor();
-    assert.equal(await page.getByRole('button', { name: 'Stage 1', exact: true }).isEnabled(), false);
+    await page.getByText(label, { exact: true }).first().waitFor();
+    assert.equal(await page.getByRole('button', { name: 'Stage 1', exact: true }).count(), 0);
+    await page.getByText(expired ? 'Session expired' : 'Account unavailable', { exact: true }).waitFor();
     await page.getByRole('button', { name: 'Play Demo', exact: true }).first().click();
     await page.getByRole('button', { name: 'Stage 1', exact: true }).waitFor();
     assert.deepEqual(errors, []);
-    console.log('PASS: ' + outcome + ' overlay immediate, mutation sends once, timeout unconfirmed, map/Demo usable.');
+    console.log(
+      'PASS: ' +
+        outcome +
+        (expired
+          ? ' overlay remains account-bound after session expiry; rejected save, map/Demo usable.'
+          : ' overlay immediate, mutation sends once, timeout unconfirmed, map/Demo usable.'),
+    );
     await context.close();
   }
 } finally {

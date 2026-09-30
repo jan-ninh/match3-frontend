@@ -1,18 +1,26 @@
-import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router';
+import { useAuth } from '@/context/AuthContext';
+import { useOverlays } from '@/features/overlays';
 export default function AccountAvailability() {
-  const { availability, error, retryAccount, playDemo, selected } = useAuth();
+  const { availability, session, error, retryAccount, playDemo } = useAuth();
+  const { openLogin } = useOverlays();
   const navigate = useNavigate();
-  const title = availability === 'checking' ? 'Loading account...' : availability === 'rejected' ? 'Account request rejected' : 'Account unavailable';
+  const title = session === 'expired' ? 'Session expired' : availability === 'checking' ? 'Checking account' : 'Account unavailable';
   return (
-    <div role="status" className="text-center p-6 space-y-3">
+    <div className="text-center p-6 space-y-3" role="status">
       <p>{title}</p>
-      {error && <p>{error.message}</p>}
-      {availability !== 'checking' && selected && (
-        <button type="button" className="border rounded px-4 py-2" onClick={retryAccount}>
-          Retry account
+      {error && session !== 'expired' && <p>{error.message}</p>}
+      {session === 'expired' ? (
+        <button type="button" className="border rounded px-4 py-2" onClick={openLogin}>
+          Sign in
         </button>
-      )}{' '}
+      ) : (
+        availability !== 'checking' && (
+          <button type="button" className="border rounded px-4 py-2" onClick={retryAccount}>
+            Retry account
+          </button>
+        )
+      )}
       <button
         type="button"
         className="border rounded px-4 py-2"
@@ -23,7 +31,7 @@ export default function AccountAvailability() {
       >
         Play Demo
       </button>
-      <p className="text-sm">Demo progress stays on this device and is not saved to your account.</p>
+      <p>Demo progress stays on this device and is not saved to your account.</p>
     </div>
   );
 }

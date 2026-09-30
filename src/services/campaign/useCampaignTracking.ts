@@ -109,7 +109,7 @@ function toMovesUsedRaw(movesTotal: number, movesLeft: number): number {
 
 export function useCampaignTracking({ state }: Args): void {
   const { user, mode, canUseAccount, generation, isCurrent } = useAuth();
-  const enabled = mode === 'legacy-account' && canUseAccount && Boolean(user?.id);
+  const enabled = mode === 'account' && canUseAccount && Boolean(user?.id);
   const isDev = import.meta.env.DEV;
   const startAttemptedRef = useRef(false);
 
@@ -229,7 +229,6 @@ export function useCampaignTracking({ state }: Args): void {
         setLastSend({ kind: 'campaignStart', ok: true, atMs: nowMsUnix(), message: 'starting' });
 
         const res = await apiStartCampaign({
-          ACCOUNT_ID: user?.id,
           PLATFORM: metaRef.current.PLATFORM,
           CLIENT_VERSION: metaRef.current.CLIENT_VERSION,
           CLIENT_TIMESTAMP_MS: nowMsUnix(),

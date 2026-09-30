@@ -46,10 +46,11 @@ export default function LevelMapPage() {
     navigate(`/game-map/play-game?level=${level}`);
   };
 
-  if (mode === 'legacy-account' && !canUseAccount)
+  if (mode === 'account' && !canUseAccount)
     return (
       <>
         <Navbar />
+        <AccountPersistenceStatus />
         <AccountAvailability />
       </>
     );
@@ -70,9 +71,7 @@ export default function LevelMapPage() {
         </CyberTitle>
         <GuestStatus />
         <AccountPersistenceStatus />
-        {mode === 'legacy-account' && profileRequest === 'loading' && (
-          <p className="text-center">Updating account data · last confirmed values are read-only.</p>
-        )}
+        {mode === 'account' && profileRequest === 'loading' && <p className="text-center">Updating account data · last confirmed values are read-only.</p>}
         {!user && (
           <div className="text-center my-4">
             {guestAccess.campaignComplete && <p>Campaign complete! Optional sandbox 12 is unlocked.</p>}
