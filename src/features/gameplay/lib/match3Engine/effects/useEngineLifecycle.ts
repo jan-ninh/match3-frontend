@@ -3,7 +3,6 @@ import { useEffect, useLayoutEffect, useRef } from 'react';
 
 import type { EngineAction } from '@/gamelogic';
 import type { EngineState } from '@/gamelogic/types';
-import { useCampaignTracking } from '@/services/campaign/useCampaignTracking';
 import { setRuntimeLevelId } from '@/context/levelRuntime';
 
 type Args = Readonly<{
@@ -21,21 +20,13 @@ type Args = Readonly<{
   desiredSwapMs: number;
 }>;
 
-export function useEngineLifecycle({
-  dispatch,
-  state,
-  levelId,
-  engineLevelId,
-  engineSwapMs,
-  desiredSwapMs,
-}: Args) {
+export function useEngineLifecycle({ dispatch, levelId, engineLevelId, engineSwapMs, desiredSwapMs }: Args) {
   // bootstrap monotonic time once (keeps engine-timers stable even if initial state starts at nowMs=0)
   useEffect(() => {
     dispatch({ type: 'wake', nowMs: performance.now() } as EngineAction);
   }, [dispatch]);
 
-  // campaign/run tracking (FE → BE)
-  useCampaignTracking({ state });
+  // Campaign authority is derived from accepted account commands, outside engine lifecycle.
 
   // Mirror current engine level to a tiny runtime signal for UI-only policies.
   useEffect(() => {

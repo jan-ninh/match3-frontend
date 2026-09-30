@@ -34,6 +34,9 @@ try {
       activeAttempt: null,
       pendingRewards: [],
       legacyInterrupted: false,
+      campaign: null,
+      sandboxUnlocked: false,
+      campaignNeedsReset: false,
     };
     const context = await browser.newContext();
     const writes = [];

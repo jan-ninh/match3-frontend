@@ -29,6 +29,7 @@ export default function Navbar() {
 
   const baseItems: NavItem[] = [
     { kind: 'link', label: 'Home', icon: 'home', to: '/game-map' },
+    { kind: 'link', label: 'Leaderboard', icon: 'leaderboard', to: '/game-map/leaderboard' },
     { kind: 'action', label: 'Settings', icon: 'settings', onClick: openSettings },
   ];
 
@@ -54,7 +55,6 @@ export default function Navbar() {
     });
 
   const authItems: NavItem[] = [
-    { kind: 'link', label: 'Leaderboard', icon: 'leaderboard', to: '/game-map/leaderboard' },
     { kind: 'link', label: 'Lives', icon: 'heart', to: '/game-map' },
     { kind: 'link', label: 'Profile', icon: 'profile', to: '/game-map/profile' },
   ];

@@ -30,6 +30,9 @@ const profile = (id = ownerA) => ({
   activeAttempt: null,
   pendingRewards: [],
   legacyInterrupted: false,
+  campaign: null,
+  sandboxUnlocked: false,
+  campaignNeedsReset: false,
 });
 const clone = (v) => JSON.parse(JSON.stringify(v));
 const tick = () => new Promise((r) => setImmediate(r));
@@ -57,7 +60,7 @@ function fixture() {
     const b = JSON.parse(opts.body);
     const old = receipts.get(b.operationId);
     if (old) return { receipt: old, snapshot: clone(data) };
-    const command = path.endsWith('/start') ? 'START' : path.endsWith('/claim') ? 'REWARD' : 'TERMINAL';
+    const command = path.endsWith('/start') ? 'START' : path.endsWith('/claim') ? 'REWARD' : path.endsWith('/new-run') ? 'NEW_RUN' : 'TERMINAL';
     if (fail === 'before') throw new RequestError('timeout');
     if (command === 'START') {
       data.revision++;
@@ -78,9 +81,39 @@ function fixture() {
       data.playerExp += 1000;
       data.gamesWon++;
       data.frontier++;
+      if (data.activeAttempt.stageNumber === 11 && data.campaign) {
+        const date = new Date().toISOString();
+        data.campaign = {
+          ...data.campaign,
+          status: 'COMPLETED',
+          closedAt: date,
+          score: 8800,
+          completedStages: Array.from({ length: 11 }, (_, i) => i + 1),
+          result: {
+            runId: data.runId,
+            score: 8800,
+            finalizedAt: date,
+            finalizedRevision: data.revision + 1,
+            rulesVersion: data.rulesVersion,
+            catalogVersion: data.campaignVersion,
+            scoreVersion: 'regular-campaign-points-v1',
+            regularStages: 11,
+          },
+        };
+        data.sandboxUnlocked = true;
+      }
       data.progress['stage' + data.activeAttempt.stageNumber] = { completed: true, points: 800 };
       data.activeAttempt = null;
       data.revision++;
+    } else if (command === 'NEW_RUN') {
+      data.revision++;
+      data.progress = {};
+      data.frontier = 1;
+      data.totalScore = 0;
+      data.runId = randomUUID();
+      data.sandboxUnlocked = false;
+      data.campaignNeedsReset = false;
+      data.pendingRewards = [];
     } else {
       data.powers[b.power] += 2;
       data.pendingRewards = [];
@@ -89,7 +122,7 @@ function fixture() {
     const receipt = {
       operationId: b.operationId,
       command,
-      attemptId: command === 'START' ? data.activeAttempt.attemptId : b.attemptId,
+      attemptId: command === 'START' ? data.activeAttempt.attemptId : command === 'NEW_RUN' ? null : b.attemptId,
       status: 'committed',
       resultingRevision: data.revision,
       resultSnapshot: clone(data),
@@ -441,5 +474,55 @@ test('late stale START response cannot bind an attempt that a newer canonical re
   assert.equal(f.store.getSnapshot().binding, null);
   assert.equal(f.store.getSnapshot().data.revision, 2);
   assert.equal(f.store.getSnapshot().data.totalScore, 800);
+  f.dispose();
+});
+
+test('lost stage-11 response restores the same finalized campaign; sandbox never changes that displayed result', async () => {
+  const f = fixture();
+  f.data.runId = randomUUID();
+  f.data.frontier = 11;
+  f.data.totalScore = 8000;
+  f.data.campaign = {
+    runId: f.data.runId,
+    status: 'ACTIVE',
+    startedAt: new Date().toISOString(),
+    score: 8000,
+    completedStages: Array.from({ length: 10 }, (_, i) => i + 1),
+    result: null,
+  };
+  await f.login();
+  await f.start();
+  f.fail = 'after';
+  let shown = 0;
+  await f.store.finish(f.store.getSnapshot().binding.attemptId, 'WIN', () => shown++);
+  assert.equal(shown, 1);
+  assert.equal(f.store.getSnapshot().status, 'unconfirmed');
+  assert.equal(f.store.getSnapshot().data.campaign.status, 'ACTIVE');
+  f.fail = null;
+  await f.session.restore();
+  await tick();
+  assert.equal(f.store.getSnapshot().data.campaign.status, 'COMPLETED');
+  const finalized = clone(f.store.getSnapshot().data.campaign.result);
+  assert.equal(finalized.score, 8800);
+  f.store.retain('sandbox');
+  await f.store.start(12, 'sandbox');
+  await f.store.finish(f.store.getSnapshot().binding.attemptId, 'WIN');
+  assert.deepEqual(f.store.getSnapshot().data.campaign.result, finalized);
+  f.session.playDemo();
+  assert.equal(f.store.getSnapshot().data, null);
+  f.dispose();
+});
+test('explicit new campaign uses a receipt-backed command with no fabricated leaderboard or Guest mutation', async () => {
+  const f = fixture(),
+    guest = new GuestStore();
+  const before = JSON.stringify(guest.getSnapshot().save);
+  await f.login();
+  await f.start();
+  await f.store.finish(f.store.getSnapshot().binding.attemptId, 'WIN');
+  await f.store.newRun();
+  assert.equal(f.store.getSnapshot().data.frontier, 1);
+  assert.equal(f.store.getSnapshot().status, 'saved');
+  assert.equal(f.calls.filter((c) => c.path.endsWith('/new-run')).length, 1);
+  assert.equal(JSON.stringify(guest.getSnapshot().save), before);
   f.dispose();
 });

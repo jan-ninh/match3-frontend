@@ -56,6 +56,7 @@ function StageView({ level, guestBinding }: { level: number; guestBinding?: Gues
         )}
       </div>
       <div className="shrink-0">
+        {!guestBinding && level === 12 && <p>Optional sandbox 12 · finalized campaign score stays unchanged.</p>}
         <GuestStatus />
         <GameFooter />
       </div>

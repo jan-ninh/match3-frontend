@@ -27,6 +27,25 @@ export default function AccountPersistenceStatus() {
   return (
     <div role="status" className="text-center text-sm py-2">
       {show && <p>{labels[gameplay.status]}</p>}
+      {gameplay.data?.campaign?.result && (
+        <p>
+          {gameplay.data.campaign.runId === gameplay.data.runId ? 'Campaign complete' : 'Last completed campaign'} · finalized score{' '}
+          {gameplay.data.campaign.result.score}. Sandbox is outside the leaderboard result.
+        </p>
+      )}
+      {gameplay.data?.campaignNeedsReset && <p>Historical progress is not a canonical campaign result. Start a new campaign to participate.</p>}
+      {canUseAccount && !pending && !store.capacityReached() && !gameplay.data?.activeAttempt && !gameplay.data?.legacyInterrupted && (
+        <button
+          type="button"
+          className="underline mr-4"
+          onClick={() => {
+            if (window.confirm('Start a new account campaign? Current progress, score and powers reset. Level, EXP and your best completed result remain.'))
+              void store.newRun();
+          }}
+        >
+          New account campaign
+        </button>
+      )}
       {session === 'expired' && <p>Session expired. Sign in again or play Demo.</p>}
       {gameplay.status === 'unconfirmed' && <p>Account save is unconfirmed. Check its receipt before retrying.</p>}
       {gameplay.status === 'not-accepted' && <p>The account transition was not accepted. Current account state determines what can happen next.</p>}

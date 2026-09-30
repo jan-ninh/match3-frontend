@@ -58,7 +58,7 @@ export default function ProfileDashboard() {
       { label: 'Wins', value: wins },
       { label: 'Losses', value: profile.gamesLost },
       { label: 'Games Played', value: profile.gamesPlayed },
-      { label: 'Score', value: safeTotalScore.toLocaleString() },
+      { label: 'Gameplay score', value: safeTotalScore.toLocaleString() },
       { label: 'Total EXP', value: playerExpTotal.toLocaleString() },
     ];
   }, [profile, safeTotalScore]);

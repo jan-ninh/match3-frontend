@@ -15,7 +15,7 @@ export type CommandBody = Common &
   );
 export type PendingOperation = {
   ownerId: string;
-  command: 'START' | 'TERMINAL' | 'REWARD' | 'LEGACY_ABANDON';
+  command: 'START' | 'TERMINAL' | 'REWARD' | 'LEGACY_ABANDON' | 'NEW_RUN';
   runId: string | null;
   createdAt: number;
   body: CommandBody;
@@ -78,7 +78,7 @@ function parseRow(value: unknown): JournalRow | null {
         return null;
     } else if (p.command === 'REWARD') {
       if (keys !== 'attemptId,expectedRevision,operationId,power' || !validUUID(b.attemptId) || !power(b.power)) return null;
-    } else if (p.command === 'LEGACY_ABANDON') {
+    } else if (p.command === 'LEGACY_ABANDON' || p.command === 'NEW_RUN') {
       if (keys !== 'expectedRevision,operationId') return null;
     } else return null;
   }
@@ -110,6 +110,7 @@ const paths = {
   START: '/api/game/attempts/start',
   TERMINAL: '/api/game/attempts/terminal',
   REWARD: '/api/game/rewards/claim',
+  NEW_RUN: '/api/game/new-run',
   LEGACY_ABANDON: '/api/game/legacy-abandon',
 };
 export class AccountGameplayStore {
@@ -253,6 +254,7 @@ export class AccountGameplayStore {
       !this.blocked(data.id) &&
       !data.activeAttempt &&
       !data.legacyInterrupted &&
+      !data.campaignNeedsReset &&
       (this.rows.has(data.id) || this.rows.size < 4)
     );
   }
@@ -293,7 +295,7 @@ export class AccountGameplayStore {
       value.receipt.operationId !== p.body.operationId ||
       value.receipt.status !== 'committed' ||
       value.receipt.command !== p.command ||
-      !validUUID(value.receipt.attemptId)
+      (p.command === 'NEW_RUN' ? value.receipt.attemptId !== null : !validUUID(value.receipt.attemptId))
     )
       throw new RequestError('protocol');
     if ('attemptId' in p.body && value.receipt.attemptId !== p.body.attemptId) throw new RequestError('protocol');
@@ -303,7 +305,7 @@ export class AccountGameplayStore {
     const row = this.rows.get(p.ownerId);
     if (row?.pending?.body.operationId === p.body.operationId) {
       row.pending = null;
-      if (p.command === 'TERMINAL' || p.command === 'LEGACY_ABANDON') {
+      if (p.command === 'TERMINAL' || p.command === 'LEGACY_ABANDON' || p.command === 'NEW_RUN') {
         row.usageAttemptId = null;
         row.usage = [];
       }
@@ -428,6 +430,22 @@ export class AccountGameplayStore {
       return this.send(p, this.state.generation);
     }
     return Promise.resolve();
+  };
+  newRun = () => {
+    const auth = this.session.getSnapshot(),
+      data = this.state.data;
+    if (
+      !data ||
+      auth.session !== 'verified' ||
+      auth.availability !== 'available' ||
+      data.activeAttempt ||
+      data.legacyInterrupted ||
+      this.blocked(data.id) ||
+      this.capacityReached()
+    )
+      return Promise.resolve();
+    const p = this.pending('NEW_RUN', { operationId: this.uuid(), expectedRevision: data.revision });
+    return this.send(p, this.state.generation);
   };
   claimReward = (attemptId: string, power: keyof CanonicalPowers) => {
     const data = this.state.data;

@@ -17,6 +17,60 @@ export type ActiveAccountAttempt = {
   startOperationId: string;
   initialPowers: CanonicalPowers;
 };
+export type CampaignResult = {
+  runId: string;
+  score: number;
+  finalizedAt: string;
+  finalizedRevision: number;
+  rulesVersion: string;
+  catalogVersion: string;
+  scoreVersion: 'regular-campaign-points-v1';
+  regularStages: 11;
+};
+export type AccountCampaign = {
+  runId: string;
+  status: 'ACTIVE' | 'COMPLETED' | 'RESET';
+  startedAt: string;
+  closedAt?: string;
+  resetReason?: string;
+  score: number;
+  completedStages: number[];
+  result: CampaignResult | null;
+};
+export function readCampaign(value: unknown): AccountCampaign | null {
+  if (value === null) return null;
+  if (
+    !record(value) ||
+    !validUUID(value.runId) ||
+    !['ACTIVE', 'COMPLETED', 'RESET'].includes(String(value.status)) ||
+    typeof value.startedAt !== 'string' ||
+    !Number.isFinite(Date.parse(value.startedAt)) ||
+    !count(value.score) ||
+    !Array.isArray(value.completedStages) ||
+    value.completedStages.length > 11 ||
+    !value.completedStages.every((stage, i) => stage === i + 1)
+  )
+    throw new RequestError('protocol');
+  if (value.status !== 'ACTIVE' && (typeof value.closedAt !== 'string' || !Number.isFinite(Date.parse(value.closedAt)))) throw new RequestError('protocol');
+  if (value.status === 'COMPLETED') {
+    const r = value.result;
+    if (
+      !record(r) ||
+      r.runId !== value.runId ||
+      r.score !== value.score ||
+      r.regularStages !== 11 ||
+      value.completedStages.length !== 11 ||
+      typeof r.finalizedAt !== 'string' ||
+      !Number.isFinite(Date.parse(r.finalizedAt)) ||
+      !count(r.finalizedRevision) ||
+      r.scoreVersion !== 'regular-campaign-points-v1' ||
+      r.rulesVersion !== 'account-gameplay-v1' ||
+      r.catalogVersion !== 'stage-catalog-2026-09-29-v1'
+    )
+      throw new RequestError('protocol');
+  } else if (value.result !== null) throw new RequestError('protocol');
+  return value as unknown as AccountCampaign;
+}
 export type CurrentUser = UserProfile & {
   id: string;
   email: string;
@@ -30,6 +84,9 @@ export type CurrentUser = UserProfile & {
   activeAttempt: ActiveAccountAttempt | null;
   pendingRewards: { attemptId: string; runId: string; quantity: number }[];
   legacyInterrupted: boolean;
+  campaign: AccountCampaign | null;
+  sandboxUnlocked: boolean;
+  campaignNeedsReset: boolean;
 };
 export const validUUID = (v: unknown): v is string =>
   typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
@@ -52,6 +109,8 @@ export function readCurrentUser(value: unknown): CurrentUser {
   )
     throw new RequestError('protocol');
   readPowers(value.powers);
+  readCampaign(value.campaign);
+  if (typeof value.sandboxUnlocked !== 'boolean' || typeof value.campaignNeedsReset !== 'boolean') throw new RequestError('protocol');
   if (
     !count(value.revision) ||
     value.rulesVersion !== 'account-gameplay-v1' ||

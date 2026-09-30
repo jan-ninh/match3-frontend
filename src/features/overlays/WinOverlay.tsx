@@ -92,10 +92,10 @@ export default function WinOverlay({ open, onClose, level, mode = 'returnToMap' 
             }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
           >
-            Level {level} completed
+            {level === 12 ? 'Optional sandbox session finished' : `Level ${level} completed`}
           </motion.div>
 
-          {typeof level === 'number' && (
+          {typeof level === 'number' && level !== 12 && (
             <motion.div
               className="text-lg font-semibold text-cyan-600"
               variants={{

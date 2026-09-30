@@ -1,108 +1,64 @@
+import { useCallback } from 'react';
+import { useNavigate } from 'react-router';
 import { useRead } from '@/services/network/useRead';
 import ReadFailure from '@/components/ReadFailure';
-// src/pages/LeaderboardPage.tsx
-import { useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router';
 import { CyberButton, GlassSection, Navbar, PodiumCard, RankRow, YourPositionCard } from '@/components';
-import type { User } from '@/types';
-import { apiLeaderboardTop10 } from '@/api/leaderboard';
+import { apiLeaderboardTop10, apiLeaderboardOwnRank } from '@/api/leaderboard';
+import { leaderboardPresentation } from '@/api/leaderboardShape';
 import { useAuth } from '@/context/AuthContext';
-
+function OwnPosition() {
+  const { user, generation, profile } = useAuth();
+  const load = useCallback((signal: AbortSignal) => apiLeaderboardOwnRank(signal), []);
+  const read = useRead('rank:' + user!.id + ':' + generation + ':' + profile?.revision, load);
+  if (read.status === 'loading') return <p>Loading your rank...</p>;
+  if (read.status === 'error') return <ReadFailure title="Your rank unavailable" error={read.error!} retry={read.retry} />;
+  if (!read.data?.best) return <p>No completed campaign result yet.</p>;
+  return (
+    <div>
+      <p>Your best completed campaign · rank {read.data.rank}</p>
+      <YourPositionCard user={read.data.best} rank={read.data.rank!} />
+    </div>
+  );
+}
 export default function LeaderboardPage() {
   const navigate = useNavigate();
-  const { user, profile } = useAuth();
+  const { mode, canUseAccount, generation, profile } = useAuth();
   const load = useCallback((signal: AbortSignal) => apiLeaderboardTop10(signal), []);
-  const read = useRead('leaderboard', load);
-  const users = useMemo<User[]>(() => read.data ?? [], [read.data]);
-  const loading = read.status === 'loading';
-  const error = read.error;
-
-  const currentUserId = user?.id;
-
-  const sorted = useMemo(() => [...users].sort((a, b) => b.score - a.score), [users]);
-  const topThree = sorted.slice(0, 3);
-  const restTopTen = sorted.slice(3, 10);
-
-  const currentIndex = useMemo(() => {
-    if (!currentUserId) return -1;
-    return sorted.findIndex((u) => u.id === currentUserId || (!!profile?.username && u.name === profile.username));
-  }, [currentUserId, profile?.username, sorted]);
-
-  const fallbackCurrentUser = useMemo<User | undefined>(() => {
-    if (!currentUserId || !profile) return undefined;
-    return {
-      id: currentUserId,
-      name: profile.username,
-      score: Number.isFinite(profile.totalScore) ? Math.max(0, Math.floor(profile.totalScore)) : 0,
-      avatar: profile.avatar,
-    };
-  }, [currentUserId, profile]);
-
-  const currentUser = currentIndex >= 0 ? sorted[currentIndex] : fallbackCurrentUser;
-
-  const currentRank = useMemo(() => {
-    if (!currentUser) return undefined;
-    if (currentIndex >= 0) return currentIndex + 1;
-    const better = sorted.filter((u) => u.score > currentUser.score).length;
-    return better + 1;
-  }, [currentIndex, currentUser, sorted]);
-
+  const read = useRead('canonical-top:' + generation + ':' + profile?.revision, load);
+  const rows = read.data ?? [],
+    state = leaderboardPresentation(read.status, read.data);
   return (
     <div className="flex flex-col h-full">
-      <div className="shrink-0">
-        <Navbar />
-      </div>
-
-      {/* ✅ Podium */}
-      <div className="shrink-0">
-        <GlassSection className="text-center max-w-xl mx-auto mb-4 w-full">
-          {loading && <div className="text-center text-gray-500 py-8">Loading leaderboard...</div>}
-          {!loading && error && <ReadFailure error={error} retry={read.retry} title="Leaderboard unavailable" />}
-
-          {!loading && !error && (
-            <div className="flex justify-center items-end  flex-wrap sm:flex-nowrap gap-4">
-              {[
-                { user: topThree[1], order: 1, position: 2 },
-                { user: topThree[0], order: 2, position: 1 },
-                { user: topThree[2], order: 3, position: 3 },
-              ]
-                .filter((x) => x.user)
-                .map((x) => (
-                  <div key={`${x.position}-${x.user?.id ?? x.user?.name ?? x.order}`} style={{ order: x.order }}>
-                    <PodiumCard user={x.user!} position={x.position} />
-                  </div>
-                ))}
-            </div>
-          )}
-        </GlassSection>
-      </div>
-
-      {/* ✅ 1-4*/}
-      <div className="flex-1 flex flex-col min-h-0">
-        <div className="max-w-xl mx-auto w-full flex flex-col space-y-4 flex-1 min-h-0">
-          <GlassSection className="text-center overflow-y-auto scrollbar-cyber flex-1 min-h-0">
-            {!loading && !error && (
-              <>
-                <div className="flex flex-col space-y-4">
-                  {restTopTen.map((user, idx) => (
-                    <RankRow key={`${user.id ?? user.name ?? 'row'}-${idx}`} user={user} rank={idx + 4} />
-                  ))}
+      <Navbar />
+      <GlassSection className="text-center max-w-xl mx-auto mb-4 w-full">
+        <p>Best completed campaigns · stages 1–11</p>
+        <p>Optional sandbox scores are excluded.</p>
+        {state === 'loading' && <p>Loading leaderboard...</p>}
+        {state === 'unavailable' && <ReadFailure title="Leaderboard unavailable" error={read.error!} retry={read.retry} />}
+        {state === 'empty' && <p>No completed campaigns yet.</p>}
+        {state === 'ready' && (
+          <div className="flex justify-center items-end flex-wrap sm:flex-nowrap gap-4">
+            {[
+              { user: rows[1], order: 1, position: 2 },
+              { user: rows[0], order: 2, position: 1 },
+              { user: rows[2], order: 3, position: 3 },
+            ]
+              .filter((x) => x.user)
+              .map((x) => (
+                <div key={x.user.id} style={{ order: x.order }}>
+                  <PodiumCard user={x.user} position={x.position} />
                 </div>
-
-                {currentUser && currentRank && (currentRank > 10 || currentIndex < 0) && (
-                  <div className="mt-8 pt-4 border-t border-white/10">
-                    <YourPositionCard user={currentUser} rank={currentRank} />
-                  </div>
-                )}
-                {!sorted.length && <div className="text-center text-gray-500 py-8">No leaderboard data yet.</div>}
-              </>
-            )}
-          </GlassSection>
-        </div>
-      </div>
-
+              ))}
+          </div>
+        )}
+      </GlassSection>
+      <GlassSection className="text-center max-w-xl mx-auto w-full overflow-y-auto scrollbar-cyber flex-1 min-h-0">
+        {state === 'ready' && rows.slice(3).map((player) => <RankRow key={player.id} user={player} rank={player.rank} />)}
+        {mode === 'account' && canUseAccount && <OwnPosition key={generation} />}
+        {mode === 'account' && !canUseAccount && <p>Account rank is unavailable until your account is verified and reachable.</p>}
+      </GlassSection>
       <div className="shrink-0 px-6 pt-4 pb-10 flex justify-center">
-        <CyberButton key={'Back'} label={'Back'} onClick={() => navigate('/game-map')} />
+        <CyberButton label="Back" onClick={() => navigate('/game-map')} />
       </div>
     </div>
   );
