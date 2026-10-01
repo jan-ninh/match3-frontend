@@ -82,7 +82,7 @@ export default function MainLayout() {
 
             {/* subtle dim for UI readability */}
             <div className="absolute inset-0 bg-black/15 pointer-events-none" />
-            <div className="relative z-10 h-full min-h-0 overflow-y-auto ">
+            <div className="relative z-10 h-full min-h-0 overflow-y-auto stage-scroll">
               <Outlet />
             </div>
           </div>

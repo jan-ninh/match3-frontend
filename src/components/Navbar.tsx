@@ -89,8 +89,10 @@ export default function Navbar() {
   return (
     <>
       <nav className="portfolio-nav" aria-label="Main navigation">
-        <Link to="/" className="portfolio-brand" aria-label="Match-3 home">
-          <CyberTitle size="sm">Match-3</CyberTitle>
+        <Link to="/" className="portfolio-brand relative top-1" aria-label="Match-3 home">
+          <CyberTitle size="sm" className="!text-lg md:!text-xl select-none">
+            Match-3
+          </CyberTitle>
         </Link>
         <ul className="portfolio-nav-items">
           {navItems.map((item) => (

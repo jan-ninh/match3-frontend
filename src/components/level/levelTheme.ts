@@ -1,6 +1,7 @@
 export const levelTheme = {
-  container: 'p-2 sm:p-4',
-  grid: 'grid grid-cols-3 gap-2 sm:gap-3',
+  container: 'w-full max-w-[600px] mx-auto p-2',
+
+  grid: 'grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-3',
 
   shape: {
     // Octagon
@@ -9,15 +10,13 @@ export const levelTheme = {
 
   button: {
     base: `
-      group relative h-24 w-full
+      group relative w-full min-w-0 aspect-[4/3]
       flex flex-col items-center justify-center gap-1
       font-semibold tracking-wide
       select-none focus-visible:outline-2 focus-visible:outline-cyan-300
       transition-transform duration-200
-      ${'' /* visible glass gradient base */}
       bg-[linear-gradient(135deg,rgba(15,23,42,0.92),rgba(2,6,23,0.92))]
       backdrop-blur-md
-      ${'' /* keep shape */}
     `,
 
     locked: `
