@@ -1,73 +1,82 @@
-# React + TypeScript + Vite
+# Match-3
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A cyberpunk Match-3 game built with React and TypeScript, combining deterministic gameplay systems, responsive interaction and a persistent full-stack account mode.
 
-Currently, two official plugins are available:
+**[Play the Live Demo](https://match3-arcade.onrender.com)**  
+Demo mode is immediately playable without an account.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Engineering Highlights
 
-## React Compiler
+- **Deterministic gameplay engine** with reducer-driven phases for matching, clearing, gravity, refill, cascades, deadlock handling and win or loss resolution
+- **Clear engine and UI boundaries** so gameplay rules, rendering, animation and user interaction remain separate and easier to reason about
+- **Responsive 9x9 game board** with pointer and drag input that preserves native gameplay coordinates across desktop, tablet and mobile layouts
+- **Game Feel and interaction design** with powers, targeting, animation timing, FX, SFX and stage-specific feedback
+- **Server-authoritative account progression** with transaction-backed updates, idempotent operation receipts and recovery after ambiguous writes
+- **Persistent campaign and leaderboard** with one canonical campaign state, Stage 11 finalization and an isolated Stage 12 sandbox
+- **Production integration** with session recovery, MongoDB Atlas, Render deployment and a same-origin API path for reliable browser sessions
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Gameplay
 
-## Expanding the ESLint configuration
+The campaign contains **11 regular stages**, each built around different objectives and gameplay conditions. Completing the campaign unlocks an additional sandbox stage.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+Demo mode keeps its own local progression and can be played without registration. Account mode adds persistent progression, profile data, campaign state and leaderboard ranking.
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## Architecture
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+The project deliberately separates gameplay decisions from presentation and persistence.
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```text
+Player Input
+     |
+React UI
+     |
+Gameplay Engine
+     |
+Progress / Account Integration
+     |
+Node.js + Express API
+     |
+MongoDB Atlas
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+The gameplay engine owns rules and state transitions. React translates that state into the board, HUD, effects and overlays. Persistent account state is handled through the backend instead of treating the browser as the source of truth.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## My Focus
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+In the original two-person project, I had technical main responsibility for the central frontend and gameplay areas, including game logic, grid and input handling, UI flows, progression, powers, routing, overlays, audio integration, debugging, refactoring and Game Feel.
+
+I later continued evolving the portfolio version independently across frontend and backend integration. This included account and session reliability, server-authoritative gameplay and campaign flows, transactional recovery, leaderboard consolidation, deployment, live debugging and responsive presentation.
+
+A recurring focus throughout the project was finding the actual source of truth behind a problem and keeping gameplay rules, UI state and persistence responsibilities clearly separated.
+
+## Tech Stack
+
+**Frontend:** React, TypeScript, Vite, React Router, Tailwind CSS, Framer Motion
+
+**Backend:** Node.js, Express, TypeScript, MongoDB, Mongoose, Zod, JWT, bcrypt
+
+**Infrastructure:** MongoDB Atlas, Render, Git, GitHub
+
+## Repositories
+
+- **Frontend:** [match3-frontend](https://github.com/jan-ninh/match3-frontend)
+- **Backend:** [match3-backend](https://github.com/jan-ninh/match3-backend)
+
+<details>
+<summary><strong>Run locally</strong></summary>
+
+### Frontend
+
+```bash
+npm install
 ```
+
+Copy `.env.example` to `.env` and configure `VITE_API_URL` for the backend.
+
+```bash
+npm run dev
+```
+
+Demo mode can be used without an account. Full account functionality requires the separate backend repository.
+
+</details>
