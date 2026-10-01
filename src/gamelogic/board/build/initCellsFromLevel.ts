@@ -10,7 +10,9 @@ export function initCellsFromLevel(level: LevelDefinition): Cell[] {
 
   const blocked = new Set(level.blockedIndices);
 
-  const firewallMap = new Map<number, { hp: number }>(level.firewallNodes.map((n) => [n.index, { hp: n.hp }]));
+  const firewallMap = new Map<number, { hp: number; maxHp: number; origin?: 'breach' | 'sweep' | 'level4Dormant' }>(
+    level.firewallNodes.map((n) => [n.index, { hp: n.hp, maxHp: n.maxHp ?? n.hp, origin: n.origin }]),
+  );
   const gateSet = new Set(level.gateIndices);
   const leakMap = new Map<number, { id: number; required: number }>(
     level.leakNodes.map((n, i) => [n.index, { id: i, required: n.patchStepsRequired }]),
@@ -31,7 +33,7 @@ export function initCellsFromLevel(level: LevelDefinition): Cell[] {
       return {
         blocked: true,
         pieceId: null,
-        obstacle: { kind: 'firewall', hp: fw.hp, maxHp: fw.hp },
+        obstacle: { kind: 'firewall', hp: fw.hp, maxHp: fw.maxHp, origin: fw.origin },
       };
     }
 

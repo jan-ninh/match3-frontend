@@ -15,6 +15,11 @@ import { shuffleUntilValid } from './shuffleUntilValid';
 import { getCascadeEffectsForState } from './effects/registry';
 import { runPostClearEffects, runPostGravityEffects, runPostRefillEffects, runPreClearEffects } from './effects/runEffects';
 
+import { applyItemObstacleDamageAtIndices } from '../board/obstacles/itemObstacleDamage';
+import { chargeCellsAtIndices } from './effects/level05/signalCharge';
+
+import { markEnemyRedAtIndices } from './marks/enemyRed';
+
 // type MatchDetectionLike = { clearIndices: number[]; groups: number };
 
 function countClearablePieces(state: EngineState, indices: number[]): number {
@@ -34,57 +39,6 @@ function countClearablePieces(state: EngineState, indices: number[]): number {
   return count;
 }
 
-function applyPreSteps(
-  s0: EngineState,
-  preSteps: CascadePreStep[],
-  events: EngineEvent[],
-  toPhase: (phase: EnginePhase) => void,
-  devAssert: (tag: string) => void,
-): EngineState {
-  let s = s0;
-
-  for (const step of preSteps) {
-    switch (step.kind) {
-      case 'itemLaserRowClear': {
-        const clearedCount = countClearablePieces(s, step.indices);
-
-        // NOTE: Item-driven clear must not progress objectives/level mechanics.
-        // Therefore: do NOT run cascade effects here (even if enabled for normal matches).
-        toPhase('clear');
-        s = clearCellsAndPieces(s, step.indices);
-        devAssert('preStep:itemLaserRowClear:clearCellsAndPieces');
-        if (clearedCount > 0) events.push({ type: 'cleared', count: clearedCount });
-        events.push({ type: 'cascadeStep', kind: 'itemLaserRowClear', row: step.row, indices: step.indices, cleared: clearedCount });
-
-        toPhase('gravity');
-        s = applyGravity(s);
-        devAssert('preStep:itemLaserRowClear:applyGravity');
-        events.push({ type: 'gravity' });
-
-        toPhase('refill');
-        const ref = applyRefill(s);
-        s = ref.state;
-        devAssert('preStep:itemLaserRowClear:applyRefill');
-        events.push({ type: 'refilled', count: ref.spawned });
-
-        toPhase('settle');
-        continue;
-      }
-
-      default: {
-        // Exhaustiveness guard on the discriminant (robust even if CascadePreStep isn't a union yet)
-        const kind = step.kind;
-        const _exhaustiveKind: never = kind;
-        void _exhaustiveKind;
-
-        throw new Error(`Unhandled CascadePreStep kind: ${String(kind)}`);
-      }
-    }
-  }
-
-  return s;
-}
-
 export function stabilizeBoard(state: EngineState, opts?: StabilizeOpts): { state: EngineState; events: EngineEvent[] } {
   const maxResolveLoops = opts?.maxResolveLoops ?? 64;
   const maxShuffleAttempts = opts?.maxShuffleAttempts ?? 200;
@@ -100,6 +54,8 @@ export function stabilizeBoard(state: EngineState, opts?: StabilizeOpts): { stat
   // “once per move” charged-set (reset on shuffle)
   let chargedIds = new Set<number>();
   let ctx = { chargedIds };
+
+  const itemChargingEnabled = state.chargedFloorFromItems;
 
   const dev = import.meta.env.DEV;
   const devAssert = (tag: string) => {
@@ -123,7 +79,98 @@ export function stabilizeBoard(state: EngineState, opts?: StabilizeOpts): { stat
   // First-class preSteps (e.g. item clears) BEFORE detect
   // ─────────────────────────────────────────────
   if (preSteps.length > 0) {
-    s = applyPreSteps(s, preSteps, events, toPhase, devAssert);
+    for (const step of preSteps as CascadePreStep[]) {
+      switch (step.kind) {
+        case 'itemLaserRowClear': {
+          // Item-driven clear must not progress level mechanics via cascade effects.
+          // Instead, apply explicit item obstacle damage rules (per-level config).
+          s = applyItemObstacleDamageAtIndices(s, 'laserRow', step.indices, events);
+
+          const clearedCount = countClearablePieces(s, step.indices);
+
+          toPhase('clear');
+          s = clearCellsAndPieces(s, step.indices);
+          devAssert('preStep:itemLaserRowClear:clearCellsAndPieces');
+
+          // Level 11 only: allow item clears to contribute to chargedCell overlay.
+          if (itemChargingEnabled) {
+            const actor = s.enemyMarkActive === true ? 'enemy' : 'player';
+            s = chargeCellsAtIndices(s, step.indices, events, actor);
+          }
+
+          // Enemy mode: paint cleared slots red.
+          s = markEnemyRedAtIndices(s, step.indices);
+
+          if (clearedCount > 0) events.push({ type: 'cleared', count: clearedCount });
+          events.push({ type: 'cascadeStep', kind: 'itemLaserRowClear', row: step.row, indices: step.indices, cleared: clearedCount });
+
+          toPhase('gravity');
+          s = applyGravity(s);
+          devAssert('preStep:itemLaserRowClear:applyGravity');
+          events.push({ type: 'gravity' });
+
+          toPhase('refill');
+          const ref = applyRefill(s);
+          s = ref.state;
+          devAssert('preStep:itemLaserRowClear:applyRefill');
+          events.push({ type: 'refilled', count: ref.spawned });
+
+          toPhase('settle');
+          continue;
+        }
+
+        case 'itemBomb3x3Blast': {
+          // Item-driven clear must not progress level mechanics via cascade effects.
+          // Instead, apply explicit item obstacle damage rules (per-level config).
+          s = applyItemObstacleDamageAtIndices(s, 'bomb3x3', step.indices, events);
+
+          const clearedCount = countClearablePieces(s, step.indices);
+
+          toPhase('clear');
+          s = clearCellsAndPieces(s, step.indices);
+          devAssert('preStep:itemBomb3x3Blast:clearCellsAndPieces');
+
+          // Level 11 only: allow item clears to contribute to chargedCell overlay.
+          if (itemChargingEnabled) {
+            const actor = s.enemyMarkActive === true ? 'enemy' : 'player';
+            s = chargeCellsAtIndices(s, step.indices, events, actor);
+          }
+
+          // Enemy mode: paint cleared slots red.
+          s = markEnemyRedAtIndices(s, step.indices);
+
+          if (clearedCount > 0) events.push({ type: 'cleared', count: clearedCount });
+          events.push({
+            type: 'cascadeStep',
+            kind: 'itemBomb3x3Blast',
+            center: step.center,
+            indices: step.indices,
+            cleared: clearedCount,
+          });
+
+          toPhase('gravity');
+          s = applyGravity(s);
+          devAssert('preStep:itemBomb3x3Blast:applyGravity');
+          events.push({ type: 'gravity' });
+
+          toPhase('refill');
+          const ref = applyRefill(s);
+          s = ref.state;
+          devAssert('preStep:itemBomb3x3Blast:applyRefill');
+          events.push({ type: 'refilled', count: ref.spawned });
+
+          toPhase('settle');
+          continue;
+        }
+
+        default: {
+          const _exhaustive: never = step;
+          void _exhaustive;
+
+          throw new Error('Unhandled CascadePreStep kind');
+        }
+      }
+    }
   }
 
   const resolveLoop = (label: string) => {
@@ -147,6 +194,9 @@ export function stabilizeBoard(state: EngineState, opts?: StabilizeOpts): { stat
       s = clearCellsAndPieces(s, m.clearIndices);
       devAssert(`${label}:clearCellsAndPieces`);
       events.push({ type: 'cleared', count: m.clearIndices.length });
+
+      // Enemy mode: paint cleared slots red.
+      s = markEnemyRedAtIndices(s, m.clearIndices);
 
       if (effectsEnabled) {
         const postClear = runPostClearEffects(effects, s, ctx, events);
@@ -209,5 +259,11 @@ export function stabilizeBoard(state: EngineState, opts?: StabilizeOpts): { stat
   }
 
   toPhase('idle');
+
+  // Enemy-only transient: never leak to subsequent player turns.
+  if (s.enemyMarkActive === true) {
+    s = { ...s, enemyMarkActive: undefined };
+  }
+
   return { state: s, events };
 }

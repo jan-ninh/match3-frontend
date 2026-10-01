@@ -1,3 +1,4 @@
+import { resourceRequest } from '@/api/http';
 // src/components/SpriteIcon.tsx
 import { useEffect, useRef, useState } from 'react';
 
@@ -45,9 +46,7 @@ export default function SpriteIcon({
         // JSON (cached)
         if (!cachedJson) {
           if (!jsonPromise) {
-            jsonPromise = fetch(spriteJsonUrl)
-              .then((r) => r.json())
-              .then((j) => (cachedJson = j));
+            jsonPromise = resourceRequest(spriteJsonUrl, { retryRead: false }).then((j) => (cachedJson = j));
           }
           await jsonPromise;
         }

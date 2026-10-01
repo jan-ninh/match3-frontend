@@ -8,6 +8,18 @@ export type PieceType = 'red' | 'blue' | 'green' | 'purple' | 'orange' | 'cyan' 
 export type PieceId = number;
 
 // ─────────────────────────────────────────────
+// Item objective policy (Level-configurable)
+// ─────────────────────────────────────────────
+
+export type ItemObjectivesPolicy = 'noObjectives' | 'allowObjectives';
+
+// ─────────────────────────────────────────────
+// Clear Source (Match vs Item)
+// ─────────────────────────────────────────────
+
+export type ClearSource = 'match' | 'item';
+
+// ─────────────────────────────────────────────
 // Terminal State (Level 03+)
 // ─────────────────────────────────────────────
 
@@ -41,21 +53,44 @@ export type LaserWarning = {
 // ─────────────────────────────────────────────
 
 export type CellObstacle =
-  | { kind: 'firewall'; hp: number; maxHp: number; origin?: 'breach' | 'sweep' }
+  | { kind: 'firewall'; hp: number; maxHp: number; origin?: 'breach' | 'sweep' | 'level4Dormant' }
   | { kind: 'gate'; open: boolean }
   | { kind: 'leak'; id: number; progress: number; required: number }
   | { kind: 'contamination' }
   | { kind: 'sealKit' }
-  | { kind: 'terminal'; id: number; state: TerminalState; charge: number; requiredCharge: number; chargeColor: PieceType }
+  | {
+      kind: 'terminal';
+      id: number;
+      state: TerminalState;
+      charge: number;
+      requiredCharge: number;
+      chargeColor: PieceType;
+      /** If true: cannot be selected/swapped (slot-locked). */
+      swapBlocked: boolean;
+      /** If true: pieces may not occupy this cell ("blocker"). */
+      blocksPiece: boolean;
+      /** If true: gravity flow passes through this cell (does not split the column). */
+      passThrough: boolean;
+      /** If true: deliver keycards from the cell directly above this terminal. */
+      deliverFromAbove: boolean;
+    }
   | { kind: 'objectiveTerminal'; id: number; state: ObjectiveTerminalState; charge: number; requiredCharge: number }
   | { kind: 'signalSource'; id: number }
   | { kind: 'signalTarget'; id: number }
-  | { kind: 'chargedCell' };
+  | { kind: 'chargedCell' }
+  | { kind: 'stoneTile'; hp: number; maxHp: number };
+
+export type CellMark = 'enemyRed';
 
 export type Cell = {
   blocked: boolean;
   pieceId: PieceId | null;
   obstacle?: CellObstacle;
+  /**
+   * Visual-only "floor mark" for special mechanics (slot-based, not piece-based).
+   * Example: enemy turns can paint cleared slots red.
+   */
+  mark?: CellMark;
 };
 
 // ─────────────────────────────────────────────
@@ -66,12 +101,48 @@ export function isOccupied(cell: Cell): boolean {
   return cell.blocked || cell.obstacle != null;
 }
 
+export type TerminalObstacle = Extract<CellObstacle, { kind: 'terminal' }>;
+
+/** If true: terminal blocks click+swap intent. */
+export function terminalBlocksSwap(terminal: TerminalObstacle): boolean {
+  return terminal.swapBlocked;
+}
+
+/** If true: the terminal cell may contain a piece after gravity resolves. */
+export function terminalCanHoldPiece(terminal: TerminalObstacle): boolean {
+  if (terminal.blocksPiece) return false;
+  return terminal.state === 'open';
+}
+
+/** If true: gravity flow is blocked at this cell (splits the column). */
+export function terminalBlocksGravityFlow(terminal: TerminalObstacle): boolean {
+  if (terminal.passThrough) return false;
+  return terminal.state !== 'open';
+}
+
+/** Returns the cell index that should contain the keycard for delivery checks. */
+export function terminalKeycardSourceIndex(terminalIndex: number, width: number, terminal: TerminalObstacle): number {
+  const fromAbove = terminal.deliverFromAbove || terminal.blocksPiece;
+  return fromAbove ? terminalIndex - width : terminalIndex;
+}
+
+/** Swap passability (used by canSwap gate). */
+export function terminalAllowsSwap(terminal: TerminalObstacle): boolean {
+  if (terminalBlocksSwap(terminal)) return false;
+  return terminal.state === 'open';
+}
+
 export function canHoldPiece(cell: Cell): boolean {
   if (cell.blocked) return false;
+
   const obs = cell.obstacle;
   if (!obs) return true;
-  // chargedCell is passable (pieces can fall through)
+
+  // chargedCell is passable (floor overlay)
   if (obs.kind === 'chargedCell') return true;
+
+  if (obs.kind === 'terminal') return terminalCanHoldPiece(obs);
+
   return false;
 }
 
@@ -117,6 +188,10 @@ export function isSignalTarget(cell: Cell): boolean {
   return cell.obstacle?.kind === 'signalTarget';
 }
 
+export function isEnemyRedMarked(cell: Cell): boolean {
+  return cell.mark === 'enemyRed';
+}
+
 // ─────────────────────────────────────────────
 // Piece
 // ─────────────────────────────────────────────
@@ -133,8 +208,23 @@ export type Piece = {
 
 export type FirewallNodeDef = {
   index: number;
+  /** Current HP at level start (may be 0 for dormant nodes). */
   hp: number;
+  /** Max HP for UI + activation (defaults to hp when omitted). */
+  maxHp?: number;
+  /** Optional origin tag for rendering / special rules. */
+  origin?: 'breach' | 'sweep' | 'level4Dormant';
 };
+
+export type FirewallSpawnPolicy = 'noTriples8';
+
+export type FirewallSpawnDef = {
+  count: number;
+  hp: number;
+  policy?: FirewallSpawnPolicy;
+  avoidBorder?: boolean;
+};
+
 
 export type LeakNodeDef = {
   index: number;
@@ -146,6 +236,14 @@ export type TerminalNodeDef = {
   id: number;
   requiredCharge: number;
   chargeColor: PieceType;
+  /** If true: cannot be selected/swapped (slot-locked). */
+  swapBlocked?: boolean;
+  /** If true: pieces may not occupy this cell ("blocker"). */
+  blocksPiece?: boolean;
+  /** If true: gravity flow passes through this cell (does not split the column). */
+  passThrough?: boolean;
+  /** If true: deliver keycards from the cell directly above this terminal. */
+  deliverFromAbove?: boolean;
 };
 
 export type KeycardNodeDef = {
@@ -170,6 +268,11 @@ export type SignalTargetNodeDef = {
   id: number;
 };
 
+// Level 08: Stone Tiles
+export type StoneTileNodeDef = {
+  index: number;
+};
+
 export type LevelDefinition = {
   id: LevelId;
   width: number;
@@ -179,8 +282,42 @@ export type LevelDefinition = {
   moves: number;
   allowedTypes: PieceType[];
 
+  // Optional non-hint objective title (UI may choose to display it).
+  objectiveTitle?: string;
+
+  // Item objective policy (Level-configurable)
+  itemObjectivesDefault?: ItemObjectivesPolicy;
+  itemObjectives?: Partial<Record<ItemEffectKeyForEvent, ItemObjectivesPolicy>>;
+
+  // Per-level item obstacle damage rules (engine-owned, applied on item hit area).
+  itemObstacleDamage?: ItemObstacleDamageConfig;
+
+  // Level/Mode policies (engine-owned; resolved into EngineState cached toggles)
+  chargedFloorFromItems?: boolean;
+  enemyTurnEnabled?: boolean;
+  enemyTurnEveryMs?: number;
+
+  // Level 07: Match Rush (units to win; 0/undefined = disabled)
+  matchRushTargetUnits?: number;
+
+  // Level 09: LaserRow -> Match4+ (countdowns to win; 0/undefined = disabled)
+  laserRowMatch4Target?: number;
+  // Level 09: Timer (seconds; 0/undefined = disabled)
+  level9TimerStartSec?: number;
+  level9TimerAfterFirstSec?: number;
+  level9TimerAfterSecondSec?: number;
+
+  // Move policy knobs (engine-owned; UI may hide/repurpose moves)
+  movesLoseEnabled?: boolean; // default: true
+  swapSpendsMove?: boolean; // default: true
+
+
   blockedIndices: number[];
   firewallNodes: FirewallNodeDef[];
+
+  // Optional seeded random placement for firewall nodes (resolved at init).
+  firewallSpawn?: FirewallSpawnDef;
+
   gateIndices: number[];
 
   // Level 02+: Leak mechanics
@@ -203,6 +340,9 @@ export type LevelDefinition = {
   signalSourceNodes?: SignalSourceNodeDef[];
   signalTargetNodes?: SignalTargetNodeDef[];
 
+  // Level 08+: Stone Tiles
+  stoneTileNodes?: StoneTileNodeDef[];
+
   // Balancing knobs (optional)
   maxSealKitsOnBoard?: number;
   contaminationLoseThreshold?: number;
@@ -222,19 +362,70 @@ export type PendingSwap = {
 };
 
 // ─────────────────────────────────────────────
+// Pending Item Execution (engine-owned; delayed effects)
+// ─────────────────────────────────────────────
+
+export type PendingLaserRow = Readonly<{
+  executeAtMs: number;
+  target: Readonly<{ x: number; y: number }>;
+  requestId: number;
+}>;
+
+// ─────────────────────────────────────────────
 // Pending Turn Commit (turn-end must be engine-owned)
 // ─────────────────────────────────────────────
 
-export type PendingTurnCommit = {
-  kind: 'swap' | 'item';
-  spendMove: boolean;
-};
+export type PendingTurnCommit =
+  | { kind: 'swap'; spendMove: boolean }
+  | {
+      kind: 'item';
+      spendMove: boolean;
+      /** Item key is required for itemCausedMatch attribution. */
+      key?: ItemEffectKeyForEvent;
+      /** RequestId from UI/intent; used for cross-event correlation. */
+      requestId?: number;
+      /** Guardrail: emit itemCausedMatch at most once per item commit. */
+      matchOutcomeEmitted?: boolean;
+    };
 
 // ─────────────────────────────────────────────
 // Swap Rejection
 // ─────────────────────────────────────────────
 
 export type SwapRejectReason = 'locked' | 'notAdjacent' | 'blocked' | 'empty';
+
+// ─────────────────────────────────────────────
+// Falling Animation Contract (Engine-owned payload; UI consumes)
+// ─────────────────────────────────────────────
+
+export type FallMove = {
+  /** Piece ID that moves (or spawns). */
+  id: PieceId;
+  /**
+   * Source cellIndex before falling.
+   * null => piece is newly spawned; UI derives a spawn-above start position for this toIndex.
+   */
+  fromIndex: number | null;
+  /** Destination cellIndex after falling. */
+  toIndex: number;
+  /**
+   * Optional per-piece delay (ms) to make falls slightly asymmetrical / nicer.
+   * Must be deterministic (computed in engine).
+   */
+  delayMs: number;
+
+  /** Additional spawn stacking delay (engine-owned; 0 for non-spawns). */
+  spawnStackDelayMs?: number;
+
+};
+
+export type FallPlan = Readonly<{
+  moves: readonly FallMove[];
+
+  /** Optional pause (ms) before any fall move starts (lets holes be visible). */
+  holeDelayMs?: number;
+}>;
+
 
 // ─────────────────────────────────────────────
 // Animation
@@ -252,6 +443,13 @@ export type EngineAnim = {
   durationMs: number;
   deadlineAtMs: number;
   token: number;
+
+
+  /**
+   * Engine-owned payload for true falling animation.
+   * Present only when kind==='fall' (by convention; enforced later via builders).
+   */
+  fallPlan?: FallPlan;
 };
 
 export type HardBoundaryKind = 'initLevel' | 'resetBoard';
@@ -261,6 +459,23 @@ export type HardBoundaryKind = 'initLevel' | 'resetBoard';
 // ─────────────────────────────────────────────
 
 export type ItemEffectKeyForEvent = 'bomb3x3' | 'laserRow';
+
+// ─────────────────────────────────────────────
+// Item Obstacle Damage (per-level config)
+// ─────────────────────────────────────────────
+
+export type ItemObstacleHitMode = 'direct' | 'adjacent';
+
+export type ItemObstacleDamageRule = {
+  mode: ItemObstacleHitMode;
+  damage: number;
+};
+
+export type ItemObstacleDamageByKind = Partial<Record<CellObstacle['kind'], ItemObstacleDamageRule>>;
+
+export type ItemObstacleDamageConfig = Partial<Record<ItemEffectKeyForEvent, ItemObstacleDamageByKind>>;
+
+export type ResolvedItemObstacleDamageConfig = Record<ItemEffectKeyForEvent, ItemObstacleDamageByKind>;
 
 // ─────────────────────────────────────────────
 // Engine Events
@@ -280,6 +495,21 @@ export type EngineEvent =
   | { type: 'animDoneIgnored'; kind: EngineAnimKind; token: number; reason: AnimDoneIgnoreReason }
   | { type: 'swapRejected'; from: number; to: number; reason: SwapRejectReason }
   | { type: 'matchesFound'; clears: number; groups: number }
+  | { type: 'matchGroup'; id: string; axis: 'h' | 'v'; len: number; indices: number[] }
+  | {
+      type: 'itemCausedMatch';
+      key: ItemEffectKeyForEvent;
+      requestId: number;
+      /** Largest run length in the first detected wave (3/4/5/6+). */
+      maxLen: number;
+      /** Histogram for first detected wave. */
+      len3: number;
+      len4: number;
+      len5: number;
+      len6Plus: number;
+      /** MatchGroup IDs (same turn/axis/endpoints/len scheme as matchGroup). */
+      matchGroupIds: string[];
+    }
   | { type: 'cleared'; count: number }
   | { type: 'gravity' }
   | { type: 'refilled'; count: number }
@@ -321,6 +551,7 @@ export type EngineEvent =
   | { type: 'itemAccepted'; key: ItemEffectKeyForEvent; target: { x: number; y: number }; requestId: number }
   // First-class cascade observability (e.g. item preSteps)
   | { type: 'cascadeStep'; kind: 'itemLaserRowClear'; row: number; indices: number[]; cleared: number }
+  | { type: 'cascadeStep'; kind: 'itemBomb3x3Blast'; center: { x: number; y: number }; indices: number[]; cleared: number }
   // Power/Item consumption ack (UI consumes only after this)
   | { type: 'powerUsed'; key: 'gridlaser' | 'bomb' | 'laser' | 'extraShuffle'; requestId: number }
   // ─── Pre-Falling Guardrails: Observability events ───
@@ -348,11 +579,42 @@ export type EngineState = {
   // cached level rules
   allowedTypes: PieceType[];
 
+  // level/mode policies (cached from LevelDefinition)
+  chargedFloorFromItems: boolean;
+  enemyTurnEnabled: boolean;
+  enemyTurnEveryMs: number;
+  nextEnemyTurnAtMs: number;
+
+  // item objective policy (per effect key)
+  itemObjectives: Record<ItemEffectKeyForEvent, ItemObjectivesPolicy>;
+
+  // item obstacle damage rules (resolved)
+  itemObstacleDamage: ResolvedItemObstacleDamageConfig;
+
   movesTotal: number;
   movesLeft: number;
 
+  // move policy (engine-owned)
+  movesLoseEnabled: boolean;
+  swapSpendsMove: boolean;
+
   // turn counter (0-based, increments after each complete player turn)
   turnIndex: number;
+
+  // Level 07: Match Rush
+  matchRushTargetUnits: number;
+  matchRushUnits: number;
+
+  // Level 09: LaserRow -> Match4+ (engine-owned)
+  laserRowMatch4Target: number;
+  laserRowMatch4Remaining: number;
+
+  // Level 09: Timer (engine-owned; 0=start not yet initialized)
+  level9TimerStartSec: number;
+  level9TimerAfterFirstSec: number;
+  level9TimerAfterSecondSec: number;
+  level9TimerStage: number; // 0=start, 1=after first success, 2=after second+ success
+  level9TimerDeadlineAtMs: number; // performance.now()-based; lose when nowMs >= deadline
 
   // Level 01: Firewall/Gate mechanics
   breachesTotal: number;
@@ -394,6 +656,10 @@ export type EngineState = {
   signalLinked: boolean; // true when Source connected to Target via charged cells
   chargedCellCount: number; // for HUD display
 
+  // Level 08+: Stone Tiles
+  stoneTilesTotal: number;
+  stoneTilesRemaining: number;
+
   // Board state
   cells: Cell[];
   pieces: Record<PieceId, Piece>;
@@ -419,6 +685,8 @@ export type EngineState = {
   events: EngineEvent[];
   pendingSwap: PendingSwap | null;
 
+  pendingLaserRow?: PendingLaserRow | null;
+
   // commit marker for "apply turn-end when we reach idle"
   pendingTurnCommit: PendingTurnCommit | null;
 
@@ -428,4 +696,10 @@ export type EngineState = {
    * Cleared when we reach idle.
    */
   cascadeEffectPolicy?: 'noObjectives';
+
+  /**
+   * Transient flag: while true, every clear slot in this resolve chain is painted red (enemy territory).
+   * Cleared when we return to idle.
+   */
+  enemyMarkActive?: boolean;
 };

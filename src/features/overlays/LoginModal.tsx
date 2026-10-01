@@ -1,9 +1,13 @@
-import { useState } from 'react';
+import { RequestError } from '@/api/transport';
+import { useEffect, useRef, useState } from 'react';
 import Modal from '@/components/Modal';
 import { useAuth } from '@/context/AuthContext';
 import CyberButton from '@/components/CyberButton';
 import toast from 'react-hot-toast';
 import { loginSchema, type LoginFormValues } from '@/schemas/authSchemas';
+import AccountServiceStatus from '@/components/AccountServiceStatus';
+import { useAccountReadiness } from '@/services/network/useAccountReadiness';
+import { authFailureMessage } from './authFailure';
 
 type Props = {
   onClose: () => void;
@@ -12,7 +16,7 @@ type Props = {
 
 type FieldErrors = Partial<Record<keyof LoginFormValues, string>>;
 
-function toFieldErrors(zodError: any): FieldErrors {
+function toFieldErrors(zodError: { issues: readonly { path: PropertyKey[]; message: string }[] }): FieldErrors {
   const out: FieldErrors = {};
   const issues = zodError?.issues ?? [];
   for (const issue of issues) {
@@ -24,10 +28,19 @@ function toFieldErrors(zodError: any): FieldErrors {
 
 export default function LoginModal({ onClose, onSwitchToRegister }: Props) {
   const { login } = useAuth();
+  const readiness = useAccountReadiness();
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
   const [form, setForm] = useState<LoginFormValues>({ email: '', password: '' });
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [loading, setLoading] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
 
   const inputBase =
     'w-full px-3 py-2 rounded-lg text-cyan-100 placeholder:text-cyan-300/60 border border-pink-300 focus:outline-none focus:ring-2 focus:ring-cyan-500/40 focus:border-cyan-400/70 disabled:opacity-60 bg-black/30';
@@ -44,6 +57,8 @@ export default function LoginModal({ onClose, onSwitchToRegister }: Props) {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading || readiness !== 'ready') return;
+    setServerError(null);
     setFieldErrors({});
 
     const parsed = loginSchema.safeParse(form);
@@ -51,33 +66,37 @@ export default function LoginModal({ onClose, onSwitchToRegister }: Props) {
       const errs = toFieldErrors(parsed.error);
       setFieldErrors(errs);
 
-      const first = (Object.values(errs).filter(Boolean) as string[])[0];
-      toast.error(first ?? 'Please check the form.', { duration: 1500 });
       return;
     }
 
     try {
       setLoading(true);
       await login(parsed.data.email, parsed.data.password);
+      if (!mounted.current) return;
       toast.success('Welcome back!', { duration: 1200 });
       onClose();
-    } catch (err: any) {
-      const serverMessage = err?.payload?.error ?? err?.message ?? 'Login failed.';
-      toast.error(serverMessage, { duration: 1800 });
+    } catch (err: unknown) {
+      if (err instanceof RequestError && err.kind === 'cancelled') return;
+      if (mounted.current) setServerError(authFailureMessage(err, 'login'));
     } finally {
-      setLoading(false);
+      if (mounted.current) setLoading(false);
     }
   };
 
   return (
-    <Modal open={true} onClose={onClose} title="Log in" size="sm" closeOnBackdrop={true}>
-      <form onSubmit={submit} noValidate className="flex flex-col gap-3">
+    <Modal open={true} onClose={onClose} title="Log in" size="sm" closeOnBackdrop={false}>
+      <form onSubmit={submit} noValidate className="auth-form flex flex-col gap-3">
+        <AccountServiceStatus />
         <div className="flex flex-col gap-1">
           <input
             className={`${inputBase} ${fieldErrors.email ? 'border-pink-400/70 ring-1 ring-pink-400/20' : ''}`}
+            aria-label="Email"
             placeholder="Email"
             value={form.email}
             onChange={(e) => setField('email', e.target.value)}
+            type="email"
+            inputMode="email"
+            autoCapitalize="none"
             autoComplete="email"
             disabled={loading}
           />
@@ -87,6 +106,7 @@ export default function LoginModal({ onClose, onSwitchToRegister }: Props) {
         <div className="flex flex-col gap-1">
           <input
             className={`${inputBase} ${fieldErrors.password ? 'border-pink-400/70 ring-1 ring-pink-400/20' : ''}`}
+            aria-label="Password"
             placeholder="Password"
             type="password"
             value={form.password}
@@ -98,12 +118,21 @@ export default function LoginModal({ onClose, onSwitchToRegister }: Props) {
         </div>
 
         <div className="flex justify-center">
-          <CyberButton type="submit" size="md" disabled={loading} label={loading ? 'Logging in...' : 'Log in'} />
+          <CyberButton type="submit" size="md" disabled={loading || readiness !== 'ready'} label={loading ? 'Logging in...' : 'Log in'} />
         </div>
 
         <div className="flex justify-center">
           <CyberButton type="button" onClick={onSwitchToRegister} size="md" disabled={loading} label="New Account" />
+          <CyberButton type="button" onClick={onClose} size="md" disabled={loading} label="Cancel" />
         </div>
+        {serverError && (
+          <div className="text-sm text-pink-300" role="alert">
+            <p>{serverError}</p>
+            <button type="button" className="underline" onClick={() => setServerError(null)}>
+              Dismiss error
+            </button>
+          </div>
+        )}
       </form>
     </Modal>
   );

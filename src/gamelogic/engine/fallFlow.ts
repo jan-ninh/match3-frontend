@@ -1,4 +1,3 @@
-// src\gamelogic\engine\fallFlow.ts
 import type { AnimDoneIgnoreReason, AnimDoneMode, EngineEvent, EngineState } from '../types';
 import { hasAnyMoves } from '../match';
 import { resolveOnce, shuffleUntilValid, stabilizeBoard } from '../cascade';
@@ -9,6 +8,8 @@ import { beginAnim } from './anim';
 import { autoFinishAll } from './autoFinish';
 import type { ApplyAnimDone } from './autoFinish';
 import { mkAnimDone, mkAnimDoneIgnored, pushEvents } from './events';
+import { buildFallPlan } from './fallPlan';
+import { computeFallAnimWaitMs } from './fallingTuning';
 
 // Turn-end is engine-owned and runs centrally in engineReducer when we reach `idle` and `pendingTurnCommit` exists.
 // fallFlow must NOT execute any turn-end logic, otherwise it can double-fire.
@@ -41,13 +42,17 @@ export function applyFallAnimDone(state: EngineState, token: number, mode: AnimD
   // continue resolve chain (if any)
   s = setPhase(s, 'inputLock', events);
 
+  const prePieces = s.pieces;
   const step = resolveOnce(s);
   s = step.state;
   events.push(...step.events);
 
   if (step.didResolve) {
     s = setPhase(s, 'fallAnimating', events);
-    s = beginAnim(s, 'fall', s.swapMs);
+    const fallPlan = buildFallPlan({ prePieces, postPieces: s.pieces, seed: s.seed, width: s.width });
+
+    const fallWaitMs = computeFallAnimWaitMs(s.swapMs, s.width, fallPlan);
+    s = beginAnim(s, 'fall', fallWaitMs, { fallPlan });
 
     const withEvents = pushEvents(s, events);
 
@@ -88,13 +93,17 @@ export function applyFallAnimDone(state: EngineState, token: number, mode: AnimD
   events.push({ type: 'shuffled', attempts: sh.attempts });
 
   // if shuffle produced matches, resolve once and animate
+  const prePieces2 = s.pieces;
   const post = resolveOnce(s);
   s = post.state;
   events.push(...post.events);
 
   if (post.didResolve) {
     s = setPhase(s, 'fallAnimating', events);
-    s = beginAnim(s, 'fall', s.swapMs);
+    const fallPlan2 = buildFallPlan({ prePieces: prePieces2, postPieces: s.pieces, seed: s.seed, width: s.width });
+
+    const fallWaitMs2 = computeFallAnimWaitMs(s.swapMs, s.width, fallPlan2);
+    s = beginAnim(s, 'fall', fallWaitMs2, { fallPlan: fallPlan2 });
 
     const withEvents = pushEvents(s, events);
 

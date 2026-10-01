@@ -1,3 +1,4 @@
+// src\features\grid\ui\fx\useTargetingTickSfx.ts
 import { useCallback, useEffect, useRef } from 'react';
 import { playSfx } from '@/features/audio';
 import type { SfxId } from '@/features/audio/sfx/sfxManifest';

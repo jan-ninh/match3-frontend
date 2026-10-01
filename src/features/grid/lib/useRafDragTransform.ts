@@ -81,6 +81,23 @@ export function useRafDragTransform({ swapMs, easing, getShouldContinue }: Args)
     el.style.transform = `translate3d(${tx}px, ${ty}px, 0)`;
   }, [swapMs, easing]);
 
+  // IMPORTANT: rAF directly mutates el.style.transform.
+  // React may *not* overwrite that transform on release if its render-time `style.transform`
+  // value stayed the same (common for the dragged piece: basePos doesn't change).
+  // So we need an explicit "hard reset" for cancel/leave/lock edge cases.
+  const resetDraggedPieceInstant = useCallback(() => {
+    const el = draggedElRef.current;
+    const base = dragBasePxRef.current;
+    if (!el || !base) return;
+
+    const tx = Math.round(base.x);
+    const ty = Math.round(base.y);
+
+    // cancel any prior snap-back transition and force the base transform now
+    el.style.transition = '';
+    el.style.transform = `translate3d(${tx}px, ${ty}px, 0)`;
+  }, []);
+
   const clearDragRefs = useCallback(() => {
     stopRaf();
 
@@ -99,6 +116,7 @@ export function useRafDragTransform({ swapMs, easing, getShouldContinue }: Args)
     ensureRafRunning,
     stopRaf,
     snapBackDraggedPiece,
+    resetDraggedPieceInstant,
     clearDragRefs,
   };
 }

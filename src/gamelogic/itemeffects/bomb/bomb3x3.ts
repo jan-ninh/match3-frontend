@@ -1,8 +1,10 @@
 import type { EngineEvent, EngineState } from '../../types';
+import type { CascadePreStep } from '../../cascade/typesCascade';
 
 import { clearCellsAndPieces } from '../../cascade/clear';
 import { applyGravity } from '../../cascade/gravity';
 import { applyRefill } from '../../cascade/refill';
+import { applyItemObstacleDamageAtIndices } from '../../board/obstacles/itemObstacleDamage';
 
 export type BombTarget = { x: number; y: number };
 
@@ -59,20 +61,53 @@ function countClearablePieces(state: EngineState, indices: number[]): number {
   return count;
 }
 
+/**
+ * Plan-first API: returns preSteps to be processed as a first-class cascade step.
+ * - For bomb3x3 we preserve current acceptance semantics: if indices exist, we return a step
+ *   (even if clearedCount === 0), so the engine can still run the same pipeline + emit observability.
+ * - If indices are empty (off-board), returns [].
+ */
+export function getBomb3x3PreSteps(state: EngineState, center: BombTarget): CascadePreStep[] {
+  const indices = getBomb3x3IndicesFromTarget(center, state.width, state.height);
+  if (indices.length === 0) return [];
+
+  return [
+    {
+      kind: 'itemBomb3x3Blast',
+      center: { x: center.x | 0, y: center.y | 0 },
+      indices,
+    },
+  ];
+}
+
 export function applyBomb3x3(state: EngineState, center: BombTarget): Bomb3x3Result {
   const indices = getBomb3x3IndicesFromTarget(center, state.width, state.height);
 
   if (indices.length === 0) return { state, events: [], clearedIndices: [] };
 
-  const clearedCount = countClearablePieces(state, indices);
+  const events: EngineEvent[] = [];
 
-  let next = clearCellsAndPieces(state, indices);
+  // Item obstacle damage is engine-owned and per-level configurable.
+  let next = applyItemObstacleDamageAtIndices(state, 'bomb3x3', indices, events);
+
+  const clearedCount = countClearablePieces(next, indices);
+
+  next = clearCellsAndPieces(next, indices);
   next = applyGravity(next);
 
   const refill = applyRefill(next);
 
-  const events: EngineEvent[] = [];
   if (clearedCount > 0) events.push({ type: 'cleared', count: clearedCount });
+
+  // Parity: even in direct-apply mode, emit first-class observability event.
+  events.push({
+    type: 'cascadeStep',
+    kind: 'itemBomb3x3Blast',
+    center: { x: center.x | 0, y: center.y | 0 },
+    indices,
+    cleared: clearedCount,
+  });
+
   events.push({ type: 'gravity' });
   events.push({ type: 'refilled', count: refill.spawned });
 

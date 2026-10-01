@@ -1,4 +1,3 @@
-// src/types/User.ts
 export type PowerKey = 'gridlaser' | 'laser' | 'extraShuffle' | 'bomb';
 
 export type Powers = {
@@ -42,8 +41,23 @@ export type UserProfile = {
     | 'avatar5.png'
     | 'avatar6.png';
   powers: Powers;
+
+  /**
+   * Legacy score (run-scoped). May reset on roguelite loss.
+   */
   totalScore: number;
+
+  /**
+   * Roguelite map/run progress.
+   */
   progress: Record<string, StageProgress>; // e.g. { "stage1": {...}, "stage2": {...} }
+
+  /**
+   * Meta-progression (persists across runs).
+   */
+  playerLevel: number;
+  playerExp: number;
+
   badges: BadgeProgress[];
   gamesPlayed: number;
   gamesWon: number;

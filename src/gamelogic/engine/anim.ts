@@ -1,4 +1,4 @@
-import type { EngineAnimKind, EngineState } from '../types';
+import type { EngineAnimKind, EngineState, FallPlan } from '../types';
 import { ANIM_EPSILON_MS, SWAP_MS } from '../animTimings';
 import { mkAnimBegin, pushEvents } from './events';
 
@@ -11,7 +11,12 @@ export function sanitizeSwapMs(v: number): number {
   return Math.max(0, Math.round(v));
 }
 
-export function beginAnim(state: EngineState, kind: EngineAnimKind, durationMs: number): EngineState {
+export function beginAnim(
+  state: EngineState,
+  kind: EngineAnimKind,
+  durationMs: number,
+  opts?: { fallPlan?: FallPlan },
+): EngineState {
   const token = nextAnimToken(state.animToken);
   const enteredAtMs = state.nowMs;
   const epsilon = durationMs > 0 ? ANIM_EPSILON_MS : 0;
@@ -22,6 +27,13 @@ export function beginAnim(state: EngineState, kind: EngineAnimKind, durationMs: 
   return {
     ...withBegin,
     animToken: token,
-    anim: { kind, enteredAtMs, durationMs, deadlineAtMs, token },
+    anim: {
+      kind,
+      enteredAtMs,
+      durationMs,
+      deadlineAtMs,
+      token,
+      ...(opts?.fallPlan ? { fallPlan: opts.fallPlan } : {}),
+    },
   };
 }

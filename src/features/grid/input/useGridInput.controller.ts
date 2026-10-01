@@ -1,4 +1,4 @@
-// src/features/grid/input/useGridInput.controller.ts
+import { boardPointerDelta } from './boardCoordinates';
 import type { Dispatch, SetStateAction } from 'react';
 
 import type { Cell, Piece, PieceId } from '@/gamelogic';
@@ -11,6 +11,7 @@ import { DRAG_THRESHOLD, PREVIEW_LOCK_RATIO, PREVIEW_RELEASE_RATIO, SMOOTHING, t
 import { computeMagnetTarget, decideAxisIfNeeded } from './useGridInput.axis';
 import type { PreviewUiSetters } from './useGridInput.preview';
 import { clearPreviewVisuals, latchPreview, unlatchPreview } from './useGridInput.preview';
+import { dispatchGridUiDebugEvent } from './uiDebugEvents';
 
 type SetState<T> = Dispatch<SetStateAction<T>>;
 
@@ -34,6 +35,7 @@ type RafApi = {
   ensureRafRunning: () => void;
   stopRaf: () => void;
   snapBackDraggedPiece: () => void;
+  resetDraggedPieceInstant: () => void;
   clearDragRefs: () => void;
 };
 
@@ -60,11 +62,7 @@ type Args = {
 };
 
 export function createGridInputController({ width, height, cells, pieces, inputLocked, canSwapAt, onIntent, press, debug, raf, ui }: Args) {
-  const MAX_GLOBAL_PRESS_MS = 15_000;
-
   let globalCleanup: (() => void) | null = null;
-  let globalTimeoutId: number | null = null;
-
   // During a pointer-driven press we handle "click" ourselves via pointerup -> intent.
   // If a legacy/parallel onClick handler still exists in the UI, it can re-dispatch a click
   // using a broken index extraction (classic: e.target.dataset missing => falls back to 0).
@@ -74,11 +72,6 @@ export function createGridInputController({ width, height, cells, pieces, inputL
 
   const detachGlobalPointerListeners = () => {
     if (typeof window === 'undefined') return;
-
-    if (globalTimeoutId != null) {
-      window.clearTimeout(globalTimeoutId);
-      globalTimeoutId = null;
-    }
 
     if (globalCleanup) {
       globalCleanup();
@@ -213,8 +206,7 @@ export function createGridInputController({ width, height, cells, pieces, inputL
 
     if (!p.draggable || p.pieceId === null) return;
 
-    const rawDx = clientX - p.startClientX;
-    const rawDy = clientY - p.startClientY;
+    const { dx: rawDx, dy: rawDy } = boardPointerDelta(p.captureEl, clientX - p.startClientX, clientY - p.startClientY);
 
     p.rawDx = rawDx;
     p.rawDy = rawDy;
@@ -228,6 +220,11 @@ export function createGridInputController({ width, height, cells, pieces, inputL
       const currentPiece = p.pieceId !== null ? pieces[p.pieceId] : null;
       if (currentPiece) {
         raf.setDragBasePx(cellPixelXY(currentPiece.cellIndex, width));
+      }
+
+      // DEV: input observability
+      if (import.meta.env.DEV && p.pieceId !== null) {
+        dispatchGridUiDebugEvent({ type: 'uiDragStart', pointerId, pieceId: p.pieceId, fromIndex: p.fromIndex });
       }
 
       raf.ensureRafRunning();
@@ -327,7 +324,22 @@ export function createGridInputController({ width, height, cells, pieces, inputL
     const fromIndex = p.fromIndex;
     const draggable = p.draggable;
 
+    const canLogDrag = import.meta.env.DEV && draggable && p.hasExceededThreshold && p.pieceId !== null;
+
+    const logDragEnd = (outcome: 'swap' | 'snapBack' | 'invalidSwap' | 'cancel', toIndex: number | null) => {
+      if (!canLogDrag || p.pieceId === null) return;
+      dispatchGridUiDebugEvent({ type: 'uiDragEnd', pointerId, pieceId: p.pieceId, fromIndex, toIndex, outcome });
+    };
+
     if (cancelled || !draggable || !p.hasExceededThreshold) {
+      if (cancelled && draggable && p.hasExceededThreshold) logDragEnd('cancel', null);
+
+      // CANCEL EDGE-CASE:
+      // rAF mutates el.style.transform, while React keeps render-time transform at basePos for the dragged piece.
+      // On cancel/blur/lock, React may not overwrite the DOM transform (because the prop value didn't change),
+      // so we must force-reset the element before clearing refs/state.
+      if (cancelled && p.hasExceededThreshold) raf.resetDraggedPieceInstant();
+
       clearPressVisuals();
       if (!cancelled) onIntent({ type: 'click', index: fromIndex });
       return;
@@ -336,18 +348,21 @@ export function createGridInputController({ width, height, cells, pieces, inputL
     const toIndex = p.previewLatched ? p.previewToIndex : null;
 
     if (toIndex === null) {
+      logDragEnd('snapBack', null);
       raf.snapBackDraggedPiece();
       clearPressVisuals();
       return;
     }
 
     if (!canSwapAt(fromIndex, toIndex)) {
+      logDragEnd('invalidSwap', toIndex);
       raf.snapBackDraggedPiece();
       clearPressVisuals();
       if (p.pieceId !== null) ui.setShakePieceId(p.pieceId);
       return;
     }
 
+    logDragEnd('swap', toIndex);
     clearPressVisuals();
     onIntent({ type: 'swap', from: fromIndex, to: toIndex });
   };
@@ -367,6 +382,9 @@ export function createGridInputController({ width, height, cells, pieces, inputL
     };
 
     const onCancel = (e: PointerEvent) => {
+      // Some browsers emit pointercancel while the mouse button is still held
+      // (e.g. native HTML drag attempts). Treat that as non-release.
+      if (e.pointerType === 'mouse' && (e.buttons & 1) === 1) return;
       finishPress(e.pointerId, true);
     };
 
@@ -374,17 +392,27 @@ export function createGridInputController({ width, height, cells, pieces, inputL
     window.addEventListener('pointerup', onUp, { passive: true });
     window.addEventListener('pointercancel', onCancel, { passive: true });
 
+    const onBlur = () => {
+      finishPress(pointerId, true);
+    };
+
+    const onVisibilityChange = () => {
+      // If the tab gets hidden, browsers can drop pointerup/cancel.
+      if (typeof document !== 'undefined' && document.hidden) {
+        finishPress(pointerId, true);
+      }
+    };
+
+    window.addEventListener('blur', onBlur);
+    window.addEventListener('visibilitychange', onVisibilityChange);
+
     globalCleanup = () => {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onCancel);
+      window.removeEventListener('blur', onBlur);
+      window.removeEventListener('visibilitychange', onVisibilityChange);
     };
-
-    globalTimeoutId = window.setTimeout(() => {
-      // Best-effort safety: release capture + clear UI if pointerup/cancel was missed.
-      finishPress(pointerId, true);
-      detachGlobalPointerListeners();
-    }, MAX_GLOBAL_PRESS_MS);
   };
 
   return { startPress, updatePress, finishPress };

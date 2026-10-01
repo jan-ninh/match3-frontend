@@ -1,4 +1,4 @@
-import { request } from './http';
+import { accountSession } from './http';
 import type { Powers, PowerKey, UserProfile } from '@/types';
 
 export type GameStatus = {
@@ -21,7 +21,7 @@ export type StartStageResponse = {
  * Start a stage with optional selected boosters
  */
 export async function apiStartStage(userId: string, stageNumber: number, stageSelectedBoosters?: Partial<Powers>) {
-  return request<StartStageResponse>(`/api/game/start/${userId}/${stageNumber}`, {
+  return accountSession.ownerRequest<StartStageResponse>(userId, `/api/game/start/${stageNumber}`, {
     method: 'POST',
     body: JSON.stringify({ stageSelectedBoosters }),
     headers: { 'Content-Type': 'application/json' },
@@ -32,7 +32,7 @@ export async function apiStartStage(userId: string, stageNumber: number, stageSe
  * Complete a stage and get points/progression
  */
 export async function apiCompleteStage(userId: string, stageNumber: number, usedPower?: PowerKey) {
-  return request(`/api/game/completeStage/${userId}/${stageNumber}`, {
+  return accountSession.ownerRequest(userId, `/api/game/completeStage/${stageNumber}`, {
     method: 'POST',
     body: JSON.stringify({ usedPower }),
     headers: { 'Content-Type': 'application/json' },
@@ -43,7 +43,7 @@ export async function apiCompleteStage(userId: string, stageNumber: number, used
  * Lose a game - resets progress, powers, score
  */
 export async function apiLoseGame(userId: string) {
-  return request(`/api/game/lose/${userId}`, {
+  return accountSession.ownerRequest(userId, `/api/game/lose`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
   });
@@ -53,7 +53,7 @@ export async function apiLoseGame(userId: string) {
  * Abandon a game - resets progress, powers, score (same as lose)
  */
 export async function apiAbandonGame(userId: string, usedPower?: PowerKey) {
-  return request(`/api/game/abandon/${userId}`, {
+  return accountSession.ownerRequest(userId, `/api/game/abandon`, {
     method: 'POST',
     body: JSON.stringify({ usedPower }),
     headers: { 'Content-Type': 'application/json' },
@@ -63,8 +63,9 @@ export async function apiAbandonGame(userId: string, usedPower?: PowerKey) {
 /**
  * Get current game status (powers, progress, hearts, etc.)
  */
-export async function apiGetGameStatus(userId: string) {
-  return request<GameStatus>(`/api/game/${userId}/status`, {
+export async function apiGetGameStatus(userId: string, signal?: AbortSignal) {
+  return accountSession.ownerRequest<GameStatus>(userId, `/api/game/status`, {
     method: 'GET',
+    signal,
   });
 }

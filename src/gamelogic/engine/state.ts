@@ -1,6 +1,16 @@
-// src/gamelogic/engine/state.ts
-import type { EngineEvent, EngineState, LaserWarning, LevelId, PieceId } from '../types';
+import type {
+  EngineEvent,
+  EngineState,
+  ItemEffectKeyForEvent,
+  ItemObjectivesPolicy,
+  LaserWarning,
+  LevelDefinition,
+  LevelId,
+  PieceId,
+  ResolvedItemObstacleDamageConfig,
+} from '../types';
 import { getLevelDefinition } from '../levels';
+import { randomSeed32 } from '../rng';
 import { buildInitialBoard } from '../board';
 import { stabilizeBoard } from '../cascade';
 import { assertBoardIntegrity, assertPhaseInvariants } from '../invariants';
@@ -22,6 +32,55 @@ function selectInitialLaserWarning(seed: number, width: number, height: number):
     return { kind: 'row', index: pick };
   }
   return { kind: 'col', index: pick - height };
+}
+
+function resolveItemObjectives(level: LevelDefinition): Record<ItemEffectKeyForEvent, ItemObjectivesPolicy> {
+  const def: ItemObjectivesPolicy = level.itemObjectivesDefault ?? 'noObjectives';
+
+  const out: Record<ItemEffectKeyForEvent, ItemObjectivesPolicy> = {
+    bomb3x3: def,
+    laserRow: def,
+  };
+
+  const o = level.itemObjectives;
+  if (o?.bomb3x3) out.bomb3x3 = o.bomb3x3;
+  if (o?.laserRow) out.laserRow = o.laserRow;
+
+  return out;
+}
+
+function resolveItemObstacleDamage(level: LevelDefinition): ResolvedItemObstacleDamageConfig {
+  const out: ResolvedItemObstacleDamageConfig = {
+    bomb3x3: {},
+    laserRow: {},
+  };
+
+  // Default parity: preserve legacy stoneTile item damage when a level uses stone tiles.
+  const hasStone = (level.stoneTileNodes?.length ?? 0) > 0;
+  if (hasStone) {
+    out.laserRow = { ...out.laserRow, stoneTile: { mode: 'direct', damage: 2 } };
+    out.bomb3x3 = { ...out.bomb3x3, stoneTile: { mode: 'direct', damage: 3 } };
+  }
+
+  const cfg = level.itemObstacleDamage;
+  if (cfg?.laserRow) out.laserRow = { ...out.laserRow, ...cfg.laserRow };
+  if (cfg?.bomb3x3) out.bomb3x3 = { ...out.bomb3x3, ...cfg.bomb3x3 };
+
+  return out;
+}
+
+function clampInt(n: number, min: number, max: number): number {
+  if (!Number.isFinite(n)) return min;
+  const i = Math.floor(n);
+  return Math.max(min, Math.min(max, i));
+}
+
+function resolveEnemyEveryMs(level: LevelDefinition): number {
+  const enabled = level.enemyTurnEnabled === true;
+  if (!enabled) return 0;
+
+  const raw = level.enemyTurnEveryMs ?? 3000;
+  return clampInt(raw, 250, 60 * 1000);
 }
 
 export function createState(
@@ -54,16 +113,28 @@ export function createState(
         delete pieces[existingPid];
       }
 
+      const requiredCharge = Math.max(0, node.requiredCharge | 0);
+      const initialState: 'locked' | 'open' = requiredCharge <= 0 ? 'open' : 'locked';
+
+      const swapBlocked = node.swapBlocked === true;
+      const blocksPiece = node.blocksPiece === true;
+      const passThrough = node.passThrough === true;
+      const deliverFromAbove = node.deliverFromAbove === true;
+
       cells[node.index] = {
         blocked: false, // Terminal manages its own passability via obstacle state
         pieceId: null,
         obstacle: {
           kind: 'terminal',
           id: node.id,
-          state: 'locked',
+          state: initialState,
           charge: 0,
-          requiredCharge: node.requiredCharge,
+          requiredCharge,
           chargeColor: node.chargeColor,
+          swapBlocked,
+          blocksPiece,
+          passThrough,
+          deliverFromAbove,
         },
       };
     }
@@ -180,6 +251,33 @@ export function createState(
   }
 
   // ─────────────────────────────────────────────
+  // Level 08: Place stone tiles (blocked, not swappable, HP hidden)
+  // ─────────────────────────────────────────────
+  if (level.stoneTileNodes && level.stoneTileNodes.length > 0) {
+    if (cells === built.cells) cells = cells.slice();
+    if (pieces === built.pieces) pieces = { ...pieces };
+
+    for (const node of level.stoneTileNodes) {
+      const idx = node.index | 0;
+      if (idx < 0 || idx >= cells.length) continue;
+
+      const existingPid = cells[idx]?.pieceId;
+      if (existingPid !== null && existingPid !== undefined) {
+        delete pieces[existingPid];
+      }
+
+      const maxHp = 15;
+      const hp = 15;
+
+      cells[idx] = {
+        blocked: true,
+        pieceId: null,
+        obstacle: { kind: 'stoneTile', hp, maxHp },
+      };
+    }
+  }
+
+  // ─────────────────────────────────────────────
   // Level 04+: Initialize laser warning (fair: shown before turn 0)
   // ─────────────────────────────────────────────
   const sweepEnabled = level.sweepEnabled ?? false;
@@ -191,9 +289,34 @@ export function createState(
     initialEvents.push({ type: 'laserWarningSet', kind: laserWarning.kind, index: laserWarning.index });
   }
 
+  const itemObjectives = resolveItemObjectives(level);
+  const itemObstacleDamage = resolveItemObstacleDamage(level);
+
   // ─────────────────────────────────────────────
   // Build initial state
   // ─────────────────────────────────────────────
+  const stoneTotal = level.stoneTileNodes?.length ?? 0;
+
+  const lrMatch4Target = level.laserRowMatch4Target ?? 0;
+  const movesLoseEnabled = level.movesLoseEnabled ?? true;
+  const swapSpendsMove = level.swapSpendsMove ?? true;
+
+  const timerStartSec = level.level9TimerStartSec ?? 0;
+  const timerAfterFirstSec = level.level9TimerAfterFirstSec ?? 0;
+  const timerAfterSecondSec = level.level9TimerAfterSecondSec ?? 0;
+
+  const timerDeadlineAtMs = timerStartSec > 0 && nowMs > 0 ? nowMs + timerStartSec * 1000 : 0;
+
+  const chargedFloorFromItems = level.chargedFloorFromItems ?? false;
+
+  const enemyTurnEnabled = level.enemyTurnEnabled === true;
+  const enemyTurnEveryMs = resolveEnemyEveryMs(level);
+  const nextEnemyTurnAtMs = enemyTurnEnabled && enemyTurnEveryMs > 0 && nowMs > 0 ? nowMs + enemyTurnEveryMs : 0;
+
+  // Level 01: Breach count = number of firewall obstacles present at init.
+  // (Seeded random placement is resolved during board build.)
+  const breachesTotal = cells.reduce((acc, c) => (c.obstacle?.kind === 'firewall' ? acc + 1 : acc), 0);
+
   const base: EngineState = {
     levelId,
     width: level.width,
@@ -202,15 +325,42 @@ export function createState(
     seed,
     rngState,
     allowedTypes: level.allowedTypes,
+
+    chargedFloorFromItems,
+
+    enemyTurnEnabled,
+    enemyTurnEveryMs,
+    nextEnemyTurnAtMs,
+
+    itemObjectives,
+    itemObstacleDamage,
+
     movesTotal: level.moves,
     movesLeft: level.moves,
+
+    movesLoseEnabled,
+    swapSpendsMove,
 
     // Turn counter (0-based)
     turnIndex: 0,
 
+    // Level 07: Match Rush (units to win; 0=disabled)
+    matchRushTargetUnits: level.matchRushTargetUnits ?? 0,
+    matchRushUnits: 0,
+
+    // Level 09: LaserRow -> Match4+ (engine-owned)
+    laserRowMatch4Target: lrMatch4Target,
+    laserRowMatch4Remaining: lrMatch4Target,
+
+    level9TimerStartSec: timerStartSec,
+    level9TimerAfterFirstSec: timerAfterFirstSec,
+    level9TimerAfterSecondSec: timerAfterSecondSec,
+    level9TimerStage: 0,
+    level9TimerDeadlineAtMs: timerDeadlineAtMs,
+
     // Level 01: Firewall/Gate mechanics
-    breachesTotal: level.firewallNodes.length,
-    breachesRemaining: level.firewallNodes.length,
+    breachesTotal,
+    breachesRemaining: breachesTotal,
 
     gateOpen: false,
     gateIndices: level.gateIndices,
@@ -248,6 +398,10 @@ export function createState(
     signalLinked: false,
     chargedCellCount: 0,
 
+    // Level 08: Stone Tiles
+    stoneTilesTotal: stoneTotal,
+    stoneTilesRemaining: stoneTotal,
+
     cells,
     pieces,
     nextPieceId,
@@ -282,6 +436,5 @@ export function createState(
 }
 
 export function createInitialState(levelId: LevelId): EngineState {
-  const level = getLevelDefinition(levelId);
-  return createState(levelId, level.baseSeed, [], 1, SWAP_MS, 0);
+  return createState(levelId, randomSeed32(), [], 1, SWAP_MS, 0);
 }

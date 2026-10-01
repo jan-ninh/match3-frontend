@@ -1,7 +1,23 @@
-// src/gamelogic/board/terminals/terminals.ts
-import type { Cell, CellObstacle } from '../../types';
+import type { Cell, TerminalObstacle as TerminalObstacleType } from '../../types';
+import {
+  terminalAllowsSwap,
+  terminalBlocksGravityFlow,
+  terminalBlocksSwap,
+  terminalCanHoldPiece,
+  terminalKeycardSourceIndex,
+} from '../../types';
 
-export function getTerminalAt(cells: Cell[], index: number): Extract<CellObstacle, { kind: 'terminal' }> | null {
+export type TerminalObstacle = TerminalObstacleType;
+
+export {
+  terminalAllowsSwap,
+  terminalBlocksGravityFlow,
+  terminalBlocksSwap,
+  terminalCanHoldPiece,
+  terminalKeycardSourceIndex,
+};
+
+export function getTerminalAt(cells: Cell[], index: number): TerminalObstacle | null {
   const obs = cells[index]?.obstacle;
   return obs?.kind === 'terminal' ? obs : null;
 }
@@ -13,7 +29,7 @@ export function isTerminalCell(cells: Cell[], index: number): boolean {
 export function canEnterTerminal(cells: Cell[], index: number): boolean {
   const terminal = getTerminalAt(cells, index);
   if (!terminal) return true;
-  return terminal.state === 'open';
+  return terminalCanHoldPiece(terminal);
 }
 
 export function getTerminalIndices(cells: Cell[]): number[] {

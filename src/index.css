@@ -108,7 +108,7 @@ body {
 .scrollbar-cyber::-webkit-scrollbar-thumb {
   background: linear-gradient(180deg, rgba(236, 72, 153, 0.8), rgba(34, 211, 238, 0.8));
   border-radius: 999px;
-  border: 2px solid rgba(10, 10, 20, 0.6);
+  border: 2px solid rgba(10, 10, 20, 0.6); /* برای جدا شدن از track */
 }
 
 .scrollbar-cyber::-webkit-scrollbar-thumb:hover {
@@ -120,3 +120,137 @@ body {
   scrollbar-width: thin;
   scrollbar-color: rgba(34, 211, 238, 0.75) rgba(255, 255, 255, 0.08);
 }
+
+/* ─────────────────────────────────────────────
+   Level 09: "Signal Jam" look (no manual swaps)
+   - Dezent, performant, lesbar.
+   - Scoped über data-match3-level am Board + data-match3-tile am Tile-Root.
+   ───────────────────────────────────────────── */
+
+@keyframes match3-jam-scan {
+  0% {
+    transform: translateY(-6%);
+    opacity: 0.52;
+  }
+  50% {
+    transform: translateY(6%);
+    opacity: 0.72;
+  }
+  100% {
+    transform: translateY(-6%);
+    opacity: 0.52;
+  }
+}
+
+[data-match3-level='9'] button {
+  cursor: not-allowed;
+}
+
+/* Base: slightly "wrong" color grading + faint chroma bleed */
+[data-match3-level='9'] [data-match3-tile] {
+  position: relative;
+  filter: saturate(0.68) contrast(1.08) brightness(0.92);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35), 0 0 14px rgba(34, 211, 238, 0.1), 0 0 10px rgba(244, 63, 94, 0.08);
+}
+
+/* Scanlines + interference wash */
+[data-match3-level='9'] [data-match3-tile]::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+
+  background:
+    repeating-linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.00) 0px,
+      rgba(255, 255, 255, 0.03) 1px,
+      rgba(0, 0, 0, 0.00) 3px
+    ),
+    radial-gradient(120% 120% at 28% 18%, rgba(34, 211, 238, 0.16), rgba(0, 0, 0, 0) 60%),
+    radial-gradient(120% 120% at 72% 84%, rgba(244, 63, 94, 0.12), rgba(0, 0, 0, 0) 55%);
+
+  mix-blend-mode: overlay;
+  animation: match3-jam-scan 3.8s linear infinite;
+}
+
+/* Diagonal glitch sheen (subtle) */
+[data-match3-level='9'] [data-match3-tile]::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+
+  background: linear-gradient(
+    135deg,
+    rgba(34, 211, 238, 0.00) 0%,
+    rgba(34, 211, 238, 0.08) 22%,
+    rgba(244, 63, 94, 0.10) 52%,
+    rgba(244, 63, 94, 0.00) 72%,
+    rgba(34, 211, 238, 0.00) 100%
+  );
+
+  opacity: 0.35;
+}
+
+/* Portfolio presentation: preserve native board geometry and the neon visual language. */
+.portfolio-stage { width: min(720px, calc(100vw - 32px)); height: min(960px, calc(100dvh - 32px)); border-radius: 18px; border: 1px solid #22d3ee26; }
+.portfolio-nav { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; padding: 16px; background: #07071460; }
+.portfolio-brand { flex-shrink: 0; }
+.portfolio-nav-items { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px; }
+.portfolio-nav-items a, .portfolio-nav-items button { display: flex; flex-direction: column; gap: 2px; min-width: 48px; min-height: 54px; }
+.nav-label { font-size: 11px; color: #cffafe; white-space: nowrap; }
+.cyber-button { max-width: 100%; flex-shrink: 0; }
+button:not(:disabled), a { touch-action: manipulation; }
+button:focus-visible, a:focus-visible { outline: 2px solid #67e8f9; outline-offset: 3px; }
+.modal-backdrop { padding: 16px; height: 100dvh; align-items: safe center; overflow-y: auto; }
+.modal-panel { max-height: calc(100dvh - 32px); overflow-y: auto; overscroll-behavior: contain; margin: 0; outline: none; }
+.auth-form > .flex.justify-center { flex-wrap: wrap; gap: 8px; }
+.auth-form input { min-height: 44px; font-size: 16px; }
+.account-availability { min-height: 230px; padding-top: 36px; }
+.account-availability > button { margin: 4px; min-height: 44px; }
+.game-stage { height: 100%; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 12px; }
+.game-hud-container { position: relative; padding-right: 50px; }
+.game-settings { position: absolute; top: 0; right: 0; }
+.game-settings button { width: 44px; height: 44px; }
+.game-settings img { width: 44px; height: 44px; }
+.board-slot { min-height: 0; min-width: 0; display: flex; align-items: center; justify-content: center; }
+.board-frame { position: relative; flex-shrink: 0; }
+.board-native { position: absolute; top: 0; left: 0; width: max-content; transform-origin: top left; }
+.gameplay-hud { grid-template-columns: 1fr auto; gap: 10px; }
+.gameplay-hud > :nth-child(2) { grid-column: 1 / -1; grid-row: 2; }
+.gameplay-hud > :nth-child(3) { grid-column: 2; grid-row: 1; }
+.gameplay-footer { gap: 10px; }
+.podium-list > div { min-width: 0; }
+@media (max-width: 600px) {
+  .portfolio-stage { width: calc(100vw - 16px); height: calc(100dvh - 16px); border-radius: 12px; }
+  .portfolio-nav { justify-content: center; padding: 10px 6px; gap: 8px; }
+  .portfolio-brand { width: 100%; text-align: center; }
+  .portfolio-nav-items { width: 100%; gap: 1px; }
+  .portfolio-nav-items a, .portfolio-nav-items button { padding: 2px; min-width: 48px; }
+  .modal-panel { padding: 20px; }
+  .modal-panel h1 { font-size: 24px; letter-spacing: .08em; }
+  .gameplay-footer button { width: 64px; height: 64px; }
+  .gameplay-footer button img { max-width: 54px; max-height: 54px; }
+  .profile-header { flex-direction: column-reverse; text-align: center; gap: 12px; }
+  .profile-header h1 { font-size: 28px; }
+  .podium-list > div > div { width: 82px; margin-inline: 2px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .portfolio-nav a, .portfolio-nav button, .cyber-button { transition: none; }
+}
+@media (max-width: 600px) {
+  .objective-title { margin-top: 4px; }
+  .objective-description { flex-wrap: wrap; justify-content: center; gap: 6px; text-align: center; max-width: 100%; }
+  .objective-description > div:last-child { flex-basis: 100%; max-width: 100%; }
+  .objective-description .text-white\/25 { display: none; }
+}
+@media (min-width: 601px) {
+  .gameplay-hud { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .gameplay-hud > :nth-child(2) { grid-column: 2; grid-row: 1; }
+  .gameplay-hud > :nth-child(3) { grid-column: 3; grid-row: 1; }
+}
+.objective-title, .objective-description { max-width: 100%; flex-wrap: wrap; justify-content: center; }
+.profile-page p { overflow-wrap: anywhere; }

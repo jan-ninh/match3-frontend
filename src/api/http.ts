@@ -1,92 +1,19 @@
-// src/api/http.ts
-const API = import.meta.env.VITE_API_URL || '';
-
-// Debug: Log API URL on app start
-if (typeof window !== 'undefined') {
-  console.log('⚙️ API URL configured:', API || '(Will use relative paths)');
-}
-
-type ReqOpts = RequestInit & { skipJson?: boolean };
-
-// Global handler for 401 errors (token expiration)
-let onUnauthorized: (() => void) | null = null;
-
-export function setUnauthorizedHandler(handler: () => void) {
-  onUnauthorized = handler;
-}
-
-export async function request<T = unknown>(path: string, opts: ReqOpts = {}): Promise<T> {
-  const { skipJson, ...fetchOpts } = opts;
-
-  const url = `${API}${path}`;
-  console.log(`📡 Requesting: ${url}`);
-
-  const defaultHeaders: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-
-  // Add Authorization header if token exists (fallback for cross-domain deployments)
-  const token = getAuthToken();
-  if (token) {
-    defaultHeaders['Authorization'] = `Bearer ${token}`;
-  }
-
-  // Ensure headers is always an object
-  const existingHeaders = fetchOpts.headers as Record<string, string> | undefined;
-  fetchOpts.headers = {
-    ...defaultHeaders,
-    ...existingHeaders,
-  };
-
-  const res = await fetch(url, {
-    ...fetchOpts,
-    credentials: 'include', // Always send cookies
-  });
-
-  console.log(`📨 Response status: ${res.status} ${res.statusText}`);
-
-  if (skipJson) return res as unknown as T;
-
-  let data: T;
-  try {
-    data = await res.json();
-  } catch (e) {
-    throw new Error('Invalid JSON response from server');
-  }
-
-  if (!res.ok) {
-    const message = (data as any)?.error || (data as any)?.message || 'Server error';
-    const err: any = new Error(message);
-    err.status = res.status;
-    err.payload = data;
-
-    // Handle token expiration (401 Unauthorized)
-    if (res.status === 401) {
-      console.error('🔴 401 Unauthorized detected - calling handler', { url });
-      if (onUnauthorized) {
-        console.log('📞 Calling onUnauthorized handler...');
-        onUnauthorized();
-      } else {
-        console.warn('⚠️ No onUnauthorized handler registered!');
-      }
-    }
-
-    throw err;
-  }
-
-  return data;
-}
-
-const TOKEN_STORAGE_KEY = 'authToken';
-
-export function setAuthToken(token: string | null) {
-  if (token) {
-    localStorage.setItem(TOKEN_STORAGE_KEY, token);
-  } else {
-    localStorage.removeItem(TOKEN_STORAGE_KEY);
-  }
-}
-
-export function getAuthToken(): string | null {
-  return localStorage.getItem(TOKEN_STORAGE_KEY);
-}
+import { createRequester } from './transport';
+import { SessionStore } from '@/services/account/modeStore';
+import { apiBase } from './apiBase';
+import { BackendReadiness } from '@/services/network/backendReadiness';
+export { RequestError } from './transport';
+export type { RequestOptions, FailureKind } from './transport';
+const apiRequest = createRequester(apiBase(import.meta.env.VITE_API_URL, import.meta.env.PROD));
+export const request: typeof apiRequest = (path, opts = {}) => {
+  const headers = new Headers(opts.headers);
+  if (!headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
+  return apiRequest(path, { ...opts, headers, credentials: opts.credentials ?? 'omit' });
+};
+export const backendReadiness = new BackendReadiness(apiRequest);
+export const accountSession = new SessionStore(request, {
+  getItem: (key) => sessionStorage.getItem(key),
+  setItem: (key, value) => sessionStorage.setItem(key, value),
+});
+export const accountRequest = accountSession.request;
+export const resourceRequest = createRequester('');

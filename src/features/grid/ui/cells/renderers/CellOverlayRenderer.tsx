@@ -1,7 +1,9 @@
+// src/features/grid/ui/cells/renderers/CellOverlayRenderer.tsx
 import type { CellVM } from '../cellViewModel';
 import type { ObstacleSpriteStyles } from '../sprites/getObstacleSpriteStyles';
 
 import { ChargedCellOverlay } from './ChargedCellOverlay';
+import { EnemyRedCellOverlay } from './EnemyRedCellOverlay';
 import { SignalSourceOverlay } from './SignalSourceOverlay';
 import { SignalTargetOverlay } from './SignalTargetOverlay';
 
@@ -15,6 +17,7 @@ import { SealKitOverlay } from './SealKitOverlay';
 import { TerminalOverlay } from './TerminalOverlay';
 import { ObjectiveTerminalOverlay } from './ObjectiveTerminalOverlay';
 import { BlockedPlainOverlay } from './BlockedPlainOverlay';
+import { StoneTileOverlay } from './StoneTileOverlay';
 
 type Props = {
   vm: CellVM;
@@ -23,14 +26,27 @@ type Props = {
 
 export function CellOverlayRenderer({ vm, sprites }: Props) {
   switch (vm.kind) {
+    case 'enemyRed':
+      return <EnemyRedCellOverlay />;
+
     case 'chargedCell':
       return <ChargedCellOverlay />;
 
     case 'signalSource':
-      return <SignalSourceOverlay id={vm.id} />;
+      return (
+        <>
+          <ChargedCellOverlay />
+          <SignalSourceOverlay id={vm.id} />
+        </>
+      );
 
     case 'signalTarget':
-      return <SignalTargetOverlay id={vm.id} />;
+      return (
+        <>
+          <ChargedCellOverlay />
+          <SignalTargetOverlay id={vm.id} />
+        </>
+      );
 
     case 'gate':
       return <GateOverlay open={vm.open} />;
@@ -43,6 +59,9 @@ export function CellOverlayRenderer({ vm, sprites }: Props) {
 
     case 'firewallNode':
       return <FirewallNodeOverlay hp={vm.hp} maxHp={vm.maxHp} />;
+
+    case 'stoneTile':
+      return <StoneTileOverlay stage={vm.stage} />;
 
     case 'leak':
       return (
@@ -61,8 +80,22 @@ export function CellOverlayRenderer({ vm, sprites }: Props) {
     case 'sealKit':
       return <SealKitOverlay spriteStyle={sprites.sealKit} />;
 
-    case 'terminal':
-      return <TerminalOverlay state={vm.state} charge={vm.charge} requiredCharge={vm.requiredCharge} chargeColor={vm.chargeColor} />;
+    case 'terminal': {
+      // Level 05: two adjacent terminals are rendered as ONE combined 2-cell slab (purely visual).
+      // SSOT for positions (for now): (3,7) + (4,7)
+      const pairRole =
+        vm.y === 7 && vm.x === 3 ? ('left' as const) : vm.y === 7 && vm.x === 4 ? ('right' as const) : undefined;
+
+      return (
+        <TerminalOverlay
+          state={vm.state}
+          charge={vm.charge}
+          requiredCharge={vm.requiredCharge}
+          chargeColor={vm.chargeColor}
+          pairRole={pairRole}
+        />
+      );
+    }
 
     case 'objectiveTerminal':
       return <ObjectiveTerminalOverlay state={vm.state} charge={vm.charge} requiredCharge={vm.requiredCharge} />;

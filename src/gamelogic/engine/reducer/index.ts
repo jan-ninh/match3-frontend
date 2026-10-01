@@ -1,3 +1,4 @@
+// src/gamelogic/engine/reducer/index.ts
 import type { EngineState } from '../../types';
 import { assertPhaseInvariants } from '../../invariants';
 
@@ -8,6 +9,7 @@ import { withNow } from './withNow';
 
 import { handleAnimDone } from './handlers/handleAnimDone';
 import { handleClickCell } from './handlers/handleClickCell';
+import { handleEnemyTurn } from './handlers/handleEnemyTurn';
 import { handleInitLevel } from './handlers/handleInitLevel';
 import { handleResetBoard } from './handlers/handleResetBoard';
 import { handleReshuffle } from './handlers/handleReshuffle';
@@ -32,12 +34,15 @@ export function engineReducer(state: EngineState, action: EngineReducerAction): 
   // Step 2: Priority actions (initLevel/resetBoard) bypass preAutoFinish entirely.
   // Rationale: preAutoFinish processes anims on state that will be discarded.
   if (action.type === 'initLevel') {
-    const result = emitSeparatorIfNeeded(state, handleInitLevel(sNow, action));
+    let result = handleInitLevel(sNow, action);
+
+    // Level-start readiness SSOT:
+    // If initLevel ends in stable-idle, ALWAYS emit a turnSeparator (even if prev was already stable-idle),
+    // so UI can reliably key "level is ready" behavior off a single Engine signal.
+    result = emitSeparatorIfStableIdle(result);
 
     if (import.meta.env.DEV) assertPhaseInvariants(result, `engineReducer:${action.type}`);
 
-    // Fresh state from createState is always stableIdle-eligible after stabilizeBoard.
-    // Emit turnSeparator if the transition qualifies.
     return result;
   }
 
@@ -70,6 +75,10 @@ export function engineReducer(state: EngineState, action: EngineReducerAction): 
 
       case 'swapAttempt': {
         return handleSwapAttempt(s, nonPriorityAction);
+      }
+
+      case 'enemyTurn': {
+        return handleEnemyTurn(s, nonPriorityAction);
       }
 
       case 'swapAnimDone':
@@ -123,6 +132,22 @@ export function engineReducer(state: EngineState, action: EngineReducerAction): 
   if (import.meta.env.DEV) assertPhaseInvariants(final, `engineReducer:${action.type}`);
 
   return final;
+}
+
+/**
+ * Init-level special-case:
+ * If next is stable-idle, emit turnSeparator even if prev was also stable-idle.
+ * This is used as a reliable "level ready" signal for UI resets / QoL policies.
+ */
+function emitSeparatorIfStableIdle(next: EngineState): EngineState {
+  if (!isStableIdle(next)) return next;
+
+  const last = next.events[next.events.length - 1] as unknown;
+  if (last && typeof last === 'object' && (last as Record<string, unknown>).type === 'turnSeparator') {
+    return next;
+  }
+
+  return pushEvents(next, [mkTurnSeparator()]);
 }
 
 /**

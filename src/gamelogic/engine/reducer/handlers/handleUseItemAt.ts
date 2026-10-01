@@ -2,11 +2,19 @@ import type { EngineEvent, EngineState } from '../../../types';
 import type { UseItemAtAction } from '../actions';
 
 import { beginAnim } from '../../anim';
+import { buildFallPlan } from '../../fallPlan';
+import { computeFallAnimWaitMs } from '../../fallingTuning';
 import { isStableIdle, mkTurnCommitArmedItem, pushEvents } from '../../events';
 import { setPhase } from '../../../phaseState';
 
 import { stabilizeBoard } from '../../../cascade/stabilizeBoard';
 import { applyItemEffectAt, getItemEffectPreSteps, getItemEffectPreviewIndices } from '../../../itemeffects';
+
+import { LEVEL07_TUNING } from '../../../levels/level-07';
+
+const LASER_ROW_ENGINE_DELAY_MS = 650;
+// NOTE: Must match UI intent feel (see src/features/grid/ui/laser/laserTimings.ts LASER_ENGINE_DELAY_MS).
+// Engine is the SSOT for lockout and effect timing.
 
 function powerKeyForItem(key: UseItemAtAction['key']): 'gridlaser' | 'laser' | 'extraShuffle' {
   switch (key) {
@@ -14,6 +22,19 @@ function powerKeyForItem(key: UseItemAtAction['key']): 'gridlaser' | 'laser' | '
       return 'gridlaser';
     case 'laserRow':
       return 'laser';
+    default: {
+      const _exhaustive: never = key;
+      return _exhaustive;
+    }
+  }
+}
+
+function matchRushItemBaseUnits(key: UseItemAtAction['key']): number {
+  switch (key) {
+    case 'bomb3x3':
+      return LEVEL07_TUNING.itemUnits.gridlaser3x3;
+    case 'laserRow':
+      return LEVEL07_TUNING.itemUnits.laserRow;
     default: {
       const _exhaustive: never = key;
       return _exhaustive;
@@ -33,13 +54,30 @@ export function handleUseItemAt(state: EngineState, action: UseItemAtAction): En
 
   const events: EngineEvent[] = [];
 
-  const isLaser = action.key === 'laserRow';
+  const itemPolicy = state.itemObjectives[action.key];
+  const cascadeEffectPolicy = itemPolicy === 'noObjectives' ? 'noObjectives' : undefined;
+
+  // Level 09: a "move" is a confirmed Row-Laser usage (not swaps).
+  const countsAsMove = action.key === 'laserRow' && (state.laserRowMatch4Target | 0) > 0;
+
+  const nextMovesLeft = countsAsMove ? Math.max(0, (state.movesLeft | 0) - 1) : state.movesLeft;
+
+  if (countsAsMove && nextMovesLeft !== state.movesLeft) {
+    events.push({ type: 'movesSpent', left: nextMovesLeft });
+  }
 
   // Accept => arm turn commit (engine-owned)
   let s: EngineState = {
     ...state,
-    pendingTurnCommit: { kind: 'item', spendMove: false },
-    cascadeEffectPolicy: isLaser ? 'noObjectives' : undefined,
+    movesLeft: nextMovesLeft,
+    pendingTurnCommit: {
+      kind: 'item',
+      spendMove: countsAsMove,
+      key: action.key,
+      requestId: action.requestId,
+      matchOutcomeEmitted: false,
+    },
+    cascadeEffectPolicy,
   };
 
   // Observability: instrument every pendingTurnCommit arming
@@ -54,12 +92,43 @@ export function handleUseItemAt(state: EngineState, action: UseItemAtAction): En
     events.push({ type: 'selectionCleared' });
   }
 
-  // Lock input immediately (phase event must be preserved via same events array)
+  // Lock input immediately (engine-owned)
   s = setPhase(s, 'inputLock', events);
 
-  // Apply effect
-  // - Some items are modeled as first-class cascade preSteps (processed BEFORE detect).
-  // - If preSteps exist, we apply them via stabilizeBoard with resolve/shuffle disabled (turnEnd pipeline still handles real resolve).
+  // Row-laser: engine-owned delayed execution (closes UI interaction gap).
+  if (action.key === 'laserRow') {
+    const baseNow = s.nowMs | 0;
+    const delay = Math.max(0, LASER_ROW_ENGINE_DELAY_MS | 0);
+    const executeAtMs = baseNow > 0 ? baseNow + delay : delay;
+
+    s = {
+      ...s,
+      pendingLaserRow: {
+        executeAtMs,
+        target: { x: target.x | 0, y: target.y | 0 },
+        requestId: action.requestId,
+      },
+    };
+
+    // Level 07: Match Rush progress is engine-owned.
+    // Count power usage as units (independent of objective-policy for clears).
+    if ((s.matchRushTargetUnits | 0) > 0 && s.phase !== 'init') {
+      const baseUnits = matchRushItemBaseUnits(action.key);
+      const gained = baseUnits * LEVEL07_TUNING.globalMultiplier;
+      if (gained > 0) {
+        s = {
+          ...s,
+          matchRushUnits: (s.matchRushUnits | 0) + gained,
+        };
+      }
+    }
+
+    return pushEvents(s, events);
+  }
+
+  // Other items: execute immediately (legacy behavior)
+  const prePieces = s.pieces;
+
   const preSteps = getItemEffectPreSteps(s, action.key, target);
 
   if (preSteps !== undefined) {
@@ -76,12 +145,29 @@ export function handleUseItemAt(state: EngineState, action: UseItemAtAction): En
     events.push(...fx.events);
   }
 
+  // Level 07: Match Rush progress is engine-owned.
+  // Count power usage as units (independent of objective-policy for clears).
+  if ((s.matchRushTargetUnits | 0) > 0 && s.phase !== 'init') {
+    const baseUnits = matchRushItemBaseUnits(action.key);
+    const gained = baseUnits * LEVEL07_TUNING.globalMultiplier;
+    if (gained > 0) {
+      s = {
+        ...s,
+        matchRushUnits: (s.matchRushUnits | 0) + gained,
+      };
+    }
+  }
+
   // Ack for UI consume (only after accept)
   events.push({ type: 'powerUsed', key: powerKeyForItem(action.key), requestId: action.requestId });
 
-  // Enter fall animation phase (engine-owned); keep phase event
+  // Enter fall animation phase (engine-owned)
   s = setPhase(s, 'fallAnimating', events);
-  s = beginAnim(s, 'fall', s.swapMs);
+
+  const fallPlan = buildFallPlan({ prePieces, postPieces: s.pieces, seed: s.seed, width: s.width });
+  const fallWaitMs = computeFallAnimWaitMs(s.swapMs, s.width, fallPlan);
+
+  s = beginAnim(s, 'fall', fallWaitMs, { fallPlan });
 
   return pushEvents(s, events);
 }

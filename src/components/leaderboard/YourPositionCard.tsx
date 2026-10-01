@@ -9,13 +9,15 @@ type Props = {
 
 export default function YourPositionCard({ user, rank }: Props) {
   return (
-    <GlassSection className="flex justify-between items-center  p-4 mt-4">
+    <GlassSection className="flex justify-between items-center gap-2 p-4 mt-4">
       <span className="font-bold">{rank}</span>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 min-w-0">
         <AvatarSprite name={(user.avatar as any) || 'default.png'} size={48} />
-        <span>{user.name} (You)</span>
+        <span className="truncate" title={user.name}>
+          {user.name} (You)
+        </span>
       </div>
-      <span>{user.score}</span>
+      <span className="shrink-0 tabular-nums">{user.score}</span>
     </GlassSection>
   );
 }

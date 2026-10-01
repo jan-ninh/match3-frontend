@@ -1,17 +1,23 @@
-// src/gamelogic/engine/deliveryFlow.ts
 import type { EngineEvent, EngineState } from '../types';
-import { getTerminalAt } from '../board';
+import { getTerminalAt, terminalKeycardSourceIndex } from '../board';
 
 /**
  * Check for keycard delivery to open terminals.
  * Called after board stabilizes (all cascades complete).
  *
- * A keycard is delivered if:
- * - It's in a cell with an open terminal
- * - The terminal becomes verified, keycard is consumed
+ * Default delivery rule (legacy):
+ * - Keycard is delivered if it occupies the same cell as an OPEN terminal.
+ *
+ * Optional delivery rule (for blocker terminals):
+ * - If terminal.blocksPiece===true OR terminal.deliverFromAbove===true, a keycard is delivered
+ *   from the cell directly ABOVE the terminal (same column).
+ *
+ * On delivery:
+ * - Terminal becomes verified
+ * - Keycard is consumed
  */
 export function processKeycardDeliveries(state: EngineState): { state: EngineState; events: EngineEvent[] } {
-  const { cells, pieces } = state;
+  const { cells, pieces, width } = state;
   const events: EngineEvent[] = [];
 
   let nextCells = cells;
@@ -20,16 +26,22 @@ export function processKeycardDeliveries(state: EngineState): { state: EngineSta
   let deliveredCount = 0;
 
   for (let i = 0; i < cells.length; i++) {
-    const cell = cells[i];
+    const cell = nextCells[i];
     if (!cell) continue;
 
     const terminal = getTerminalAt(nextCells, i);
     if (!terminal || terminal.state !== 'open') continue;
 
-    const pid = cell.pieceId;
+    const keycardCellIndex = terminalKeycardSourceIndex(i, width, terminal);
+    if (keycardCellIndex < 0) continue;
+
+    const keyCell = nextCells[keycardCellIndex];
+    if (!keyCell) continue;
+
+    const pid = keyCell.pieceId;
     if (pid === null) continue;
 
-    const piece = pieces[pid];
+    const piece = nextPieces[pid];
     if (!piece || piece.type !== 'keycard') continue;
 
     // Delivery!
@@ -42,7 +54,10 @@ export function processKeycardDeliveries(state: EngineState): { state: EngineSta
     // Remove keycard
     delete nextPieces[pid];
 
-    // Update terminal to verified
+    // Clear keycard from its cell (same cell for legacy; above cell for blocker terminals)
+    nextCells[keycardCellIndex] = { ...nextCells[keycardCellIndex]!, pieceId: null };
+
+    // Update terminal to verified (terminal cell never holds the keycard for blocker terminals)
     nextCells[i] = {
       ...nextCells[i]!,
       pieceId: null,
@@ -51,7 +66,7 @@ export function processKeycardDeliveries(state: EngineState): { state: EngineSta
 
     deliveredCount++;
 
-    events.push({ type: 'keycardDelivered', terminalId: terminal.id, keycardIndex: i });
+    events.push({ type: 'keycardDelivered', terminalId: terminal.id, keycardIndex: keycardCellIndex });
     events.push({ type: 'terminalVerified', terminalId: terminal.id });
   }
 

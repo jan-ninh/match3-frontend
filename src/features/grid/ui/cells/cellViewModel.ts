@@ -39,6 +39,14 @@ export type FirewallNodeCellVM = {
   maxHp: number;
 };
 
+export type StoneTileCellVM = {
+  kind: 'stoneTile';
+  index: number;
+  x: number;
+  y: number;
+  stage: 'intact' | 'cracked' | 'fractured';
+};
+
 export type LeakCellVM = {
   kind: 'leak';
   index: number;
@@ -91,6 +99,13 @@ export type ChargedCellVM = {
   y: number;
 };
 
+export type EnemyRedCellVM = {
+  kind: 'enemyRed';
+  index: number;
+  x: number;
+  y: number;
+};
+
 export type SignalSourceCellVM = {
   kind: 'signalSource';
   id: number;
@@ -120,12 +135,14 @@ export type CellVM =
   | SpikeCellVM
   | SweepFirewallCellVM
   | FirewallNodeCellVM
+  | StoneTileCellVM
   | LeakCellVM
   | ContaminationCellVM
   | SealKitCellVM
   | TerminalCellVM
   | ObjectiveTerminalCellVM
   | ChargedCellVM
+  | EnemyRedCellVM
   | SignalSourceCellVM
   | SignalTargetCellVM
   | BlockedPlainCellVM;
@@ -133,6 +150,9 @@ export type CellVM =
 export function buildCellViewModel(cell: Cell, index: number, width: number): CellVM {
   const { x, y } = xyOf(index, width);
   const obs = cell.obstacle;
+
+  // Enemy mark takes precedence over other floor overlays.
+  if (cell.mark === 'enemyRed') return { kind: 'enemyRed', index, x, y };
 
   if (obs?.kind === 'chargedCell') return { kind: 'chargedCell', index, x, y };
 
@@ -149,10 +169,24 @@ export function buildCellViewModel(cell: Cell, index: number, width: number): Ce
     const isSweep = obs.origin === 'sweep';
     if (isSweep) return { kind: 'sweepFirewall', index, x, y };
 
+    // Level 04 variant: dormant breach firewalls are rendered via FirewallNodeOverlay
+    // so we can show OFF (hp=0) vs ON (hp>0) without touching the spike renderer.
+    const isDormantLevel04 = obs.origin === 'level4Dormant';
+    if (isDormantLevel04) return { kind: 'firewallNode', index, x, y, hp: obs.hp, maxHp: obs.maxHp };
+
     const isSpike = obs.maxHp === 1;
     if (isSpike) return { kind: 'spike', index, x, y };
 
     return { kind: 'firewallNode', index, x, y, hp: obs.hp, maxHp: obs.maxHp };
+  }
+
+  if (obs?.kind === 'stoneTile') {
+    const max = Math.max(1, obs.maxHp | 0);
+    const hp = Math.max(0, obs.hp | 0);
+    const r = hp / max;
+
+    const stage: StoneTileCellVM['stage'] = r > 0.66 ? 'intact' : r > 0.33 ? 'cracked' : 'fractured';
+    return { kind: 'stoneTile', index, x, y, stage };
   }
 
   if (obs?.kind === 'leak') {

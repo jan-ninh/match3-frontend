@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import type { EngineEvent } from '@/gamelogic';
 import { CAMPAIGN_DEBUG_EVENT, type CampaignDebugDetail } from '@/context/campaignEvents';
+import { GRID_UI_DEBUG_EVENT, isGridUiDebugEvent, type GridUiDebugEvent } from '@/features/grid/input/uiDebugEvents';
 
 function fmtNum(n: number): string {
   return Number.isFinite(n) ? n.toFixed(1) : 'NaN';
@@ -28,8 +29,23 @@ function fmtSend(s: CampaignDebugDetail['lastSend'] | null | undefined): string 
   return `${s.kind} ${ok}${msg}`;
 }
 
-function formatEvent(e: EngineEvent): string {
+type DebugLogEvent = EngineEvent | GridUiDebugEvent;
+
+function formatEvent(e: DebugLogEvent): string {
   switch (e.type) {
+    // ─────────────────────────────────
+    // UI Input debug (DEV-only)
+    // ─────────────────────────────────
+    case 'uiDragStart':
+      return `uiDragStart(pointerId=${e.pointerId}, pieceId=${e.pieceId}, from=${e.fromIndex})`;
+    case 'uiDragEnd': {
+      const to = e.toIndex === null ? 'null' : String(e.toIndex);
+      return `uiDragEnd(pointerId=${e.pointerId}, pieceId=${e.pieceId}, from=${e.fromIndex}, to=${to}, outcome=${e.outcome})`;
+    }
+
+    // ─────────────────────────────────
+    // Engine events
+    // ─────────────────────────────────
     case 'seededInit':
       return `seededInit(level=${e.levelId}, ${e.width}x${e.height}, seed=${e.seed})`;
     case 'reset':
@@ -56,6 +72,10 @@ function formatEvent(e: EngineEvent): string {
       return `swapRejected(from=${e.from}, to=${e.to}, reason=${e.reason})`;
     case 'matchesFound':
       return `matchesFound(clears=${e.clears}, groups=${e.groups})`;
+    case 'matchGroup':
+      return `matchGroup(id=${fmtIdShort(e.id)}, axis=${e.axis}, len=${e.len}, indices=[${fmtList(e.indices)}])`;
+    case 'itemCausedMatch':
+      return `itemCausedMatch(key=${e.key}, requestId=${e.requestId}, maxLen=${e.maxLen}, 3=${e.len3},4=${e.len4},5=${e.len5},6+=${e.len6Plus}, groups=${e.matchGroupIds.length})`;
     case 'cleared':
       return `cleared(count=${e.count})`;
     case 'gravity':
@@ -94,6 +114,9 @@ function formatEvent(e: EngineEvent): string {
     case 'cascadeStep': {
       if (e.kind === 'itemLaserRowClear') {
         return `cascadeStep(laserRowClear,row=${e.row}, cleared=${e.cleared}, indices=[${fmtList(e.indices)}])`;
+      }
+      if (e.kind === 'itemBomb3x3Blast') {
+        return `cascadeStep(bomb3x3Blast,center=${e.center.x},${e.center.y}, cleared=${e.cleared}, indices=[${fmtList(e.indices)}])`;
       }
       const _exhaustive: never = e;
       return JSON.stringify(_exhaustive);
@@ -188,22 +211,52 @@ type Props = {
 };
 
 const DEFAULT_MAX_LINES = 80;
+const MAX_UI_EVENTS = 60;
 
 export default function DebugEventLog({ events, maxLines = DEFAULT_MAX_LINES }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [campaign, setCampaign] = useState<CampaignDebugDetail | null>(null);
+  const [uiEvents, setUiEvents] = useState<GridUiDebugEvent[]>([]);
 
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const bottomRef = useRef<HTMLLIElement | null>(null);
 
+  // Clear UI events on fresh init/reset so the log stays readable per level.
+  useEffect(() => {
+    if (!events.length) return;
+    const last = events[events.length - 1];
+    if (last.type === 'seededInit' || last.type === 'reset') setUiEvents([]);
+  }, [events]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const onUi = (e: Event) => {
+      const ce = e as CustomEvent<unknown>;
+      const detail = ce.detail;
+      if (!isGridUiDebugEvent(detail)) return;
+
+      setUiEvents((prev) => {
+        const next = [...prev, detail];
+        return next.length > MAX_UI_EVENTS ? next.slice(next.length - MAX_UI_EVENTS) : next;
+      });
+    };
+
+    window.addEventListener(GRID_UI_DEBUG_EVENT, onUi as EventListener);
+    return () => window.removeEventListener(GRID_UI_DEBUG_EVENT, onUi as EventListener);
+  }, []);
+
+  const totalCount = events.length + uiEvents.length;
+
   const lastEventsChrono = useMemo(() => {
-    if (!Number.isFinite(maxLines) || maxLines <= 0) return events;
-    return events.slice(-maxLines);
-  }, [events, maxLines]);
+    const merged: DebugLogEvent[] = [...events, ...uiEvents];
+    if (!Number.isFinite(maxLines) || maxLines <= 0) return merged;
+    return merged.slice(-maxLines);
+  }, [events, uiEvents, maxLines]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-  }, [events.length]);
+  }, [events.length, uiEvents.length]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -226,7 +279,7 @@ export default function DebugEventLog({ events, maxLines = DEFAULT_MAX_LINES }: 
 
         <div className="flex items-center gap-3">
           <div className="text-white/50 text-xs">
-            {lastEventsChrono.length} / {events.length}
+            {lastEventsChrono.length} / {totalCount}
           </div>
 
           <button
@@ -271,7 +324,7 @@ export default function DebugEventLog({ events, maxLines = DEFAULT_MAX_LINES }: 
           <div className="text-white/90 font-mono">{campaign?.queuedSends ?? 0}</div>
         </div>
       </div>
-      <div ref={scrollerRef} className="mt-2 h-260px))] overflow-y-auto overscroll-contain" style={{ scrollbarGutter: 'stable' }}></div>
+
       <div ref={scrollerRef} className={`mt-2 ${scrollerMaxH} overflow-y-auto overscroll-contain`} style={{ scrollbarGutter: 'stable' }}>
         <ul className="space-y-0">
           {lastEventsChrono.map((e, i) => {

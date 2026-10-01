@@ -1,11 +1,11 @@
-// src/gamelogic/invariants.ts
 import type { CellObstacle, EngineState, PieceId } from './types';
+import { terminalCanHoldPiece } from './types';
 import { animKindForPhase, isAnimatingPhase, isInputLocked } from './phases';
 
 function allowsPieceOnObstacle(obs: CellObstacle | undefined): boolean {
   if (!obs) return true;
   if (obs.kind === 'chargedCell') return true;
-  if (obs.kind === 'terminal' && obs.state === 'open') return true;
+  if (obs.kind === 'terminal') return terminalCanHoldPiece(obs);
   return false;
 }
 

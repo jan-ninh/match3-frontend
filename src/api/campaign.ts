@@ -1,5 +1,5 @@
 // src/api/campaign.ts
-import { request } from './http';
+import { accountRequest } from './http';
 
 export type CampaignId = string;
 
@@ -50,7 +50,7 @@ function jsonHeaders(): Record<string, string> {
  * Start a campaign/run. Backend returns CAMPAIGN_ID.
  */
 export async function apiStartCampaign(body: CampaignStartRequestBody = {}): Promise<CampaignStartResponseBody> {
-  return request('/api/campaign/start', {
+  return accountRequest('/api/campaign/start', {
     method: 'POST',
     headers: jsonHeaders(),
     body: JSON.stringify(body),
@@ -61,7 +61,7 @@ export async function apiStartCampaign(body: CampaignStartRequestBody = {}): Pro
  * Finalize a level attempt (WIN/LOSS) with FE-observed moves used.
  */
 export async function apiCampaignLevelEnd(body: CampaignLevelEndRequestBody): Promise<void> {
-  await request('/api/campaign/levelEnd', {
+  await accountRequest('/api/campaign/levelEnd', {
     method: 'POST',
     headers: jsonHeaders(),
     body: JSON.stringify(body),
@@ -72,7 +72,7 @@ export async function apiCampaignLevelEnd(body: CampaignLevelEndRequestBody): Pr
  * Optional: explicit abort (disconnect/quit/crash/timeout/unknown).
  */
 export async function apiCampaignLevelAbort(body: CampaignLevelAbortRequestBody): Promise<void> {
-  await request('/api/campaign/levelAbort', {
+  await accountRequest('/api/campaign/levelAbort', {
     method: 'POST',
     headers: jsonHeaders(),
     body: JSON.stringify(body),

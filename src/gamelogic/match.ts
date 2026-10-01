@@ -1,6 +1,6 @@
-// src/gamelogic/match.ts
 import type { EngineState, PieceType } from './types';
 import { inBounds, xyOf } from './coords';
+import { canSwap } from './board/swap/canSwap';
 
 type BoardView = Pick<EngineState, 'width' | 'height' | 'cells' | 'pieces'>;
 
@@ -61,15 +61,28 @@ function countDir(
 // Match Detection
 // ─────────────────────────────────────────────
 
+export type MatchAxis = 'h' | 'v';
+
+export type MatchRun = {
+  axis: MatchAxis;
+  indices: number[];
+  len: number;
+};
+
 export type MatchDetection = {
   clearIndices: number[];
   groups: number;
+  /**
+   * Optional, but when present allows consumers (HUD/SFX) to know the exact match run sizes.
+   * Kept optional for backward-compat in code that only cares about clears/groups.
+   */
+  runs?: MatchRun[];
 };
 
 export function detectMatches(board: BoardView): MatchDetection {
   const { width, height } = board;
   const clear = new Set<number>();
-  let groups = 0;
+  const runs: MatchRun[] = [];
 
   // horizontal
   for (let y = 0; y < height; y++) {
@@ -91,8 +104,13 @@ export function detectMatches(board: BoardView): MatchDetection {
       }
 
       if (run >= 3) {
-        groups++;
-        for (let k = 0; k < run; k++) clear.add(y * width + (x + k));
+        const indices: number[] = [];
+        for (let k = 0; k < run; k++) {
+          const i = y * width + (x + k);
+          indices.push(i);
+          clear.add(i);
+        }
+        runs.push({ axis: 'h', indices, len: run });
       }
 
       x += run;
@@ -119,8 +137,13 @@ export function detectMatches(board: BoardView): MatchDetection {
       }
 
       if (run >= 3) {
-        groups++;
-        for (let k = 0; k < run; k++) clear.add((y + k) * width + x);
+        const indices: number[] = [];
+        for (let k = 0; k < run; k++) {
+          const i = (y + k) * width + x;
+          indices.push(i);
+          clear.add(i);
+        }
+        runs.push({ axis: 'v', indices, len: run });
       }
 
       y += run;
@@ -128,7 +151,7 @@ export function detectMatches(board: BoardView): MatchDetection {
   }
 
   const clearIndices = Array.from(clear).sort((a, b) => a - b);
-  return { clearIndices, groups };
+  return { clearIndices, groups: runs.length, runs };
 }
 
 // ─────────────────────────────────────────────
@@ -239,4 +262,153 @@ export function hasAnyMoves(board: BoardView): boolean {
   }
 
   return false;
+}
+
+// ─────────────────────────────────────────────
+// DevTools: Find Possible Match Swaps (read-only)
+// ─────────────────────────────────────────────
+
+export type PossibleMatchSwap = Readonly<{
+  from: number;
+  to: number;
+  clearIndices: readonly number[];
+  runs: readonly MatchRun[];
+}>;
+
+function detectMatchesAfterSwap(board: BoardView, from: number, to: number): MatchDetection {
+  const { width, height } = board;
+
+  const tf = typeAt(board, from);
+  const tt = typeAt(board, to);
+
+  const typeAtAfterSwap = (idx: number): PieceType | null => {
+    if (idx === from) return tt;
+    if (idx === to) return tf;
+    return typeAt(board, idx);
+  };
+
+  const runs: MatchRun[] = [];
+
+  // horizontal
+  for (let y = 0; y < height; y++) {
+    let x = 0;
+    while (x < width) {
+      const idx = y * width + x;
+      const t = typeAtAfterSwap(idx);
+      if (t === null) {
+        x++;
+        continue;
+      }
+
+      let run = 1;
+      while (x + run < width) {
+        const idx2 = y * width + (x + run);
+        const t2 = typeAtAfterSwap(idx2);
+        if (t2 !== t) break;
+        run++;
+      }
+
+      if (run >= 3) {
+        const indices: number[] = [];
+        for (let k = 0; k < run; k++) {
+          const i = y * width + (x + k);
+          indices.push(i);
+        }
+        runs.push({ axis: 'h', indices, len: run });
+      }
+
+      x += run;
+    }
+  }
+
+  // vertical
+  for (let x = 0; x < width; x++) {
+    let y = 0;
+    while (y < height) {
+      const idx = y * width + x;
+      const t = typeAtAfterSwap(idx);
+      if (t === null) {
+        y++;
+        continue;
+      }
+
+      let run = 1;
+      while (y + run < height) {
+        const idx2 = (y + run) * width + x;
+        const t2 = typeAtAfterSwap(idx2);
+        if (t2 !== t) break;
+        run++;
+      }
+
+      if (run >= 3) {
+        const indices: number[] = [];
+        for (let k = 0; k < run; k++) {
+          const i = (y + k) * width + x;
+          indices.push(i);
+        }
+        runs.push({ axis: 'v', indices, len: run });
+      }
+
+      y += run;
+    }
+  }
+
+  // Keep only runs that are actually caused by the swap (i.e. touch either swap index).
+  const relevantRuns = runs.filter((r) => r.indices.includes(from) || r.indices.includes(to));
+
+  const clear = new Set<number>();
+  for (const r of relevantRuns) {
+    for (const i of r.indices) clear.add(i);
+  }
+
+  const clearIndices = Array.from(clear).sort((a, b) => a - b);
+  return { clearIndices, groups: relevantRuns.length, runs: relevantRuns };
+}
+
+/**
+ * Enumerate all legal swap-pairs that would create ≥1 match.
+ *
+ * Policy:
+ * - Uses `canSwap(...)` (adjacency + blocked + obstacle passability).
+ * - Uses `wouldSwapCreateMatch(...)` (match creation semantics incl. non-matchable types like keycard).
+ * - Read-only: does NOT mutate `board` / engine state.
+ */
+export function findPossibleMatchSwaps(board: BoardView): readonly PossibleMatchSwap[] {
+  const { width, height, cells } = board;
+  const out: PossibleMatchSwap[] = [];
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const from = y * width + x;
+
+      const c = cells[from];
+      if (!c || c.blocked || c.pieceId === null) continue;
+
+      // right neighbor
+      if (x + 1 < width) {
+        const to = from + 1;
+        const ok = canSwap(from, to, width, cells).ok;
+        if (ok && wouldSwapCreateMatch(board, from, to)) {
+          const det = detectMatchesAfterSwap(board, from, to);
+          if (det.clearIndices.length > 0 && det.runs) {
+            out.push({ from, to, clearIndices: det.clearIndices, runs: det.runs });
+          }
+        }
+      }
+
+      // down neighbor
+      if (y + 1 < height) {
+        const to = from + width;
+        const ok = canSwap(from, to, width, cells).ok;
+        if (ok && wouldSwapCreateMatch(board, from, to)) {
+          const det = detectMatchesAfterSwap(board, from, to);
+          if (det.clearIndices.length > 0 && det.runs) {
+            out.push({ from, to, clearIndices: det.clearIndices, runs: det.runs });
+          }
+        }
+      }
+    }
+  }
+
+  return out;
 }

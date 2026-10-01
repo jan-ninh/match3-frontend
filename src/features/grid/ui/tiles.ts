@@ -79,13 +79,13 @@ const LEVEL_TILESET_FOLDER_BY_LEVEL: Record<LevelId, string> = {
   3: '03-default',
   4: '04-default',
   5: '05-default',
-  6: '01-default',
-  7: '01-default',
-  8: '01-default',
-  9: '01-default',
-  10: '01-default',
-  11: '01-default',
-  12: '01-default',
+  6: '06-default',
+  7: '07-default',
+  8: '08-default',
+  9: '09-default',
+  10: '10-default',
+  11: '11-default',
+  12: '12-default',
 };
 
 const tilesetMods = import.meta.glob('../../../assets/tiles/default/*/tileset.json', { eager: true, import: 'default' }) as Record<string, TilesetJson>;

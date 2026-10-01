@@ -1,4 +1,3 @@
-// src/features/grid/input/useGridInput.ts
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { EngineState, Piece, PieceId } from '@/gamelogic';
@@ -39,11 +38,12 @@ export function useGridInput({ state, inputLocked, canSwapAt, onIntent, debugEna
   const releaseCleanupRef = useRef<(() => void) | null>(null);
 
   // rAF transform infra (no React re-render per pointer move)
-  const { draggedElRef, dragBasePxRef, dragDxRef, dragDyRef, ensureRafRunning, stopRaf, snapBackDraggedPiece, clearDragRefs } = useRafDragTransform({
-    swapMs,
-    easing: EASING,
-    getShouldContinue: () => !!(pressRef.current?.active && pressRef.current?.hasExceededThreshold),
-  });
+  const { draggedElRef, dragBasePxRef, dragDxRef, dragDyRef, ensureRafRunning, stopRaf, snapBackDraggedPiece, resetDraggedPieceInstant, clearDragRefs } =
+    useRafDragTransform({
+      swapMs,
+      easing: EASING,
+      getShouldContinue: () => !!(pressRef.current?.active && pressRef.current?.hasExceededThreshold),
+    });
 
   // minimal React state (rare changes only)
   const [dragPieceId, setDragPieceId] = useState<PieceId | null>(null);
@@ -108,9 +108,10 @@ export function useGridInput({ state, inputLocked, canSwapAt, onIntent, debugEna
       ensureRafRunning,
       stopRaf,
       snapBackDraggedPiece,
+      resetDraggedPieceInstant,
       clearDragRefs,
     }),
-    [ensureRafRunning, stopRaf, snapBackDraggedPiece, clearDragRefs, dragDxRef, dragDyRef, dragBasePxRef, draggedElRef],
+    [ensureRafRunning, stopRaf, snapBackDraggedPiece, resetDraggedPieceInstant, clearDragRefs, dragDxRef, dragDyRef, dragBasePxRef, draggedElRef],
   );
 
   const controllerRef = useRef<ReturnType<typeof createGridInputController> | null>(null);
@@ -192,6 +193,9 @@ export function useGridInput({ state, inputLocked, canSwapAt, onIntent, debugEna
 
       const onCancel = (e: PointerEvent) => {
         if (e.pointerId !== pointerId) return;
+        // Some browsers emit pointercancel while the mouse button is still held
+        // (e.g. native HTML drag attempts). Treat that as non-release.
+        if (e.pointerType === 'mouse' && (e.buttons & 1) === 1) return;
         ensureController().finishPress(pointerId, true);
         setActivePointerId((cur) => (cur === pointerId ? null : cur));
         clearGlobalRelease();
@@ -260,18 +264,32 @@ export function useGridInput({ state, inputLocked, canSwapAt, onIntent, debugEna
   };
 
   const onPointerCancel = (e: React.PointerEvent<HTMLDivElement>) => {
+    // Some browsers emit pointercancel while the mouse button is still held
+    // (e.g. native HTML drag attempts). Treat that as non-release.
+    if (e.pointerType === 'mouse' && (e.buttons & 1) === 1) return;
     ensureController().finishPress(e.pointerId, true);
     if (activePointerId === e.pointerId) setActivePointerId(null);
     clearGlobalRelease();
   };
 
-  // NEW: shell leave should never be able to crash the game. It just clears UI feedback.
+  // PointerLeave happens easily during fast drags (leaving the shell bounds) even while the button is still held.
+  // Never treat that as a release: keep the active press running and only clear *hover-like* UI.
   const onShellPointerLeave = () => {
+    const isActivePress = !!pressRef.current?.active;
+
+    // Clear hover feedback always (safe).
     setOverIndexUI(null);
     setPreviewActive(false);
     setPreviewOtherPieceId(null);
     setPreviewAxisUI(null);
     setPreviewDirUI(0);
+
+    // If a press is active, do NOT stop dragging or clear rAF refs.
+    // Release will be handled by pointerup/pointercancel/blur (global listeners).
+    if (isActivePress) return;
+
+    // Hard reset in case a previous rAF transform was left on the dragged element.
+    resetDraggedPieceInstant();
 
     setIsDragging(false);
     setDragPieceId(null);

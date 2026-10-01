@@ -25,6 +25,9 @@ export type PowerConsumeDetail = Readonly<{
   key: PowerKey;
   amount: number;
   requestId?: number;
+  accountAttemptId?: string;
+  guestRunId?: string;
+  guestAttemptId?: string;
 }>;
 
 export type PowerUseDetail = Readonly<{

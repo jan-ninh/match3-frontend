@@ -1,27 +1,32 @@
-import { useEffect, useState } from 'react';
+import AccountAvailability from '@/components/AccountAvailability';
+import AccountPersistenceStatus from '@/components/AccountPersistenceStatus';
+import { useAccountOutcome } from '@/context/OutcomeContext';
+import { useGuest } from '@/context/GuestContext';
+import { guestStageAccess } from '@/services/guest/guestStore';
+import GuestStatus from '@/components/GuestStatus';
 import { useNavigate } from 'react-router';
 import { Navbar, LevelGrid, CyberTitle } from '@/components';
 import type { LevelId, Progress } from '@/services/progress/ProgressStore';
-import { apiMyProfile } from '@/api/user';
 import { useAuth } from '@/context/AuthContext';
-import type { UserProfile } from '@/types';
+import type { CurrentUser } from '@/api/profileShape';
 
 export default function LevelMapPage() {
   const navigate = useNavigate();
-  const [progress, setProgress] = useState<Progress | null>(null);
 
-  const { user } = useAuth();
+  const { user, mode, canUseAccount, profile, profileRequest } = useAuth();
+  const { save, store } = useGuest();
+  const guestAccess = guestStageAccess(save);
 
-  const profileToProgress = (profile: UserProfile): Progress => {
+  const profileToProgress = (profile: CurrentUser): Progress => {
     const completedLevels = Object.entries(profile.progress || {})
       .filter(([, data]) => data?.completed)
       .map(([key]) => Number.parseInt(key.replace('stage', ''), 10))
       .filter((n) => Number.isFinite(n) && n > 0)
       .sort((a, b) => a - b);
 
-    const highestCompleted = completedLevels.length ? Math.max(...completedLevels) : 0;
+    const highestCompleted = profile.frontier - 1;
 
-    const unlockedLevels = Array.from(new Set([1, ...(highestCompleted > 0 ? [highestCompleted + 1] : [])])).sort((a, b) => a - b);
+    const unlockedLevels = [profile.frontier];
 
     return {
       unlockedLevels,
@@ -30,42 +35,32 @@ export default function LevelMapPage() {
     };
   };
 
-  useEffect(() => {
-    let disposed = false;
-
-    void (async () => {
-      // Guest mode: only stage 1 playable.
-      if (!user?.id) {
-        console.log('👤 No user logged in - guest mode');
-        if (!disposed) setProgress({ unlockedLevels: [1], completedLevels: [], lastPlayedLevel: 1 });
-        return;
-      }
-
-      try {
-        console.log(`📥 Fetching progress for authenticated user`);
-        // Use /api/user/profile/me for security instead of passing user.id
-        const profile = await apiMyProfile();
-        if (disposed) return;
-        console.log('✅ Progress loaded:', profile.progress);
-        setProgress(profileToProgress(profile));
-      } catch (err) {
-        console.error('❌ Failed to fetch progress:', err);
-        if (disposed) return;
-        // Do not trust local client progress for authenticated users.
-        setProgress({ unlockedLevels: [1], completedLevels: [], lastPlayedLevel: 1 });
-      }
-    })();
-
-    return () => {
-      disposed = true;
-    };
-  }, [user?.id]);
+  const { store: outcomeStore } = useAccountOutcome();
+  const visibleProgress = user
+    ? canUseAccount && profile
+      ? profileToProgress(profile)
+      : null
+    : { completedLevels: save.completedStages, unlockedLevels: guestAccess.playableStages, lastPlayedLevel: save.lastPlayedStage };
 
   const onSelect = (level: LevelId) => {
     navigate(`/game-map/play-game?level=${level}`);
   };
 
-  if (!progress) return <div className="p-6">Loading levels...</div>;
+  if (mode === 'account' && !canUseAccount)
+    return (
+      <>
+        <Navbar />
+        <AccountPersistenceStatus />
+        <AccountAvailability />
+      </>
+    );
+  if (!visibleProgress)
+    return (
+      <>
+        <Navbar />
+        <AccountAvailability />
+      </>
+    );
 
   return (
     <>
@@ -74,7 +69,28 @@ export default function LevelMapPage() {
         <CyberTitle size="md" className="text-center">
           Level Map
         </CyberTitle>
-        <LevelGrid progress={progress} onSelect={onSelect} />
+        <GuestStatus />
+        <AccountPersistenceStatus />
+        {mode === 'account' && profileRequest === 'loading' && <p className="text-center">Updating account data · last confirmed values are read-only.</p>}
+        {!user && (
+          <div className="text-center my-4">
+            {guestAccess.campaignComplete && <p>Campaign complete! Optional sandbox 12 is unlocked.</p>}
+            <button
+              type="button"
+              className="border border-cyan-300 rounded px-4 py-2"
+              onClick={() => {
+                if (window.confirm('Start a new guest run? This resets local campaign progress and powers.')) store.reset();
+              }}
+            >
+              New Run / Reset
+            </button>
+          </div>
+        )}
+        <LevelGrid
+          progress={visibleProgress}
+          playableStages={user ? (!outcomeStore.canStart() || profileRequest === 'loading' ? [] : [profile!.frontier]) : guestAccess.playableStages}
+          onSelect={onSelect}
+        />
       </div>
     </>
   );

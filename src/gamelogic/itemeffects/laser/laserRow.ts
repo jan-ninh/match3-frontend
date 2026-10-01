@@ -4,6 +4,7 @@ import type { CascadePreStep } from '../../cascade/typesCascade';
 import { clearCellsAndPieces } from '../../cascade/clear';
 import { applyGravity } from '../../cascade/gravity';
 import { applyRefill } from '../../cascade/refill';
+import { applyItemObstacleDamageAtIndices, countDamageableObstaclesAtIndices } from '../../board/obstacles/itemObstacleDamage';
 
 export type LaserTarget = { x: number; y: number };
 
@@ -42,14 +43,17 @@ function countClearablePieces(state: EngineState, indices: number[]): number {
 
 /**
  * Plan-first API: returns preSteps to be processed as a first-class cascade step.
- * - If nothing clearable is on that row -> returns [] (no-op)
+ * - If nothing clearable is on that row AND no damageable obstacles are on that row -> returns [] (no-op)
+ * - Otherwise returns a step (so obstacles can be damaged even if no pieces are cleared).
  */
 export function getLaserRowPreSteps(state: EngineState, target: LaserTarget): CascadePreStep[] {
   const indices = getLaserRowIndicesFromTarget(target, state.width, state.height);
   if (indices.length === 0) return [];
 
   const clearedCount = countClearablePieces(state, indices);
-  if (clearedCount === 0) return [];
+  const dmgCount = countDamageableObstaclesAtIndices(state, 'laserRow', indices);
+
+  if (clearedCount === 0 && dmgCount === 0) return [];
 
   return [{ kind: 'itemLaserRowClear', row: target.y | 0, indices }];
 }
@@ -63,14 +67,18 @@ export function applyLaserRow(state: EngineState, target: LaserTarget): LaserRow
 
   if (indices.length === 0) return { state, events: [], clearedIndices: [], row: target.y | 0 };
 
-  const clearedCount = countClearablePieces(state, indices);
+  const events: EngineEvent[] = [];
 
-  let next = clearCellsAndPieces(state, indices);
+  // Item obstacle damage is engine-owned and per-level configurable.
+  let next = applyItemObstacleDamageAtIndices(state, 'laserRow', indices, events);
+
+  const clearedCount = countClearablePieces(next, indices);
+
+  next = clearCellsAndPieces(next, indices);
   next = applyGravity(next);
 
   const refill = applyRefill(next);
 
-  const events: EngineEvent[] = [];
   if (clearedCount > 0) events.push({ type: 'cleared', count: clearedCount });
   events.push({ type: 'cascadeStep', kind: 'itemLaserRowClear', row: target.y | 0, indices, cleared: clearedCount });
   events.push({ type: 'gravity' });

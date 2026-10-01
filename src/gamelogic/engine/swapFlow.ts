@@ -1,3 +1,4 @@
+// src/gamelogic/engine/swapFlow.ts
 import type { AnimDoneIgnoreReason, AnimDoneMode, EngineEvent, EngineState } from '../types';
 import { swapCellsImmutable, swapPiecesPositionsImmutable } from '../board';
 import { detectMatches } from '../match';
@@ -7,9 +8,11 @@ import { setPhase } from '../phaseState';
 
 import { beginAnim } from './anim';
 import { autoFinishAll } from './autoFinish';
+import type { ApplyAnimDone } from './autoFinish';
 import { mkAnimDone, mkAnimDoneIgnored, pushEvents } from './events';
 import { applyFallAnimDone } from './fallFlow';
-import type { ApplyAnimDone } from './autoFinish';
+import { buildFallPlan } from './fallPlan';
+import { computeFallAnimWaitMs } from './fallingTuning';
 
 function applySwapCommit(state: EngineState, from: number, to: number): EngineState {
   const fromPid = state.cells[from]!.pieceId!;
@@ -125,9 +128,11 @@ export function applySwapAnimDone(state: EngineState, token: number, mode: AnimD
   // matches exist => resolve once, then wait for falling animation
   const events: EngineEvent[] = [doneEvent];
 
-  // spend a move only if the swap actually creates a match
-  const nextMovesLeft = Math.max(0, state.movesLeft - 1);
-  const didSpendMove = nextMovesLeft !== state.movesLeft;
+  // spend a move only if the swap actually creates a match (level-configurable)
+  const isEnemy = state.enemyMarkActive === true;
+  const canSpendMove = !isEnemy && state.swapSpendsMove !== false;
+  const nextMovesLeft = canSpendMove ? Math.max(0, state.movesLeft - 1) : state.movesLeft;
+  const didSpendMove = canSpendMove && nextMovesLeft !== state.movesLeft;
   if (didSpendMove) events.push({ type: 'movesSpent', left: nextMovesLeft });
 
   let s: EngineState = {
@@ -143,7 +148,10 @@ export function applySwapAnimDone(state: EngineState, token: number, mode: AnimD
   s = { ...s, pendingTurnCommit: { kind: 'swap', spendMove: didSpendMove } };
   events.push({ type: 'turnCommitArmed', kind: 'swap', spendMove: didSpendMove, from, to });
 
-  const step = resolveOnce(s);
+  const prePieces = s.pieces;
+
+  // Prefer swap destination as the keycard spawn position for Match4+ (Level 05).
+  const step = resolveOnce(s, new Set(), { preferKeycardSpawnIndex: to });
   s = step.state;
   events.push(...step.events);
 
@@ -154,7 +162,11 @@ export function applySwapAnimDone(state: EngineState, token: number, mode: AnimD
   }
 
   s = setPhase(s, 'fallAnimating', events);
-  s = beginAnim(s, 'fall', s.swapMs);
+  const fallPlan = buildFallPlan({ prePieces, postPieces: s.pieces, seed: s.seed, width: s.width });
+
+  // IMPORTANT: engine must wait until the slowest move finishes (holeDelay + jitter + duration).
+  const fallWaitMs = computeFallAnimWaitMs(s.swapMs, s.width, fallPlan);
+  s = beginAnim(s, 'fall', fallWaitMs, { fallPlan });
 
   const withEvents = pushEvents(s, events);
 

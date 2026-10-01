@@ -60,5 +60,11 @@ export function makeLevel02({ baseSeed, allowedTypes }: Args): LevelDefinition {
     terminalNodes: [],
     keycardNodes: [],
     baseSeed: seed,
+    // Items damage
+    // (mode: 'direct') or (mode: 'adjacent')
+    itemObstacleDamage: {
+      laserRow: { firewall: { mode: 'direct', damage: 1 } }, // prettier-ignore
+      bomb3x3:  { firewall: { mode: 'direct', damage: 1 } }, // prettier-ignore
+    },
   };
 }

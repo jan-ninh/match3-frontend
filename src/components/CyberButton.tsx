@@ -26,7 +26,7 @@ export default function CyberButton({ label, className = '', type = 'button', si
   return (
     <button
       type={type}
-      className={`group relative transition-transform duration-500 hover:scale-105 ${sizeMap[size]} ${className}`}
+      className={`cyber-button group relative transition-transform duration-500 hover:scale-105 ${sizeMap[size]} ${className}`}
       onClick={handleClick}
       {...props}
     >

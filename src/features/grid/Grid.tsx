@@ -1,8 +1,8 @@
-// src/features/grid/Grid.tsx
 import type { ComponentProps } from 'react';
 import { useMemo } from 'react';
 
 import type { EngineState } from '@/gamelogic';
+import type { PossibleMatchSwap } from '@/gamelogic/match';
 
 import type { InputIntent } from './input/typesInput';
 import { useGridInput } from './input/useGridInput';
@@ -23,6 +23,12 @@ export type GridProps = {
   showLockoutHints?: boolean;
   showDebugLabels?: boolean;
 
+  // Dev-only overlays
+  showMatches?: boolean;
+  matchSwaps?: readonly PossibleMatchSwap[];
+
+  onToggleShowMatches?: () => void;
+
   // animation timing
   swapMs?: number;
 
@@ -33,9 +39,13 @@ export type GridProps = {
   onToggleShowLockoutHints?: () => void;
   onDevPrevLevel?: () => void;
   onDevNextLevel?: () => void;
+  onDevSetLevel?: (levelId: number) => void;
   onDevResetBoard?: () => void;
   onDevNextTilesPalette?: () => void;
 };
+
+const noop = () => {};
+const noopSetLevel = (_levelId: number) => {};
 
 /**
  * Feature wrapper:
@@ -51,11 +61,15 @@ export function Grid({
   debugEnabled = false,
   showLockoutHints = false,
   showDebugLabels,
+  showMatches = false,
+  matchSwaps = [],
+  onToggleShowMatches,
   swapMs,
   bombVfxMode = 'legacyShock',
   onToggleShowLockoutHints,
   onDevPrevLevel,
   onDevNextLevel,
+  onDevSetLevel,
   onDevResetBoard,
   onDevNextTilesPalette,
 }: GridProps) {
@@ -131,6 +145,9 @@ export function Grid({
       height={height}
       swapMs={swapMsEffective}
       debugEnabled={debugEnabled}
+      showMatches={showMatches}
+      matchSwaps={matchSwaps}
+      onToggleShowMatches={onToggleShowMatches ?? noop}
       bombVfxMode={bombVfxMode}
       vm={vm}
       inputLocked={inputLocked}
@@ -145,11 +162,12 @@ export function Grid({
       onShellPointerMove={input.onPointerMove}
       onShellPointerLeave={input.onShellPointerLeave}
       debugSnapshot={input.debugSnapshot}
-      onToggleShowLockoutHints={onToggleShowLockoutHints ?? (() => {})}
-      onDevPrevLevel={onDevPrevLevel ?? (() => {})}
-      onDevNextLevel={onDevNextLevel ?? (() => {})}
-      onDevResetBoard={onDevResetBoard ?? (() => {})}
-      onDevNextTilesPalette={onDevNextTilesPalette ?? (() => {})}
+      onToggleShowLockoutHints={onToggleShowLockoutHints ?? noop}
+      onDevPrevLevel={onDevPrevLevel ?? noop}
+      onDevNextLevel={onDevNextLevel ?? noop}
+      onDevSetLevel={onDevSetLevel ?? noopSetLevel}
+      onDevResetBoard={onDevResetBoard ?? noop}
+      onDevNextTilesPalette={onDevNextTilesPalette ?? noop}
     />
   );
 }

@@ -1,6 +1,6 @@
 import type { EngineEvent, EngineState } from '../../../types';
 
-import { canSwap } from '../../../board';
+import { canSwap, getTerminalAt, terminalBlocksSwap } from '../../../board';
 import { pushEvents, rejectSwap } from '../../events';
 import { isSelectableCell, isStableIdle, selectionClearedIfNeeded } from '../../guards';
 import { beginSwapAnimating } from '../../swapFlow';
@@ -10,6 +10,10 @@ export function handleClickCell(state: EngineState, action: ClickCellAction): En
   if (!isStableIdle(state)) return state;
 
   const clicked = action.index;
+
+  // Terminals can be configured as unswappable / unselectable.
+  const clickedTerminal = getTerminalAt(state.cells, clicked);
+  if (clickedTerminal && terminalBlocksSwap(clickedTerminal)) return state;
 
   if (state.selectedIndex === clicked) {
     const nextState: EngineState = { ...state, selectedIndex: null };

@@ -1,4 +1,3 @@
-// src/features/audio/sfx/sfxManifest.ts
 /**
  * Public URL-based SFX manifest.
  * - points to files in /public so missing files won't break builds
@@ -41,6 +40,11 @@ export const SFX_URLS = {
 
   reshuffle: urls('audio/sfx/items/reshuffle/reshuffle.mp3', 'audio/sfx/items/reshuffle/reshuffle_SFX.ogg', 'audio/sfx/items/reshuffle/reshuffle_SFX.wav'),
 
+  // Ingame
+  // GOAL PIN asset (public/):
+  // - public/audio/sfx/ingame/game_win_jingle.mp3
+  gameWinJingle: urls('audio/sfx/ingame/game_win_jingle.mp3'),
+
   // UI
   // TEMP: maps to an existing SFX so hover works immediately.
   // Replace with e.g. audio/sfx/ui/settings_hover_01.* once you add the real asset.
@@ -50,10 +54,27 @@ export const SFX_URLS = {
   matchPop01: urls('audio/sfx/matches/match3_pop_01.mp3', 'audio/sfx/matches/match3_pop_01.ogg', 'audio/sfx/matches/match3_pop_01.wav'),
   matchPop02: urls('audio/sfx/matches/match3_pop_02.mp3', 'audio/sfx/matches/match3_pop_02.ogg', 'audio/sfx/matches/match3_pop_02.wav'),
 
+  // Match 4/5 reward stingers
+  // GOAL PIN assets (public/):
+  // - public/audio/sfx/matches/match4_chime.mp3
+  // - public/audio/sfx/matches/match5_sting.mp3
+  match4Chime: urls('audio/sfx/matches/match4_chime.mp3'),
+  match5Sting: urls('audio/sfx/matches/match5_sting.mp3'),
+
   // Objective hit “stinger” (randomized by the caller)
   // NOTE: GOAL PIN lists match_objective_01 twice; keep both entries mapped to the same file for now.
   matchObjective01: urls('audio/sfx/matches/match_objective_01.mp3', 'audio/sfx/matches/match_objective_01.ogg', 'audio/sfx/matches/match_objective_01.wav'),
   matchObjective02: urls('audio/sfx/matches/match_objective_01.mp3', 'audio/sfx/matches/match_objective_01.ogg', 'audio/sfx/matches/match_objective_01.wav'),
+  // Objective: Firewall/Node hit (randomized by the caller)
+  firewallBreakV01: urls('audio/sfx/objectives/firewall_break_v01.wav'),
+  firewallBreakV02: urls('audio/sfx/objectives/firewall_break_v02.wav'),
+  firewallBreakV03: urls('audio/sfx/objectives/firewall_break_v03.wav'),
+  firewallBreakV04: urls('audio/sfx/objectives/firewall_break_v04.wav'),
+  firewallBreakV05: urls('audio/sfx/objectives/firewall_break_v05.wav'),
+  firewallBreakV06: urls('audio/sfx/objectives/firewall_break_v06.wav'),
+  firewallBreakV07: urls('audio/sfx/objectives/firewall_break_v07.wav'),
+  firewallBreakV08: urls('audio/sfx/objectives/firewall_break_v08.wav'),
+  firewallBreakV09: urls('audio/sfx/objectives/firewall_break_v09.wav'),
 } as const;
 
 export type SfxId = keyof typeof SFX_URLS;
@@ -68,9 +89,22 @@ export const CORE_SFX: readonly SfxId[] = [
   'laserTargeting',
   'laserConfirm',
   'reshuffle',
+  'gameWinJingle',
   'uiSettingsHover',
   'matchPop01',
   'matchPop02',
+  'match4Chime',
+  'match5Sting',
   'matchObjective01',
   'matchObjective02',
+
+  'firewallBreakV01',
+  'firewallBreakV02',
+  'firewallBreakV03',
+  'firewallBreakV04',
+  'firewallBreakV05',
+  'firewallBreakV06',
+  'firewallBreakV07',
+  'firewallBreakV08',
+  'firewallBreakV09',
 ] as const;

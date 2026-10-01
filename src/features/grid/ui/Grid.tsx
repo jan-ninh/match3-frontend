@@ -1,29 +1,69 @@
-// src/features/grid/ui/Grid.tsx
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo } from 'react';
 import type { ComponentProps } from 'react';
-
 import type { EngineState } from '@/gamelogic/types';
-
-import { POWER_ARM_EVENT, type PowerArmDetail } from '@/context/powerEvents';
-
+import type { PossibleMatchSwap } from '@/gamelogic/match';
+import { findPossibleMatchSwaps } from '@/gamelogic/match';
 import { GridShell } from './GridShell';
 import GridOverlaysLayer from './GridOverlaysLayer';
 import GridPiecesLayer from './GridPiecesLayer';
 import GridCellsLayer from './GridCellsLayer';
 import { GridDevPanels } from './GridDevPanels';
-
 import { LaserWarningOverlay } from './LaserWarningOverlay';
-
 import { BombExplosionFxLayer } from './bomb/fx/BombExplosionFxLayer';
 import { BombOverlay } from './bomb/BombOverlay';
 import type { BombVfxMode } from './bomb/fx/BombExplosionFxLayer';
 import { useBomb3x3Targeting } from './bomb/useBomb3x3Targeting';
-
 import { LaserRowOverlay } from './laser/LaserRowOverlay';
-import { LaserRowStrikeFxLayer, type LaserStrikeBurst } from './laser/fx/LaserRowStrikeFxLayer';
+import { LaserRowStrikeFxLayer } from './laser/fx/LaserRowStrikeFxLayer';
 import { useLaserRowTargeting } from './laser/useLaserRowTargeting';
 import { useLaserTargetingSfx } from './laser/fx/useLaserTargetingSfx';
 import { useTargetingTickSfx } from './fx/useTargetingTickSfx';
+import { useLaserStrikeBursts } from './laser/useLaserStrikeBursts';
+import { useTargetingCursor } from './hooks/useTargetingCursor';
+import { useLaserCancel } from './hooks/useLaserCancel';
+import {
+  GRIDLASER_3X3_TARGETING_SFX_COOLDOWN_MS,
+  LASER_CONFIRM_SFX_DELAY_MS,
+  LASER_STRIKE_FX_LIFE_MS,
+  LASER_STRIKE_FX_START_DELAY_MS,
+  LASER_TARGETING_SFX_COOLDOWN_MS,
+} from './laser/laserTimings';
+import MatchHintsOverlay from './matchHints/MatchHintsOverlay';
+import { useAutoMatchHints } from './matchHints/useAutoMatchHints';
+import { TilePopFxLayer, type TilePopVariant } from './fx/tilePop/TilePopFxLayer';
+import { tileDist } from '../lib/constants';
+import { isManualSwapDisabledStage } from '@/gamelogic/scenarios/policies';
+import { KEYCARD_POP_CSS } from './tileStyles/keycardTileFx';
+
+//===========================================================================================================
+//===========================================================================================================
+// ✅ CENTRAL KNOB (edit this number 1..20)
+// - 1..10  = subtle set (as before)
+// - 11..20 = stronger set (new)
+//===========================================================================================================
+//===========================================================================================================
+const TILE_POP_VFX_VARIANT: TilePopVariant = 9;
+// 1 subtle
+// 2 Luft meh
+// 3 Luft meh
+// 4 zu schnelles blinzeln
+// 5 schnelles blinzeln
+// 6 schnelles blinzeln
+// 7 Luft meh
+// 8 schnelles blinzeln
+// 9 Fadenkreuz
+// 10 geil (schnelles blinzeln)
+
+// 11 zu weiß, zu hell, zu viel schnee, too much blingbling
+// 12 noch extremer lol
+// 13 noch extremer lol
+// 14 extreme Luftkreise
+// 15 zu weiß, spuckt viele weiße kleine kreise nach aussen
+// 16 zu weiß, spuckt viele weiße kleine striche nach aussen
+// 17 [xxx] helle weiße kreise... grenzwertig (nicht soo schlecht)
+// 18 zu weiß, starker fadenkreuz
+// 19 [xxx] viereckig (nicht soooo schlecht)
+// 20 [xxx] starke Luft Kreise (geht so.....)
 
 type GridInputViewModel = Readonly<{
   cells: ComponentProps<typeof GridCellsLayer>['cells'];
@@ -51,6 +91,12 @@ export type GridUIProps = {
   debugEnabled: boolean;
   bombVfxMode: BombVfxMode;
 
+  // Dev-only overlays
+  showMatches?: boolean;
+  matchSwaps?: readonly PossibleMatchSwap[];
+
+  onToggleShowMatches?: () => void;
+
   // SSOT for input visuals (drag/hover/selection, etc.)
   vm: GridInputViewModel;
 
@@ -74,6 +120,7 @@ export type GridUIProps = {
   onToggleShowLockoutHints: () => void;
   onDevPrevLevel: () => void;
   onDevNextLevel: () => void;
+  onDevSetLevel: (levelId: number) => void;
   onDevResetBoard: () => void;
   onDevNextTilesPalette: () => void;
 };
@@ -90,6 +137,9 @@ export function GridView({
   height,
   swapMs,
   debugEnabled,
+  showMatches = false,
+  matchSwaps = [],
+  onToggleShowMatches,
   bombVfxMode,
   vm,
   inputLocked,
@@ -107,6 +157,7 @@ export function GridView({
   onToggleShowLockoutHints,
   onDevPrevLevel,
   onDevNextLevel,
+  onDevSetLevel,
   onDevResetBoard,
   onDevNextTilesPalette,
 }: GridUIProps) {
@@ -128,16 +179,8 @@ export function GridView({
   const bomb = useBomb3x3Targeting({ width, height, swapMs, inputLocked });
   const laser = useLaserRowTargeting({ width, height, inputLocked });
 
-  // -----------------------------
-  // Laser SFX timing knobs (UI-only)
-  // -----------------------------
-  // Targeting "tick" cooldown (ms):
-  // - 0 => play on every row change (can spam/overlap)
-  // - >0 => rate-limited; tweak for feel
-  const LASER_TARGETING_SFX_COOLDOWN_MS = 110;
-
-  // Optional: delay confirm sound to sync with beam FX (default 0 = instant).
-  const LASER_CONFIRM_SFX_DELAY_MS = 0;
+  // Scenario policy: training "no manual swaps / no dragging"
+  const manualSwapDisabled = isManualSwapDisabledStage(state.levelId);
 
   const laserSfx = useLaserTargetingSfx({
     armed: laser.laserArmed,
@@ -145,14 +188,6 @@ export function GridView({
     cooldownMs: LASER_TARGETING_SFX_COOLDOWN_MS,
     confirmDelayMs: LASER_CONFIRM_SFX_DELAY_MS,
   });
-
-  // -----------------------------
-  // 3x3gridlaser targeting SFX (UI-only)
-  // -----------------------------
-  // Assumption: "3x3gridlaser" uses the existing 3×3 targeting hook (currently named bomb).
-  // This plays the SAME targeting asset as the row-laser (laser_targeting.mp3) when the 3×3 target changes.
-  // No confirm sound here by request.
-  const GRIDLASER_3X3_TARGETING_SFX_COOLDOWN_MS = 130;
 
   const gridLaser3x3TargetKey = useMemo(() => {
     if (!bomb.bombArmed) return null;
@@ -168,162 +203,46 @@ export function GridView({
     sfxId: 'laserTargeting',
   });
 
-  // -----------------------------
-  // Laser strike FX timing knobs
-  // -----------------------------
-  // A) FX start delay (ms): when the blue beam becomes visible AFTER the confirm click
-  // C) FX lifetime (ms): how long the beam stays visible AFTER it becomes visible
-  //
-  // NOTE: Keep LaserRowStrikeFxLayer's internal duration roughly in sync with LIFE_MS
-  // if you want a clean "ends when removed" feel.
-  const LASER_STRIKE_FX_START_DELAY_MS = 620;
-  const LASER_STRIKE_FX_LIFE_MS = 420;
-
-  // Laser strike FX (UI-only): play a short blue beam on the chosen row.
-  // Triggered when the user confirms a target cell while laser is armed.
-  const [laserStrikes, setLaserStrikes] = useState<readonly LaserStrikeBurst[]>([]);
-  const laserStrikeSeqRef = useRef(0);
-  const laserStrikeTimersRef = useRef<Map<string, number[]>>(new Map());
-
-  const addTimer = (id: string, t: number) => {
-    const arr = laserStrikeTimersRef.current.get(id);
-    if (arr) arr.push(t);
-    else laserStrikeTimersRef.current.set(id, [t]);
-  };
-
-  const pushLaserStrike = (row: number, startDelayMs = LASER_STRIKE_FX_START_DELAY_MS, lifeMs = LASER_STRIKE_FX_LIFE_MS) => {
-    if (typeof window === 'undefined') return;
-
-    const id = `laserStrike-${Date.now()}-${(laserStrikeSeqRef.current += 1)}`;
-
-    // (A) FX start — optionally delayed
-    const tStart = window.setTimeout(() => {
-      setLaserStrikes((prev) => [...prev, { id, row }]);
-
-      // (C) FX end — lifetime counted AFTER it becomes visible
-      const tEnd = window.setTimeout(() => {
-        setLaserStrikes((prev) => prev.filter((b) => b.id !== id));
-        laserStrikeTimersRef.current.delete(id);
-      }, lifeMs);
-
-      addTimer(id, tEnd);
-    }, startDelayMs);
-
-    addTimer(id, tStart);
-  };
-
-  useEffect(() => {
-    return () => {
-      if (typeof window === 'undefined') return;
-      for (const arr of laserStrikeTimersRef.current.values()) {
-        for (const t of arr) window.clearTimeout(t);
-      }
-      laserStrikeTimersRef.current.clear();
-    };
-  }, []);
+  const { laserStrikes, pushLaserStrike } = useLaserStrikeBursts({
+    defaultStartDelayMs: LASER_STRIKE_FX_START_DELAY_MS,
+    defaultLifeMs: LASER_STRIKE_FX_LIFE_MS,
+  });
 
   const effectiveInputLocked = inputLocked || bomb.bombArmed || laser.laserArmed;
   const capturePointerMove = bomb.bombArmed || laser.laserArmed;
 
+  // ─────────────────────────────────────────────
+  // Auto Match Hints (idle -> blink + micro-drag)
+  // ─────────────────────────────────────────────
+  const hintSwaps = useMemo(() => {
+    if (manualSwapDisabled) return [];
+    // Hint only needs a stable board; avoid wasted work during animations.
+    if (state.phase !== 'idle') return [];
+    return findPossibleMatchSwaps({ width, height, cells: state.cells, pieces: state.pieces });
+  }, [manualSwapDisabled, state.phase, width, height, state.cells, state.pieces]);
+
+  const matchHint = useAutoMatchHints({
+    enabled: !manualSwapDisabled,
+    phase: state.phase,
+    inputLocked: effectiveInputLocked,
+    isDragging,
+    swaps: hintSwaps,
+    cells: state.cells,
+    pieces: state.pieces,
+    tileDist,
+  });
+
   const cursorClass = useMemo(() => {
-    if (effectiveInputLocked && showLockoutHints) return 'cursor-not-allowed';
     if (bomb.bombArmed || laser.laserArmed) return 'cursor-crosshair';
+    if (effectiveInputLocked && showLockoutHints) return 'cursor-not-allowed';
+    if (manualSwapDisabled) return 'cursor-not-allowed';
     if (isDragging) return 'cursor-grabbing';
     return 'cursor-grab';
-  }, [bomb.bombArmed, effectiveInputLocked, isDragging, laser.laserArmed, showLockoutHints]);
+  }, [bomb.bombArmed, effectiveInputLocked, isDragging, laser.laserArmed, manualSwapDisabled, showLockoutHints]);
 
-  // While in targeting mode (bomb/laser), force the crosshair cursor globally.
-  // - fixes "cursor disappears" when leaving the grid or hovering elements that set their own cursor.
-  useEffect(() => {
-    if (typeof document === 'undefined') return;
+  useTargetingCursor({ targeting: bomb.bombArmed || laser.laserArmed });
 
-    const cls = 'match3-targeting-cursor';
-    const root = document.documentElement;
-
-    const styleId = 'match3-targeting-cursor-style';
-    if (!document.getElementById(styleId)) {
-      const el = document.createElement('style');
-      el.id = styleId;
-      el.textContent = `
-.${cls},
-.${cls} * {
-  cursor: crosshair !important;
-}
-`.trim();
-      document.head.appendChild(el);
-    }
-
-    const targeting = bomb.bombArmed || laser.laserArmed;
-    if (targeting) root.classList.add(cls);
-    else root.classList.remove(cls);
-
-    return () => {
-      root.classList.remove(cls);
-    };
-  }, [bomb.bombArmed, laser.laserArmed]);
-
-  // While in LASER targeting mode, allow quick cancel:
-  // - Right mouse button (anywhere)
-  // - Click outside the grid board
-  // This only DISARMS (no inventory spend).
-  //
-  // IMPORTANT BUGFIX:
-  // RMB inside the grid must NOT trigger the laser "use-at" handler.
-  // So we swallow RMB at the global capture listener (and also guard in cell handler).
-  useEffect(() => {
-    if (!laser.laserArmed) return;
-    if (typeof window === 'undefined') return;
-
-    const emitDisarmLaser = () => {
-      const ev = new CustomEvent<PowerArmDetail>(POWER_ARM_EVENT, {
-        detail: { key: 'laser', armed: false },
-      });
-      window.dispatchEvent(ev);
-    };
-
-    const onGlobalContextMenu = (e: Event) => {
-      // Right-click => cancel targeting.
-      // Prevent the browser context menu while targeting to avoid accidental UI interruptions.
-      if (e instanceof MouseEvent) {
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-      }
-      emitDisarmLaser();
-    };
-
-    const onGlobalPointerDown = (e: Event) => {
-      if (!(e instanceof PointerEvent)) return;
-
-      // RMB => cancel + swallow so Grid cell handlers do not fire.
-      if (e.button === 2) {
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-        emitDisarmLaser();
-        return;
-      }
-
-      // Left click outside board => cancel (do NOT swallow; user may want the click to go through).
-      if (e.button !== 0) return;
-
-      const boardEl = bomb.boardRef.current;
-      if (!boardEl) return;
-
-      const t = e.target;
-      if (t instanceof Node && !boardEl.contains(t)) {
-        emitDisarmLaser();
-      }
-    };
-
-    window.addEventListener('contextmenu', onGlobalContextMenu, { capture: true });
-    window.addEventListener('pointerdown', onGlobalPointerDown, { capture: true });
-
-    return () => {
-      window.removeEventListener('contextmenu', onGlobalContextMenu, true);
-      window.removeEventListener('pointerdown', onGlobalPointerDown, true);
-    };
-  }, [bomb.boardRef, laser.laserArmed]);
+  useLaserCancel({ enabled: laser.laserArmed, boardRef: bomb.boardRef });
 
   const shellStyle = useMemo<CssVars>(() => ({ '--boardDim': 0.35 }), []);
 
@@ -346,20 +265,18 @@ export function GridView({
   };
 
   const onPointerUpEffective = (e: React.PointerEvent<HTMLDivElement>) => {
-    // IMPORTANT:
-    // While targeting (bomb/laser), we block normal pointer-move / cell-down to prevent swaps,
-    // but we MUST still forward pointer-up / pointer-cancel so the input controller can release
-    // the current pointer sequence (otherwise the grid can get stuck).
+    matchHint.onActivity();
     onPointerUp(e);
   };
 
   const onPointerCancelEffective = (e: React.PointerEvent<HTMLDivElement>) => {
-    // See note in onPointerUpEffective.
+    matchHint.onActivity();
     onPointerCancel(e);
   };
 
   const onCellPointerDownEffective = (index: number, e: React.PointerEvent<HTMLButtonElement>) => {
-    // Guard: RMB should never trigger targeting "use-at" inside grid.
+    matchHint.onActivity();
+
     if (e.button === 2) {
       e.preventDefault();
       e.stopPropagation();
@@ -367,25 +284,25 @@ export function GridView({
     }
 
     if (bomb.bombArmed) {
-      // 3x3gridlaser: NO confirm SFX (by request).
       bomb.onCellPointerDown(index, e);
       return;
     }
     if (laser.laserArmed) {
-      // Row-laser confirm SFX (by original laser goal).
       laserSfx.playConfirm();
-
-      // UI-only: strike beam timing is controlled by the knobs above.
       pushLaserStrike(Math.floor(index / width));
       laser.onCellPointerDown(index, e);
       return;
     }
+
+    if (manualSwapDisabled) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+
     onCellPointerDown(index, e);
   };
 
-  // Single pointer-move hook point:
-  // - targeting armed => route to targeting (bomb/laser) via shell-move
-  // - normal => forward to BOTH controller move + shell move
   const onPointerMoveMerged = (e: React.PointerEvent<HTMLDivElement>) => {
     if (bomb.bombArmed || laser.laserArmed) {
       onShellPointerMoveEffective(e);
@@ -397,6 +314,11 @@ export function GridView({
 
   const isDev = import.meta.env.DEV;
   const bombFxMode: BombVfxMode = import.meta.env.DEV && isDev && debugEnabled ? bombVfxMode : 'legacyShock';
+  const showMatchHints = import.meta.env.DEV && isDev && debugEnabled && showMatches && matchSwaps.length > 0;
+
+  const fallAnim = state.anim?.kind === 'fall' ? state.anim : null;
+  const fallPlan = fallAnim?.fallPlan ?? null;
+  const fallToken = fallAnim?.token ?? null;
 
   return (
     <>
@@ -405,18 +327,26 @@ export function GridView({
         width={width}
         inputLocked={inputLocked}
         showLockoutHints={showLockoutHints}
+        showMatches={showMatches}
+        matchCount={matchSwaps.length}
+        onToggleShowMatches={onToggleShowMatches}
         onToggleShowLockoutHints={onToggleShowLockoutHints}
         onDevPrevLevel={onDevPrevLevel}
         onDevNextLevel={onDevNextLevel}
+        onDevSetLevel={onDevSetLevel}
         onDevResetBoard={onDevResetBoard}
         onDevNextTilesPalette={onDevNextTilesPalette}
         debugSnapshot={debugSnapshot}
         stateMeta={{ levelId: state.levelId, width, height, seed: state.seed }}
       />
 
+      {/* Keycard "instant spawn" pop FX CSS (injected once for the grid) */}
+      <style>{KEYCARD_POP_CSS}</style>
+
       <GridShell
         shellStyle={shellStyle}
         cursorClass={cursorClass}
+        levelId={state.levelId}
         inputLocked={inputLocked}
         showLockoutHints={showLockoutHints}
         innerW={innerW}
@@ -428,20 +358,16 @@ export function GridView({
         onPointerCancel={onPointerCancelEffective}
         onPointerLeave={onShellPointerLeaveEffective}
       >
-        {/* Laser Warning highlight (under cells/pieces, above bg) */}
         <LaserWarningOverlay warning={state.laserWarning} innerW={innerW} innerH={innerH} />
 
-        {/* DEV label for VFX toggle */}
         {import.meta.env.DEV && isDev && debugEnabled ? (
           <div className="absolute left-2 top-2 z-200 pointer-events-none select-none text-[10px] text-white/70">
             BombVFX: {bombFxMode === 'flipbook' ? 'Flipbook' : 'LegacyShock'} (press V)
           </div>
         ) : null}
 
-        {/* Bomb Targeting 3×3 (square corners, red glow) */}
         <BombOverlay indices={bomb.bombOverlayIndices} width={width} zIndex={44} />
 
-        {/* Laser Targeting (row highlight) */}
         <LaserRowOverlay armed={laser.laserArmed} row={laser.hoverRow} height={height} zIndex={46} />
 
         <GridCellsLayer width={width} height={height} cells={cells} onCellPointerDown={onCellPointerDownEffective} showDebugLabels={showDebugLabels} />
@@ -455,6 +381,8 @@ export function GridView({
           isDragging={isDragging}
           phase={state.phase}
           swapMs={swapMs}
+          fallPlan={fallPlan}
+          fallToken={fallToken}
           previewActive={previewActive}
           previewOtherPieceId={previewOtherPieceId}
           previewAxis={previewAxisUI}
@@ -462,12 +390,18 @@ export function GridView({
           shakePieceId={shakePieceId}
           showDebugLabels={showDebugLabels}
           setDraggedEl={setDraggedEl}
+          hintBlinkActive={matchHint.blinkActive}
+          hintBlinkPieceIds={matchHint.blinkPieceIds}
+          hintNudge={matchHint.nudge}
         />
 
-        {/* Laser strike FX (on confirm; UI-only) */}
+        {/* ✅ Tile delete pop FX (UI-only). Variant is controlled by TILE_POP_VFX_VARIANT above. */}
+        <TilePopFxLayer pieces={pieceList} width={width} reducedMotionHint={swapMs === 0} zIndex={82} variant={TILE_POP_VFX_VARIANT} />
+
+        {showMatchHints ? <MatchHintsOverlay swaps={matchSwaps} width={width} height={height} zIndex={80} /> : null}
+
         <LaserRowStrikeFxLayer bursts={laserStrikes} height={height} reducedMotionHint={swapMs === 0} zIndex={86} />
 
-        {/* Bomb detonation FX (after ACK) */}
         <BombExplosionFxLayer bursts={bomb.bombBursts} width={width} reducedMotionHint={swapMs === 0} zIndex={88} mode={bombFxMode} />
       </GridShell>
     </>

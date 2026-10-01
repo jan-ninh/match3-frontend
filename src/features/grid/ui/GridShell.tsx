@@ -1,4 +1,3 @@
-// src\features\grid\ui\GridShell.tsx
 // Das ist der ORT fuer POINTER
 import type { CSSProperties, ReactNode, RefObject } from 'react';
 
@@ -9,6 +8,7 @@ type CssVars = CSSProperties & { '--boardDim'?: number };
 type Props = {
   shellStyle: CssVars;
   cursorClass: string;
+  levelId?: number;
 
   inputLocked: boolean;
   showLockoutHints: boolean;
@@ -35,6 +35,7 @@ type Props = {
 export function GridShell({
   shellStyle,
   cursorClass,
+  levelId,
   inputLocked,
   showLockoutHints,
   innerW,
@@ -54,6 +55,9 @@ export function GridShell({
       // Releases must not be missed (even if an overlay stops propagation).
       onPointerUpCapture={onPointerUp}
       onPointerCancelCapture={onPointerCancel}
+      // Prevent native HTML drag from stealing the pointer sequence (causes pointercancel).
+      onDragStartCapture={(e) => e.preventDefault()}
+      onDropCapture={(e) => e.preventDefault()}
       // Move is conditional: capture only when targeting overlays may stop propagation.
       onPointerMoveCapture={capturePointerMove ? onPointerMove : undefined}
       onPointerMove={!capturePointerMove ? onPointerMove : undefined}
@@ -61,7 +65,7 @@ export function GridShell({
     >
       <GridLockoutOverlay active={inputLocked} show={showLockoutHints} />
 
-      <div ref={boardRef} className="relative" style={{ width: innerW, height: innerH }}>
+      <div ref={boardRef} className="relative" data-match3-level={levelId} style={{ width: innerW, height: innerH }}>
         <div className="absolute inset-0 rounded-2xl pointer-events-none" style={{ backgroundColor: 'rgb(0 0 0 / var(--boardDim, 0.35))' }} />
         <div
           className="absolute inset-0 rounded-2xl pointer-events-none"

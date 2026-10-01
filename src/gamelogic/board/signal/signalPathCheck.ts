@@ -1,4 +1,3 @@
-// src/gamelogic/board/signal/signalPathCheck.ts
 /**
  * Signal Network — BFS path check from Source to Target
  *
@@ -122,4 +121,79 @@ export function countChargedCells(cells: Cell[]): number {
     if (cell.obstacle?.kind === 'chargedCell') count++;
   }
   return count;
+}
+
+// ─────────────────────────────────────────────
+// Level 04 variant: Firewall A ↔ Firewall B as endpoints
+// ─────────────────────────────────────────────
+
+function getLevel04FirewallEndpointIndices(cells: Cell[]): number[] {
+  const out: number[] = [];
+  for (let i = 0; i < cells.length; i++) {
+    const obs = cells[i]?.obstacle;
+    if (!obs) continue;
+    if (obs.kind !== 'firewall') continue;
+    if (obs.origin !== 'level4Dormant') continue;
+    out.push(i);
+  }
+
+  // Deterministic ordering
+  out.sort((a, b) => a - b);
+  return out;
+}
+
+/**
+ * Level 04: BFS to check whether the two dormant firewall nodes are connected
+ * via charged cells (orthogonal).
+ */
+export function isSignalLinkedLevel04ByFirewalls(state: EngineState): boolean {
+  if (state.levelId !== 4) return false;
+
+  const { width, height, cells } = state;
+  const endpoints = getLevel04FirewallEndpointIndices(cells);
+  if (endpoints.length !== 2) return false;
+
+  const a = endpoints[0]!;
+  const b = endpoints[1]!;
+
+  // BFS from charged cells adjacent to A, stop when we can reach B
+  const visited = new Set<number>();
+  const queue: number[] = [];
+
+  const seedNeighbors = getOrthogonalNeighbors(a, width, height);
+  for (const n of seedNeighbors) {
+    const cell = cells[n];
+    if (!cell) continue;
+
+    // Direct touch
+    if (n === b) return true;
+
+    if (isConductive(cell) && !visited.has(n)) {
+      visited.add(n);
+      queue.push(n);
+    }
+  }
+
+  if (queue.length === 0) return false;
+
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+
+    const neighbors = getOrthogonalNeighbors(current, width, height);
+    for (const n of neighbors) {
+      if (visited.has(n)) continue;
+
+      const cell = cells[n];
+      if (!cell) continue;
+
+      if (n === b) return true;
+
+      if (!isConductive(cell)) continue;
+
+      visited.add(n);
+      queue.push(n);
+    }
+  }
+
+  return false;
 }
