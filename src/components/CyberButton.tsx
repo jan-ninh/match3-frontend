@@ -26,14 +26,14 @@ export default function CyberButton({ label, className = '', type = 'button', si
   return (
     <button
       type={type}
-      className={`cyber-button group relative transition-transform duration-500 hover:scale-105 ${sizeMap[size]} ${className}`}
+      className={`cyber-button group relative select-none cursor-pointer transition-transform duration-500 hover:scale-105 ${sizeMap[size]} ${className}`}
       onClick={handleClick}
       {...props}
     >
       {/* Hex Background */}
       <div
         aria-hidden
-        className="absolute inset-0 bg-gray-900/90 backdrop-blur-md"
+        className="absolute inset-0 bg-gray-900/90"
         style={{
           clipPath: hexClip,
           boxShadow: '0 0 30px rgba(236,72,153,0.6), 0 0 60px rgba(6,182,212,0.4)',
@@ -41,26 +41,10 @@ export default function CyberButton({ label, className = '', type = 'button', si
         }}
       />
 
-      {/* Neon Stroke */}
-      <div
-        aria-hidden
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          clipPath: hexClip,
-          border: '2px solid #ec4899',
-          filter: 'drop-shadow(0 0 12px rgba(236,72,153,.8))',
-        }}
-      />
-
-      {/* Inner cyan line */}
-      <div
-        aria-hidden
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          clipPath: hexClip,
-          border: '1px solid rgba(6,182,212,.7)',
-        }}
-      />
+      {/* Full polygon outline */}
+      <svg aria-hidden className="absolute inset-0 h-full w-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
+        <polygon points="20,0 80,0 92,50 80,100 20,100 8,50" fill="none" stroke="rgba(103, 232, 249, 0.4)" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+      </svg>
 
       {/* Label */}
       <span className="relative z-10 flex h-full items-center justify-center font-bold text-cyan-300 group-hover:text-pink-500 transition-colors duration-500">
