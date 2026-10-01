@@ -15,6 +15,14 @@ Demo mode is immediately playable without an account.
 - **Persistent campaign and leaderboard** with one canonical campaign state, Stage 11 finalization and an isolated Stage 12 sandbox
 - **Production integration** with session recovery, MongoDB Atlas, Render deployment and a same-origin API path for reliable browser sessions
 
+## My Focus
+
+In the original two-person project, I had primary technical responsibility for the central frontend and gameplay areas, including game logic, grid and input handling, UI flows, progression, powers, routing, overlays, audio integration, debugging, refactoring and Game Feel.
+
+I later continued evolving the portfolio version independently across frontend and backend integration. This included account and session reliability, server-authoritative gameplay and campaign flows, transactional recovery, leaderboard consolidation, deployment, live debugging and responsive presentation.
+
+A recurring focus throughout the project was finding the actual source of truth behind a problem and keeping gameplay rules, UI state and persistence responsibilities clearly separated.
+
 ## Gameplay
 
 The campaign contains **11 regular stages**, each built around different objectives and gameplay conditions. Completing the campaign unlocks an additional sandbox stage.
@@ -40,14 +48,6 @@ MongoDB Atlas
 ```
 
 The gameplay engine owns rules and state transitions. React translates that state into the board, HUD, effects and overlays. Persistent account state is handled through the backend instead of treating the browser as the source of truth.
-
-## My Focus
-
-In the original two-person project, I had technical main responsibility for the central frontend and gameplay areas, including game logic, grid and input handling, UI flows, progression, powers, routing, overlays, audio integration, debugging, refactoring and Game Feel.
-
-I later continued evolving the portfolio version independently across frontend and backend integration. This included account and session reliability, server-authoritative gameplay and campaign flows, transactional recovery, leaderboard consolidation, deployment, live debugging and responsive presentation.
-
-A recurring focus throughout the project was finding the actual source of truth behind a problem and keeping gameplay rules, UI state and persistence responsibilities clearly separated.
 
 ## Tech Stack
 
