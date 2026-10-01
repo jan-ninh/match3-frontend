@@ -1,4 +1,5 @@
 // src/components/BaseModal.tsx
+import { useEffect, useId, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 
@@ -18,11 +19,41 @@ const sizeClasses = {
 };
 
 export default function BaseModal({ open, title, onClose, children, size = 'md', closeOnBackdrop = true }: Props) {
+  const titleId = useId();
+  const panel = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const previous = document.activeElement;
+    const root = panel.current;
+    root?.focus();
+    const trap = (event: KeyboardEvent) => {
+      if (event.key !== 'Tab' || !root) return;
+      const controls = [...root.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), a[href], select:not(:disabled), [tabindex="0"]')];
+      const first = controls[0],
+        last = controls.at(-1);
+      if (!first) {
+        event.preventDefault();
+        return;
+      }
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === root)) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || document.activeElement === root)) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    root?.addEventListener('keydown', trap);
+    return () => {
+      root?.removeEventListener('keydown', trap);
+      if (previous instanceof HTMLElement && previous.isConnected) previous.focus();
+    };
+  }, [open]);
   return (
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          className="modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
           onClick={closeOnBackdrop ? onClose : undefined}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -30,7 +61,10 @@ export default function BaseModal({ open, title, onClose, children, size = 'md',
           transition={{ duration: 0.25, ease: 'easeOut' }}
         >
           <motion.div
-            className={`relative w-full ${sizeClasses[size]} mx-4 p-8 rounded-2xl bg-linear-to-b from-purple-950/50 to-black/70 backdrop-blur-xl border border-cyan-500/30 shadow-lg text-cyan-100`}
+            ref={panel}
+            tabIndex={-1}
+            aria-labelledby={title ? titleId : undefined}
+            className={`modal-panel relative w-full ${sizeClasses[size]} mx-4 p-8 rounded-2xl bg-linear-to-b from-purple-950/50 to-black/70 backdrop-blur-xl border border-cyan-500/30 shadow-lg text-cyan-100`}
             onClick={(e) => e.stopPropagation()}
             initial={{ opacity: 0, y: 20, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -46,7 +80,10 @@ export default function BaseModal({ open, title, onClose, children, size = 'md',
           >
             {/* Title */}
             {title && (
-              <h1 className="text-3xl font-black tracking-widest uppercase text-center mb-10 bg-linear-to-r from-cyan-400 via-pink-500 to-purple-500 bg-clip-text text-transparent drop-shadow-lg">
+              <h1
+                id={titleId}
+                className="text-3xl font-black tracking-widest uppercase text-center mb-5 bg-linear-to-r from-cyan-400 via-pink-500 to-purple-500 bg-clip-text text-transparent drop-shadow-lg"
+              >
                 {title}
               </h1>
             )}

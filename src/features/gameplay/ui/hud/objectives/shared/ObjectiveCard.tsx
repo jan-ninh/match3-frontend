@@ -66,7 +66,7 @@ export function ObjectiveCard({ title, hint, statLabel, done, total, theme, desc
       <div
         className={[
           rootClass,
-          'inline-flex min-w-0 max-w-full items-center gap-3 rounded-2xl border bg-black/80 backdrop-blur-xl px-4 py-2 mt-4',
+          'objective-title inline-flex min-w-0 max-w-full items-center gap-3 rounded-2xl border bg-black/80 backdrop-blur-xl px-4 py-2 mt-4',
           keyline,
           glowA,
         ]
@@ -114,7 +114,7 @@ export function ObjectiveCard({ title, hint, statLabel, done, total, theme, desc
       <div
         className={[
           rootClass,
-          'inline-flex min-w-0 items-center gap-3 rounded-2xl border border-white/10 bg-black/65 backdrop-blur-xl px-4 py-2 shadow-[0_10px_26px_rgba(0,0,0,0.45)] overflow-hidden',
+          'objective-description inline-flex min-w-0 items-center gap-3 rounded-2xl border border-white/10 bg-black/65 backdrop-blur-xl px-4 py-2 shadow-[0_10px_26px_rgba(0,0,0,0.45)] overflow-hidden',
         ]
           .filter(Boolean)
           .join(' ')}
@@ -129,12 +129,7 @@ export function ObjectiveCard({ title, hint, statLabel, done, total, theme, desc
             <div className="flex items-center gap-1.5 shrink-0" aria-hidden="true">
               {Array.from({ length: segTotal }, (_, i) => {
                 const isFilled = i < segDone;
-                return (
-                  <div
-                    key={i}
-                    className={['h-2.5 w-4 rounded-full border', isFilled ? segOn : 'bg-white/5 border-white/15'].join(' ')}
-                  />
-                );
+                return <div key={i} className={['h-2.5 w-4 rounded-full border', isFilled ? segOn : 'bg-white/5 border-white/15'].join(' ')} />;
               })}
             </div>
           ) : null}

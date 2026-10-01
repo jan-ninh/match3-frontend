@@ -44,7 +44,7 @@ export function ObjectiveLeaks({ objective }: Props) {
       {/* ------------------------------------------------------------------- */}
       <div
         className={[
-          'inline-flex min-w-0 max-w-full items-center gap-3 rounded-2xl border bg-black/80 backdrop-blur-xl px-4 py-2 mt-4',
+          'objective-title inline-flex min-w-0 max-w-full items-center gap-3 rounded-2xl border bg-black/80 backdrop-blur-xl px-4 py-2 mt-4',
           keyline,
           glowA,
         ].join(' ')}
@@ -87,7 +87,7 @@ export function ObjectiveLeaks({ objective }: Props) {
       {/* ------------------------------------------------------------------- */}
       {/* 2) CONTAINER: HINT (Level-1 look) */}
       {/* ------------------------------------------------------------------- */}
-      <div className="inline-flex min-w-0 items-center gap-3 rounded-2xl border border-white/10 bg-black/65 backdrop-blur-xl px-4 py-2 shadow-[0_10px_26px_rgba(0,0,0,0.45)] overflow-hidden">
+      <div className="objective-description inline-flex min-w-0 items-center gap-3 rounded-2xl border border-white/10 bg-black/65 backdrop-blur-xl px-4 py-2 shadow-[0_10px_26px_rgba(0,0,0,0.45)] overflow-hidden">
         {/* small-screen progress */}
         <div className="sm:hidden flex items-center gap-2 shrink-0">
           <div className="font-mono text-xs text-white/80 tabular-nums whitespace-nowrap">

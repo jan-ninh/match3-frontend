@@ -63,12 +63,12 @@ export default function LevelCard({ level, isCompleted, isFutureLocked, isSelect
         ) : isCompleted ? (
           <>
             <span className="text-3xl leading-none text-emerald-300">✓</span>
-            <span className="text-sm text-current">Level {level}</span>
+            <span className="text-sm text-current">{level === 12 ? 'Sandbox' : `Level ${level}`}</span>
           </>
         ) : (
           <>
             <img src="/icons/play.svg" alt="Play level" className="w-6 h-6 opacity-90" />
-            <span className="text-sm text-current">Level {level}</span>
+            <span className="text-sm text-current">{level === 12 ? 'Sandbox' : `Level ${level}`}</span>
           </>
         )}
       </div>

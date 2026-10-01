@@ -3,7 +3,6 @@ import type { PowerKey, Powers } from '@/types';
 import gridlaserIcon from '@/assets/items/gridlaser.png';
 import laserIcon from '@/assets/items/laser.png';
 import reshuffleIcon from '@/assets/items/reshuffle.png';
-import noaccessIcon from '@/assets/items/noaccess.png';
 
 type ActionItem = {
   id: string;
@@ -48,8 +47,8 @@ export const footerActions = (_openSettings: () => void, powers: Powers, onUsePo
   {
     // Button4
     id: 'button4',
-    label: 'Button4',
-    icon: noaccessIcon,
+    label: 'Quit',
+    icon: '/icons/return-map.svg',
     onClick: () => undefined,
   },
 ];

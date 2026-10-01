@@ -27,13 +27,13 @@ export default function QuitConfirmModal({ open, onClose }: Props) {
   return (
     <Modal open={open} onClose={onClose} title="Are you sure?" size="sm" closeOnBackdrop={false}>
       <div className="flex flex-col items-center gap-4 py-6">
-        <div className="text-2xl font-semibold text-cyan-600">
+        <div className="text-base text-center font-semibold text-cyan-200">
           {mode === 'demo' ? 'Used boosters will not be refunded!' : 'Quit resets this account run. Player level and EXP remain.'}
         </div>
 
-        <div className="flex gap-3">
-          <CyberButton type="button" label="back" size="sm" onClick={back} className="" />
-          <CyberButton type="button" label="quit" size="sm" onClick={quit} className="" />
+        <div className="flex flex-wrap justify-center gap-3">
+          <CyberButton type="button" label="Keep playing" size="sm" onClick={back} className="" />
+          <CyberButton type="button" label="Quit" size="sm" onClick={quit} className="" />
         </div>
       </div>
     </Modal>

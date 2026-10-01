@@ -34,7 +34,7 @@ export default function LeaderboardPage() {
   const rows = read.data ?? [],
     state = leaderboardPresentation(read.status, read.data);
   return (
-    <div className="flex flex-col h-full">
+    <div className="leaderboard-page flex flex-col min-h-full">
       <Navbar />
       <GlassSection className="text-center max-w-xl mx-auto mb-4 w-full">
         <p>Best completed campaigns · stages 1–11</p>
@@ -43,7 +43,7 @@ export default function LeaderboardPage() {
         {state === 'unavailable' && <ReadFailure title="Leaderboard unavailable" error={read.error!} retry={read.retry} />}
         {state === 'empty' && <p>No completed campaigns yet.</p>}
         {state === 'ready' && (
-          <div className="flex justify-center items-end flex-wrap sm:flex-nowrap gap-4">
+          <div className="podium-list flex justify-center items-end gap-1 sm:gap-4">
             {[
               { user: rows[1], order: 1, position: 2 },
               { user: rows[0], order: 2, position: 1 },

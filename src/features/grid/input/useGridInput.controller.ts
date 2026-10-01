@@ -1,3 +1,4 @@
+import { boardPointerDelta } from './boardCoordinates';
 import type { Dispatch, SetStateAction } from 'react';
 
 import type { Cell, Piece, PieceId } from '@/gamelogic';
@@ -205,8 +206,7 @@ export function createGridInputController({ width, height, cells, pieces, inputL
 
     if (!p.draggable || p.pieceId === null) return;
 
-    const rawDx = clientX - p.startClientX;
-    const rawDy = clientY - p.startClientY;
+    const { dx: rawDx, dy: rawDy } = boardPointerDelta(p.captureEl, clientX - p.startClientX, clientY - p.startClientY);
 
     p.rawDx = rawDx;
     p.rawDy = rawDy;

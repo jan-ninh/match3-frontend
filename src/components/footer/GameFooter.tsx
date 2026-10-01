@@ -1,3 +1,4 @@
+import { useOverlays } from '@/features/overlays';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { footerActions } from './footerAction';
 import { usePowers } from '@/context/PowerContext';
@@ -89,6 +90,7 @@ function allocFooterRequestId(): number {
 }
 
 export default function GameFooter() {
+  const { openQuitConfirm } = useOverlays();
   const { powers } = usePowers();
 
   const [armedGridlaser, setArmedGridlaser] = useState(false);
@@ -265,7 +267,7 @@ export default function GameFooter() {
   }, [powers, onUsePower]);
 
   return (
-    <div className="flex flex-nowrap justify-center gap-8 p-3 mb-6 ]">
+    <div className="gameplay-footer flex flex-nowrap justify-center gap-3 p-3 mb-2">
       {actions.map((item) => {
         // Robust: derive power identity from `item.id` (footerActions can drift / aliases).
         const powerKey = footerIdToPowerKey(item.id);
@@ -308,7 +310,8 @@ export default function GameFooter() {
             void onUsePower(powerKey);
             return;
           }
-          item.onClick();
+          if (item.id === 'button4') openQuitConfirm();
+          else item.onClick();
         };
 
         return (

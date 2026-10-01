@@ -29,7 +29,7 @@ export default function Navbar() {
   const isAccount = mode === 'account';
 
   const baseItems: NavItem[] = [
-    { kind: 'link', label: 'Home', icon: 'home', to: '/game-map' },
+    { kind: 'link', label: 'Map', icon: 'home', to: '/game-map' },
     { kind: 'link', label: 'Leaderboard', icon: 'leaderboard', to: '/game-map/leaderboard' },
     { kind: 'action', label: 'Settings', icon: 'settings', onClick: openSettings },
   ];
@@ -55,10 +55,7 @@ export default function Navbar() {
       },
     });
 
-  const authItems: NavItem[] = [
-    { kind: 'link', label: 'Lives', icon: 'heart', to: '/game-map' },
-    { kind: 'link', label: 'Profile', icon: 'profile', to: '/game-map/profile' },
-  ];
+  const authItems: NavItem[] = [{ kind: 'link', label: 'Profile', icon: 'profile', to: '/game-map/profile' }];
 
   const navItems: NavItem[] = isAccount
     ? [
@@ -91,12 +88,11 @@ export default function Navbar() {
 
   return (
     <>
-      <nav
-        className="flex justify-between items-center p-6
-                  backdrop-blur-10px "
-      >
-        <CyberTitle size="sm">Match-3</CyberTitle>
-        <ul className="flex gap-1 items-center">
+      <nav className="portfolio-nav" aria-label="Main navigation">
+        <Link to="/" className="portfolio-brand" aria-label="Match-3 home">
+          <CyberTitle size="sm">Match-3</CyberTitle>
+        </Link>
+        <ul className="portfolio-nav-items">
           {navItems.map((item) => (
             <li key={item.label} className="flex items-center">
               {item.kind === 'link' ? (
@@ -107,10 +103,11 @@ export default function Navbar() {
                   title={item.label}
                 >
                   {isUrl(item.icon) ? (
-                    <img src={item.icon} alt={item.label} className=" object-contain" />
+                    <img src={item.icon} alt="" className=" object-contain" />
                   ) : (
-                    <SpriteIcon name={item.icon} width={52} height={52} className="" alt={item.label} />
+                    <SpriteIcon name={item.icon} width={36} height={36} className="" alt="" />
                   )}
+                  <span className="nav-label">{item.label}</span>
                 </Link>
               ) : (
                 <button
@@ -121,10 +118,11 @@ export default function Navbar() {
                   title={item.label}
                 >
                   {isUrl(item.icon) ? (
-                    <img src={item.icon} alt={item.label} className=" object-contain" />
+                    <img src={item.icon} alt="" className=" object-contain" />
                   ) : (
-                    <SpriteIcon name={item.icon} width={52} height={52} className="" alt={item.label} />
+                    <SpriteIcon name={item.icon} width={36} height={36} className="" alt="" />
                   )}
+                  <span className="nav-label">{item.label}</span>
                 </button>
               )}
             </li>

@@ -1,5 +1,4 @@
 // src/features/overlays/SettingsModal.tsx
-import { useState } from 'react';
 import { useOverlays } from './useOverlays';
 import { useAudio } from '@/context/AudioContext';
 import { CyberButton, Modal } from '@/components';
@@ -7,7 +6,6 @@ import { CyberButton, Modal } from '@/components';
 export default function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { musicOn, setMusicOn, musicVolume, setMusicVolume, clickSoundOn, setClickSoundOn, clickVolume, setClickVolume } = useAudio();
 
-  const [graphics, setGraphics] = useState<'low' | 'medium' | 'high'>('high');
   const api = useOverlays();
   const isInGame = location.pathname === '/game-map/play-game';
 
@@ -22,11 +20,17 @@ export default function SettingsModal({ open, onClose }: { open: boolean; onClos
       <div className="mb-6">
         <p className="text-cyan-600 mb-2">Background Music:</p>
         <div className="flex items-center gap-4">
-          <button className={`px-4 py-3 rounded-xl transition-colors ${musicOn ? 'bg-cyan-800' : 'bg-pink-800'}`} onClick={() => setMusicOn(!musicOn)}>
+          <button
+            aria-label="Toggle music"
+            aria-pressed={musicOn}
+            className={`px-4 py-3 rounded-xl transition-colors ${musicOn ? 'bg-cyan-800' : 'bg-pink-800'}`}
+            onClick={() => setMusicOn(!musicOn)}
+          >
             <img src={musicOn ? '/icons/sound-on.svg' : '/icons/sound-off.svg'} alt="Sound toggle" className="w-6 h-6" />
           </button>
 
           <input
+            aria-label="Music volume"
             type="range"
             min={0}
             max={100}
@@ -44,6 +48,8 @@ export default function SettingsModal({ open, onClose }: { open: boolean; onClos
         <p className="text-cyan-600 mb-2">Effects Sound:</p>
         <div className="flex items-center gap-4">
           <button
+            aria-label="Toggle effects"
+            aria-pressed={clickSoundOn}
             className={`px-4 py-3 rounded-xl transition-colors ${clickSoundOn ? 'bg-cyan-800' : 'bg-pink-800'}`}
             onClick={() => setClickSoundOn(!clickSoundOn)}
           >
@@ -61,25 +67,6 @@ export default function SettingsModal({ open, onClose }: { open: boolean; onClos
 
           <span className="text-pink-400 w-10 text-right">{clickVolume}%</span>
         </div>
-      </div>
-
-      {/* Graphics */}
-      <div className="flex justify-center items-center gap-3 mb-6">
-        <p className="text-cyan-600">Graphics:</p>
-        {(['low', 'medium', 'high'] as const).map((g) => (
-          <button
-            key={g}
-            onClick={() => setGraphics(g)}
-            className={`px-6 py-2 rounded-md text-cyan-100 border ${graphics === g ? 'bg-cyan-600 text-white shadow-lg' : 'border-cyan-500/30'}`}
-          >
-            {g.charAt(0).toUpperCase() + g.slice(1)}
-          </button>
-        ))}
-      </div>
-
-      {/* Feedback */}
-      <div className="flex justify-center my-4">
-        <CyberButton label="Send Feedback" onClick={() => alert('Feedback coming soon!')} size="md" />
       </div>
 
       {/* Close main button */}

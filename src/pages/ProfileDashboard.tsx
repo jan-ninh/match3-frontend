@@ -100,7 +100,7 @@ export default function ProfileDashboard() {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="profile-page flex flex-col min-h-full">
       <div className="shrink-0">
         <Navbar />
       </div>

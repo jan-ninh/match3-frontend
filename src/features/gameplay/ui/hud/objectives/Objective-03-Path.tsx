@@ -33,7 +33,7 @@ export function ObjectivePath({ objective }: Props) {
       <div
         className={[
           'pointer-events-auto',
-          'inline-flex min-w-0 max-w-full items-center gap-3 rounded-2xl border bg-black/80 backdrop-blur-xl px-4 py-2 mt-4',
+          'objective-title inline-flex min-w-0 max-w-full items-center gap-3 rounded-2xl border bg-black/80 backdrop-blur-xl px-4 py-2 mt-4',
           keyline,
           glowA,
         ].join(' ')}
@@ -63,7 +63,7 @@ export function ObjectivePath({ objective }: Props) {
       <div
         className={[
           'pointer-events-auto',
-          'inline-flex min-w-0 items-center gap-3 rounded-2xl border border-white/10 bg-black/65 backdrop-blur-xl px-4 py-2 shadow-[0_10px_26px_rgba(0,0,0,0.45)] overflow-hidden',
+          'objective-description inline-flex min-w-0 items-center gap-3 rounded-2xl border border-white/10 bg-black/65 backdrop-blur-xl px-4 py-2 shadow-[0_10px_26px_rgba(0,0,0,0.45)] overflow-hidden',
         ].join(' ')}
       >
         {/* A → B chip */}

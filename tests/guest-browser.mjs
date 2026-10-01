@@ -45,7 +45,7 @@ try {
   console.log('Browser: fresh/stale guest and real inventory consumption');
   const a = await setup();
   await a.page.goto(base + '/');
-  await a.page.getByRole('button', { name: 'PLAY', exact: true }).click();
+  await a.page.getByRole('button', { name: 'PLAY DEMO', exact: true }).click();
   await a.page.getByRole('button', { name: 'Stage 1', exact: true }).waitFor();
   assert.equal(await a.page.getByRole('button', { name: 'Stage 1', exact: true }).isEnabled(), true);
   assert.equal(await a.page.getByRole('button', { name: 'Stage 2', exact: true }).isEnabled(), false);

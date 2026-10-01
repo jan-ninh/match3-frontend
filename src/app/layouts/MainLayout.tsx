@@ -59,7 +59,7 @@ export default function MainLayout() {
         </div>{' '}
         <div id="dev-left-lane" className="w-[min(520px,33vw)] max-w-full flex justify-end px-6 pointer-events-none" style={{ paddingTop: '20px' }} />
         {/* STAGE HOST */}
-        <div className="absolute inset-0 z-10 flex items-center justify-center p-4 overflow-hidden pointer-events-none ">
+        <div className="absolute inset-0 z-10 flex items-center justify-center p-2 sm:p-4 overflow-hidden pointer-events-none ">
           <div
             id="app-stage"
             onContextMenuCapture={(e) => {
@@ -67,9 +67,8 @@ export default function MainLayout() {
             }}
             className={[
               'match3-viewport relative overflow-hidden text-white pointer-events-auto',
-              'aspect-3/4',
-              // Design policy: keep the stage at 720×960 (or smaller if viewport is smaller).
-              'h-[min(960px,100svh)] w-auto max-w-[min(720px,calc(100vw-2rem))]',
+              // Cap the stage at 720×960; fit the actual viewport without forcing a portrait ratio.
+              'portfolio-stage',
             ].join(' ')}
             style={{
               backgroundImage: `url(${stageBg})`,

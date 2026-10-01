@@ -100,11 +100,12 @@ export default function RegisterModal({ onClose, onSwitchToLogin }: Props) {
 
   return (
     <Modal open={true} onClose={onClose} title="Register" size="sm" closeOnBackdrop={false}>
-      <form onSubmit={submit} noValidate className="flex flex-col gap-3">
+      <form onSubmit={submit} noValidate className="auth-form flex flex-col gap-3">
         <AccountServiceStatus />
         <div className="flex flex-col gap-1">
           <input
             className="px-3 py-2 rounded-lg bg-black/30"
+            aria-label="Username"
             placeholder="Username"
             value={form.username}
             onChange={(e) => setField('username', e.target.value)}
@@ -117,9 +118,13 @@ export default function RegisterModal({ onClose, onSwitchToLogin }: Props) {
         <div className="flex flex-col gap-1">
           <input
             className="px-3 py-2 rounded-lg bg-black/30"
+            aria-label="Email"
             placeholder="Email"
             value={form.email}
             onChange={(e) => setField('email', e.target.value)}
+            type="email"
+            inputMode="email"
+            autoCapitalize="none"
             autoComplete="email"
             disabled={loading}
           />
@@ -129,6 +134,7 @@ export default function RegisterModal({ onClose, onSwitchToLogin }: Props) {
         <div className="flex flex-col gap-1">
           <input
             className="px-3 py-2 rounded-lg bg-black/30"
+            aria-label="Password"
             placeholder="Password"
             type="password"
             value={form.password}
@@ -142,6 +148,7 @@ export default function RegisterModal({ onClose, onSwitchToLogin }: Props) {
         <div className="flex flex-col gap-1">
           <input
             className="px-3 py-2 rounded-lg bg-black/30"
+            aria-label="Confirm Password"
             placeholder="Confirm Password"
             type="password"
             value={form.confirmPassword}

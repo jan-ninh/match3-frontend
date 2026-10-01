@@ -173,7 +173,7 @@ try {
   });
   const late = await lateContext.newPage();
   await late.goto(base + '/game-map');
-  await late.getByText('Checking account', { exact: true }).waitFor();
+  await late.getByText('Restoring account…', { exact: true }).waitFor();
   await late.getByRole('button', { name: 'Play Demo', exact: true }).first().click();
   await late.getByRole('button', { name: 'Stage 1', exact: true }).waitFor();
   const beforeReady = await late.evaluate((key) => localStorage.getItem(key), GUEST_STORAGE_KEY);

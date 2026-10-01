@@ -45,7 +45,7 @@ function AccountEntry({ requested }: { requested: number }) {
 type GuestBinding = { runId: string; attemptId: string; stageId: number };
 function StageView({ level, guestBinding }: { level: number; guestBinding?: GuestBinding }) {
   return (
-    <div className="h-full w-full overflow-hidden grid grid-rows-[minmax(0,1fr)_auto] gap-0 p-6">
+    <div className="gameplay-page h-full w-full grid grid-rows-[minmax(0,1fr)_auto] gap-2 p-3 sm:p-6">
       <div className="min-h-0">
         {import.meta.env.DEV ? (
           <Suspense fallback={<div>Loading devtools...</div>}>

@@ -1,3 +1,4 @@
+import { nativePixels } from '../../input/boardCoordinates';
 // src/features/grid/ui/bomb/useBomb3x3Targeting.ts
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent, RefObject } from 'react';
@@ -306,8 +307,8 @@ export function useBomb3x3Targeting({ width, height, inputLocked, swapMs, reduce
       if (!el) return;
 
       const rect = el.getBoundingClientRect();
-      const x = clientX - rect.left;
-      const y = clientY - rect.top;
+      const x = nativePixels(clientX - rect.left, el.offsetWidth, rect.width);
+      const y = nativePixels(clientY - rect.top, el.offsetHeight, rect.height);
 
       const step = TILE_SIZE + GAP;
 

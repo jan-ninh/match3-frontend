@@ -99,7 +99,7 @@ try {
   assert.deepEqual(stale.calls, []);
   assert.equal(await stale.page.getByRole('button', { name: 'Stage 2', exact: true }).isEnabled(), true);
   await stale.page.getByRole('button', { name: 'Account' }).click();
-  await stale.page.getByText('Checking account', { exact: true }).waitFor();
+  await stale.page.getByText('Restoring account…', { exact: true }).waitFor();
   const start = Date.now();
   await stale.page.getByText('Account unavailable', { exact: true }).waitFor({ timeout: 12500 });
   assert.ok(Date.now() - start < 12500);
@@ -112,8 +112,8 @@ try {
   const late = await setup(true, true);
   await late.page.goto(base + '/game-map');
   await late.page.getByRole('button', { name: 'Account' }).click();
-  await late.page.getByText('Checking account', { exact: true }).waitFor();
-  await late.page.waitForFunction(() => document.body.textContent.includes('Checking account'));
+  await late.page.getByText('Restoring account…', { exact: true }).waitFor();
+  await late.page.waitForFunction(() => document.body.textContent.includes('Restoring account…'));
   // Wait for the actual account read to reach the test server before leaving its owner.
   const reachDeadline = Date.now() + 2000;
   while (!late.calls.length && Date.now() < reachDeadline) await new Promise((resolve) => setTimeout(resolve, 10));

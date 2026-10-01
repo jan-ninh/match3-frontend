@@ -85,14 +85,18 @@ export default function LoginModal({ onClose, onSwitchToRegister }: Props) {
 
   return (
     <Modal open={true} onClose={onClose} title="Log in" size="sm" closeOnBackdrop={false}>
-      <form onSubmit={submit} noValidate className="flex flex-col gap-3">
+      <form onSubmit={submit} noValidate className="auth-form flex flex-col gap-3">
         <AccountServiceStatus />
         <div className="flex flex-col gap-1">
           <input
             className={`${inputBase} ${fieldErrors.email ? 'border-pink-400/70 ring-1 ring-pink-400/20' : ''}`}
+            aria-label="Email"
             placeholder="Email"
             value={form.email}
             onChange={(e) => setField('email', e.target.value)}
+            type="email"
+            inputMode="email"
+            autoCapitalize="none"
             autoComplete="email"
             disabled={loading}
           />
@@ -102,6 +106,7 @@ export default function LoginModal({ onClose, onSwitchToRegister }: Props) {
         <div className="flex flex-col gap-1">
           <input
             className={`${inputBase} ${fieldErrors.password ? 'border-pink-400/70 ring-1 ring-pink-400/20' : ''}`}
+            aria-label="Password"
             placeholder="Password"
             type="password"
             value={form.password}

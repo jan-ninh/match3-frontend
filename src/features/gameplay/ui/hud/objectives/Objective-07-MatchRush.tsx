@@ -15,7 +15,7 @@ export function ObjectiveMatchRush({ objective }: Props) {
   return (
     <div
       className={[
-        'inline-flex min-w-0 max-w-full items-center gap-3 rounded-2xl border bg-black/80 backdrop-blur-xl px-4 py-2 mt-4',
+        'objective-title inline-flex min-w-0 max-w-full items-center gap-3 rounded-2xl border bg-black/80 backdrop-blur-xl px-4 py-2 mt-4',
         'border-emerald-300/18',
         'shadow-[0_10px_26px_rgba(0,0,0,0.55),0_0_22px_rgba(16,185,129,0.12)]',
       ].join(' ')}
