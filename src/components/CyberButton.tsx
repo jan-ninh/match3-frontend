@@ -27,32 +27,45 @@ export default function CyberButton({ label, className = '', type = 'button', si
   return (
     <button
       type={type}
-      className={`cyber-button group relative select-none transition-transform duration-500 ${
-        disabled ? 'cursor-default' : 'cursor-pointer hover:scale-105'
-      } ${sizeMap[size]} ${className}`}
+      className={`cyber-button group relative select-none ${disabled ? 'cursor-default' : 'cursor-pointer'} ${sizeMap[size]} ${className}`}
       onClick={handleClick}
       disabled={disabled}
       {...props}
     >
-      {/* Hex Background */}
+      {/* Visual shell pops forward. Text remains outside and unscaled. */}
       <div
         aria-hidden
-        className="absolute inset-0 bg-gray-900/90"
-        style={{
-          clipPath: hexClip,
-          boxShadow: '0 0 30px rgba(236,72,153,0.6), 0 0 60px rgba(6,182,212,0.4)',
-          transition: 'box-shadow 0.5s',
-        }}
-      />
+        className={`absolute inset-0 pointer-events-none transition-transform duration-150 ease-out will-change-transform ${
+          disabled ? '' : 'group-hover:scale-[1.04]'
+        }`}
+      >
+        <div
+          className="absolute inset-0 bg-gray-900/90"
+          style={{
+            clipPath: hexClip,
+            boxShadow: '0 0 30px rgba(236,72,153,0.6), 0 0 60px rgba(6,182,212,0.4)',
+          }}
+        />
 
-      {/* Full polygon outline */}
-      <svg aria-hidden className="absolute inset-0 h-full w-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
-        <polygon points="20,0 80,0 92,50 80,100 20,100 8,50" fill="none" stroke="rgba(103, 232, 249, 0.4)" strokeWidth="1" vectorEffect="non-scaling-stroke" />
-      </svg>
+        <svg className="absolute inset-0 h-full w-full text-cyan-300/40" viewBox="0 0 100 100" preserveAspectRatio="none">
+          <polygon points="20,0 80,0 92,50 80,100 20,100 8,50" fill="none" stroke="currentColor" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+        </svg>
 
-      {/* Label */}
+        <svg
+          className={`absolute inset-0 h-full w-full text-cyan-200 opacity-0 transition-opacity duration-150 ease-out ${
+            disabled ? '' : 'group-hover:opacity-100'
+          }`}
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
+          style={{ filter: 'drop-shadow(0 0 5px rgba(34, 211, 238, 0.75))' }}
+        >
+          <polygon points="20,0 80,0 92,50 80,100 20,100 8,50" fill="none" stroke="currentColor" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+        </svg>
+      </div>
+
+      {/* Label stays at scale 1, so the text remains crisp. */}
       <span
-        className={`relative z-10 flex h-full items-center justify-center font-bold text-cyan-300 transition-colors duration-500 ${
+        className={`relative z-10 flex h-full items-center justify-center font-bold text-cyan-300 transition-colors duration-150 ease-out ${
           disabled ? '' : 'group-hover:text-pink-500'
         }`}
       >
