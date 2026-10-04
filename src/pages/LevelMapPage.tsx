@@ -14,7 +14,7 @@ export default function LevelMapPage() {
   const navigate = useNavigate();
 
   const { user, mode, canUseAccount, profile, profileRequest } = useAuth();
-  const { save, store } = useGuest();
+  const { save } = useGuest();
   const guestAccess = guestStageAccess(save);
 
   const profileToProgress = (profile: CurrentUser): Progress => {
@@ -72,18 +72,9 @@ export default function LevelMapPage() {
         <GuestStatus />
         <AccountPersistenceStatus />
         {mode === 'account' && profileRequest === 'loading' && <p className="text-center">Updating account data · last confirmed values are read-only.</p>}
-        {!user && (
+        {!user && guestAccess.campaignComplete && (
           <div className="text-center my-4">
-            {guestAccess.campaignComplete && <p>Campaign complete! Optional sandbox 12 is unlocked.</p>}
-            <button
-              type="button"
-              className="border border-cyan-300 rounded px-4 py-2"
-              onClick={() => {
-                if (window.confirm('Start a new guest run? This resets local campaign progress and powers.')) store.reset();
-              }}
-            >
-              New Run / Reset
-            </button>
+            <p>Campaign complete! Optional sandbox 12 is unlocked.</p>
           </div>
         )}
         <LevelGrid

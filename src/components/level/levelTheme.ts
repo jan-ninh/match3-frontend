@@ -16,7 +16,6 @@ export const levelTheme = {
       select-none focus-visible:outline-2 focus-visible:outline-cyan-300
       transition-transform duration-200
       bg-[linear-gradient(135deg,rgba(15,23,42,0.92),rgba(2,6,23,0.92))]
-      backdrop-blur-md
     `,
 
     locked: `

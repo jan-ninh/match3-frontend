@@ -1,7 +1,7 @@
 import type { ButtonHTMLAttributes } from 'react';
 import { useAudio } from '@/context/AudioContext';
 
-type ButtonSize = 'xl' | 'md' | 'sm';
+type ButtonSize = 'xl' | 'lg' | 'md' | 'sm';
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   label: string;
@@ -10,11 +10,12 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 
 const sizeMap: Record<ButtonSize, string> = {
   xl: 'w-80 md:w-96 h-16 text-2xl tracking-widest',
+  lg: 'w-[280px] md:w-80 h-[60px] text-xl tracking-wider',
   md: 'w-56 md:w-64 h-12 text-lg tracking-wider',
   sm: 'w-auto px-8 h-10 text-sm tracking-wide',
 };
 
-export default function CyberButton({ label, className = '', type = 'button', size = 'xl', onClick, ...props }: ButtonProps) {
+export default function CyberButton({ label, className = '', type = 'button', size = 'xl', onClick, disabled = false, ...props }: ButtonProps) {
   const { playClickSound } = useAudio();
   const hexClip = 'polygon(20% 0%, 80% 0%, 92% 50%, 80% 100%, 20% 100%, 8% 50%)';
 
@@ -26,8 +27,11 @@ export default function CyberButton({ label, className = '', type = 'button', si
   return (
     <button
       type={type}
-      className={`cyber-button group relative select-none cursor-pointer transition-transform duration-500 hover:scale-105 ${sizeMap[size]} ${className}`}
+      className={`cyber-button group relative select-none transition-transform duration-500 ${
+        disabled ? 'cursor-default' : 'cursor-pointer hover:scale-105'
+      } ${sizeMap[size]} ${className}`}
       onClick={handleClick}
+      disabled={disabled}
       {...props}
     >
       {/* Hex Background */}
@@ -47,7 +51,11 @@ export default function CyberButton({ label, className = '', type = 'button', si
       </svg>
 
       {/* Label */}
-      <span className="relative z-10 flex h-full items-center justify-center font-bold text-cyan-300 group-hover:text-pink-500 transition-colors duration-500">
+      <span
+        className={`relative z-10 flex h-full items-center justify-center font-bold text-cyan-300 transition-colors duration-500 ${
+          disabled ? '' : 'group-hover:text-pink-500'
+        }`}
+      >
         {label}
       </span>
     </button>
