@@ -10,6 +10,7 @@ type Props = {
   children: ReactNode;
   size?: 'sm' | 'md' | 'lg';
   closeOnBackdrop?: boolean;
+  panelClassName?: string;
 };
 
 const sizeClasses = {
@@ -18,9 +19,10 @@ const sizeClasses = {
   lg: 'max-w-lg',
 };
 
-export default function BaseModal({ open, title, onClose, children, size = 'md', closeOnBackdrop = true }: Props) {
+export default function BaseModal({ open, title, onClose, children, size = 'md', closeOnBackdrop = true, panelClassName = '' }: Props) {
   const titleId = useId();
   const panel = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (!open) return;
     const previous = document.activeElement;
@@ -29,8 +31,9 @@ export default function BaseModal({ open, title, onClose, children, size = 'md',
     const trap = (event: KeyboardEvent) => {
       if (event.key !== 'Tab' || !root) return;
       const controls = [...root.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), a[href], select:not(:disabled), [tabindex="0"]')];
-      const first = controls[0],
-        last = controls.at(-1);
+      const first = controls[0];
+      const last = controls.at(-1);
+
       if (!first) {
         event.preventDefault();
         return;
@@ -43,12 +46,14 @@ export default function BaseModal({ open, title, onClose, children, size = 'md',
         first.focus();
       }
     };
+
     root?.addEventListener('keydown', trap);
     return () => {
       root?.removeEventListener('keydown', trap);
       if (previous instanceof HTMLElement && previous.isConnected) previous.focus();
     };
   }, [open]);
+
   return (
     <AnimatePresence>
       {open && (
@@ -64,21 +69,15 @@ export default function BaseModal({ open, title, onClose, children, size = 'md',
             ref={panel}
             tabIndex={-1}
             aria-labelledby={title ? titleId : undefined}
-            className={`modal-panel relative w-full ${sizeClasses[size]} mx-4 p-8 rounded-2xl bg-linear-to-b from-purple-950/50 to-black/70 backdrop-blur-xl border border-cyan-500/30 shadow-lg text-cyan-100`}
+            className={`modal-panel relative w-full ${sizeClasses[size]} mx-4 p-8 rounded-2xl bg-linear-to-b from-purple-950/50 to-black/70 backdrop-blur-xl border border-cyan-500/30 shadow-lg text-cyan-100 ${panelClassName}`}
             onClick={(e) => e.stopPropagation()}
             initial={{ opacity: 0, y: 20, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 16, scale: 0.96 }}
-            transition={{
-              type: 'spring',
-              stiffness: 180,
-              damping: 28,
-              mass: 0.9,
-            }}
+            transition={{ type: 'spring', stiffness: 180, damping: 28, mass: 0.9 }}
             role="dialog"
             aria-modal="true"
           >
-            {/* Title */}
             {title && (
               <h1
                 id={titleId}
@@ -88,7 +87,6 @@ export default function BaseModal({ open, title, onClose, children, size = 'md',
               </h1>
             )}
 
-            {/* Content */}
             {children}
           </motion.div>
         </motion.div>

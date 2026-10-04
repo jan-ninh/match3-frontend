@@ -25,6 +25,33 @@ type AudioContextType = {
 
 const AudioContext = createContext<AudioContextType | undefined>(undefined);
 
+const MUSIC_VOLUME_KEY = 'match3.audio.musicVolume';
+const EFFECTS_VOLUME_KEY = 'match3.audio.effectsVolume';
+
+function readStoredVolume(key: string, fallback: number): number {
+  if (typeof window === 'undefined') return fallback;
+
+  try {
+    const stored = window.localStorage.getItem(key);
+    if (stored === null) return fallback;
+
+    const value = Number(stored);
+    return Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function writeStoredVolume(key: string, value: number): void {
+  if (typeof window === 'undefined') return;
+
+  try {
+    window.localStorage.setItem(key, String(value));
+  } catch {
+    // ignore storage failures
+  }
+}
+
 export function AudioProvider({ children }: { children: React.ReactNode }) {
   const musicRef = useRef<HTMLAudioElement | null>(null);
 
@@ -33,13 +60,21 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const loseRef = useRef<HTMLAudioElement | null>(null); // ✅ NEW
 
   const [musicOn, setMusicOn] = useState(true);
-  const [musicVolume, setMusicVolume] = useState(0); /////// change to for presentation
+  const [musicVolume, setMusicVolume] = useState(() => readStoredVolume(MUSIC_VOLUME_KEY, 0));
 
   const [clickSoundOn, setClickSoundOn] = useState(true);
-  const [clickVolume, setClickVolume] = useState(22); /////// change to for presentation
+  const [clickVolume, setClickVolume] = useState(() => readStoredVolume(EFFECTS_VOLUME_KEY, 70));
 
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
   const [showEnableSound, setShowEnableSound] = useState(true);
+
+  useEffect(() => {
+    writeStoredVolume(MUSIC_VOLUME_KEY, musicVolume);
+  }, [musicVolume]);
+
+  useEffect(() => {
+    writeStoredVolume(EFFECTS_VOLUME_KEY, clickVolume);
+  }, [clickVolume]);
 
   // Keep the "SFX system" in sync with the Sound Regler ("Effects" switch + slider).
   // This makes laser/gridlaser targeting + confirm + explosions respect the same settings.

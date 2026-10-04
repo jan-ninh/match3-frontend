@@ -51,7 +51,7 @@ body {
 }
 
 @layer base {
-  input,
+  input:not([type='range']),
   textarea,
   select {
     width: 100%;
@@ -65,19 +65,19 @@ body {
     outline: none;
   }
 
-  input::placeholder,
+  input:not([type='range'])::placeholder,
   textarea::placeholder {
     color: rgba(165, 243, 252, 0.6); /* cyan-300/60 */
   }
 
-  input:focus,
+  input:not([type='range']):focus,
   textarea:focus,
   select:focus {
     border-color: rgba(34, 211, 238, 0.7);
     box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.4);
   }
 
-  input:disabled,
+  input:not([type='range']):disabled,
   textarea:disabled,
   select:disabled {
     opacity: 0.6;
@@ -85,9 +85,9 @@ body {
   }
 
   /* Chrome autofill */
-  input:-webkit-autofill,
-  input:-webkit-autofill:hover,
-  input:-webkit-autofill:focus,
+  input:not([type='range']):-webkit-autofill,
+  input:not([type='range']):-webkit-autofill:hover,
+  input:not([type='range']):-webkit-autofill:focus,
   textarea:-webkit-autofill,
   select:-webkit-autofill {
     -webkit-text-fill-color: rgb(224, 242, 254);
