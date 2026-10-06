@@ -38,8 +38,6 @@ export function OverlayProvider({ children }: { children: ReactNode }) {
   const missionReportOnDoneRef = useRef<OpenMissionReportOptions['onDone'] | null>(null);
   const levelUpOnChooseRef = useRef<OpenLevelUpOptions['onChoose'] | null>(null);
 
-  // Keep latest state accessible inside a stable `api` object (api is memoized with []).
-  // IMPORTANT: refs must be updated synchronously inside api methods to avoid same-tick races.
   const activeRef = useRef<OverlayName>(active);
   const dataRef = useRef<OverlayData>(data);
 
@@ -47,7 +45,6 @@ export function OverlayProvider({ children }: { children: ReactNode }) {
   setOverlayRef.current = (nextActive: OverlayName, nextData: OverlayData) => {
     activeRef.current = nextActive;
     dataRef.current = nextData;
-
     setActive(nextActive);
     setData(nextData);
   };
@@ -60,7 +57,6 @@ export function OverlayProvider({ children }: { children: ReactNode }) {
     dataRef.current = data;
   }, [data]);
 
-  // Sequencing: FIFO queue (Win -> MissionReport -> optional LevelUp).
   const queueRef = useRef<QueuedOverlay[]>([]);
 
   const resetAll = () => {
@@ -94,9 +90,9 @@ export function OverlayProvider({ children }: { children: ReactNode }) {
         resetAll();
         setOverlayRef.current('lose', { level });
       },
-      openQuitConfirm: () => {
+      openQuitConfirm: (destination = 'map') => {
         resetAll();
-        setOverlayRef.current('quitConfirm', {});
+        setOverlayRef.current('quitConfirm', { quitDestination: destination });
       },
 
       openMissionReport: (opts?: OpenMissionReportOptions) => {
@@ -108,7 +104,6 @@ export function OverlayProvider({ children }: { children: ReactNode }) {
           missionReportTitle: opts?.title,
         };
 
-        // If another overlay is visible, queue MissionReport.
         if (activeRef.current !== null) {
           enqueue({ name: 'missionReport', data: nextData });
           return;
@@ -123,10 +118,9 @@ export function OverlayProvider({ children }: { children: ReactNode }) {
         const nextData: OverlayData = {
           ...dataRef.current,
           levelUpTitle: opts?.title ?? 'Choose your Reward!',
-          powerChoiceTitle: opts?.title ?? 'Choose your Reward!', // legacy field
+          powerChoiceTitle: opts?.title ?? 'Choose your Reward!',
         };
 
-        // If another overlay is visible, queue LevelUp.
         if (activeRef.current !== null) {
           enqueue({ name: 'levelUp', data: nextData });
           return;
@@ -135,7 +129,6 @@ export function OverlayProvider({ children }: { children: ReactNode }) {
         setOverlayRef.current('levelUp', nextData);
       },
 
-      // Legacy alias: open the LevelUp reward selection overlay.
       openPowerChoice: (opts?: OpenPowerChoiceOptions) => {
         levelUpOnChooseRef.current = opts?.onChoose ?? null;
 
@@ -143,7 +136,6 @@ export function OverlayProvider({ children }: { children: ReactNode }) {
           ...dataRef.current,
           levelUpTitle: opts?.title ?? 'Choose your Reward!',
           powerChoiceTitle: opts?.title ?? 'Choose your Power!',
-          // NOTE: legacy callers might send expPreview here; LevelUp UI currently ignores it.
           expPreview: opts?.expPreview,
         };
 
@@ -170,7 +162,6 @@ export function OverlayProvider({ children }: { children: ReactNode }) {
       close: () => {
         const closing = activeRef.current;
 
-        // Clear handler refs when their overlay closes.
         if (closing === 'missionReport') {
           missionReportOnDoneRef.current = null;
         }
@@ -178,10 +169,7 @@ export function OverlayProvider({ children }: { children: ReactNode }) {
           levelUpOnChooseRef.current = null;
         }
 
-        // close current overlay
         setOverlayRef.current(null, {});
-
-        // open next queued overlay, if any
         openNextQueued();
       },
     }),
@@ -196,7 +184,10 @@ export function OverlayProvider({ children }: { children: ReactNode }) {
     }
   }, [route, api]);
 
-  const value: OverlayContextValue = useMemo(() => ({ active, data, missionReportOnDoneRef, levelUpOnChooseRef, api }), [active, data, api]);
+  const value: OverlayContextValue = useMemo(
+    () => ({ active, data, missionReportOnDoneRef, levelUpOnChooseRef, api }),
+    [active, data, api],
+  );
 
   return (
     <OverlayContext.Provider value={value}>

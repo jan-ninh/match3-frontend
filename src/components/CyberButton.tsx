@@ -9,10 +9,10 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 const sizeMap: Record<ButtonSize, string> = {
-  xl: 'w-80 md:w-96 h-16 text-2xl tracking-widest',
-  lg: 'w-[280px] md:w-80 h-[60px] text-xl tracking-wider',
-  md: 'w-56 md:w-64 h-12 text-lg tracking-wider',
-  sm: 'w-auto px-8 h-10 text-sm tracking-wide',
+  xl: 'w-fit min-w-80 md:min-w-96 max-w-full h-16 px-14 text-2xl tracking-widest',
+  lg: 'w-fit min-w-[280px] md:min-w-80 max-w-full h-[60px] px-12 text-xl tracking-wider',
+  md: 'w-fit min-w-56 md:min-w-64 max-w-full h-12 px-10 text-lg tracking-wider',
+  sm: 'w-fit min-w-[112px] max-w-full px-10 h-10 text-sm tracking-wide',
 };
 
 export default function CyberButton({ label, className = '', type = 'button', size = 'xl', onClick, disabled = false, ...props }: ButtonProps) {
@@ -65,7 +65,7 @@ export default function CyberButton({ label, className = '', type = 'button', si
 
       {/* Label stays at scale 1, so the text remains crisp. */}
       <span
-        className={`relative z-10 flex h-full items-center justify-center font-bold text-cyan-300 transition-colors duration-150 ease-out ${
+        className={`relative z-10 flex h-full items-center justify-center whitespace-nowrap font-bold text-cyan-300 transition-colors duration-150 ease-out ${
           disabled ? '' : 'group-hover:text-pink-500'
         }`}
       >

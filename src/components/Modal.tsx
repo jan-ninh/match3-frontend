@@ -81,7 +81,7 @@ export default function BaseModal({ open, title, onClose, children, size = 'md',
             {title && (
               <h1
                 id={titleId}
-                className="text-3xl font-black tracking-widest uppercase text-center mb-5 bg-linear-to-r from-cyan-400 via-pink-500 to-purple-500 bg-clip-text text-transparent drop-shadow-lg"
+                className="whitespace-pre-line text-3xl font-black tracking-widest uppercase text-center mb-5 bg-linear-to-r from-cyan-400 via-pink-500 to-purple-500 bg-clip-text text-transparent drop-shadow-lg"
               >
                 {title}
               </h1>

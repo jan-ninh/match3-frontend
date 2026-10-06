@@ -2,7 +2,6 @@ import { Link, useLocation, useNavigate } from 'react-router';
 import { useOverlays } from '@/features/overlays';
 import { useAuth } from '@/context/AuthContext';
 import SpriteIcon from '@/components/SpriteIcon'; // default export assumed
-import { CyberTitle } from './CyberTitle';
 import AccountServiceStatus from './AccountServiceStatus';
 
 type NavLinkItem = {
@@ -28,6 +27,7 @@ export default function Navbar() {
   const navigate = useNavigate();
 
   const isAccount = mode === 'account';
+  const isMapRoute = location.pathname === '/game-map';
 
   const baseItems: NavItem[] = [
     { kind: 'link', label: 'Map', icon: 'home', to: '/game-map' },
@@ -62,18 +62,7 @@ export default function Navbar() {
 
   return (
     <>
-      <nav className="portfolio-nav" aria-label="Main navigation">
-        <Link
-          to="/"
-          className="portfolio-brand relative top-1"
-          aria-label="Match-3 home"
-          draggable={false}
-          onDragStart={(event) => event.preventDefault()}
-        >
-          <CyberTitle size="sm" className="!text-lg md:!text-xl select-none">
-            Match-3
-          </CyberTitle>
-        </Link>
+      <nav className={`portfolio-nav${isMapRoute ? ' portfolio-nav--map' : ''}`} aria-label="Main navigation">
         <ul className="portfolio-nav-items">
           {navItems.map((item) => {
             const isCurrent = item.kind === 'link' && location.pathname === item.to;

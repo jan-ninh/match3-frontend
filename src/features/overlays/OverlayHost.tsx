@@ -41,7 +41,7 @@ export default function OverlayHost() {
       <SettingsModal open={is('settings')} onClose={api.close} />
       <WinOverlay open={is('win')} onClose={api.close} level={data.level} mode={data.winMode} />
       <LoseOverlay open={is('lose')} onClose={api.close} level={data.level} />
-      <QuitConfirmModal open={is('quitConfirm')} onClose={api.close} />
+      <QuitConfirmModal open={is('quitConfirm')} onClose={api.close} destination={data.quitDestination ?? 'map'} />
 
       <MissionReportModal
         open={is('missionReport')}
@@ -58,13 +58,11 @@ export default function OverlayHost() {
         }}
       />
 
-      {/* 'powerChoice' is a legacy alias; render LevelUp UI for both. */}
       <LevelUpModal
         open={is('levelUp') || is('powerChoice')}
         title={levelUpTitle}
         onClose={api.close}
         onChoose={(powerId) => {
-          // Capture handler BEFORE close() clears the ref.
           const onChoose = levelUpOnChooseRef.current;
           api.close();
           onChoose?.(powerId);

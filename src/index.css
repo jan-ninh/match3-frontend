@@ -230,14 +230,11 @@ body {
 .portfolio-nav {
   display: flex;
   flex-wrap: wrap;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
   gap: 12px;
   padding: 20px 28px 12px;
   background: #07071460;
-}
-.portfolio-brand {
-  flex-shrink: 0;
 }
 .portfolio-nav-items {
   display: flex;
@@ -245,6 +242,31 @@ body {
   justify-content: center;
   align-items: center;
   gap: 4px;
+}
+
+.portfolio-nav--map {
+  padding: 14px 22px 5px;
+  background: linear-gradient(180deg, rgba(7, 7, 20, 0.7) 0%, rgba(7, 7, 20, 0.24) 68%, transparent 100%);
+}
+
+.level-map-page {
+  padding: 10px 24px 24px;
+}
+
+.level-map-heading {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+.level-map-title {
+  margin: 0;
+  opacity: 0.92;
+  letter-spacing: 0.14em;
+}
+
+.level-map-grid-slot {
+  padding-top: 10px;
 }
 .portfolio-nav-item {
   position: relative;
@@ -517,9 +539,17 @@ a:focus-visible {
     padding: 10px 6px;
     gap: 8px;
   }
-  .portfolio-brand {
-    width: 100%;
-    text-align: center;
+  .portfolio-nav--map {
+    padding: 8px 6px 2px;
+  }
+  .level-map-page {
+    padding: 8px 12px 18px;
+  }
+  .level-map-heading {
+    margin-bottom: 4px;
+  }
+  .level-map-grid-slot {
+    padding-top: 6px;
   }
   .portfolio-nav-items {
     width: 100%;

@@ -1,31 +1,36 @@
 export const levelTheme = {
-  container: 'w-full max-w-[600px] mx-auto p-2',
+  container: 'relative w-full max-w-[600px] mx-auto px-2 py-4',
 
-  grid: 'grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-3',
+  grid: 'relative z-10 grid grid-cols-3 gap-x-4 gap-y-5 sm:gap-x-7 sm:gap-y-6',
 
   shape: {
-    // Octagon
     clip: '[clip-path:polygon(25%_6%,75%_6%,96%_50%,75%_94%,25%_94%,4%_50%)]',
   },
 
   button: {
     base: `
-      group relative w-full min-w-0 aspect-[4/3]
-      flex flex-col items-center justify-center gap-1
+      group relative w-full min-w-0 aspect-[1.38/1] sm:aspect-[1.58/1]
+      flex items-center justify-center
+      overflow-visible select-none
       font-semibold tracking-wide
-      select-none focus-visible:outline-2 focus-visible:outline-cyan-300
-      transition-transform duration-200
-      bg-[linear-gradient(135deg,rgba(15,23,42,0.92),rgba(2,6,23,0.92))]
+      transition-[filter,opacity] duration-150 ease-out
+      focus-visible:outline-2 focus-visible:outline-cyan-300
     `,
 
     locked: `
-      cursor-not-allowed opacity-95
-      text-pink-200
+      cursor-not-allowed opacity-58
+    `,
+
+    completed: `
+      cursor-default opacity-74
+      drop-shadow-[0_0_5px_rgba(52,211,153,0.1)]
     `,
 
     active: `
-      cursor-pointer
-      text-cyan-200
+      cursor-pointer opacity-100
+      drop-shadow-[0_0_8px_rgba(34,211,238,0.28)]
+      hover:brightness-110
+      hover:drop-shadow-[0_0_12px_rgba(34,211,238,0.48)]
     `,
   },
 };

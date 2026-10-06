@@ -65,23 +65,33 @@ export default function LevelMapPage() {
   return (
     <>
       <Navbar />
-      <div className="p-6">
-        <CyberTitle size="md" className="text-center">
-          Level Map
-        </CyberTitle>
+      <div className="level-map-page">
+        <div className="level-map-heading">
+          <CyberTitle size="md" className="level-map-title text-center !text-[30px] md:!text-[34px]">
+            Level Map
+          </CyberTitle>
+        </div>
+
         <GuestStatus />
         <AccountPersistenceStatus />
-        {mode === 'account' && profileRequest === 'loading' && <p className="text-center">Updating account data · last confirmed values are read-only.</p>}
+
+        {mode === 'account' && profileRequest === 'loading' && (
+          <p className="text-center">Updating account data · last confirmed values are read-only.</p>
+        )}
+
         {!user && guestAccess.campaignComplete && (
-          <div className="text-center my-4">
+          <div className="my-4 text-center">
             <p>Campaign complete! Optional sandbox 12 is unlocked.</p>
           </div>
         )}
-        <LevelGrid
-          progress={visibleProgress}
-          playableStages={user ? (!outcomeStore.canStart() || profileRequest === 'loading' ? [] : [profile!.frontier]) : guestAccess.playableStages}
-          onSelect={onSelect}
-        />
+
+        <div className="level-map-grid-slot">
+          <LevelGrid
+            progress={visibleProgress}
+            playableStages={user ? (!outcomeStore.canStart() || profileRequest === 'loading' ? [] : [profile!.frontier]) : guestAccess.playableStages}
+            onSelect={onSelect}
+          />
+        </div>
       </div>
     </>
   );
