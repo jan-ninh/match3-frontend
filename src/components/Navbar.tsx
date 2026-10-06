@@ -1,4 +1,4 @@
-import { Link, useNavigate } from 'react-router';
+import { Link, useLocation, useNavigate } from 'react-router';
 import { useOverlays } from '@/features/overlays';
 import { useAuth } from '@/context/AuthContext';
 import SpriteIcon from '@/components/SpriteIcon'; // default export assumed
@@ -23,7 +23,8 @@ type NavItem = NavLinkItem | NavActionItem;
 
 export default function Navbar() {
   const { openLogin, openSettings } = useOverlays();
-  const { mode, logout, resumeAccount, playDemo } = useAuth();
+  const { mode, logout } = useAuth();
+  const location = useLocation();
   const navigate = useNavigate();
 
   const isAccount = mode === 'account';
@@ -31,36 +32,13 @@ export default function Navbar() {
   const baseItems: NavItem[] = [
     { kind: 'link', label: 'Map', icon: 'home', to: '/game-map' },
     { kind: 'link', label: 'Leaderboard', icon: 'leaderboard', to: '/game-map/leaderboard' },
-    { kind: 'action', label: 'Settings', icon: 'settings', onClick: openSettings },
   ];
-
-  if (isAccount)
-    baseItems.push({
-      kind: 'action',
-      label: 'Play Demo',
-      icon: 'play',
-      onClick: () => {
-        playDemo();
-        navigate('/game-map');
-      },
-    });
-  else
-    baseItems.push({
-      kind: 'action',
-      label: 'Account',
-      icon: 'profile',
-      onClick: () => {
-        resumeAccount();
-        navigate('/game-map');
-      },
-    });
-
-  const authItems: NavItem[] = [{ kind: 'link', label: 'Profile', icon: 'profile', to: '/game-map/profile' }];
 
   const navItems: NavItem[] = isAccount
     ? [
         ...baseItems,
-        ...authItems,
+        { kind: 'link', label: 'Profile', icon: 'profile', to: '/game-map/profile' },
+        { kind: 'action', label: 'Settings', icon: 'settings', onClick: openSettings },
         {
           kind: 'action',
           label: 'Logout',
@@ -73,12 +51,8 @@ export default function Navbar() {
       ]
     : [
         ...baseItems,
-        {
-          kind: 'action',
-          label: 'Login',
-          icon: 'login',
-          onClick: openLogin,
-        },
+        { kind: 'action', label: 'Login', icon: 'login', onClick: openLogin },
+        { kind: 'action', label: 'Settings', icon: 'settings', onClick: openSettings },
       ];
 
   // helper: detect if icon is a URL
@@ -89,46 +63,59 @@ export default function Navbar() {
   return (
     <>
       <nav className="portfolio-nav" aria-label="Main navigation">
-        <Link to="/" className="portfolio-brand relative top-1" aria-label="Match-3 home">
+        <Link
+          to="/"
+          className="portfolio-brand relative top-1"
+          aria-label="Match-3 home"
+          draggable={false}
+          onDragStart={(event) => event.preventDefault()}
+        >
           <CyberTitle size="sm" className="!text-lg md:!text-xl select-none">
             Match-3
           </CyberTitle>
         </Link>
         <ul className="portfolio-nav-items">
-          {navItems.map((item) => (
-            <li key={item.label} className="flex items-center">
-              {item.kind === 'link' ? (
-                <Link
-                  to={item.to}
-                  className="flex items-center justify-center p-1  hover:scale-110 active:scale-95  transition-transform duration-300 ease-out  rounded"
-                  aria-label={item.label}
-                  title={item.label}
-                >
-                  {isUrl(item.icon) ? (
-                    <img src={item.icon} alt="" className=" object-contain" />
-                  ) : (
-                    <SpriteIcon name={item.icon} width={36} height={36} className="" alt="" />
-                  )}
-                  <span className="nav-label">{item.label}</span>
-                </Link>
-              ) : (
-                <button
-                  type="button"
-                  onClick={item.onClick}
-                  className="flex items-center justify-center p-1  hover:scale-110 active:scale-95  transition-transform duration-300 ease-out  rounded"
-                  aria-label={item.label}
-                  title={item.label}
-                >
-                  {isUrl(item.icon) ? (
-                    <img src={item.icon} alt="" className=" object-contain" />
-                  ) : (
-                    <SpriteIcon name={item.icon} width={36} height={36} className="" alt="" />
-                  )}
-                  <span className="nav-label">{item.label}</span>
-                </button>
-              )}
-            </li>
-          ))}
+          {navItems.map((item) => {
+            const isCurrent = item.kind === 'link' && location.pathname === item.to;
+
+            const icon = (
+              <span className="nav-icon-shell" aria-hidden="true">
+                {isUrl(item.icon) ? (
+                  <img src={item.icon} alt="" className="object-contain" />
+                ) : (
+                  <SpriteIcon name={item.icon} width={36} height={36} alt="" />
+                )}
+              </span>
+            );
+
+            return (
+              <li key={item.label} className="flex items-center">
+                {item.kind === 'link' ? (
+                  <Link
+                    to={item.to}
+                    className={`portfolio-nav-item${isCurrent ? ' is-active' : ''}`}
+                    aria-label={item.label}
+                    aria-current={isCurrent ? 'page' : undefined}
+                    draggable={false}
+                    onDragStart={(event) => event.preventDefault()}
+                  >
+                    {icon}
+                    <span className="nav-label">{item.label}</span>
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={item.onClick}
+                    className="portfolio-nav-item"
+                    aria-label={item.label}
+                  >
+                    {icon}
+                    <span className="nav-label">{item.label}</span>
+                  </button>
+                )}
+              </li>
+            );
+          })}
         </ul>
       </nav>
       <AccountServiceStatus />
