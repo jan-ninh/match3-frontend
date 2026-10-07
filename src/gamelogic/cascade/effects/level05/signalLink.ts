@@ -1,20 +1,18 @@
 import type { CascadeEffect, PostStageArgs, StageResult } from '../typesEffects';
 import type { EngineState } from '../../../types';
-import { isSignalLinked, isSignalLinkedLevel04ByFirewalls } from '../../../board/signal/signalPathCheck';
+import { isSignalLinked, isSignalLinkedByFirewallEndpoints } from '../../../board/signal/signalPathCheck';
 import { getSignalLinkModeForLevelId } from '../../../scenarios/policies';
 
 function activateDormantFirewallsForSignalBreach(state: EngineState): EngineState {
-
   let nextCells = state.cells;
   let changed = false;
 
   for (let i = 0; i < state.cells.length; i++) {
     const c = state.cells[i]!;
     const obs = c.obstacle;
+
     if (!obs || obs.kind !== 'firewall') continue;
     if (obs.origin !== 'level4Dormant') continue;
-
-    // Dormant nodes are represented by hp<=0 at init.
     if (obs.hp > 0) continue;
 
     if (!changed) {
@@ -22,13 +20,11 @@ function activateDormantFirewallsForSignalBreach(state: EngineState): EngineStat
       changed = true;
     }
 
-    const nextHp = Math.max(1, obs.maxHp | 0);
-
     nextCells[i] = {
       ...c,
       obstacle: {
         ...obs,
-        hp: nextHp,
+        hp: Math.max(1, obs.maxHp | 0),
       },
     };
   }
@@ -45,9 +41,8 @@ export const signalLinkEffect: CascadeEffect = {
 
     const linkMode = getSignalLinkModeForLevelId(state.levelId);
 
-    // Signal Breach: endpoints are the two dormant firewalls (no signal nodes).
     if (linkMode === 'firewallEndpoints') {
-      if (!isSignalLinkedLevel04ByFirewalls(state)) return { state, ctx };
+      if (!isSignalLinkedByFirewallEndpoints(state)) return { state, ctx };
 
       events.push({ type: 'signalLinked' });
 
@@ -56,15 +51,14 @@ export const signalLinkEffect: CascadeEffect = {
       return { state: nextState, ctx };
     }
 
-    // Default Signal Network: requires explicit source+target nodes.
     if ((state.signalSourcesTotal | 0) <= 0 || (state.signalTargetsTotal | 0) <= 0) return { state, ctx };
-
     if (!isSignalLinked(state)) return { state, ctx };
 
-    // Mark link as achieved (engine-owned, one-shot).
     events.push({ type: 'signalLinked' });
 
-    const nextState: EngineState = { ...state, signalLinked: true };
-    return { state: nextState, ctx };
+    return {
+      state: { ...state, signalLinked: true },
+      ctx,
+    };
   },
 };

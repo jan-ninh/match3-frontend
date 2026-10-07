@@ -10,24 +10,18 @@ export function isStageId(v: number): v is StageId {
   return STAGE_ID_SET.has(n);
 }
 
-/**
- * SSOT: StageId (1..12) → ScenarioKey
- *
- * Swapping levels in the campaign becomes a 1-file change:
- * - swap the ScenarioKey values between stage numbers.
- */
 export const STAGE_CATALOG: Readonly<Record<StageId, ScenarioKey>> = {
   1: 'level1-redesign',
   2: 'level2-redesign',
-  3: 'tiberium-run',
-  4: 'signal-breach',
+  3: 'level3-redesign',
+  4: 'level4-redesign',
   5: 'match-rush',
-  6: 'laserrow-match4-training',
-  7: 'patch-the-hole',
-  8: 'false-identity',
-  9: 'stone-tiles-intro',
-  10: 'firewall-sweep-bossroom',
-  11: 'enemy-turn-trace',
+  6: 'level6-redesign',
+  7: 'level7-redesign',
+  8: 'level8-redesign',
+  9: 'level9-redesign',
+  10: 'level10-redesign',
+  11: 'level11-redesign',
   12: 'sandbox',
 } as const;
 

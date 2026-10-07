@@ -30,13 +30,10 @@ export function ObjectiveActivateTerminals({ objective }: Props) {
 
   const isDone = total > 0 && active >= total;
 
-  const preTitle = 'Activate Terminals';
-  const title = isDone ? 'All terminals activated!' : preTitle;
-
-  const hint = 'Make matches adjacent to terminals to charge them. Watch the laser warning!';
+  const title = isDone ? 'All terminals activated!' : 'Activate Terminals';
+  const hint = 'Make matches adjacent to terminals to charge them.';
 
   const showStateChips = states.length > 0;
-
   const descItems: ObjectiveDescItem[] = [];
 
   if (showStateChips) {

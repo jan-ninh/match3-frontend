@@ -6,6 +6,7 @@ import { ObjectiveLeaks } from './Objective-06-Leaks';
 import { ObjectiveTerminals } from './Objective-05-DeliverIDcards';
 import { ObjectiveActivateTerminals } from './Objective-04-ActivateTerminals';
 import { ObjectivePath } from './Objective-03-Path';
+import { ObjectiveSignalBreach } from './Objective-SignalBreach';
 import { ObjectiveMatchRush } from './Objective-07-MatchRush';
 import { ObjectiveLaserRowMatch4 } from './Objective-09-LaserRowMatch4';
 
@@ -43,9 +44,10 @@ export function ObjectivePanel({ objective }: Props) {
     case 'signal':
       return <ObjectivePath objective={objective} />;
 
+    case 'signalBreach':
+      return <ObjectiveSignalBreach objective={objective} />;
+
     default: {
-      // Runtime safety: never hard-crash the whole game because of a HUD mismatch.
-      // In DEV we show a small debug panel so you can see what kind came through.
       const kind = (objective as unknown as { kind?: unknown }).kind;
       if (import.meta.env.DEV) {
         return (

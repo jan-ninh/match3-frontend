@@ -66,6 +66,14 @@ function buildObjective(input: GameplayHudInput): HudObjective {
         chargedCount: input.chargedCellCount,
       };
 
+    case 'signalBreach':
+      return {
+        kind: 'signalBreach',
+        linked: input.signalLinked,
+        breachDone: input.breachDone,
+        breachTotal: input.breachTotal,
+      };
+
     case 'none':
       return { kind: 'none' };
 

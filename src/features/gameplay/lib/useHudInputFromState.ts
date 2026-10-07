@@ -2,7 +2,7 @@
 import { useMemo } from 'react';
 import type { EngineState } from '@/gamelogic';
 import type { GameplayHudInput } from '@/features/gameplay/lib/hud/typesHud';
-import { isMatchRushStage } from '@/gamelogic/scenarios/policies';
+import { isMatchRushStage, isSignalBreachStage } from '@/gamelogic/scenarios/policies';
 
 type TerminalHudState = {
   id: number;
@@ -66,14 +66,11 @@ function deriveObjectiveKind(args: {
   const { levelId, collectTarget, signalSourcesTotal, signalTargetsTotal, objectiveTerminalsTotal, terminalsTotal, leaksTotal, laserRowMatch4Target, cells } = args;
 
   if ((collectTarget | 0) > 0) return 'collect';
-
-  // Match Rush scenario
   if (isMatchRushStage(levelId)) return 'matchRush';
-
-  // Level 09+: LaserRow -> Match4+ objective (engine-owned)
   if ((laserRowMatch4Target | 0) > 0) return 'laserRowMatch4';
 
-  // Level 05: Signal Network takes priority
+  if (isSignalBreachStage(levelId)) return 'signalBreach';
+
   if (signalSourcesTotal > 0 && signalTargetsTotal > 0) return 'signal';
 
   if (objectiveTerminalsTotal > 0) return 'objectiveTerminals';
@@ -124,10 +121,6 @@ function extractObjectiveTerminalStates(cells: EngineState['cells']): ObjectiveT
   return terminals.sort((a, b) => a.id - b.id);
 }
 
-/**
- * Derives GameplayHudInput from EngineState.
- * Memoized to avoid unnecessary re-renders.
- */
 export function useHudInputFromState(state: EngineState): GameplayHudInput {
   const {
     levelId,
@@ -172,7 +165,6 @@ export function useHudInputFromState(state: EngineState): GameplayHudInput {
     const contaminationThreshold = contaminationLoseThreshold ?? null;
     const contaminationCount = countContamination(cells);
 
-    // Count charged cells from cells (in case chargedCellCount is stale)
     const actualChargedCount = countChargedCells(cells);
 
     const objectiveKind = deriveObjectiveKind({

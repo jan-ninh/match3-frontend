@@ -4,38 +4,20 @@ import { getScenarioKeyForStage, isStageId } from '../stages/stageCatalog';
 export type SignalLinkMode = 'none' | 'nodes' | 'firewallEndpoints';
 
 export type ScenarioPolicies = Readonly<{
-  /** UI intent gating only (engine still validates swaps). */
   manualSwapsDisabled: boolean;
-
-  /** UI inventory rule: do not decrement items on use (ACK still emitted). */
   infiniteItems: boolean;
-
-  /** HUD behavior. */
   hud: Readonly<{
     showMovesWidget: boolean;
-    /** MatchRush uses a UI-only timer store; LaserRow training uses engine timeLeftSec; others usually none. */
     timeSource: 'none' | 'matchRushStore' | 'engine';
     showMatchRushBar: boolean;
   }>;
-
-  /** Engine mechanics toggles (must be stable during a run). */
   engine: Readonly<{
-    /** Charged-cells / signal pipeline can be used as pure trace even without signal nodes. */
     enableChargedCells: boolean;
-    /** Signal link rules. */
     signalLinkMode: SignalLinkMode;
-    /** Level 05 mechanic: spawn keycards when Match4+ occurs. */
     keycardSpawnOnMatch4: boolean;
   }>;
 }>;
 
-/**
- * SSOT: ScenarioKey → ScenarioPolicies
- *
- * Rule:
- * - NEVER key gameplay semantics off StageId numbers.
- * - StageId may be swapped freely in stageCatalog.ts, and semantics must follow the ScenarioKey.
- */
 const SCENARIO_POLICIES: Readonly<Record<ScenarioKey, ScenarioPolicies>> = {
   'level1-redesign': {
     manualSwapsDisabled: false,
@@ -48,6 +30,54 @@ const SCENARIO_POLICIES: Readonly<Record<ScenarioKey, ScenarioPolicies>> = {
     infiniteItems: false,
     hud: { showMovesWidget: true, timeSource: 'none', showMatchRushBar: false },
     engine: { enableChargedCells: false, signalLinkMode: 'none', keycardSpawnOnMatch4: false },
+  },
+  'level3-redesign': {
+    manualSwapsDisabled: false,
+    infiniteItems: false,
+    hud: { showMovesWidget: true, timeSource: 'none', showMatchRushBar: false },
+    engine: { enableChargedCells: false, signalLinkMode: 'none', keycardSpawnOnMatch4: false },
+  },
+  'level4-redesign': {
+    manualSwapsDisabled: false,
+    infiniteItems: false,
+    hud: { showMovesWidget: true, timeSource: 'none', showMatchRushBar: false },
+    engine: { enableChargedCells: false, signalLinkMode: 'none', keycardSpawnOnMatch4: false },
+  },
+  'level6-redesign': {
+    manualSwapsDisabled: false,
+    infiniteItems: false,
+    hud: { showMovesWidget: true, timeSource: 'none', showMatchRushBar: false },
+    engine: { enableChargedCells: true, signalLinkMode: 'none', keycardSpawnOnMatch4: false },
+  },
+  'level7-redesign': {
+    manualSwapsDisabled: false,
+    infiniteItems: false,
+    hud: { showMovesWidget: true, timeSource: 'none', showMatchRushBar: false },
+    engine: { enableChargedCells: false, signalLinkMode: 'none', keycardSpawnOnMatch4: false },
+  },
+  'level8-redesign': {
+    manualSwapsDisabled: false,
+    infiniteItems: false,
+    hud: { showMovesWidget: true, timeSource: 'none', showMatchRushBar: false },
+    engine: { enableChargedCells: true, signalLinkMode: 'firewallEndpoints', keycardSpawnOnMatch4: false },
+  },
+  'level9-redesign': {
+    manualSwapsDisabled: false,
+    infiniteItems: false,
+    hud: { showMovesWidget: true, timeSource: 'none', showMatchRushBar: false },
+    engine: { enableChargedCells: false, signalLinkMode: 'none', keycardSpawnOnMatch4: false },
+  },
+  'level10-redesign': {
+    manualSwapsDisabled: false,
+    infiniteItems: false,
+    hud: { showMovesWidget: true, timeSource: 'none', showMatchRushBar: false },
+    engine: { enableChargedCells: false, signalLinkMode: 'none', keycardSpawnOnMatch4: false },
+  },
+  'level11-redesign': {
+    manualSwapsDisabled: false,
+    infiniteItems: false,
+    hud: { showMovesWidget: true, timeSource: 'none', showMatchRushBar: false },
+    engine: { enableChargedCells: true, signalLinkMode: 'firewallEndpoints', keycardSpawnOnMatch4: false },
   },
   'clean-room': {
     manualSwapsDisabled: false,
@@ -149,7 +179,7 @@ export function isMatchRushStage(levelId: number | null): boolean {
 }
 
 export function isSignalBreachStage(levelId: number | null): boolean {
-  return isScenario(levelId, 'signal-breach');
+  return getSignalLinkModeForLevelId(levelId) === 'firewallEndpoints';
 }
 
 export function isManualSwapDisabledStage(levelId: number | null): boolean {
