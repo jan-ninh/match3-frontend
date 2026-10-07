@@ -3,9 +3,14 @@ import type { EngineState } from '../types';
 import { isSignalLinked, isSignalLinkedLevel04ByFirewalls } from '../board/signal/signalPathCheck';
 import { isSignalBreachStage } from '../scenarios/policies';
 
-export type WinReason = 'matchRush' | 'laserRowMatch4' | 'stoneTiles' | 'gate' | 'leaks' | 'terminals' | 'objectiveTerminals' | 'signal';
+export type WinReason = 'collect' | 'matchRush' | 'laserRowMatch4' | 'stoneTiles' | 'gate' | 'leaks' | 'terminals' | 'objectiveTerminals' | 'signal';
 
 export function getWinReasonIfMet(state: EngineState): WinReason | null {
+  // Generic collect objective.
+  if ((state.collectTarget | 0) > 0 && (state.collectCount | 0) >= (state.collectTarget | 0)) {
+    return 'collect';
+  }
+
   // Level 07: MatchRush win
   if ((state.matchRushTargetUnits | 0) > 0 && (state.matchRushUnits | 0) >= (state.matchRushTargetUnits | 0)) {
     return 'matchRush';

@@ -10,6 +10,7 @@ import { signalChargeEffect } from './level05/signalCharge';
 import { signalLinkEffect } from './level05/signalLink';
 import { matchRushProgressEffect } from './level07/matchRushProgress';
 import { stoneTileDamageEffect } from './level08/stoneTileDamage';
+import { collectProgressEffect } from './collect/collectProgress';
 import { shouldEnableSignalPipelineForLevelId } from '../../scenarios/policies';
 
 export function getCascadeEffectsForState(state: EngineState): readonly CascadeEffect[] {
@@ -42,6 +43,11 @@ export function getCascadeEffectsForState(state: EngineState): readonly CascadeE
     effects.push(signalLinkEffect);
   }
 
+
+  // Generic collect objective.
+  if ((state.collectTarget | 0) > 0 && state.collectPieceType) {
+    effects.push(collectProgressEffect);
+  }
 
   // Level 07: Match Rush progress (static toggle via matchRushTargetUnits)
   if ((state.matchRushTargetUnits | 0) > 0) {

@@ -317,6 +317,9 @@ export function createState(
   // (Seeded random placement is resolved during board build.)
   const breachesTotal = cells.reduce((acc, c) => (c.obstacle?.kind === 'firewall' ? acc + 1 : acc), 0);
 
+  const collectPieceType = level.collectObjective?.pieceType ?? null;
+  const collectTarget = clampInt(level.collectObjective?.target ?? 0, 0, 9999);
+
   const base: EngineState = {
     levelId,
     width: level.width,
@@ -343,6 +346,11 @@ export function createState(
 
     // Turn counter (0-based)
     turnIndex: 0,
+
+    // Generic collect objective
+    collectPieceType,
+    collectTarget,
+    collectCount: 0,
 
     // Level 07: Match Rush (units to win; 0=disabled)
     matchRushTargetUnits: level.matchRushTargetUnits ?? 0,

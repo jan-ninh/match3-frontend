@@ -54,6 +54,7 @@ function calcMatchRushPercent(units: number, targetUnits: number): number {
 
 function deriveObjectiveKind(args: {
   levelId: number;
+  collectTarget: number;
   signalSourcesTotal: number;
   signalTargetsTotal: number;
   objectiveTerminalsTotal: number;
@@ -62,7 +63,9 @@ function deriveObjectiveKind(args: {
   laserRowMatch4Target: number;
   cells: EngineState['cells'];
 }): ObjectiveKind {
-  const { levelId, signalSourcesTotal, signalTargetsTotal, objectiveTerminalsTotal, terminalsTotal, leaksTotal, laserRowMatch4Target, cells } = args;
+  const { levelId, collectTarget, signalSourcesTotal, signalTargetsTotal, objectiveTerminalsTotal, terminalsTotal, leaksTotal, laserRowMatch4Target, cells } = args;
+
+  if ((collectTarget | 0) > 0) return 'collect';
 
   // Match Rush scenario
   if (isMatchRushStage(levelId)) return 'matchRush';
@@ -128,6 +131,9 @@ function extractObjectiveTerminalStates(cells: EngineState['cells']): ObjectiveT
 export function useHudInputFromState(state: EngineState): GameplayHudInput {
   const {
     levelId,
+    collectPieceType,
+    collectCount,
+    collectTarget,
     gateOpen,
     breachesTotal,
     breachesRemaining,
@@ -171,6 +177,7 @@ export function useHudInputFromState(state: EngineState): GameplayHudInput {
 
     const objectiveKind = deriveObjectiveKind({
       levelId,
+      collectTarget: collectTarget ?? 0,
       signalSourcesTotal: signalSourcesTotal ?? 0,
       signalTargetsTotal: signalTargetsTotal ?? 0,
       objectiveTerminalsTotal: objectiveTerminalsTotal ?? 0,
@@ -204,6 +211,9 @@ export function useHudInputFromState(state: EngineState): GameplayHudInput {
 
     return {
       levelId,
+      collectPieceType: collectPieceType ?? null,
+      collectCount: collectCount ?? 0,
+      collectTarget: collectTarget ?? 0,
       gateOpen,
       breachDone,
       breachTotal,
@@ -238,6 +248,9 @@ export function useHudInputFromState(state: EngineState): GameplayHudInput {
     };
   }, [
     levelId,
+    collectPieceType,
+    collectCount,
+    collectTarget,
     gateOpen,
     breachesTotal,
     breachesRemaining,

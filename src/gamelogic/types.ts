@@ -273,6 +273,11 @@ export type StoneTileNodeDef = {
   index: number;
 };
 
+export type CollectObjectiveDef = {
+  pieceType: PieceType;
+  target: number;
+};
+
 export type LevelDefinition = {
   id: LevelId;
   width: number;
@@ -284,6 +289,9 @@ export type LevelDefinition = {
 
   // Optional non-hint objective title (UI may choose to display it).
   objectiveTitle?: string;
+
+  // Generic "collect matched tiles of one color" objective.
+  collectObjective?: CollectObjectiveDef;
 
   // Item objective policy (Level-configurable)
   itemObjectivesDefault?: ItemObjectivesPolicy;
@@ -516,6 +524,7 @@ export type EngineEvent =
   | { type: 'deadlockCheck'; hasMove: boolean }
   | { type: 'shuffled'; attempts: number }
   | { type: 'movesSpent'; left: number }
+  | { type: 'collectProgress'; pieceType: PieceType; gained: number; count: number; target: number }
   | { type: 'firewallDamaged'; index: number; hp: number }
   | { type: 'firewallDestroyed'; index: number }
   | { type: 'gateOpened' }
@@ -600,6 +609,11 @@ export type EngineState = {
 
   // turn counter (0-based, increments after each complete player turn)
   turnIndex: number;
+
+  // Generic collect objective
+  collectPieceType: PieceType | null;
+  collectTarget: number;
+  collectCount: number;
 
   // Level 07: Match Rush
   matchRushTargetUnits: number;

@@ -88,6 +88,8 @@ function formatEvent(e: DebugLogEvent): string {
       return `shuffled(attempts=${e.attempts})`;
     case 'movesSpent':
       return `movesSpent(left=${e.left})`;
+    case 'collectProgress':
+      return `collectProgress(type=${e.pieceType}, +${e.gained}, ${e.count}/${e.target})`;
     case 'firewallDamaged':
       return `firewallDamaged(index=${e.index}, hp=${e.hp})`;
     case 'firewallDestroyed':
@@ -194,7 +196,7 @@ function formatEvent(e: DebugLogEvent): string {
     case 'turnEndComplete':
       return 'turnEndComplete()';
     case 'turnSeparator':
-      return ''; // rendered as blank line, not text
+      return '';
 
     default: {
       const _exhaustive: never = e;
@@ -205,8 +207,6 @@ function formatEvent(e: DebugLogEvent): string {
 
 type Props = {
   events: EngineEvent[];
-
-  // Cap for perf/readability. Set <= 0 to render all events.
   maxLines?: number;
 };
 
@@ -221,7 +221,6 @@ export default function DebugEventLog({ events, maxLines = DEFAULT_MAX_LINES }: 
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const bottomRef = useRef<HTMLLIElement | null>(null);
 
-  // Clear UI events on fresh init/reset so the log stays readable per level.
   useEffect(() => {
     if (!events.length) return;
     const last = events[events.length - 1];
@@ -328,7 +327,6 @@ export default function DebugEventLog({ events, maxLines = DEFAULT_MAX_LINES }: 
       <div ref={scrollerRef} className={`mt-2 ${scrollerMaxH} overflow-y-auto overscroll-contain`} style={{ scrollbarGutter: 'stable' }}>
         <ul className="space-y-0">
           {lastEventsChrono.map((e, i) => {
-            // turnSeparator: render as engine-owned blank line (no inference)
             if (e.type === 'turnSeparator') {
               return (
                 <li key={i} className="font-mono text-xs whitespace-pre text-white/0 select-none" aria-hidden="true">

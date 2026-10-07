@@ -1,4 +1,6 @@
 export const SCENARIO_KEYS = [
+  'level1-redesign',
+  'level2-redesign',
   'clean-room',
   'breach-protocol',
   'tiberium-run',

@@ -1,6 +1,7 @@
 // src/features/gameplay/lib/hud/typesHud.ts
 
 export type HudObjectiveKind =
+  | 'collect'
   | 'spikes'
   | 'nodes'
   | 'leaks'
@@ -33,6 +34,7 @@ export type HudObjectiveTerminalState = {
 
 export type HudObjective =
   | { kind: 'none' }
+  | { kind: 'collect'; pieceType: string; count: number; target: number }
   | { kind: 'matchRush' }
   | { kind: 'laserRowMatch4'; remaining: number; target: number }
   | { kind: 'spikes' | 'nodes'; breachDone: number; breachTotal: number; gateOpen: boolean }
@@ -80,6 +82,10 @@ export type HudModel = {
 
 export type GameplayHudInput = {
   levelId: number;
+
+  collectPieceType: string | null;
+  collectCount: number;
+  collectTarget: number;
 
   gateOpen: boolean;
 

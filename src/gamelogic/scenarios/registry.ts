@@ -2,6 +2,8 @@ import type { LevelDefinition, PieceType } from '../types';
 
 import type { ScenarioKey } from './scenarioKeys';
 
+import { makeLevel1RedesignScenario } from './defs/level1-redesign';
+import { makeLevel2RedesignScenario } from './defs/level2-redesign';
 import { makeCleanRoomScenario } from './defs/clean-room';
 import { makeBreachProtocolScenario } from './defs/breach-protocol';
 import { makeTiberiumRunScenario } from './defs/tiberium-run';
@@ -30,6 +32,8 @@ export type ScenarioFactory = (args: ScenarioFactoryArgs) => LevelDefinition;
  * - ScenarioKey now maps to semantic scenario modules in `scenarios/defs/*`
  */
 const SCENARIO_REGISTRY: Readonly<Record<ScenarioKey, ScenarioFactory>> = {
+  'level1-redesign': makeLevel1RedesignScenario,
+  'level2-redesign': makeLevel2RedesignScenario,
   'clean-room': makeCleanRoomScenario,
   'breach-protocol': makeBreachProtocolScenario,
   'tiberium-run': makeTiberiumRunScenario,

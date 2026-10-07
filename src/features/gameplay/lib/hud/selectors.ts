@@ -7,6 +7,14 @@ function buildObjective(input: GameplayHudInput): HudObjective {
   const k = input.objectiveKind;
 
   switch (k) {
+    case 'collect':
+      return {
+        kind: 'collect',
+        pieceType: input.collectPieceType ?? 'tile',
+        count: input.collectCount,
+        target: input.collectTarget,
+      };
+
     case 'matchRush':
       return { kind: 'matchRush' };
 

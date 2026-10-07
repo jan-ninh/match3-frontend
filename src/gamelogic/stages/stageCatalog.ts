@@ -17,8 +17,8 @@ export function isStageId(v: number): v is StageId {
  * - swap the ScenarioKey values between stage numbers.
  */
 export const STAGE_CATALOG: Readonly<Record<StageId, ScenarioKey>> = {
-  1: 'clean-room',
-  2: 'breach-protocol',
+  1: 'level1-redesign',
+  2: 'level2-redesign',
   3: 'tiberium-run',
   4: 'signal-breach',
   5: 'match-rush',

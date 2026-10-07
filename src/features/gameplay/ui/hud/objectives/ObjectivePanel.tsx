@@ -1,5 +1,6 @@
 // src/features/gameplay/ui/hud/objectives/ObjectivePanel.tsx
 import type { HudObjective } from '@/features/gameplay/lib/hud/typesHud';
+import { ObjectiveCollect } from './Objective-Collect';
 import { ObjectiveNodes } from './Objective-01-Nodes';
 import { ObjectiveLeaks } from './Objective-06-Leaks';
 import { ObjectiveTerminals } from './Objective-05-DeliverIDcards';
@@ -16,6 +17,9 @@ export function ObjectivePanel({ objective }: Props) {
   switch (objective.kind) {
     case 'none':
       return null;
+
+    case 'collect':
+      return <ObjectiveCollect objective={objective} />;
 
     case 'matchRush':
       return <ObjectiveMatchRush objective={objective} />;
