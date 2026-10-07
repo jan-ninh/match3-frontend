@@ -43,12 +43,4 @@ export const footerActions = (_openSettings: () => void, powers: Powers, onUsePo
     count: powers.extraShuffle,
     onClick: () => onUsePower('extraShuffle'),
   },
-
-  {
-    // Button4
-    id: 'button4',
-    label: 'Quit',
-    icon: '/icons/return-map.svg',
-    onClick: () => undefined,
-  },
 ];

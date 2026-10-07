@@ -120,7 +120,7 @@ export function GridDevPanels({
 
     return (
       /* 0) MAINCONTAINER - LEFT LANE  */
-      <div className="flex flex-col gap-3 ">
+      <div className="flex flex-col gap-3 pointer-events-auto select-none cursor-default">
         {/* 1) CONTAINER - TOP */}
         <div className="flex gap-3">
           {/* a) CONTAINER - INPUT DEBUG */}

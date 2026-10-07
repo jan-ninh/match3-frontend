@@ -1,4 +1,3 @@
-import { useOverlays } from '@/features/overlays';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { footerActions } from './footerAction';
 import { usePowers } from '@/context/PowerContext';
@@ -20,7 +19,6 @@ const DEFAULT_ICON_PX_ACTIVE = 80;
 const ICON_PX_ACTIVE_GRIDLASER = 65;
 const ICON_PX_ACTIVE_LASER = 80;
 const ICON_PX_ACTIVE_RESHUFFLE = 60;
-const ICON_PX_ACTIVE_ITEM4 = 90;
 
 const noopOpenSettings = (): void => undefined;
 
@@ -41,7 +39,6 @@ const ICON_PX_ACTIVE_BY_ID: Readonly<Partial<Record<string, number>>> = {
 
   reshuffle: ICON_PX_ACTIVE_RESHUFFLE,
   extraShuffle: ICON_PX_ACTIVE_RESHUFFLE, // alias: current PowerKey id
-  item4: ICON_PX_ACTIVE_ITEM4,
 };
 
 function isCounted(item: FooterActionItem): item is FooterActionItem & { count: number } {
@@ -90,7 +87,6 @@ function allocFooterRequestId(): number {
 }
 
 export default function GameFooter() {
-  const { openQuitConfirm } = useOverlays();
   const { powers } = usePowers();
 
   const [armedGridlaser, setArmedGridlaser] = useState(false);
@@ -310,8 +306,7 @@ export default function GameFooter() {
             void onUsePower(powerKey);
             return;
           }
-          if (item.id === 'button4') openQuitConfirm();
-          else item.onClick();
+          item.onClick();
         };
 
         return (
@@ -343,6 +338,16 @@ export default function GameFooter() {
           </NeonFooterButton>
         );
       })}
+
+      <NeonFooterButton
+        aria-label="Empty skill slot"
+        aria-disabled="true"
+        tabIndex={-1}
+        className="pointer-events-none"
+        data-footer-btn="empty-slot"
+      >
+        <span aria-hidden="true" />
+      </NeonFooterButton>
     </div>
   );
 }

@@ -58,7 +58,7 @@ type Props = {
   children: ReactNode;
 };
 
-export function GameplayRoot({ initialLevelId = 1, guestBinding, children }: Props) {
+export function GameplayRoot({ initialLevelId = 1, guestBinding, allowDevLevelHop = false, children }: Props) {
   const navigate = useNavigate();
   const { store } = useGuest();
 
@@ -102,6 +102,8 @@ export function GameplayRoot({ initialLevelId = 1, guestBinding, children }: Pro
     },
   });
 
+  const devLevelHopEnabled = isDev && allowDevLevelHop;
+
   const value = useMemo<GameplayRuntime>(
     () => ({
       isDev,
@@ -111,13 +113,17 @@ export function GameplayRoot({ initialLevelId = 1, guestBinding, children }: Pro
       onIntent,
       onDevResetBoard,
       onDevFixedSeed,
-      onDevNextLevel: userId ? onDevNextLevel : () => undefined,
-      onDevPrevLevel: userId ? onDevPrevLevel : () => undefined,
-      onDevSetLevel: userId ? onDevSetLevel : (lvl) => navigate('/game-map/play-game?level=' + resolveGuestStage(store.getSnapshot().save, lvl)),
+      onDevNextLevel: devLevelHopEnabled || userId ? onDevNextLevel : () => undefined,
+      onDevPrevLevel: devLevelHopEnabled || userId ? onDevPrevLevel : () => undefined,
+      onDevSetLevel:
+        devLevelHopEnabled || userId
+          ? onDevSetLevel
+          : (lvl) => navigate('/game-map/play-game?level=' + resolveGuestStage(store.getSnapshot().save, lvl)),
       onDevWin,
       onDevLose,
     }),
     [
+      devLevelHopEnabled,
       userId,
       store,
       navigate,
