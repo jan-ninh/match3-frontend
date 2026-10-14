@@ -3,7 +3,7 @@
 A cyberpunk Match-3 campaign with 11 stages, built with React and TypeScript around deterministic gameplay systems, responsive interaction and an optional full-stack account mode.
 
 **[Play the Live Demo](https://match3-arcade.onrender.com)**  
-**No account required.** Create an account to save progress, build a player profile and access the leaderboard.
+**No account required.** 
 
 <p align="center">
   <img src="screenshots/match3-level-map.png" alt="Match-3 campaign level map with progression and unlocks" width="49%">
