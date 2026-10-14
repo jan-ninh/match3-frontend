@@ -92,9 +92,7 @@ export default function SettingsModal({ open, onClose }: { open: boolean; onClos
       : view === 'confirmMap'
         ? 'Return to\nLevel Map?'
         : view === 'confirmHome'
-          ? isInGame
-            ? 'Quit to\nMain Menu?'
-            : 'Return to\nMain Menu?'
+          ? 'QUIT TO\nMAIN MENU?'
           : 'Settings';
 
   return (
@@ -108,7 +106,7 @@ export default function SettingsModal({ open, onClose }: { open: boolean; onClos
 
             {isInGame && <CyberButton label="Return to Map" onClick={() => setView('confirmMap')} size="md" />}
 
-            {!isMainMenu && <CyberButton label={isInGame ? 'Quit' : 'Main Menu'} onClick={() => setView('confirmHome')} size="md" />}
+            {!isMainMenu && <CyberButton label="Quit" onClick={() => setView('confirmHome')} size="md" />}
           </div>
 
           <div className="mt-8 flex justify-center">
@@ -177,7 +175,7 @@ export default function SettingsModal({ open, onClose }: { open: boolean; onClos
 
           <div className="flex flex-wrap justify-center gap-3">
             <CyberButton label="Cancel" size="sm" onClick={() => setView('menu')} />
-            <CyberButton label="Return to Map" size="sm" onClick={confirmReturnToMap} />
+            <CyberButton label="Ok" size="sm" onClick={confirmReturnToMap} />
           </div>
         </div>
       )}
@@ -192,7 +190,7 @@ export default function SettingsModal({ open, onClose }: { open: boolean; onClos
 
           <div className="flex flex-wrap justify-center gap-3">
             <CyberButton label="Cancel" size="sm" onClick={() => setView('menu')} />
-            <CyberButton label={isInGame ? 'Quit' : 'Return to Main Menu'} size="sm" onClick={confirmMainMenu} />
+            <CyberButton label="Quit" size="sm" onClick={confirmMainMenu} />
           </div>
         </div>
       )}
