@@ -8,6 +8,7 @@ export const registerSchema = z
       .trim()
       .min(1, 'Username is required.')
       .min(3, 'Username must be at least 3 characters.')
+      .max(24, 'Username must be at most 24 characters.')
       .transform((v) => (v.length ? v[0].toUpperCase() + v.slice(1) : v)),
     password: z
       .string()

@@ -21,7 +21,7 @@ function toFieldErrors(zodError: { issues: readonly { path: PropertyKey[]; messa
   const issues = zodError?.issues ?? [];
   for (const issue of issues) {
     const key = issue.path?.[0] as keyof RegisterFormValues | undefined;
-    if (key && !out[key]) out[key] = issue.message; // first error per field
+    if (key && !out[key]) out[key] = issue.message;
   }
   return out;
 }
@@ -52,7 +52,6 @@ export default function RegisterModal({ onClose, onSwitchToLogin }: Props) {
 
   const setField = (key: keyof RegisterFormValues, value: string) => {
     setForm((p) => ({ ...p, [key]: value }));
-    // clear the error for that field when user edits
     setFieldErrors((p) => {
       if (!p[key]) return p;
       const copy = { ...p };
@@ -72,11 +71,6 @@ export default function RegisterModal({ onClose, onSwitchToLogin }: Props) {
     if (!parsed.success) {
       const errs = toFieldErrors(parsed.error);
       setFieldErrors(errs);
-
-      // toast all errors (or just the first one)
-      // const messages = Object.values(errs).filter(Boolean) as string[];
-      // messages.forEach((m) => toast.error(m));
-
       return;
     }
 
@@ -110,6 +104,7 @@ export default function RegisterModal({ onClose, onSwitchToLogin }: Props) {
             value={form.username}
             onChange={(e) => setField('username', e.target.value)}
             autoComplete="username"
+            maxLength={24}
             disabled={loading}
           />
           {fieldErrors.username && <div className="text-xs text-pink-400">{fieldErrors.username}</div>}
@@ -176,7 +171,6 @@ export default function RegisterModal({ onClose, onSwitchToLogin }: Props) {
           </div>
         )}
 
-        {/* optional: if you want a single "you have errors" line */}
         {hasErrors && <div className="text-xs text-white/60 text-center">Please fix the highlighted fields.</div>}
       </form>
     </Modal>

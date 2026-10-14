@@ -1,4 +1,4 @@
-import { GlassSection } from '@/components';
+import GlassSection from '../GlassSection';
 import { DASHBOARD_STYLE as S } from './theme';
 
 type Stat = { label: string; value: string | number };
@@ -7,6 +7,10 @@ type Props = { stats: Stat[] };
 export default function StatsGrid({ stats }: Props) {
   return (
     <GlassSection>
+      <div className="mb-4 flex items-center justify-between gap-4">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-100/45">Player Stats</p>
+      </div>
+
       <div className={`grid grid-cols-2 ${S.layout.cardGap}`}>
         {stats.map((stat) => (
           <div

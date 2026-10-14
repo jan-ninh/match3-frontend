@@ -1,5 +1,5 @@
 import AccountAvailability from '@/components/AccountAvailability';
-import { AvatarSprite, BadgeGrid, ProfileHeader, ProgressBar, StatsGrid, Navbar, CyberButton, GlassSection } from '@/components';
+import { AvatarSprite, BadgeGrid, ProfileHeader, StatsGrid, Navbar, CyberButton } from '@/components';
 import badges from '@/data/badges';
 import { useNavigate } from 'react-router';
 import { useAuth } from '@/context/AuthContext';
@@ -38,11 +38,7 @@ export default function ProfileDashboard() {
 
   const expRequired = EXP_PER_LEVEL;
 
-  const expCurrent = useMemo(() => {
-    // UI shows current exp within the active level.
-    // Overflow is handled server-side via (level, totalExp), but this is safe even if totalExp keeps growing.
-    return playerExpTotal % expRequired;
-  }, [playerExpTotal, expRequired]);
+  const expCurrent = useMemo(() => playerExpTotal % expRequired, [playerExpTotal, expRequired]);
 
   const progressPercent = useMemo(() => {
     if (expRequired <= 0) return 0;
@@ -58,8 +54,7 @@ export default function ProfileDashboard() {
       { label: 'Wins', value: wins },
       { label: 'Losses', value: profile.gamesLost },
       { label: 'Games Played', value: profile.gamesPlayed },
-      { label: 'Gameplay score', value: safeTotalScore.toLocaleString() },
-      { label: 'Total EXP', value: playerExpTotal.toLocaleString() },
+      { label: 'Gameplay Score', value: safeTotalScore.toLocaleString() },
     ];
   }, [profile, safeTotalScore]);
 
@@ -81,6 +76,7 @@ export default function ProfileDashboard() {
         <p className="text-center p-6">Account stats require account sign-in. Demo progress stays on this device.</p>
       </>
     );
+
   if (mode === 'account' && !canUseAccount)
     return (
       <>
@@ -88,6 +84,7 @@ export default function ProfileDashboard() {
         <AccountAvailability />
       </>
     );
+
   if (!profile) {
     return (
       <>
@@ -100,55 +97,36 @@ export default function ProfileDashboard() {
   }
 
   return (
-    <div className="profile-page flex flex-col min-h-full">
+    <div className="profile-page flex min-h-full flex-col">
       <div className="shrink-0">
         <Navbar />
       </div>
 
-      <div className="m-4 flex flex-col space-y-4">
-        <button
-          type="button"
-          className="underline"
-          disabled={profileRequest === 'loading'}
-          onClick={() => {
-            void refreshProfile();
-          }}
-        >
-          Refresh account
-        </button>
-        {profileRequest === 'loading' && <p>Updating account data · last confirmed values are read-only.</p>}
+      <div className="m-4">
         <ProfileHeader
           username={profile.username}
           level={playerLevel}
-          avatar={<AvatarSprite name={profile.avatar as any} size={132} />}
-          actions={
-            <button
-              type="button"
-              disabled={profileRequest === 'loading'}
-              onClick={() => setAvatarModalOpen(true)}
-              className="px-4 h-10 rounded-xl border border-white/10 text-cyan-400 hover:text-pink-400 transition-colors duration-200"
-            >
-              Change avatar
-            </button>
-          }
+          expCurrent={expCurrent}
+          expRequired={expRequired}
+          progressPercent={progressPercent}
+          avatar={<AvatarSprite name={profile.avatar as any} size={112} />}
+          onAvatarClick={() => setAvatarModalOpen(true)}
+          onRefresh={() => {
+            void refreshProfile();
+          }}
+          refreshing={profileRequest === 'loading'}
         />
       </div>
 
-      <div className="flex-1 flex flex-col min-h-0">
-        <div className="mx-4 flex flex-col space-y-4 flex-1 min-h-0">
-          <GlassSection className="flex flex-col gap-6 p-6 overflow-y-auto scrollbar-cyber flex-1 min-h-0">
-            <StatsGrid stats={stats} />
-            <GlassSection>
-              <ProgressBar percent={progressPercent} playerLevel={playerLevel} expCurrent={expCurrent} expRequired={expRequired} />
-            </GlassSection>
-
-            <BadgeGrid badges={achievedBadges} />
-          </GlassSection>
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div className="mx-4 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pb-2 scrollbar-cyber">
+          <StatsGrid stats={stats} />
+          <BadgeGrid badges={achievedBadges} />
         </div>
       </div>
 
-      <div className="shrink-0 px-6 mt-4 pb-10 flex justify-center">
-        <CyberButton key={'Back'} label={'Back'} onClick={() => navigate('/game-map')} />
+      <div className="mt-3 flex shrink-0 justify-center px-6 pb-6">
+        <CyberButton label="Back" size="md" onClick={() => navigate('/game-map')} />
       </div>
 
       <ChangeAvatarModal
