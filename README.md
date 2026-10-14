@@ -6,7 +6,7 @@ A cyberpunk Match-3 campaign with 11 stages, built with React and TypeScript aro
 **No account required.** Create an account to save progress and access the leaderboard.
 
 <p align="center">
-  <img src="docs/screenshots/match3-level-2.png" alt="Match-3 Level 2 gameplay with Collect Data Chips objective" width="720">
+  <img src="screenshots/match3-level-2.png" alt="Match-3 Level 2 gameplay with Collect Data Chips objective" width="720">
 </p>
 
 ## Engineering Highlights
@@ -34,13 +34,13 @@ The campaign contains **11 regular stages** with progressively changing objectiv
 Demo mode keeps its own local progression and can be played without registration. Account mode adds persistent progression, profile data, campaign state and leaderboard ranking.
 
 <p align="center">
-  <img src="docs/screenshots/match3-level-map.png" alt="Match-3 campaign level map with progression and unlocks" width="680">
+  <img src="screenshots/match3-level-map.png" alt="Match-3 campaign level map with progression and unlocks" width="680">
 </p>
 
 The stage structure moves beyond standard Match-3 collection goals. Later scenarios introduce signal paths, terminals, timed objectives and board pressure while reusing the same underlying engine.
 
 <p align="center">
-  <img src="docs/screenshots/match3-level-5.png" alt="Match-3 Level 5 Uplink Charge with timer and progress objective" width="720">
+  <img src="screenshots/match3-level-5.png" alt="Match-3 Level 5 Uplink Charge with timer and progress objective" width="720">
 </p>
 
 ## Architecture
