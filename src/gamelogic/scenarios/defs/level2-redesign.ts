@@ -27,9 +27,9 @@ export function makeLevel2RedesignScenario({ baseSeed }: ScenarioFactoryArgs): L
 
     allowedTypes: [...LEVEL_TYPES],
 
-    objectiveTitle: 'Collect Blue Data',
+    objectiveTitle: 'Collect Data Chips',
     collectObjective: {
-      pieceType: 'blue',
+      pieceType: 'purple',
       target: 25,
     },
 
