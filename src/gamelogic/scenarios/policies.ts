@@ -147,8 +147,8 @@ const SCENARIO_POLICIES: Readonly<Record<ScenarioKey, ScenarioPolicies>> = {
   },
   'sandbox': {
     manualSwapsDisabled: false,
-    infiniteItems: false,
-    hud: { showMovesWidget: true, timeSource: 'none', showMatchRushBar: false },
+    infiniteItems: true,
+    hud: { showMovesWidget: false, timeSource: 'none', showMatchRushBar: false },
     engine: { enableChargedCells: false, signalLinkMode: 'none', keycardSpawnOnMatch4: false },
   },
 } as const;
